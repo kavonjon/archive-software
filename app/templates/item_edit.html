@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block page_content %}
+<h1>Edit item</h1>
+
+{% if error_message %}
+    <p><strong>{{ error_message }}</strong></p>
+{% endif %}
+<form method="post" action="" enctype='multipart/form-data'>
+    {% csrf_token %}
+    <table>
+        {{form}}
+    </table>
+    <input type="submit" value="Submit Form"/>
+</form>
+
+
+
+{% endblock %}
+

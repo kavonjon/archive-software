@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% load static %}
+{% load metadata_templatetags %}
+
+{% block page_content %}
+<div class="page-title" style="display: inline">Items</div>{% if request.user|has_group:"Archivist"%}<div style="display: inline"><a class="stealth" href="add"><i class="fa fa-plus"></i></a></div>{% endif %}
+<form method="GET" action=".">
+    <div class="form-row">
+        <div class="form-group col-md-1">
+            <button type="submit" class="btn btn-primary" name="filter">Sort</button>
+        </div>
+        <div class="form-group col-md-2">
+            <select class="form-control" id="form_control_sort" name="form_control_sort">
+                    <option value="coll_cat">Collection & Catalog</option>
+                    <option value="updated">Last updated</option>
+            </select>
+        </div>
+        <div class="form-group col-md-1">
+        </div>
+        <div class="form-group col-md-1">
+            <button type="submit" class="btn btn-primary" name="export">Export</button>
+        </div>
+        <div class="form-group col-md-2 text-right">
+            <label for="form_control_columns">Export columns setting:</label>
+        </div>
+        <div class="form-group col-md-2">
+            <select class="form-control" id="form_control_columns" name="form_control_columns">
+                {% for setting in columns_form_data %}
+                    <option value="{{ setting }}">{{ setting }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="form-row">
+    Filtered results: {{ results_count }}, Filtered duration total: {{ results_duration }}
+    </div>
+    <div class="form-row">
+        <div class="form-group col-md-5">
+          <div class="input-group">
+            <input class="form-control py-2 border-right-0 border" type="search" name="keyword_contains"
+                placeholder="Keyword search..." value="{{ keyword_contains_query_last }}" />
+            <span class="input-group-append">
+              <div class="input-group-text bg-transparent">
+                <i class="fa fa-search"></i>
+              </div>
+            </span>
+          </div>
+        </div>
+    </div>
+    <div class="form-row">
+        <div class="form-group col-md-2">
+          <div class="input-group">
+            <input class="form-control py-2 border-right-0 border" type="search" name="catalog_number_contains"
+                placeholder="Catalog number contains..." value="{{ catalog_number_contains_query_last }}" />
+            <span class="input-group-append">
+              <div class="input-group-text bg-transparent">
+                <i class="fa fa-search"></i>
+              </div>
+            </span>
+          </div>
+        </div>
+        <div class="form-group col-md-4">
+          <div class="input-group">
+            <input class="form-control py-2 border-right-0 border" type="search" name="titles_contains"
+            placeholder="Title contains..." value="{{ titles_contains_query_last }}" />
+            <span class="input-group-append">
+              <div class="input-group-text bg-transparent">
+                <i class="fa fa-search"></i>
+              </div>
+            </span>
+          </div>
+        </div>
+        <div class="form-group col-md-2">
+          <div class="input-group">
+            <input class="form-control py-2 border-right-0 border" type="search" name="general_content_contains"
+            placeholder="General content contains..." value="{{ general_content_contains_query_last }}" />
+            <span class="input-group-append">
+              <div class="input-group-text bg-transparent">
+                <i class="fa fa-search"></i>
+              </div>
+            </span>
+          </div>
+        </div>
+        <div class="form-group col-md-4">
+          <div class="input-group">
+            <input class="form-control py-2 border-right-0 border" type="search" name="language_contains"
+            placeholder="Language names contain..." value="{{ language_contains_query_last }}" />
+            <span class="input-group-append">
+              <div class="input-group-text bg-transparent">
+                <i class="fa fa-search"></i>
+              </div>
+            </span>
+          </div>
+        </div>
+    </div>
+</form>
+{% for item in queryset %}
+<a class="stealth" href="{% url 'item_detail' item.pk %}">
+    <div class="row">
+        <div class="col-md-2">
+            {{ item.catalog_number }}
+        </div>
+        <div class="col-md-4">
+            {{item.english_title}} {% if item.english_title and item.indigenous_title %}{{ " - " }}{% endif %} {{ item.indigenous_title }}
+        </div>
+        <div class="col-md-2">
+            {{item.get_general_content_display }}
+        </div>
+        <div class="col-md-4">
+            {{item.language.all|join:", " }}
+        </div>
+    </div>
+</a>
+{% endfor %}
+
+<script>
+if ( "{{ order_choice_last }}" != "None" ) {
+    $('select[name=form_control_sort]').val("{{ order_choice_last }}");
+}
+if ( "{{ columns_choice_name_last }}" != "None" ) {
+    $('select[name=form_control_columns]').val("{{ columns_choice_name_last }}");
+}
+$('.form-control').form-control('refresh')
+
+</script>
+{% endblock %}

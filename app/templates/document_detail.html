@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% load static %}
+{% load metadata_templatetags %}
+
+{% block page_content %}
+<h1>Document metadata</h1>
+{% if request.user|has_group:"Archivist"%}
+<div class="form-row">
+    <h1>
+    <a class="btn btn-primary" href="edit/" role="button">Edit</a>
+    <a href="{% url "document_delete" document.id %}"><i class="fas fa-times"></i></a>
+    </h1>
+</div>
+{% endif %}
+<div class="row">
+    <div class="col-md-4">
+        <b>Parent item:</b> {% if document.item == None %}{% else %}<a class="stealth" href="{% url 'item_detail' document.item.pk %}">{{ document.item }}</a>{% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Filename:</b> {{ document.filename }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Filetype:</b> {{ document.filetype }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Enumerator:</b> {% if document.enumerator == None %}{% else %}{{ document.enumerator }}{% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Title:</b> {{ document.title }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <div class="col-md-5 bg-warning text-dark">
+            <b>Item access level:</b> {{ document.get_access_level_display }}
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Duration:</b> {{ pretty_duration }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Filesize:</b> {% if document.filesize %} {{ document.filesize|sizify }} {% else %} {{ document.filesize }} {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>AV spec:</b> {{ document.av_spec }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Creation date:</b> {{ document.creation_date }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Languages:</b>{% if request.user|has_group:"Archivist"%} (click on a dialect below to edit){% endif %}
+    </div>
+</div>
+{% for language, dialect in dialect_info %}
+<div class="row">
+    <div class="col-md-12 indented">
+        <b>Language:</b> <a class="stealth" href="{% url 'language_detail' language.pk %}">{{ language }}</a>, <b>Dialect(s):</b>{% if request.user|has_group:"Archivist"%} <a class="stealth" href="{% url 'dialect_instance_edit' dialect.pk %}">{% endif %} {% if dialect.name.all|join:", " %} {{ dialect.name.all|join:", "}} {% else %} (blank) {% endif %}{% if request.user|has_group:"Archivist"%} </a>{% endif %}
+    </div>
+</div>
+{% endfor %}
+<div class="row">
+    <div class="col-md-12">
+        <b>Collaborators:</b>{% if request.user|has_group:"Archivist"%} (click on a role below to edit){% endif %}
+    </div>
+</div>
+{% for collaborator, role in collaborator_info %}
+<div class="row">
+    <div class="col-md-12 indented">
+        <b>Collaborator:</b> <a class="stealth" href="{% url 'collaborator_detail' collaborator.pk %}">{% anonymize_collaborators collaborator request.user 'name' %}</a>, <b>Role:</b>{% if request.user|has_group:"Archivist"%} <a class="stealth" href="{% url 'collaborator_role_edit' role.pk %}">{% endif %} {% if role.role %} {{ role.role }} {% else %} (blank) {% endif %}{% if request.user|has_group:"Archivist"%} </a>{% endif %}
+    </div>
+</div>
+{% endfor %}
+<div class="row">
+    <div class="col-md-12">
+        <b>Geographic coordinates:</b>{% if request.user|has_group:"Archivist"%} (click on an existing point to edit) <a class="stealth" href="geographic/add"><i class="fa fa-plus"></i></a>{% endif %}
+    </div>
+</div>
+{% for geographic in geographic_info %}
+<div class="row">
+    <div class="col-md-12 indented">
+        <b>Latitude:</b> {% if request.user|has_group:"Archivist"%}<a class="stealth" href="{% url 'geographic_edit' geographic.pk %}"> {{ geographic.lat }}</a>{% else %}{{ geographic.lat }}{% endif %},
+        <b>Longitude:</b> {% if request.user|has_group:"Archivist"%}<a class="stealth" href="{% url 'geographic_edit' geographic.pk %}"> {{ geographic.long }}</a>
+<a href="{% url "geographic_delete" geographic.id %}"><i class="fas fa-times"></i></a>{% else %}{{ geographic.long }}{% endif %}
+    </div>
+</div>
+{% endfor %}
+<div class="row" style="height: 200px">
+  <div class="col-md-4" id='map'>
+  </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Last updated:</b> {{ document.updated }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>By:</b> {{ document.modified_by }}
+    </div>
+</div>
+{{ geographic_points|json_script:"geographic_points" }}
+<script>
+  let locations = JSON.parse(document.getElementById('geographic_points').textContent);
+</script>
+<script src="{% static 'map.js' %}" type="application/javascript"></script>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block page_content %}
+
+<h3>Welcome to the Native American Languages Collection database!</h3><p />
+
+NAL is a research division within the Sam Noble Oklahoma Museum of Natural History at the University of Oklahoma. The mission of the department is to support Native communities and researchers in their work related to Native languages and to promote Native language revitalization and awareness. We currently have two databases: 
+<ol>
+    <li>The collection database, with searchable metadata on all the audio, video, manuscript, and published materials under our curatorial stewardship.</li>
+    <li>The reference database, with searchable metadata for reference resources that provide valuable information about Native American languages, linguistics, anthropology, and archaeology.</li>
+</ol> 
+
+<p>This is a beta version, currently in debug mode. If an error occurs, you might see an error message. For now, please send me a screenshot of the error along with details of what you were doing so I can address the bugs.</p>
+
+
+<p>Note about uploading files: this application reads audio and video files for metadata but <i>does not</i> save them. Nonetheless the files are uploaded in their entirety, so you might find this feature to be slow because the software you are using is installed on a distant server rather than on a museum server.</p>
+
+{% endblock %}

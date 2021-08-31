@@ -1,0 +1,694 @@
+{% extends "base.html" %}
+{% load static %}
+{% load metadata_templatetags %}
+
+{% block page_content %}
+<h1>Export columns setting</h1>
+{% if request.user|has_group:"Archivist"%}
+<div class="form-row">
+    <a class="btn btn-primary" href="edit/" role="button">Edit</a>
+</div>
+{% endif %}
+<div class="row">
+    <div class="col-md-6">
+        <b>Setting name:</b> {{ columns_export.name }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <h2>General</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Catalog Number:</b> {% if columns_export.item_catalog_number %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Item access level:</b> {% if columns_export.item_item_access_level %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Call number:</b> {% if columns_export.item_call_number %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Accession date:</b> {% if columns_export.item_accession_date %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Additional digital file location:</b> {% if columns_export.item_additional_digital_file_location %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Indigenous title:</b> {% if columns_export.item_indigenous_title %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, English title:</b> {% if columns_export.item_english_title %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, General content:</b> {% if columns_export.item_general_content %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Language, Name:</b> {% if columns_export.item_language %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Language, Dialect:</b> {% if columns_export.item_dialect %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Created date:</b> {% if columns_export.item_creation_date %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Description scope and content:</b> {% if columns_export.item_description_scope_and_content %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Genre:</b> {% if columns_export.item_genre %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Associated ephemera:</b> {% if columns_export.item_associated_ephemera %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <h2>Documents</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Document, Filename:</b> {% if columns_export.item_document_filename %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Document, Filetype:</b> {% if columns_export.item_document_filetype %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Document, Access Level:</b> {% if columns_export.item_document_access_level %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Document, Enumerator:</b> {% if columns_export.item_document_enumerator %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Document, Title:</b> {% if columns_export.item_document_title %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Document, Duration:</b> {% if columns_export.item_document_duration %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Document, Filesize:</b> {% if columns_export.item_document_filesize %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Document, A/V specs:</b> {% if columns_export.item_document_av_spec %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Document, Creation Date:</b> {% if columns_export.item_document_creation_date %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Document, Language:</b> {% if columns_export.item_document_language %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Document, Dialect:</b> {% if columns_export.item_document_dialect %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Document, Collaborator:</b> {% if columns_export.item_document_collaborator %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Document, Collaborator Role:</b> {% if columns_export.item_document_collaborator_role %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Document, Geographic info (Lat/Long):</b> {% if columns_export.item_document_geographic_lat_long %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Document, Parent Item:</b> {% if columns_export.item_document_parent_item %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <h2>Access</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Access level restrictions:</b> {% if columns_export.item_access_level_restrictions %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Copyrighted notes:</b> {% if columns_export.item_copyrighted_notes %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Permission to publish online:</b> {% if columns_export.item_permission_to_publish_online %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <h2>Collaborators</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Collaborator, Name:</b> {% if columns_export.item_collaborator %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Collaborator, Role:</b> {% if columns_export.item_collaborator_role %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <h2>Condition</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Availability status:</b> {% if columns_export.item_availability_status %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Availability status notes:</b> {% if columns_export.item_availability_status_notes %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Condition:</b> {% if columns_export.item_condition %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Condition notes:</b> {% if columns_export.item_condition_notes %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, IPM issues:</b> {% if columns_export.item_ipm_issues %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Conservation treatments performed:</b> {% if columns_export.item_conservation_treatments_performed %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <h2>Accessions</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Accession number:</b> {% if columns_export.item_accession_number %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Accession_date:</b> {% if columns_export.item_accession_date %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Type of accession:</b> {% if columns_export.item_type_of_accession %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Acquisition notes:</b> {% if columns_export.item_acquisition_notes %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Project/grant:</b> {% if columns_export.item_project_grant %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Collection name:</b> {% if columns_export.item_collection_name %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Collector name:</b> {% if columns_export.item_collector_name %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Collector info:</b> {% if columns_export.item_collector_info %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Collector's Number:</b> {% if columns_export.item_collectors_number %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Collection date:</b> {% if columns_export.item_collection_date %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Collecting notes:</b> {% if columns_export.item_collecting_notes %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Depositor name:</b> {% if columns_export.item_depositor_name %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Depositor contact information:</b> {% if columns_export.item_depositor_contact_information %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Deposit date:</b> {% if columns_export.item_deposit_date %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <h2>Location</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Municipality or township:</b> {% if columns_export.item_municipality_or_township %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, County or parish:</b> {% if columns_export.item_county_or_parish %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, State or province:</b> {% if columns_export.item_state_or_province %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Country or territory:</b> {% if columns_export.item_country_or_territory %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Global region:</b> {% if columns_export.item_global_region %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Recording context:</b> {% if columns_export.item_recording_context %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Public event:</b> {% if columns_export.item_public_event %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Geographic info (Lat/Long):</b> {% if columns_export.item_geographic_lat_long %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <h2>Digitization</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Original format medium:</b> {% if columns_export.item_original_format_medium %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Recorded on:</b> {% if columns_export.item_recorded_on %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Equipment used:</b> {% if columns_export.item_equipment_used %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Software used:</b> {% if columns_export.item_software_used %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Conservation Recommendation:</b> {% if columns_export.item_conservation_recommendation %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Location of original:</b> {% if columns_export.item_location_of_original %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Other information:</b> {% if columns_export.item_other_information %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <h2>Books</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Publisher:</b> {% if columns_export.item_publisher %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Publisher Address:</b> {% if columns_export.item_publisher_address %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, ISBN:</b> {% if columns_export.item_isbn %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, LOC catalog number:</b> {% if columns_export.item_loc_catalog_number %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Total number of pages and physical description:</b> {% if columns_export.item_total_number_of_pages_and_physical_description %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <h2>External</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Temporary accession number:</b> {% if columns_export.item_temporary_accession_number %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Lender loan number:</b> {% if columns_export.item_lender_loan_number %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Other institutional number:</b> {% if columns_export.item_other_institutional_number %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <h2>Deprecated</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Migration file format:</b> {% if columns_export.item_migration_file_format %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Migration location:</b> {% if columns_export.item_migration_location %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Digital file location:</b> {% if columns_export.item_digital_file_location %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Cataloged by:</b> {% if columns_export.item_cataloged_by %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Cataloged date:</b> {% if columns_export.item_cataloged_date %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Filemaker legacy PK ID:</b> {% if columns_export.item_filemaker_legacy_pk_id %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <h2>Versioning</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Last updated:</b> {% if columns_export.item_updated %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Modified by:</b> {% if columns_export.item_modified_by %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Column: Item, Added date:</b> {% if columns_export.item_added %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <h2>About this setting</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Last updated:</b> {{ columns_export.updated }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>By:</b> {{ columns_export.modified_by }}
+    </div>
+</div>
+{% endblock %}

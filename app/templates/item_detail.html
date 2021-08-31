@@ -1,0 +1,497 @@
+{% extends "base.html" %}
+{% load static %}
+{% load metadata_templatetags %}
+
+{% block page_content %}
+
+
+<h1>Item metadata</h1>
+{% if request.user|has_group:"Archivist"%}
+<div class="form-row">
+    <h1>
+    <a class="btn btn-primary" href="edit/" role="button">Edit</a>
+    <a href="{% url "item_delete" item.id %}"><i class="fas fa-times"></i></a>
+    </h1>
+</div>
+{% endif %}
+<div class="row">
+    <div class="col-md-12">
+        <h2>General</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Catalog number:</b> {{ item.catalog_number }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <div class="col-md-5 bg-warning text-dark">
+            <b>Item access level:</b> {{ item.get_item_access_level_display }}
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Call number:</b> {{ item.call_number }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Accession date:</b> {{ item.accession_date }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Additional digital file location:</b> {{ item.additional_digital_file_location }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Indigenous title:</b> {{ item.indigenous_title }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>English title:</b> {{ item.english_title }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>General content:</b> {{ item.get_general_content_display }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-3">
+        <b>Languages:</b>{% if request.user|has_group:"Archivist"%} (click on a dialect below to edit){% endif %}
+    </div>
+</div>
+{% for language, dialect in dialect_info %}
+<div class="row">
+    <div class="col-md-12 indented">
+        <b>Language:</b> <a class="stealth" href="{% url 'language_detail' language.pk %}">{{ language }}</a>, <b>Dialect(s):</b>{% if request.user|has_group:"Archivist"%} <a class="stealth" href="{% url 'dialect_instance_edit' dialect.pk %}">{% endif %} {% if dialect.name.all|join:", " %} {{ dialect.name.all|join:", "}} {% else %} (blank) {% endif %}{% if request.user|has_group:"Archivist"%} </a>{% endif %}
+    </div>
+</div>
+{% endfor %}
+<div class="row">
+    <div class="col-md-12">
+        <b>Creation date:</b> {{ item.creation_date }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Description scope and content:</b> {{ item.description_scope_and_content }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Genre:</b> {{ item.get_genre_display }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Associated ephemera:</b> {{ item.associated_ephemera }}
+    </div>
+</div>
+<div>
+    <br /><hr />
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <h2>Documents</h2>
+    </div>
+</div>
+{% for document in documents %}
+<a class="stealth" href="{% url 'document_detail' document.pk %}">
+    <div class="row">
+        <div class="col-md-12">
+            {{ document.filename }} {{ document.title }}
+        </div>
+    </div>
+</a>
+{% endfor %}
+<div>
+    <br /><hr />
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <h2>Access</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Access level restrictions:</b> {{ item.access_level_restrictions }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Copyrighted notes:</b> {{ item.copyrighted_notes }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Permission to publish online:</b> {% if item.permission_to_publish_online is None %}{% elif item.permission_to_publish_online %}Yes{% else %}No{% endif %}
+    </div>
+</div>
+<div>
+    <br /><hr />
+</div>
+<div class="row">
+    <div class="col-md-3">
+        <h2>Collaborators</h2>
+    </div>
+</div>
+{% if request.user|has_group:"Archivist"%}
+<div class="row">
+    <div class="col-md-3">
+        (click on a role below to edit)
+    </div>
+</div>
+{% endif %}
+{% for collaborator, role in collaborator_info %}
+<div class="row">
+    <div class="col-md-12">
+        <b>Collaborator:</b> <a class="stealth" href="{% url 'collaborator_detail' collaborator.pk %}">{% anonymize_collaborators collaborator request.user 'name' %}</a>, <b>Role:</b> {% if request.user|has_group:"Archivist"%}<a class="stealth" href="{% url 'collaborator_role_edit' role.pk %}">{% endif %} {% if role.role %} {{ role.role }} {% else %} (blank) {% endif %}{% if request.user|has_group:"Archivist"%} </a>{% endif %}
+    </div>
+</div>
+{% endfor %}
+<div>
+    <br /><hr />
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <h2>Condition</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Availability status:</b> {{ item.get_availability_status_display }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Availability status notes:</b> {{ item.availability_status_notes }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Condition:</b> {{ item.get_condition_display }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Condition notes:</b> {{ item.condition_notes }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>IPM issues:</b> {{ item.ipm_issues }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Conservation treatments performed:</b> {{ item.conservation_treatments_performed }}
+    </div>
+</div>
+<div>
+    <br /><hr />
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <h2>Accessions</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Accession number:</b> {{ item.accession_number }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Accession date:</b> {{ item.accession_date }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Type of accession:</b> {{ item.get_type_of_accession_display }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Acquisition notes:</b> {{ item.acquisition_notes }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Project/grant:</b> {{ item.project_grant }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Collection name:</b> {{ item.collection_name }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Collector name:</b> {{ item.collector_name }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Collector info:</b> {{ item.collector_info }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Collector's number:</b> {{ item.collectors_number }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Collection date:</b> {{ item.collection_date_text }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Collecting notes:</b> {{ item.collecting_notes }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Depositor name:</b> {{ item.depositor_name }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Depositor contact information:</b> {{ item.depositor_contact_information }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Deposit date:</b> {{ item.deposit_date }}
+    </div>
+</div>
+<div>
+    <br /><hr />
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <h2>Location</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Municipality or township:</b> {{ item.municipality_or_township }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>County or parish:</b> {{ item.county_or_parish }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>State or province:</b> {{ item.state_or_province }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Country or territory:</b> {{ item.country_or_territory }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Global region:</b> {{ item.global_region }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Recording context:</b> {{ item.recording_context }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Public event:</b> {{ item.public_event }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
+        <b>Geographic coordinates:</b>{% if request.user|has_group:"Archivist"%} (click on an existing point to edit) <a class="stealth" href="geographic/add"><i class="fa fa-plus"></i></a>{% endif %}
+    </div>
+</div>
+{% for geographic in geographic_info %}
+<div class="row">
+    <div class="col-md-12 indented">
+        <b>Latitude:</b> {% if request.user|has_group:"Archivist"%}<a class="stealth" href="{% url 'geographic_edit' geographic.pk %}"> {{ geographic.lat }}</a>{% else %}{{ geographic.lat }}{% endif %},
+        <b>Longitude:</b> {% if request.user|has_group:"Archivist"%}<a class="stealth" href="{% url 'geographic_edit' geographic.pk %}"> {{ geographic.long }}</a>
+<a href="{% url "geographic_delete" geographic.id %}"><i class="fas fa-times"></i></a>{% else %}{{ geographic.long }}{% endif %}
+    </div>
+</div>
+{% endfor %}
+<div class="row" style="height: 200px">
+  <div class="col-md-4" id='map'>
+  </div>
+</div>
+
+<div>
+    <br /><hr />
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <h2>Digitization</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Original format medium:</b> {{ item.get_original_format_medium_display }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Recorded on:</b> {{ item.recorded_on }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Equipment used:</b> {{ item.equipment_used }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Software used:</b> {{ item.software_used }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Conservation Recommendation:</b> {{ item.conservation_recommendation }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Location of original:</b> {{ item.location_of_original }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Other information:</b> {{ item.other_information }}
+    </div>
+</div>
+<div>
+    <br /><hr />
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <h2>Books</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Publisher:</b> {{ item.publisher }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Publisher address:</b> {{ item.publisher_address }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>ISBN:</b> {{ item.isbn }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>LOC catalog number:</b> {{ item.loc_catalog_number }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Total number of pages and physical description:</b> {{ item.total_number_of_pages_and_physical_description }}
+    </div>
+</div>
+<div>
+    <br /><hr />
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <h2>External</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Temporary accession number:</b> {{ item.temporary_accession_number }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Lender loan number:</b> {{ item.lender_loan_number }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Other institutional number:</b> {{ item.other_institutional_number }}
+    </div>
+</div>
+<div>
+    <br /><hr />
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <h2>Deprecated</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Migration file format:</b> {{ item.migration_file_format }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Migration location:</b> {{ item.migration_location }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Digital file location:</b> {{ item.digital_file_location }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Cataloged by:</b> {{ item.cataloged_by }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Cataloged date:</b> {{ item.cataloged_date }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Filemaker legacy PK ID:</b> {% if item.filemaker_legacy_pk_id == None %}{% else %}{{ item.filemaker_legacy_pk_id }}{% endif %}
+    </div>
+</div>
+<div>
+    <br /><hr />
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <h2>Versioning</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Last updated:</b> {{ item.updated }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>By:</b> {{ item.modified_by }}
+    </div>
+</div>
+{{ geographic_points|json_script:"geographic_points" }}
+<script>
+  let locations = JSON.parse(document.getElementById('geographic_points').textContent);
+</script>
+<script src="{% static 'map.js' %}" type="application/javascript"></script>
+
+{% endblock %}

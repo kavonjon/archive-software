@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% load static %}
+{% load metadata_templatetags %}
+
+{% block page_content %}
+<h1>Collaborator</h1>
+{% if request.user|has_group:"Archivist"%}
+<div class="form-row">
+    <h1>
+    <a class="btn btn-primary" href="edit/" role="button">Edit</a>
+    <a href="{% url "collaborator_delete" collaborator.id %}"><i class="fas fa-times"></i></a>
+    </h1>
+</div>
+{% endif %}
+<div class="row">
+    <div class="col-md-12">
+        <b>Collaborator ID:</b> {{ collaborator.collaborator_id }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Name:</b> {% anonymize_collaborators collaborator request.user 'name' %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Nickname:</b> {% if request.user|has_group:"Archivist"%}{{ collaborator.nickname }}{% else %}{% if collaborator.anonymous %}(hidden){% else %}{{ collaborator.nickname }}{% endif %}{% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Other names:</b> {% if request.user|has_group:"Archivist"%}{{ collaborator.other_names }}{% else %}{% if collaborator.anonymous %}(hidden){% else %}{{ collaborator.other_names }}{% endif %}{% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Anonymous?:</b> {{ collaborator.anonymous }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-3">
+        <b>Languages:</b>{% if request.user|has_group:"Archivist"%} (click on a dialect below to edit){% endif %}
+    </div>
+</div>
+{% for language, dialect in native_dialect_info %}
+<div class="row">
+    <div class="col-md-12 indented">
+        <b>Native/first language:</b> <a class="stealth" href="{% url 'language_detail' language.pk %}">{{ language }}</a>, <b>Dialect(s):</b>{% if request.user|has_group:"Archivist"%} <a class="stealth" href="{% url 'dialect_instance_edit' dialect.pk %}">{% endif %} {% if dialect.name.all|join:", " %} {{ dialect.name.all|join:", "}} {% else %} (blank) {% endif %}{% if request.user|has_group:"Archivist"%} </a>{% endif %}
+    </div>
+</div>
+{% endfor %}
+{% for language, dialect in other_dialect_info %}
+<div class="row">
+    <div class="col-md-12 indented">
+        <b>Other language spoken:</b> <a class="stealth" href="{% url 'language_detail' language.pk %}">{{ language }}</a>, <b>Dialect(s):</b>{% if request.user|has_group:"Archivist"%} <a class="stealth" href="{% url 'dialect_instance_edit' dialect.pk %}">{% endif %} {% if dialect.name.all|join:", " %} {{ dialect.name.all|join:", "}} {% else %} (blank) {% endif %}{% if request.user|has_group:"Archivist"%} </a>{% endif %}
+    </div>
+</div>
+{% endfor %}
+<div class="row">
+    <div class="col-md-12">
+        <b>Clan or society:</b> {% if request.user|has_group:"Archivist"%}{{ collaborator.clan_society }}{% else %}{% if collaborator.anonymous %}(hidden){% else %}{{ collaborator.clan_society }}{% endif %}{% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Tribal affiliations:</b> {% if request.user|has_group:"Archivist"%}{{ collaborator.tribal_affiliations }}{% else %}{% if collaborator.anonymous %}(hidden){% else %}{{ collaborator.tribal_affiliations }}{% endif %}{% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Place of origin:</b> {% if request.user|has_group:"Archivist"%}{{ collaborator.origin }}{% else %}{% if collaborator.anonymous %}(hidden){% else %}{{ collaborator.origin }}{% endif %}{% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Date of birth:</b> {% if request.user|has_group:"Archivist"%}{{ collaborator.birthdate }}{% else %}{% if collaborator.anonymous %}(hidden){% else %}{{ collaborator.birthdate }}{% endif %}{% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Date of death:</b> {% if request.user|has_group:"Archivist"%}{{ collaborator.deathdate }}{% else %}{% if collaborator.anonymous %}(hidden){% else %}{{ collaborator.deathdate }}{% endif %}{% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Gender:</b> {% if request.user|has_group:"Archivist"%}{{ collaborator.gender }}{% else %}{% if collaborator.anonymous %}(hidden){% else %}{{ collaborator.gender }}{% endif %}{% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Other info:</b> {% if request.user|has_group:"Archivist"%}{{ collaborator.other_info }}{% else %}{% if collaborator.anonymous %}(hidden){% else %}{{ collaborator.other_info }}{% endif %}{% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Last updated:</b> {{ collaborator.updated }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>By:</b> {{ collaborator.modified_by }}
+    </div>
+</div>
+<hr />
+<div class="form-row">
+  <h4>
+    Items with this collaborator
+  </h4>
+</div>
+{% for item_with_collaborator in items_with_collaborator %}
+<div class="row">
+  <div class="col-md-12">
+      <a class="stealth" href="{% url 'item_detail' item_with_collaborator.pk %}">{{ item_with_collaborator }}</a>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

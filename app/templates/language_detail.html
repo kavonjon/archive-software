@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% load static %}
+{% load metadata_templatetags %}
+
+{% block page_content %}
+<h1>Language</h1>
+{% if request.user|has_group:"Archivist"%}
+<div class="form-row">
+    <h1>
+    <a class="btn btn-primary" href="edit/" role="button">Edit</a>
+    <a href="{% url "language_delete" language.id %}"><i class="fas fa-times"></i></a>
+    </h1>
+</div>
+{% endif %}
+<div class="row">
+    <div class="col-md-4">
+        <b>Language name:</b> {{ language.name }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Alternative names:</b> {{ language.alt_name }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>ISO (or other unique identifier):</b> {{ language.iso }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Family:</b> {{ language.family }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Primary subgroup:</b> {{ language.pri_subgroup }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Secondary subgroup:</b> {{ language.sec_subgroup }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Dialects:</b>{% if request.user|has_group:"Archivist"%} (click on an existing dialect to edit) <a class="stealth" href="dialects/add"><i class="fa fa-plus"></i></a>{% endif %}
+    </div>
+</div>
+{% for dialect in dialect_info %}
+<div class="row">
+    <div class="col-md-12 indented">
+        <b>Dialect:</b> {% if request.user|has_group:"Archivist"%}<a class="stealth" href="{% url 'dialect_edit' dialect.pk %}"> {{ dialect.name }}</a>
+<a href="{% url "dialect_delete" dialect.id %}"><i class="fas fa-times"></i></a>{% else %}{{ dialect.name }}{% endif %}
+    </div>
+</div>
+{% endfor %}
+<div class="row">
+    <div class="col-md-4">
+        <b>Region:</b> {{ language.region }}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <b>Notes:</b> {{ language.notes }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Last updated:</b> {{ language.updated }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>By:</b> {{ language.modified_by }}
+    </div>
+</div>
+<hr />
+<div class="form-row">
+  <h4>
+    Collaborators with this language
+  </h4>
+</div>
+{% for collaborator_with_language in collaborators_with_language %}
+<div class="row">
+  <div class="col-md-12">
+      <a class="stealth" href="{% url 'collaborator_detail' collaborator_with_language.pk %}">{% anonymize_collaborators collaborator_with_language request.user 'name' %}</a>
+  </div>
+</div>
+{% endfor %}
+<hr />
+<div class="form-row">
+  <h4>
+    Items with this language
+  </h4>
+</div>
+{% for item_with_language in items_with_language %}
+<div class="row">
+  <div class="col-md-12">
+      <a class="stealth" href="{% url 'item_detail' item_with_language.pk %}">{{ item_with_language }}</a>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

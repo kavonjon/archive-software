@@ -3511,7 +3511,10 @@ class document_upload(UserPassesTestMixin, FormView):
                         video_instance.save()
                     except Exception as e:
                         messages.warning(request, str(this_file.name) + " was not added/updated. (Error message for admin: video_encoding: " + str(e) + ")")
-                        video_instance.delete()
+                        try:
+                            video_instance.delete()
+                        except Exception as ee:
+                            messages.warning(request, str(this_file.name) + " was not added/updated. (Error message for admin: video_encoding: " + str(ee) + ")")
                         instance.delete()
                         continue
                     instance.duration=float('%.3f'%(video_instance.duration))

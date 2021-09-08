@@ -3521,15 +3521,15 @@ class document_upload(UserPassesTestMixin, FormView):
                     video_instance.delete()
 
                 elif this_file.name.endswith('.wav'):
-                    with wave.open(this_file,'rb') as f:
-                        try:
+                    try:
+                        with wave.open(this_file,'rb') as f:
                             frames = f.getnframes()
                             rate = f.getframerate()
                             wav_duration = frames / float(rate)
-                        except Exception as e:
-                            messages.warning(request, str(this_file.name) + " was not added/updated. (Error message for admin: Wave: " + str(e) + ")")
-                            instance.delete()
-                            continue
+                    except Exception as e:
+                        messages.warning(request, str(this_file.name) + " was not added/updated. (Error message for admin: Wave: " + str(e) + ")")
+                        instance.delete()
+                        continue
                     instance.duration=float('%.3f'%(wav_duration))
 
                 elif this_file.name.endswith(('.aiff','.AIFF','.m4a','.M4A','.mp3','.MP3')):

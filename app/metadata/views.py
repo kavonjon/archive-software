@@ -3172,8 +3172,9 @@ def ImportView(request):
                         collaborator_role_indexes.extend( [None] * ( len(collaborator_indexes) - len(collaborator_role_indexes) ) ) # if import file has more Collaborator Name fields than Collaborator Role fields, make dummy Collaborator Role fields
                     else:
                         collaborator_role_indexes = [None] * len(collaborator_indexes) # if import file has Collaborator fields but no Collaborator Role fields, make dummy Collaborator Role fields
-
+                    print("Before clear: " + str(item.collaborator.all()))
                     item.collaborator.clear()
+                    print("After clear: " + str(item.collaborator.all()))
                     indexes = zip(collaborator_indexes, collaborator_role_indexes)
                     for collaborator_index, collaborator_role_index in indexes:
                         if is_valid_param(collaborator_index):

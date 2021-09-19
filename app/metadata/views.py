@@ -3196,8 +3196,13 @@ def ImportView(request):
                                         collaborator, created = Collaborator.objects.get_or_create(name=collaborator_value,
                                             defaults={'collaborator_id': collaborator_next_id},)
                                 # need to build warning here if there is a duplicate
+                                print("Before add: " + str(item.collaborator.all()))
+
                                 item.collaborator.add(collaborator)
+                                print("After add: " + str(item.collaborator.all()))
+
                                 if created:
+                                    print("Collaborator was created")
                                     messages.info(request, 'A new collaborator (' + collaborator.name + ') was created and added to Collaborators for ' + item.catalog_number)
                                 collaborator_role, created = CollaboratorRole.objects.get_or_create(item=item, collaborator=collaborator) #create collaborator role object based on collaborator, regardless of value
                                 if is_valid_param(collaborator_role_index):

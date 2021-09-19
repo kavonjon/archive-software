@@ -3206,7 +3206,7 @@ def ImportView(request):
                                     messages.info(request, 'A new collaborator (' + collaborator.name + ') was created and added to Collaborators for ' + item.catalog_number)
                                 print("collaborator roles" + str(CollaboratorRole.objects.filter(item=item, collaborator=collaborator))) #create collaborator role object based on collaborator, regardless of value
 
-                                collaborator_role, created = CollaboratorRole.objects.get_or_create(item=item, collaborator=collaborator) #create collaborator role object based on collaborator, regardless of value
+                                collaborator_role, created = CollaboratorRole.objects.get(item=item, collaborator=collaborator) #create collaborator role object based on collaborator, regardless of value
                                 if is_valid_param(collaborator_role_index):
                                     collaborator_role_value = row[collaborator_role_index]
                                     if is_valid_param(collaborator_role_value):

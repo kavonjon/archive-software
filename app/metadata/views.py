@@ -3165,6 +3165,13 @@ def ImportView(request):
 
 
                 # collaborator and collaborator role, a manytomany one, with a double foreign key one (that is a multiselect field)
+
+                if not item_created:
+                    collaborator_roles = CollaboratorRole.objects.filter(item=item)
+                    old_collaborator_roles = { collaborator_role.collaborator : collaborator_role.role for collaborator_role in collaborator_roles }
+
+
+
                 collaborator_indexes = list_string_find_indices(headers,'^Collaborator Name(\s)?([0-9])*$')
                 if is_valid_param(collaborator_indexes): # don't do anything if import file doesn't have Collaborator Name fields
                     collaborator_role_indexes = list_string_find_indices(headers,'^Collaborator Roles*(\s)?([0-9])*$')
@@ -3174,6 +3181,7 @@ def ImportView(request):
                         collaborator_role_indexes = [None] * len(collaborator_indexes) # if import file has Collaborator fields but no Collaborator Role fields, make dummy Collaborator Role fields
                     print("Before clear: " + str(item.collaborator.all()))
                     item.collaborator.clear()
+                    CollaboratorRole.objects.filter(item=item).delete()
                     print("After clear: " + str(item.collaborator.all()))
                     indexes = zip(collaborator_indexes, collaborator_role_indexes)
                     for collaborator_index, collaborator_role_index in indexes:
@@ -3338,6 +3346,12 @@ def ImportView(request):
                         for old_dialect_instance in old_dialect_instances:
                             dialect_instance, created = DialectInstance.objects.get_or_create(item=item, language=old_dialect_instance, defaults={'modified_by': request.user.get_username()})
                             dialect_instance.name.set(old_dialect_instances[old_dialect_instance], clear=True)
+
+                        collaborator_roles.delete()
+                        for old_collaborator_role in old_collaborator_roles:
+                            collaborator_role, created = CollaboratorRole.objects.get_or_create(item=item, collaborator=collaborator_role, defaults={'modified_by': request.user.get_username()})
+                            collaborator_role.role.set(old_collaborator_roles[old_collaborator_role], clear=True)
+
                     continue
 
                 document_prefix_with_space = str(item.catalog_number.lower()) + ' '

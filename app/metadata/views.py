@@ -2114,7 +2114,10 @@ class columns_export_add(UserPassesTestMixin, FormView):
 
 
 def is_valid_param(param):
-    return param != '' and param != 'None' and param is not None and param
+    if ( param == 0 or param == [0] ) :
+        return True
+    else:
+        return param != '' and param != 'None' and param is not None and param
 
 
 def list_string_find_indices(the_list, search_string):
@@ -2172,8 +2175,10 @@ def import_field(request, model_field, human_fields, headers, row, object_instan
                         model_field_value = re.sub(r"\n", r", ", model_field_value)
                         model_field_value = re.sub(r"[,\s]*$", r"", model_field_value)
                 setattr(object_instance, model_field, model_field_value)
+                if model_field == 'family':
+                    print('family after: ' + str(object_instance.family))
                 try:
-                    object_instance.full_clean()
+                    object_instance.clean()
                 except:
                     #object_instance.full_clean()
                     setattr(object_instance, model_field, old_value)
@@ -2264,7 +2269,6 @@ def import_language_field(request, headers, row, object_instance, model, documen
     elif ( model == "Collaborator native" ) or ( model == "Collaborator other" ) or ( model is "Collaborator" ):
         object_instance_name = 'Collaborator: ' + str(object_instance.name) + ' (' + str(object_instance.collaborator_id) + ')'
 
-
     # language and dialect, a manytomany one, with a double foreign key one
     if model == "Item document":
         iso_indexes = list_string_find_indices(headers, document_prefix + ' ISO(\s)?([0-9])*$')
@@ -2280,10 +2284,9 @@ def import_language_field(request, headers, row, object_instance, model, documen
     elif model == "Item document":
         language_indexes = list_string_find_indices(headers, document_prefix + ' Language Name(\s)?([0-9])*$')
     elif model == "Collaborator native":
-        language_indexes = list_string_find_indices(headers,'^Native/First Language(\s)?([0-9])*$')
+        language_indexes = list_string_find_indices(headers,'^Native/First Languages?(\s)?([0-9])*$')
     elif model == "Collaborator other":
-        language_indexes = list_string_find_indices(headers,'^Other Languages Spoken(\s)?([0-9])*$')
-
+        language_indexes = list_string_find_indices(headers,'^Other Languages?( Spoken)?(\s)?([0-9])*$')
 
     if ( is_valid_param(iso_indexes) or is_valid_param(language_indexes) ):
         indeces_list = [iso_indexes, language_indexes]
@@ -2298,9 +2301,9 @@ def import_language_field(request, headers, row, object_instance, model, documen
         elif model == "Item document":
             dialect_indexes = list_string_find_indices(headers, document_prefix + ' Dialect(\s)?([0-9])*$')
         elif model == "Collaborator native":
-            dialect_indexes = list_string_find_indices(headers,'^Native/First Language Dialect(\s)?([0-9])*$')
+            dialect_indexes = list_string_find_indices(headers,'^Native/First Languages? Dialect(\s)?([0-9])*$')
         elif model == "Collaborator other":
-            dialect_indexes = list_string_find_indices(headers,'^Other Languages Spoken Dialect(\s)?([0-9])*$')
+            dialect_indexes = list_string_find_indices(headers,'^Other Languages?( Spoken)? Dialect(\s)?([0-9])*$')
         elif model is "Language":
             dialect_indexes = list_string_find_indices(headers,'^Dialects(\s)?([0-9])*$')
 
@@ -2359,6 +2362,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                                 if model is "Language":
                                     #language_object_with_iso_value.language_dialects.delete()
                                     Dialect.objects.filter(language=language_object_with_iso_value).delete()
+                                    return_object = language_object_with_iso_value
                                 elif ( model == "Collaborator native" ):
                                     object_instance.native_languages.add(language_object_with_iso_value)
                                 elif ( model == "Collaborator other" ):
@@ -2387,7 +2391,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                                             for each_dialect in dialect_values:
                                                 dialect_object_with_dialect_value, created = Dialect.objects.get_or_create(name=each_dialect, language=language_object_with_iso_value)
                                                 #language_object_with_iso_value.language_dialects.add(dialect_object_with_dialect_value)
-                                            return_object = language_object_with_iso_value
+                                            # return_object = language_object_with_iso_value
                                         else:
                                             dialect.name.clear()
                                             for each_dialect in dialect_values:
@@ -2411,6 +2415,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                         if model is "Language":
                             #language_object_with_iso_value.language_dialects.clear()
                             Dialect.objects.filter(language=language_object_with_iso_value).delete()
+                            return_object = language_object_with_iso_value
                         elif ( model == "Collaborator native" ):
                             object_instance.native_languages.add(language_object_with_iso_value)
                         elif ( model == "Collaborator other" ):
@@ -2438,7 +2443,6 @@ def import_language_field(request, headers, row, object_instance, model, documen
                                     for each_dialect in dialect_values:
                                         dialect_object_with_dialect_value, created = Dialect.objects.get_or_create(name=each_dialect, language=language_object_with_iso_value)
                                         #language_object_with_iso_value.language_dialects.add(dialect_object_with_dialect_value)
-                                    return_object = language_object_with_iso_value
                                 else:
                                     dialect.name.clear()
                                     for each_dialect in dialect_values:
@@ -2462,6 +2466,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                                 defaults={'name': language_value},)
                             if model is "Language":
                                 messages.info(request, 'A new language entry was created (ISO indicator: ' + language.iso + ', Name: ' + language.name + ')')
+                                return_object = language
                             elif ( model == "Collaborator native" ):
                                 object_instance.native_languages.add(language)
                                 messages.info(request, 'A new language entry was created (ISO indicator: ' + language.iso + ', Name: ' + language.name + '), and it was added to ' + object_instance_name)
@@ -2491,7 +2496,6 @@ def import_language_field(request, headers, row, object_instance, model, documen
                                         for each_dialect in dialect_values:
                                             dialect_object_with_dialect_value, created = Dialect.objects.get_or_create(name=each_dialect, language=language)
                                             #language.language_dialects.add(dialect_object_with_dialect_value)
-                                        return_object = language
                                     else:
                                         dialect.name.clear()
                                         for each_dialect in dialect_values:
@@ -2510,6 +2514,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                         if model is "Language":
                             #language_object_with_language_value.language_dialects.clear()
                             Dialect.objects.filter(language=language_object_with_language_value).delete()
+                            return_object = language_object_with_language_value
                         elif ( model == "Collaborator native" ):
                             object_instance.native_languages.add(language_object_with_language_value)
                         elif ( model == "Collaborator other" ):
@@ -2536,7 +2541,6 @@ def import_language_field(request, headers, row, object_instance, model, documen
                                     for each_dialect in dialect_values:
                                         dialect_object_with_dialect_value, created = Dialect.objects.get_or_create(name=each_dialect, language=language_object_with_language_value)
                                         #language_object_with_language_value.language_dialects.add(dialect_object_with_dialect_value)
-                                    return_object = language_object_with_language_value
                                 else:
                                     dialect.name.clear()
                                     for each_dialect in dialect_values:
@@ -3415,7 +3419,8 @@ def ImportView(request):
 
                 # other language and dialect, a manytomany one, with a double foreign key one
                 import_other_language_field_success, return_object = import_language_field(request, headers, row, collaborator, model = 'Collaborator other')
-
+                # collaborator.clean()
+                # print("yeahn made it")
                 ## the rest, in alphabetical order
                 anonymous_success = import_field(request, 'anonymous', ('^Anonymous',), headers, row, collaborator, model = "Collaborator", yesno=True)
                 birthdate_1part_success = import_date_field('birthdate', ('^Date of Birth$',), headers, row, collaborator)
@@ -3431,6 +3436,7 @@ def ImportView(request):
                 import_field(request, 'nickname', ('^Collaborator Nickname$',), headers, row, collaborator, model = "Collaborator")
                 import_field(request, 'origin', ('^Collaborator Place of Origin$',), headers, row, collaborator, model = "Collaborator")
                 import_field(request, 'other_info', ('^Other Collaborator Information$',), headers, row, collaborator, model = "Collaborator")
+                import_field(request, 'other_info', ('^Other info$',), headers, row, collaborator, model = "Collaborator")
                 import_field(request, 'other_names', ('^Other Names$',), headers, row, collaborator, model = "Collaborator")
                 import_field(request, 'tribal_affiliations', ('^Tribal Affiliation(s)$',), headers, row, collaborator, model = "Collaborator")
 
@@ -3465,6 +3471,8 @@ def ImportView(request):
         else: # check if you are on the language import page, based on URL
 
             import_language_field_success, return_object = import_language_field(request, headers, row, None, model = 'Language')
+            print(import_language_field_success)
+            print(return_object)
             if not import_language_field_success:
                 continue
             if not return_object:
@@ -3478,6 +3486,7 @@ def ImportView(request):
             import_field(request, 'notes', ('^Notes$',), headers, row, return_object, model = "Language")
 
             return_object.modified_by = request.user.get_username()
+            return_object.save()
             messages.success(request, 'Language ' + return_object.name + ' (ISO Indicator: ' + return_object.iso + ')' + ' was updated')
 
     context = {

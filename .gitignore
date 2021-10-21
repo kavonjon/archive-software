@@ -2,10 +2,10 @@
 ungit/
 
 # django
+.env
 venv/
 app/archive/secrets.py
 app/runserver.py
-app/metadata/migrations/0*.py
 app/media/imports
 docs/reference
 

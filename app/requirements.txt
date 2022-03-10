@@ -8,6 +8,7 @@ django-appconf==1.0.4
 django-multiselectfield==0.1.12
 django-video-encoding==0.4.0
 et-xmlfile==1.0.1
+gunicorn==20.1.0
 h11==0.11.0
 jdcal==1.4.1
 joblib==0.15.1

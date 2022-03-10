@@ -24,11 +24,16 @@ services:
     container_name: test_deploy_nginx
     volumes:
       - static:/static/
-    ports:
-      - 80:80
+    expose:
+      - 8081
     depends_on:
       - web
 
 volumes:
   postgres_data:
   static:
+
+networks:
+  default:
+    external: true
+    name: nginxproxymanager_default

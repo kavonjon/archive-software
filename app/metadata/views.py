@@ -3353,7 +3353,7 @@ def ImportView(request):
 
                         collaborator_roles.delete()
                         for old_collaborator_role in old_collaborator_roles:
-                            collaborator_role, created = CollaboratorRole.objects.get_or_create(item=item, collaborator=collaborator_role, defaults={'modified_by': request.user.get_username()})
+                            collaborator_role, created = CollaboratorRole.objects.get_or_create(item=item, collaborator=old_collaborator_role, defaults={'modified_by': request.user.get_username()})
                             collaborator_role.role.set(old_collaborator_roles[old_collaborator_role], clear=True)
 
                     continue

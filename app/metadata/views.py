@@ -3554,7 +3554,7 @@ class document_upload(UserPassesTestMixin, FormView):
 
                 elif this_file.name.endswith('.wav'):
                     try:
-                        wav_duration = librosa.get_duration(filename=this_file.name)
+                        wav_duration = librosa.get_duration(filename=this_file)
                         # with wave.open(this_file,'rb') as f:
                         #     frames = f.getnframes()
                         #     rate = f.getframerate()

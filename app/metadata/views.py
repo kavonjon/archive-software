@@ -3,6 +3,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Color, PatternFill, Font, Border
 from openpyxl.writer.excel import save_virtual_workbook
 from django.core.files.storage import default_storage
+from django.core.paginator import Paginator
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
@@ -1326,13 +1327,18 @@ def item_index(request):
 
             return response
 
+
+    paginator = Paginator(qs, 100)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     if re.search('search', url_path, flags=re.I):
         template = 'item_search.html'
     else:
         template = 'item_index.html'
 
     context = {
-        'queryset': qs,
+        'queryset': page_obj,
         'results_count' : results_count,
         'results_duration' : results_duration_datetime,
         'order_choice_last' : order_choice_last,
@@ -1502,8 +1508,12 @@ def document_index(request):
         results_duration_datetime = 0
 #        results_duration_datetime = str(results_duration)
 
+    paginator = Paginator(qs, 100)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context = {
-        'queryset': qs,
+        'queryset': page_obj,
         'results_count' : results_count,
         'results_duration' : results_duration_datetime,
         'order_choice_last' : order_choice_last,
@@ -1726,9 +1736,12 @@ def language_index(request):
 
         return response
 
+    paginator = Paginator(qs, 100)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
 
     context = {
-        'queryset': qs,
+        'queryset': page_obj,
         'results_count' : results_count,
         'order_choice_last' : order_choice_last,
         'iso_contains_query_last' : iso_contains_query_last,
@@ -1911,8 +1924,12 @@ def collaborator_index(request):
 
     results_count = qs.count()
 
+    paginator = Paginator(qs, 100)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context = {
-        'queryset': qs,
+        'queryset': page_obj,
         'results_count' : results_count,
         'order_choice_last' : order_choice_last,
         'name_contains_query_last' : name_contains_query_last,

@@ -39,3 +39,7 @@ hr {
 .indented {
   text-indent: 2em;
 }
+
+.pagination {
+  margin: 2rem;
+}

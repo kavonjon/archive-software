@@ -1,4 +1,4 @@
-import os, csv, io, datetime, re, mutagen, wave
+import os, csv, io, datetime, re, mutagen, librosa
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Color, PatternFill, Font, Border
 from openpyxl.writer.excel import save_virtual_workbook
@@ -3554,10 +3554,11 @@ class document_upload(UserPassesTestMixin, FormView):
 
                 elif this_file.name.endswith('.wav'):
                     try:
-                        with wave.open(this_file,'rb') as f:
-                            frames = f.getnframes()
-                            rate = f.getframerate()
-                            wav_duration = frames / float(rate)
+                        wav_duration = librosa.get_duration(filename=this_file.name)
+                        # with wave.open(this_file,'rb') as f:
+                        #     frames = f.getnframes()
+                        #     rate = f.getframerate()
+                        #     wav_duration = frames / float(rate)
                     except Exception as e:
                         messages.warning(request, str(this_file.name) + " was not added/updated. (Error message for admin: Wave: " + str(e) + ")")
                         instance.delete()

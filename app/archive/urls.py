@@ -66,7 +66,11 @@ urlpatterns = [
     path('documents/import/', document_upload.as_view(), name='document_upload'),
     path('collaborators/import/', ImportView, name='import_collaborator'),
     path('languages/import/', ImportView, name='import_language'),
+
+    path('front/search/', item_index, name='item_index'),
+
 ]
+
 
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

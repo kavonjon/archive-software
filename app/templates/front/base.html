@@ -1,0 +1,130 @@
+{% load static %}
+{% load metadata_templatetags %}
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
+    <meta name="generator" content="Jekyll v3.8.6">
+    <title>Archive metadata management</title>
+
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+<link rel="stylesheet" href="{% static 'front.css' %}">
+
+    <!-- Favicons -->
+<link rel="apple-touch-icon" href="/docs/4.4/assets/img/favicons/apple-touch-icon.png" sizes="180x180">
+<link rel="icon" href="/docs/4.4/assets/img/favicons/favicon-32x32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="/docs/4.4/assets/img/favicons/favicon-16x16.png" sizes="16x16" type="image/png">
+<link rel="manifest" href="/docs/4.4/assets/img/favicons/manifest.json">
+<link rel="mask-icon" href="/docs/4.4/assets/img/favicons/safari-pinned-tab.svg" color="#563d7c">
+<link rel="icon" href="/docs/4.4/assets/img/favicons/favicon.ico">
+<meta name="msapplication-config" content="/docs/4.4/assets/img/favicons/browserconfig.xml">
+<meta name="theme-color" content="#563d7c">
+
+
+    <style>
+      .bd-placeholder-img {
+        font-size: 1.125rem;
+        text-anchor: middle;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+
+      @media (min-width: 768px) {
+        .bd-placeholder-img-lg {
+          font-size: 3.5rem;
+        }
+      }
+    </style>
+    <!-- Custom styles for this template -->
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+
+    <!-- Custom, maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.3/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.0.3/dist/leaflet.js"></script>
+
+
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
+  <a class="navbar-brand" href="/">Native American Languages Collection</a>
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <div class="collapse navbar-collapse" id="navbarsExampleDefault">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="/catalog" id="dropdown-catalog" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Catalog</a>
+        <div class="dropdown-menu" aria-labelledby="dropdown-catalog">
+          <a class="dropdown-item" href="/catalog/">Catalog</a>
+          {% if request.user|has_group:"Archivist"%}<a class="dropdown-item" href="/catalog/import/">Import</a>
+          {% else %}<a class="dropdown-item disabled" href="/catalog/import/" aria-disabled="true">Import</a>
+          {% endif %}
+        </div>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/search/">All filters</a>
+      </li>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="/documents" id="dropdown-documents" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documents</a>
+        <div class="dropdown-menu" aria-labelledby="dropdown-documents">
+          <a class="dropdown-item" href="/documents/">Documents</a>
+          {% if request.user|has_group:"Archivist"%}<a class="dropdown-item" href="/documents/import/">Import</a>
+          {% else %}<a class="dropdown-item disabled" href="/documents/import/" aria-disabled="true">Import</a>
+          {% endif %}
+        </div>
+      </li>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="/languages/" id="dropdown-languages" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Languages</a>
+        <div class="dropdown-menu" aria-labelledby="dropdown-languages">
+          <a class="dropdown-item" href="/languages/">Languages</a>
+          {% if request.user|has_group:"Archivist"%}<a class="dropdown-item" href="/languages/import/">Import</a>
+          {% else %}<a class="dropdown-item disabled" href="/languages/import/" aria-disabled="true">Import</a>
+          {% endif %}
+        </div>
+      </li>
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="/collaborators/" id="dropdown-collaborators" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Collaborators</a>
+        <div class="dropdown-menu" aria-labelledby="dropdown-collaborators">
+          <a class="dropdown-item" href="/collaborators/">Collaborators</a>
+          {% if request.user|has_group:"Archivist"%}<a class="dropdown-item" href="/collaborators/import/">Import</a>
+          {% else %}<a class="dropdown-item disabled" href="/collaborators/import/" aria-disabled="true">Import</a>
+          {% endif %}
+        </div>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/export-columns/">Export columns</a>
+      </li>
+
+    </ul>
+    <form class="form-inline mx-2 my-2 my-lg-0">
+      {% if user.is_authenticated %}
+        <div class="dropdown">
+          <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown">
+          <i class="fa fa-user px-2" aria-hidden="true"></i> {{ user.get_username }}<span class="caret"></span></button>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <a class="dropdown-item" href="/accounts/password_change">Change password</a>
+            <a class="dropdown-item" href="/accounts/logout">Logout</a>
+          </ul>
+        </div>
+      {% else %}
+      <a class="btn btn-secondary mx-2 my-2 my-lg-0" href="/accounts/login/?next=/" role="button">Login</a>
+      {% endif %}
+    </form>
+  </div>
+</nav>
+
+<div class="container">
+    {% block page_content %}{% endblock %}
+</div>
+
+<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+</html>

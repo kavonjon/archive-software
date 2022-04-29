@@ -1332,7 +1332,9 @@ def item_index(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    if re.search('search', url_path, flags=re.I):
+    if re.search('front/search', url_path, flags=re.I):
+        template = 'front/basic_search.html'
+    elif re.search('search', url_path, flags=re.I):
         template = 'item_search.html'
     else:
         template = 'item_index.html'

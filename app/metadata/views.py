@@ -1368,6 +1368,7 @@ def item_index(request):
 
 @login_required
 def item_detail(request, pk):
+    url_path = request.get_full_path()
     item = Item.objects.get(pk=pk)
     documents = Document.objects.filter(item__pk=pk).order_by('filename')
 
@@ -1385,6 +1386,11 @@ def item_detail(request, pk):
     for data_point in geographic_info:
         geographic_points.append((data_point.id, data_point.lat, data_point.long))
 
+    if re.search('front/', url_path, flags=re.I):
+        template = 'front/item_detail.html'
+    else:
+        template = 'item_detail.html'
+
     context = {
         'item': item,
         'documents' : documents,
@@ -1393,7 +1399,7 @@ def item_detail(request, pk):
         'geographic_info' : geographic_info,
         'geographic_points' : geographic_points
     }
-    return render(request, 'item_detail.html', context)
+    return render(request, template, context)
 
 @login_required
 @user_passes_test(is_member_of_archivist, login_url='/no-permission', redirect_field_name=None)

@@ -1,3 +1,4 @@
+import datetime
 from django import template
 
 register = template.Library()
@@ -20,6 +21,21 @@ def sizify(value):
         value = value / 1073741824.0
         ext = 'GB'
     return '%s %s' % (str(round(value, 2)), ext)
+
+
+@register.filter('prettify')
+def prettify(value):
+    """
+    Prettify duration for templates:
+
+    {{ product.duration|prettify }}
+    """
+
+    if not value:
+        return value
+    else:
+        return str(datetime.timedelta(seconds=value))[:-3]
+
 
 @register.filter('has_group')
 def has_group(user, group_name):

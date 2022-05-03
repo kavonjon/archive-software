@@ -67,7 +67,8 @@ urlpatterns = [
     path('collaborators/import/', ImportView, name='import_collaborator'),
     path('languages/import/', ImportView, name='import_language'),
 
-    path('front/search/', item_index, name='item_index'),
+    path('front/search/', item_index, name='front_item_index'),
+    path("front/item/<int:pk>/", item_detail, name="front_item_detail"),
 
 ]
 

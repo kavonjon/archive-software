@@ -1,0 +1,253 @@
+{% extends "front/base.html" %}
+{% load static %}
+{% load metadata_templatetags %}
+
+{% block page_content %}
+
+
+<div class="page-title smaller-title">{{ item.english_title }}{% if item.english_title and item.indigenous_title %}{{ " (" }}{% endif %}{{ item.indigenous_title }}{% if item.english_title and item.indigenous_title %}{{ ")" }}{% endif %}</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <b class="text_seafoam">Catalog number:</b> {{ item.catalog_number }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b class="text_seafoam">Type:</b> {{ item.get_general_content_display }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b class="text_seafoam">Language(s):</b> {% for language, dialect in dialect_info %}<a class="stealth" href="/front/search/?keyword_contains={{ language }}">{{ language }}{% if dialect.name.all|join:", " %} ({{ dialect.name.all|join:", "}}){% else %}{% endif %}</a>{% if forloop.last %}{% else %}, {% endif %}{% endfor %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b class="text_seafoam">Genre:</b> {{ item.get_genre_display }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b class="text_seafoam">Creation date:</b> {{ item.creation_date }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b class="text_seafoam">Contributor(s):</b> {% for collaborator, role in collaborator_info %}<a class="stealth" href="/front/search/?keyword_contains={% anonymize_collaborators collaborator request.user 'name' %}">{% anonymize_collaborators collaborator request.user 'name' %}{% if role.role %} ({{ role.role }}){% endif %}</a>{% if forloop.last %}{% else %}, {% endif %}{% endfor %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b class="text_seafoam">Access level:</b> {{ item.get_item_access_level_display }}
+    </div>
+</div>
+<button type="button" class="btn btn-primary bg_seafoam">
+  <div class="play-icon mr-3 d-inline-flex align-middle"></div><div class="d-inline-flex align-middle h-100">Download Metadata</div>
+</button>
+<div class="row">
+    <div class="col-md-12">
+        <h4 class="mt-4 text_seafoam">Description</h4>
+    </div>
+</div>
+<hr class="mt-0 w-100">
+<div class="row w-100">
+    <div class="col-md-12">
+        {{ item.description_scope_and_content }}
+    </div>
+</div>
+
+
+
+
+<div class="d-flex flex-row w-100 mt-5 mb-3 bg_seafoam metadata-section">
+    <div class="shape-container">
+      <div class="ht-triangle-white"></div>
+      <div class="ht-triangle-burg"></div>
+    </div>
+    <div class="h-100 pt-1 ml-4">
+        <b class="text-white">Additional Information:</b>
+    </div>
+    <div class="metadata-section--additional text-white h-100 pt-1 ml-auto mr-2">CLOSE <b>—</b></div>
+</div>
+<div class="additional-container">
+  <div class="row">
+      <div class="col-md-12">
+          <b>Availability status:</b> {{ item.get_availability_status_display }}
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <b>Accession date:</b> {{ item.accession_date }}
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <b>Condition:</b> {{ item.get_condition_display }}
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <b>Collection name:</b> {{ item.collection_name }}
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <b>Collector name:</b> {{ item.collector_name }}
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <b>Collecting notes:</b> {{ item.collecting_notes }}
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <b>Depositor name:</b> {{ item.depositor_name }}
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <b>Deposit date:</b> {{ item.deposit_date }}
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <b>Original format medium:</b> {{ item.get_original_format_medium_display }}
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <h5 class="text_seafoam mt-3">Location</h5>
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <b>Municipality or township:</b> {{ item.municipality_or_township }}
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <b>County or parish:</b> {{ item.county_or_parish }}
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <b>State or province:</b> {{ item.state_or_province }}
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <b>Country or territory:</b> {{ item.country_or_territory }}
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <b>Global region:</b> {{ item.global_region }}
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <b>Recording context:</b> {{ item.recording_context }}
+      </div>
+  </div>
+  <div class="row">
+      <div class="col-md-12">
+          <b>Public event:</b> {{ item.public_event }}
+      </div>
+  </div>
+</div>
+
+<div class="d-flex flex-row w-100 mt-5 mb-3 bg_seafoam metadata-section">
+    <div class="shape-container">
+      <div class="ht-triangle-white"></div>
+      <div class="ht-triangle-burg"></div>
+    </div>
+    <div class="h-100 pt-1 ml-4">
+        <b class="text-white">Files:</b>
+    </div>
+    <div class="metadata-section--files text-white h-100 pt-1 ml-auto mr-2">CLOSE <b>—</b></div>
+</div>
+<div class="files-container">
+  {% for document in documents %}
+    <div class="d-flex flex-row">
+        <div>
+          {{ forloop.counter }})
+        </div>
+        <div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#077373" class="bi bi-pause-btn-fill mx-1" viewBox="0 0 16 16">
+            <path d="M0 12V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm6.25-7C5.56 5 5 5.56 5 6.25v3.5a1.25 1.25 0 1 0 2.5 0v-3.5C7.5 5.56 6.94 5 6.25 5zm3.5 0c-.69 0-1.25.56-1.25 1.25v3.5a1.25 1.25 0 1 0 2.5 0v-3.5C11 5.56 10.44 5 9.75 5z"/>
+          </svg>
+        </div>
+        <div>
+            {{ document.title }}
+        </div>
+        <div class="ml-auto mr-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-files text_seafoam" viewBox="0 0 16 16">
+              <path d="M13 0H6a2 2 0 0 0-2 2 2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2 2 2 0 0 0 2-2V2a2 2 0 0 0-2-2zm0 13V4a2 2 0 0 0-2-2H5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1zM3 4a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4z"/>
+            </svg>
+            <b class="text_seafoam">DOWNLOAD</b>
+        </div>
+    </div>
+    <div class="each-file-container bg-light border rounded p-3 m-3">
+      <div class="row">
+          <div class="col-md-10">
+              <b class="text_seafoam">Access level:</b> {{ document.get_item_access_level_display }}
+          </div>
+      </div>
+      <div class="row">
+          <div class="col-md-10">
+              <b class="text_seafoam">Language(s):</b> {{ document.language.all|join:", "}}
+          </div>
+      </div>
+      <div class="row">
+          <div class="col-md-10">
+              <b class="text_seafoam">Collaborator(s):</b> {{ document.collaborator.all|join:", "}}
+          </div>
+      </div>
+      <div class="row">
+          <div class="col-md-10">
+              <b class="text_seafoam">File Type:</b> {{ document.filetype }}
+          </div>
+      </div>
+      <div class="row">
+          <div class="col-md-10">
+              <b class="text_seafoam">File Size:</b> {% if document.filesize %} {{ document.filesize|sizify }} {% else %} {{ document.filesize }} {% endif %}
+          </div>
+      </div>
+      <div class="row">
+          <div class="col-md-10">
+              <b class="text_seafoam">Duration:</b> {{ document.duration|prettify }}
+          </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<script>
+  console.log("Hello, Penis.")
+  const pageLocation = document.querySelector('.page_location');
+  pageLocation.innerHTML = `:: HOME / ITEM / {{ item.catalog_number }}`
+  const additionalButton = document.querySelector('.metadata-section--additional');
+  const filesButton = document.querySelector('.metadata-section--files');
+  const additionalContainer = document.querySelector('.additional-container');
+  const filesContainer = document.querySelector('.files-container');
+  additionalButton.addEventListener("click", function() {
+    additionalContainer.classList.toggle('hidden_noheight')
+    if (additionalContainer.classList.contains('hidden_noheight')) {
+      additionalButton.innerHTML = `OPEN <b>+</b>`
+    } else {
+      additionalButton.innerHTML = `CLOSE <b>—</b>`
+    }
+  });
+  filesButton.addEventListener("click", function() {
+    filesContainer.classList.toggle('hidden_noheight')
+    if (filesContainer.classList.contains('hidden_noheight')) {
+      filesButton.innerHTML = `OPEN <b>+</b>`
+    } else {
+      filesButton.innerHTML = `CLOSE <b>—</b>`
+    }
+  });
+</script>
+
+{% endblock %}

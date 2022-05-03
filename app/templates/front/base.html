@@ -51,78 +51,115 @@
 
   </head>
   <body>
-    <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
-  <a class="navbar-brand" href="/">Native American Languages Collection</a>
-  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
-    <span class="navbar-toggler-icon"></span>
-  </button>
+<nav class="navbar navbar-expand-md navbar-dark fixed-top mx-0">
 
-  <div class="collapse navbar-collapse" id="navbarsExampleDefault">
-    <ul class="navbar-nav mr-auto">
-      <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="/catalog" id="dropdown-catalog" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Catalog</a>
-        <div class="dropdown-menu" aria-labelledby="dropdown-catalog">
-          <a class="dropdown-item" href="/catalog/">Catalog</a>
-          {% if request.user|has_group:"Archivist"%}<a class="dropdown-item" href="/catalog/import/">Import</a>
-          {% else %}<a class="dropdown-item disabled" href="/catalog/import/" aria-disabled="true">Import</a>
-          {% endif %}
-        </div>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="/search/">All filters</a>
-      </li>
-      <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="/documents" id="dropdown-documents" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documents</a>
-        <div class="dropdown-menu" aria-labelledby="dropdown-documents">
-          <a class="dropdown-item" href="/documents/">Documents</a>
-          {% if request.user|has_group:"Archivist"%}<a class="dropdown-item" href="/documents/import/">Import</a>
-          {% else %}<a class="dropdown-item disabled" href="/documents/import/" aria-disabled="true">Import</a>
-          {% endif %}
-        </div>
-      </li>
-      <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="/languages/" id="dropdown-languages" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Languages</a>
-        <div class="dropdown-menu" aria-labelledby="dropdown-languages">
-          <a class="dropdown-item" href="/languages/">Languages</a>
-          {% if request.user|has_group:"Archivist"%}<a class="dropdown-item" href="/languages/import/">Import</a>
-          {% else %}<a class="dropdown-item disabled" href="/languages/import/" aria-disabled="true">Import</a>
-          {% endif %}
-        </div>
-      </li>
-      <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="/collaborators/" id="dropdown-collaborators" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Collaborators</a>
-        <div class="dropdown-menu" aria-labelledby="dropdown-collaborators">
-          <a class="dropdown-item" href="/collaborators/">Collaborators</a>
-          {% if request.user|has_group:"Archivist"%}<a class="dropdown-item" href="/collaborators/import/">Import</a>
-          {% else %}<a class="dropdown-item disabled" href="/collaborators/import/" aria-disabled="true">Import</a>
-          {% endif %}
-        </div>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="/export-columns/">Export columns</a>
-      </li>
+  <ul class="w-100">
+    <li>
+      <div class="rectangle rectangle-black"></div>
+      <div class="rectangle rectangle-teal"></div>
+      <div class="rectangle rectangle-burg"></div>
+      <div class="rectangle rectangle-gold"></div>
+      <form class="form-inline justify-content-end mx-2 my-0 my-lg-0">
+        {% if user.is_authenticated %}
+          <div class="dropdown">
+            <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown">
+            <i class="fa fa-user px-2" aria-hidden="true"></i> {{ user.get_username }}<span class="caret"></span></button>
+            <ul class="dropdown-menu dropdown-menu-right">
+              <a class="dropdown-item" href="/accounts/password_change">Change password</a>
+              <a class="dropdown-item" href="/accounts/logout">Logout</a>
+            </ul>
+          </div>
+        {% else %}
+        <a class="btn btn-secondary justify-content-end mx-2 my-0 my-lg-0" href="/accounts/login/?next=/" role="button">Login</a>
+        {% endif %}
+      </form>
+    </li>
+    <li>
+      <a class="navbar-brand" href="/">Native American Languages Collection</a>
+    </li>
+    <li>
+      <div class="collapse navbar-collapse" id="navbarsExampleDefault">
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item">
+            <a class="nav-link text-white font-weight-bold" href="#">About</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white font-weight-bold" href="/front/search/">Search Archive</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white font-weight-bold" href="#">Collaboration</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white font-weight-bold" href="#">Services</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white font-weight-bold" href="#">Contribute</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white font-weight-bold" href="#">Guidelines and Policies</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white font-weight-bold" href="#">Volunteer</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link text-white font-weight-bold" href="#">Contact</a>
+          </li>
+        </ul>
 
-    </ul>
-    <form class="form-inline mx-2 my-2 my-lg-0">
-      {% if user.is_authenticated %}
-        <div class="dropdown">
-          <button class="btn btn-secondary dropdown-toggle" type="button" data-toggle="dropdown">
-          <i class="fa fa-user px-2" aria-hidden="true"></i> {{ user.get_username }}<span class="caret"></span></button>
-          <ul class="dropdown-menu dropdown-menu-right">
-            <a class="dropdown-item" href="/accounts/password_change">Change password</a>
-            <a class="dropdown-item" href="/accounts/logout">Logout</a>
-          </ul>
-        </div>
-      {% else %}
-      <a class="btn btn-secondary mx-2 my-2 my-lg-0" href="/accounts/login/?next=/" role="button">Login</a>
-      {% endif %}
-    </form>
-  </div>
+      </div>
+    </li>
+  </ul>
 </nav>
 
-<div class="container">
-    {% block page_content %}{% endblock %}
+<div>
+    <div class="sidebar_wrapper">
+        <!-- Sidebar -->
+        <div class="ml-3 mb-3 page_location">
+          :: HOME / xx
+        </div>
+        <nav id="sidebar">
+            <ul class="list-unstyled">
+                <li class="border-top border-white p-2">
+                    <a class="text-white font-weight-bold" href="#">Browse by location</a>
+                </li>
+                <li class="border-top border-white p-2">
+                    <a class="text-white font-weight-bold" href="#">Browse Collections</a>
+                </li>
+                <li class="border-top border-white p-2">
+                    <a class="text-white font-weight-bold" href="#">Browse Languages</a>
+                </li>
+                <li class="border-top border-white p-2">
+                    <a class="text-white font-weight-bold" href="#">Pedagogy</a>
+                </li>
+                <li class="border-top border-white p-2">
+                    <a class="text-white font-weight-bold" href="#">Text</a>
+                </li>
+                <li class="border-top border-white p-2">
+                    <a class="text-white font-weight-bold" href="#">Music</a>
+                </li>
+                <li class="border-top border-white p-2">
+                    <a class="text-white font-weight-bold" href="#">Contributor search</a>
+                </li>
+                <li class="border-top border-white p-2">
+                    <a class="text-white font-weight-bold" href="#">Advanced Keyword Search</a>
+                </li>
+                <li class="rounded-bottom bg-dark border-top border-white p-2">
+                    <a class="text-white font-weight-bold" href="#">Having trouble finding<br />what you're looking for?<br />Contact us!</a>
+                </li>
+            </ul>
+        </nav>
+
+    </div>
 </div>
+
+<div class="container">
+        {% block page_content %}{% endblock %}
+</div>
+
+
 
 <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>

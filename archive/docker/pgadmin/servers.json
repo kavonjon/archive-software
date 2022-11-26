@@ -1,0 +1,14 @@
+{
+    "Servers": {
+      "1": {
+        "Name": "nal-archive_db",
+        "Group": "Servers",
+        "Host": "nal-archive_db_1",
+        "Port": 5432,
+        "MaintenanceDB": "postgres",
+        "Username": "nal-archive",
+        "SSLMode": "prefer"
+      }
+    }
+  }
+  

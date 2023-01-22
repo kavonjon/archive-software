@@ -461,6 +461,10 @@ def item_index(request):
                                                   end_color='006666FF',
                                                   fill_type='solid')
 
+            style_browse = PatternFill(start_color='BCAED5',
+                                          end_color='BCAED5',
+                                          fill_type='solid')
+
             style_condition = PatternFill(start_color='00CC80FF',
                                           end_color='00CC80FF',
                                           fill_type='solid')
@@ -603,6 +607,21 @@ def item_index(request):
                         sheet_column_counter += 1
                         header_cell = sheet.cell(row=1, column=sheet_column_counter )
                     column_counter += 1
+            if column_choice.item_educational_materials:
+                header_cell.value = 'Educational materials'
+                header_cell.fill = style_browse
+                sheet_column_counter += 1
+                header_cell = sheet.cell(row=1, column=sheet_column_counter )
+            if column_choice.item_music:
+                header_cell.value = 'Music'
+                header_cell.fill = style_browse
+                sheet_column_counter += 1
+                header_cell = sheet.cell(row=1, column=sheet_column_counter )
+            if column_choice.item_descriptive_materials:
+                header_cell.value = 'Descriptive materials'
+                header_cell.fill = style_browse
+                sheet_column_counter += 1
+                header_cell = sheet.cell(row=1, column=sheet_column_counter )
             if column_choice.item_availability_status:
                 header_cell.value = 'Availability status'
                 header_cell.fill = style_condition
@@ -1053,6 +1072,12 @@ def item_index(request):
                         collaborator_zip = zip(collaborator_rows, collaborator_role_rows_joined)
                         collaborator_rows = [i for sublist in collaborator_zip for i in sublist]
                     xl_row.extend(collaborator_rows)
+                if column_choice.item_educational_materials:
+                    xl_row.append(item.educational_materials)
+                if column_choice.item_music:
+                    xl_row.append(item.music)
+                if column_choice.item_descriptive_materials:
+                    xl_row.append(item.descriptive_materials)
                 if column_choice.item_availability_status:
                     xl_row.append(item.get_availability_status_display())
                 if column_choice.item_availability_status_notes:
@@ -3339,6 +3364,9 @@ def ImportView(request):
                 import_field(request, 'temporary_accession_number', ('^Temporary Accession Number$',), headers, row, item, model = 'Item')
                 import_field(request, 'total_number_of_pages_and_physical_description', ('^Total Number of Pages and Physical Description$',), headers, row, item, model = 'Item')
                 type_of_accession_success = import_field(request, 'type_of_accession', ('^Type of Accession$',), headers, row, item, model = 'Item', choices=ACCESSION_CHOICES)
+                import_field(request, 'educational_materials', ('^Educational Materials$',), headers, row, item, model = 'Item')
+                import_field(request, 'music', ('^Music$',), headers, row, item, model = 'Item')
+                import_field(request, 'descriptive_materials', ('^Descriptive Materials$',), headers, row, item, model = 'Item')
 
                 import_success = ( import_language_field_success and
                                    document_import_success and

@@ -418,9 +418,9 @@ class Item(models.Model):
     temporary_accession_number = models.CharField(max_length=255, blank=True)
     total_number_of_pages_and_physical_description = models.CharField(max_length=255, blank=True)
     type_of_accession = models.CharField(max_length=12, choices=ACCESSION_CHOICES, blank=True) # automate across deposit
-    educational_materials = models.TextField(blank=True)
-    music = models.TextField(blank=True)
-    descriptive_materials = models.TextField(blank=True)
+    educational_materials_text = models.TextField(blank=True)
+    music_text = models.TextField(blank=True)
+    descriptive_materials_text = models.TextField(blank=True)
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     modified_by = models.CharField(max_length=255)

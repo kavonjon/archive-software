@@ -16,7 +16,7 @@ from django.utils.decorators import method_decorator
 from django.forms.models import model_to_dict
 from django.db.models import Count, Sum, Max
 from django.views.generic.edit import FormView, DeleteView
-from .models import Item, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, reverse_lookup_choices, validate_date_text
+from .models import Item, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, MUSIC_CHOICES, DESCRIPTIVE_MATERIALS_CHOICES, reverse_lookup_choices, validate_date_text
 from .forms import LanguageForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
 
 def is_member_of_archivist(user):
@@ -3365,8 +3365,10 @@ def ImportView(request):
                 import_field(request, 'total_number_of_pages_and_physical_description', ('^Total Number of Pages and Physical Description$',), headers, row, item, model = 'Item')
                 type_of_accession_success = import_field(request, 'type_of_accession', ('^Type of Accession$',), headers, row, item, model = 'Item', choices=ACCESSION_CHOICES)
                 import_field(request, 'educational_materials', ('^Educational Materials$',), headers, row, item, model = 'Item')
-                import_field(request, 'music', ('^Music$',), headers, row, item, model = 'Item')
-                import_field(request, 'descriptive_materials', ('^Descriptive Materials$',), headers, row, item, model = 'Item')
+                # import_field(request, 'music', ('^Music$',), headers, row, item, model = 'Item')
+                music_success = import_field(request, 'music', ('^Music$',), headers, row, item, model = 'Item', choices=MUSIC_CHOICES, multiselect=True)
+                # import_field(request, 'descriptive_materials', ('^Descriptive Materials$',), headers, row, item, model = 'Item')
+                descriptive_materials_success = import_field(request, 'descriptive_materials', ('^Descriptive Materials$',), headers, row, item, model = 'Item', choices=DESCRIPTIVE_MATERIALS_CHOICES, multiselect=True)
 
                 import_success = ( import_language_field_success and
                                    document_import_success and
@@ -3383,7 +3385,9 @@ def ImportView(request):
                                    access_level_success and
                                    original_format_medium_success and
                                    permission_to_publish_online_success and
-                                   type_of_accession_success )
+                                   type_of_accession_success and
+                                   music_success and
+                                   descriptive_materials_success )
 
                 if not import_success:
                     if item_created:

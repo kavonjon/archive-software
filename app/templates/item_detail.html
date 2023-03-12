@@ -170,12 +170,22 @@
 </div>
 <div class="row">
     <div class="col-md-12">
-        <b>Music:</b> {{ item.music_text }}
+        <b>Music:</b> {{ item.get_music_display }}
     </div>
 </div>
 <div class="row">
     <div class="col-md-12">
-        <b>Descriptive Materials:</b> {{ item.descriptive_materials_text }}
+        <b>Music (will be deleted):</b> {{ item.music_text }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Descriptive Materials:</b> {{ item.get_descriptive_materials_display }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Descriptive Materials (will be deleted):</b> {{ item.descriptive_materials_text }}
     </div>
 </div>
 <div>

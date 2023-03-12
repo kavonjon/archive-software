@@ -152,6 +152,22 @@ ROLE_CHOICES = (('annotator', 'Annotator'),
                 ('transcriber', 'Transcriber'),
                 ('translator', 'Translator'))
 
+MUSIC_CHOICES = (('ceremonial', 'Ceremonial'),
+                 ('war_dance', 'War dance'),
+                 ('round_dance', 'Round dance'),
+                 ('stomp_dance', 'Stomp dance'),
+                 ('49', '49'),
+                 ('sundance', 'Sundance'),
+                 ('powwow', 'Powwow'),
+                 ('hand_game', 'Hand game'),
+                 ('nac', 'NAC'),
+                 ('hymns', 'Hymns'),
+                 ('children', 'Children'))
+
+DESCRIPTIVE_MATERIALS_CHOICES = (('dictionaries', 'Dictionaries'),
+                                 ('grammars', 'Grammars'),
+                                 ('transcribed_texts', 'Transcribed texts'))
+
 
 
 def reverse_lookup_choices(choices, entry):
@@ -419,7 +435,9 @@ class Item(models.Model):
     total_number_of_pages_and_physical_description = models.CharField(max_length=255, blank=True)
     type_of_accession = models.CharField(max_length=12, choices=ACCESSION_CHOICES, blank=True) # automate across deposit
     educational_materials_text = models.TextField(blank=True)
+    music = MultiSelectField(choices=MUSIC_CHOICES, blank=True)
     music_text = models.TextField(blank=True)
+    descriptive_materials = MultiSelectField(choices=DESCRIPTIVE_MATERIALS_CHOICES, blank=True)
     descriptive_materials_text = models.TextField(blank=True)
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)

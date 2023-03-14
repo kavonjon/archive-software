@@ -1073,11 +1073,11 @@ def item_index(request):
                         collaborator_rows = [i for sublist in collaborator_zip for i in sublist]
                     xl_row.extend(collaborator_rows)
                 if column_choice.item_educational_materials:
-                    xl_row.append(item.educational_materials)
+                    xl_row.append(item.educational_materials_text)
                 if column_choice.item_music:
-                    xl_row.append(item.music)
+                    xl_row.append(item.get_music_display().replace(', ','\n') )
                 if column_choice.item_descriptive_materials:
-                    xl_row.append(item.descriptive_materials)
+                    xl_row.append(item.get_descriptive_materials_display().replace(', ','\n') )
                 if column_choice.item_availability_status:
                     xl_row.append(item.get_availability_status_display())
                 if column_choice.item_availability_status_notes:

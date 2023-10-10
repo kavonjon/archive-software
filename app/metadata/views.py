@@ -2216,6 +2216,12 @@ def import_field(request, model_field, human_fields, headers, row, object_instan
                     if multiselect:
                         model_field_value = re.sub(r"\n", r", ", model_field_value)
                         model_field_value = re.sub(r"[,\s]*$", r"", model_field_value)
+                    else:
+                        computer_readable_list = [choice[0] for choice in choices]
+                        if not model_field_value in computer_readable_list:
+                            stripped_human_field = human_field.replace('^', '').replace('$', '')
+                            messages.warning(request, object_instance_name + " was not added/updated (all changes were reverted): " + stripped_human_field + " has an invalid value")
+                            return False
                 setattr(object_instance, model_field, model_field_value)
                 if model_field == 'family':
                     print('family after: ' + str(object_instance.family))

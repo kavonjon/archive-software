@@ -12,24 +12,44 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 
 import os
 import ast
-#from .secrets import *
+import environ
+from .deploychoice import *
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+if deploychoice:
+    pass
+else:
+    env = environ.Env(
+        # set casting, default value
+        DEBUG=(bool, False)
+    )
+    # Take environment variables from .env file
+    environ.Env.read_env(os.path.join(BASE_DIR, '../.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY')
+if deploychoice:
+    SECRET_KEY = os.getenv('SECRET_KEY')
+else:
+    SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG') == "True"
 
+if deploychoice:
+    DEBUG = os.getenv('DEBUG') == "True"
+else:
+    DEBUG = env('DEBUG')
 
 #ALLOWED_HOSTS =
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
+if deploychoice:
+    ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
+else:
+    ALLOWED_HOSTS = env("ALLOWED_HOSTS").split(",")
 ALLOWED_HOSTS = [] if not any(ALLOWED_HOSTS) else ALLOWED_HOSTS
 
 
@@ -81,17 +101,28 @@ WSGI_APPLICATION = 'archive.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': os.getenv('DBNAME'),
-        'USER': os.getenv('DBUSER'),
-        'PASSWORD': os.getenv('DBPASS'),
-        'HOST': os.getenv('DBHOST'),
-        'PORT': os.getenv('DBPORT'),
+if deploychoice:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+            'NAME': os.getenv('DBNAME'),
+            'USER': os.getenv('DBUSER'),
+            'PASSWORD': os.getenv('DBPASS'),
+            'HOST': os.getenv('DBHOST'),
+            'PORT': os.getenv('DBPORT'),
+        }
     }
-}
-
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+            'NAME': env('DBNAME'),
+            'USER': env('DBUSER'),
+            'PASSWORD': env('DBPASS'),
+            'HOST': env('DBHOST'),
+            'PORT': env('DBPORT'),
+        }
+    }
 # Password validation
 # https://docs.djangoproject.com/en/3.0/ref/settings/#auth-password-validators
 
@@ -144,6 +175,11 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_USE_TLS = True
 EMAIL_PORT = 587
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-ADMINS = ast.literal_eval(os.getenv('ADMINS'))
+if deploychoice:
+    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+    ADMINS = ast.literal_eval(os.getenv('ADMINS'))
+else:
+    EMAIL_HOST_USER = env('EMAIL_HOST_USER')
+    EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
+    ADMINS = ast.literal_eval(env('ADMINS'))

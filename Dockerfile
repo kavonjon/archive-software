@@ -1,16 +1,18 @@
-FROM python:3.6.15
-
+FROM python:3.11.4
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-RUN apt-get update && apt-get install -y ffmpeg
+RUN apt update && apt install -y ffmpeg
 
-RUN pip install --upgrade pip
+RUN apt install -y python3-dev && apt install -y gfortran && apt install -y gcc && apt install -y musl-dev
+
+
+RUN python3 -m pip install --upgrade pip setuptools wheel
 
 COPY app/requirements.txt .
 
-RUN pip install -r requirements.txt
+RUN python3 -m pip install -r requirements.txt
 
 COPY ./app /app
 

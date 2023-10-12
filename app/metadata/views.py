@@ -14,7 +14,7 @@ from django.http import HttpResponse
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.forms.models import model_to_dict
-from django.db.models import Count, Sum, Max
+from django.db.models import Count, Sum, Max, Q
 from django.views.generic.edit import FormView, DeleteView
 from .models import Item, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, MUSIC_CHOICES, DESCRIPTIVE_MATERIALS_CHOICES, reverse_lookup_choices, validate_date_text
 from .forms import LanguageForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
@@ -126,13 +126,17 @@ def item_index(request):
 
     if is_valid_param(collaborator_contains_query):
         if ( collaborator_contains_query == 'Anonymous' ) or ( collaborator_contains_query == 'anonymous' ):
-            anonymous_list = qs.filter(collaborator__anonymous = True).union(qs.filter(item_documents__collaborator__anonymous = True))
+            anonymous_list = qs.filter(
+                Q(collaborator__anonymous = True) | Q(item_documents__collaborator__anonymous = True)
+                )
         else:
             anonymous_list = Item.objects.none()
 
         if not is_member_of_archivist(request.user):
             qs = qs.exclude(collaborator__anonymous = True).exclude(item_documents__collaborator__anonymous = True)
-        collaborator_name_qs = qs.filter(collaborator__name__icontains = collaborator_contains_query).union(qs.filter(item_documents__collaborator__name__icontains = collaborator_contains_query))
+        collaborator_name_qs = qs.filter(
+            Q(collaborator__name__icontains = collaborator_contains_query) | Q(item_documents__collaborator__name__icontains = collaborator_contains_query)
+            )
         qs = collaborator_name_qs
 
         qs = qs.union(anonymous_list)
@@ -142,9 +146,10 @@ def item_index(request):
     qs_simple = qs
 
     if is_valid_param(titles_contains_query):
-        partial_qs_indigenous_title = qs_simple.filter(indigenous_title__icontains = titles_contains_query)
-        partial_qs_english_title = qs_simple.filter(english_title__icontains = titles_contains_query)
-        partial_qs_title = partial_qs_indigenous_title.union(partial_qs_english_title)
+        indigenous_title_condition = Q(indigenous_title__icontains = titles_contains_query)
+        english_title_condition = Q(english_title__icontains=titles_contains_query)
+        combined_condition = indigenous_title_condition | english_title_condition
+        partial_qs_title = qs_simple.filter(combined_condition)
         qs = qs.intersection(partial_qs_title)
         titles_contains_query_last = titles_contains_query
 
@@ -1934,7 +1939,10 @@ def collaborator_index(request):
     if is_valid_param(name_contains_query):
         if ( name_contains_query == 'Anonymous' ) or ( name_contains_query == 'anonymous' ):
             anonymous_list = Collaborator.objects.filter(anonymous = True)
-        qs = qs.filter(name__icontains = name_contains_query).union(qs.filter(nickname__icontains = name_contains_query)).union(qs.filter(other_names__icontains = name_contains_query))
+        qs = qs.filter(
+            Q(name__icontains = name_contains_query) | Q(nickname__icontains = name_contains_query) | Q(other_names__icontains = name_contains_query)
+            )
+
         name_contains_query_last = name_contains_query
 
     qs = qs.distinct()

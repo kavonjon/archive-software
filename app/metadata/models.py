@@ -181,7 +181,7 @@ def reverse_lookup_choices(choices, entry):
 
 
 def validate_date_text(value):
-    if value is "":
+    if value == "":
 #        print(value + " got to Z")
         return value
     date_re = re.search(r"([0-9]{4})([0-9]{4})", str(value), flags=re.I)
@@ -257,13 +257,28 @@ def validate_date_text(value):
 
 
 class Language(models.Model):
+    LEVELS = (('family', 'Family'),
+            ('language', 'Language'),
+            ('dialect', 'dialect'))
+    glottocode = models.CharField(max_length=8, blank=True)
     iso = models.CharField(max_length=32, unique=True)
     name = models.CharField(max_length=255)
+    level = models.CharField(max_length=8, choices=LEVELS)
     family = models.CharField(max_length=255, blank=True)
+    family_id = models.CharField(max_length=8, blank=True)
     pri_subgroup = models.CharField(max_length=255, blank=True)
+    pri_subgroup_id = models.CharField(max_length=8, blank=True)
     sec_subgroup = models.CharField(max_length=255, blank=True)
+    sec_subgroup_id = models.CharField(max_length=8, blank=True)
     alt_name = models.CharField(max_length=255, blank=True)
     region = models.CharField(max_length=255, blank=True)
+    longitude = models.DecimalField(max_digits=22, decimal_places=16, blank=True, null=True)
+    latitude = models.DecimalField(max_digits=22, decimal_places=16, blank=True, null=True)
+    dialects = models.CharField(max_length=255, blank=True)
+    dialects_ids = models.CharField(max_length=255, blank=True)
+    language = models.CharField(max_length=255, blank=True)
+    language_id = models.CharField(max_length=8, blank=True)
+    tribes = models.CharField(max_length=255, blank=True)
     notes = models.CharField(max_length=255, blank=True)
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)

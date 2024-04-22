@@ -19,7 +19,15 @@ from .deploychoice import *
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-if deploychoice:
+
+if 'deploychoice' in globals():
+    # The variable is defined, use its value
+    deploy = deploychoice
+else:
+    # The variable is not defined, use False
+    deploy = False
+
+if deploy:
     pass
 else:
     env = environ.Env(
@@ -33,20 +41,20 @@ else:
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-if deploychoice:
+if deploy:
     SECRET_KEY = os.getenv('SECRET_KEY')
 else:
     SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 
-if deploychoice:
+if deploy:
     DEBUG = os.getenv('DEBUG') == "True"
 else:
     DEBUG = env('DEBUG')
 
 #ALLOWED_HOSTS =
-if deploychoice:
+if deploy:
     ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
 else:
     ALLOWED_HOSTS = env("ALLOWED_HOSTS").split(",")
@@ -101,7 +109,7 @@ WSGI_APPLICATION = 'archive.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
-if deploychoice:
+if deploy:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql_psycopg2',
@@ -175,7 +183,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_USE_TLS = True
 EMAIL_PORT = 587
-if deploychoice:
+if deploy:
     EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
     EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
     ADMINS = ast.literal_eval(os.getenv('ADMINS'))

@@ -2196,16 +2196,16 @@ def import_field(request, model_field, human_fields, headers, row, object_instan
     # choices: tuple of tuples from django models
 
     object_instance_name = ''
-    if model is "Item":
+    if model == "Item":
         object_instance_name = 'Item: ' + str(object_instance.catalog_number)
-    elif ( model is "Document" ) or ( model == "Item document" ):
+    elif ( model == "Document" ) or ( model == "Item document" ):
         if is_valid_param(object_instance.filename):
             object_instance_name = 'Document: ' + str(object_instance.filename)
         elif is_valid_param(object_instance.title):
             object_instance_name = 'Document with title: ' + str(object_instance.title)
         else:
             object_instance_name = 'Document with unique ID: ' + str(object_instance.id)
-    elif ( model == "Collaborator native" ) or ( model == "Collaborator other" ) or ( model is "Collaborator" ):
+    elif ( model == "Collaborator native" ) or ( model == "Collaborator other" ) or ( model == "Collaborator" ):
         object_instance_name = 'Collaborator: ' + str(object_instance.name) + ' (' + str(object_instance.collaborator_id) + ')'
 
     for human_field in human_fields:
@@ -2248,16 +2248,16 @@ def import_field(request, model_field, human_fields, headers, row, object_instan
 def import_child_field(request, parent_name_field, child_model_field, human_fields, headers, row, object_instance, model, num=False, choices=None, multiselect=False, yesno=False):
 
     object_instance_name = ''
-    if model is "Item":
+    if model == "Item":
         object_instance_name = 'Item: ' + str(object_instance.catalog_number)
-    elif ( model is "Document" ) or ( model == "Item document" ):
+    elif ( model == "Document" ) or ( model == "Item document" ):
         if is_valid_param(object_instance.filename):
             object_instance_name = 'Document: ' + str(object_instance.filename)
         elif is_valid_param(object_instance.title):
             object_instance_name = 'Document with title: ' + str(object_instance.title)
         else:
             object_instance_name = 'Document with unique ID: ' + str(object_instance.id)
-    elif ( model == "Collaborator native" ) or ( model == "Collaborator other" ) or ( model is "Collaborator" ):
+    elif ( model == "Collaborator native" ) or ( model == "Collaborator other" ) or ( model == "Collaborator" ):
         object_instance_name = 'Collaborator: ' + str(object_instance.name) + ' (' + str(object_instance.collaborator_id) + ')'
 
     valid_values = [False] * len(human_fields)
@@ -2288,9 +2288,9 @@ def import_child_field(request, parent_name_field, child_model_field, human_fiel
         new_geographic = {'lat': child_model_field_values[0],
                           'long': child_model_field_values[1]
         }
-        if model is "Item":
+        if model == "Item":
             new_geographic['item'] = object_instance
-        elif ( model is "Document" ) or ( model == "Item document" ):
+        elif ( model == "Document" ) or ( model == "Item document" ):
             new_geographic['document'] = object_instance
 
         try:
@@ -2313,16 +2313,16 @@ def import_language_field(request, headers, row, object_instance, model, documen
     return_object = None
 
     object_instance_name = ''
-    if model is "Item":
+    if model == "Item":
         object_instance_name = 'Item: ' + str(object_instance.catalog_number)
-    elif ( model is "Document" ) or ( model == "Item document" ):
+    elif ( model == "Document" ) or ( model == "Item document" ):
         if is_valid_param(object_instance.filename):
             object_instance_name = 'Document: ' + str(object_instance.filename)
         elif is_valid_param(object_instance.title):
             object_instance_name = 'Document with title: ' + str(object_instance.title)
         else:
             object_instance_name = 'Document with unique ID: ' + str(object_instance.id)
-    elif ( model == "Collaborator native" ) or ( model == "Collaborator other" ) or ( model is "Collaborator" ):
+    elif ( model == "Collaborator native" ) or ( model == "Collaborator other" ) or ( model == "Collaborator" ):
         object_instance_name = 'Collaborator: ' + str(object_instance.name) + ' (' + str(object_instance.collaborator_id) + ')'
 
     # language and dialect, a manytomany one, with a double foreign key one
@@ -2335,7 +2335,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
         if not is_valid_param(iso_indexes):
             iso_indexes = list_string_find_indices(headers,'^ISO Indicator(\s)?([0-9])*$')
 
-    if ( model is "Item" ) or ( model is "Language") or ( model is "Document"):
+    if ( model == "Item" ) or ( model == "Language") or ( model == "Document"):
         language_indexes = list_string_find_indices(headers,'^Language Name(\s)?([0-9])*$')
     elif model == "Item document":
         language_indexes = list_string_find_indices(headers, document_prefix + ' Language Name(\s)?([0-9])*$')
@@ -2352,7 +2352,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
         iso_indexes.extend( [None] * ( max_list_len - len(iso_indexes) ) )
         language_indexes.extend( [None] * ( max_list_len - len(language_indexes) ) )
 
-        if ( model is "Item" ) or ( model is "Document" ):
+        if ( model == "Item" ) or ( model == "Document" ):
             dialect_indexes = list_string_find_indices(headers,'^Dialect(\s)?([0-9])*$')
         elif model == "Item document":
             dialect_indexes = list_string_find_indices(headers, document_prefix + ' Dialect(\s)?([0-9])*$')
@@ -2360,7 +2360,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
             dialect_indexes = list_string_find_indices(headers,'^Native/First Languages? Dialect(\s)?([0-9])*$')
         elif model == "Collaborator other":
             dialect_indexes = list_string_find_indices(headers,'^Other Languages?( Spoken)? Dialect(\s)?([0-9])*$')
-        elif model is "Language":
+        elif model == "Language":
             dialect_indexes = list_string_find_indices(headers,'^Dialects(\s)?([0-9])*$')
 
         if is_valid_param(dialect_indexes):
@@ -2372,7 +2372,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
             object_instance.native_languages.clear()
         elif ( model == "Collaborator other" ):
             object_instance.other_languages.clear()
-        elif model is not "Language":
+        elif model != "Language":
             object_instance.language.clear()
 
         indexes = zip(iso_indexes, language_indexes, dialect_indexes)
@@ -2402,7 +2402,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                 else:
                     language_value = '' # reset this value to '' to help create object_instance_name for the case of language_import
 
-            if model is "Language":
+            if model == "Language":
                 object_instance_name = 'Language ' + language_value + ' (ISO Indicator: ' + iso_value + ')'
 
 
@@ -2415,7 +2415,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
 #                            print(language_object_with_language_value)
                             if language_object_with_iso_value.pk == language_object_with_language_value.pk:
                                 # 1) ISO and Language name refer to the same entry in the database, so all good
-                                if model is "Language":
+                                if model == "Language":
                                     #language_object_with_iso_value.language_dialects.delete()
                                     Dialect.objects.filter(language=language_object_with_iso_value).delete()
                                     return_object = language_object_with_iso_value
@@ -2426,9 +2426,9 @@ def import_language_field(request, headers, row, object_instance, model, documen
                                 else:
                                     object_instance.language.add(language_object_with_iso_value)
 
-                                if model is "Item":
+                                if model == "Item":
                                     dialect, created = DialectInstance.objects.get_or_create(item=object_instance, language=language_object_with_iso_value, defaults={'modified_by': request.user.get_username()})
-                                elif ( model is "Document") or ( model == "Item document" ):
+                                elif ( model == "Document") or ( model == "Item document" ):
                                     dialect, created = DialectInstance.objects.get_or_create(document=object_instance, language=language_object_with_iso_value, defaults={'modified_by': request.user.get_username()})
                                 elif model == "Collaborator native":
                                     dialect, created = DialectInstance.objects.get_or_create(collaborator_native=object_instance, language=language_object_with_iso_value, defaults={'modified_by': request.user.get_username()})
@@ -2443,7 +2443,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                                         dialect_value = re.sub(r"[,\s]*$", r"", dialect_value)
                                         dialect_values = dialect_value.strip().split(',')
                                         dialect_values = [i.strip() for i in dialect_values]
-                                        if model is "Language":
+                                        if model == "Language":
                                             for each_dialect in dialect_values:
                                                 dialect_object_with_dialect_value, created = Dialect.objects.get_or_create(name=each_dialect, language=language_object_with_iso_value)
                                                 #language_object_with_iso_value.language_dialects.add(dialect_object_with_dialect_value)
@@ -2468,7 +2468,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                             return False, return_object
 
                     else: # 4) thus Language Name is not defined
-                        if model is "Language":
+                        if model == "Language":
                             #language_object_with_iso_value.language_dialects.clear()
                             Dialect.objects.filter(language=language_object_with_iso_value).delete()
                             return_object = language_object_with_iso_value
@@ -2479,9 +2479,9 @@ def import_language_field(request, headers, row, object_instance, model, documen
                         else:
                             object_instance.language.add(language_object_with_iso_value)
 
-                        if model is "Item":
+                        if model == "Item":
                             dialect, created = DialectInstance.objects.get_or_create(item=object_instance, language=language_object_with_iso_value, defaults={'modified_by': request.user.get_username()})
-                        elif ( model is "Document") or ( model == "Item document" ):
+                        elif ( model == "Document") or ( model == "Item document" ):
                             dialect, created = DialectInstance.objects.get_or_create(document=object_instance, language=language_object_with_iso_value, defaults={'modified_by': request.user.get_username()})
                         elif model == "Collaborator native":
                             dialect, created = DialectInstance.objects.get_or_create(collaborator_native=object_instance, language=language_object_with_iso_value, defaults={'modified_by': request.user.get_username()})
@@ -2495,7 +2495,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                                 dialect_value = re.sub(r"[,\s]*$", r"", dialect_value)
                                 dialect_values = dialect_value.strip().split(',')
                                 dialect_values = [i.strip() for i in dialect_values]
-                                if model is "Language":
+                                if model == "Language":
                                     for each_dialect in dialect_values:
                                         dialect_object_with_dialect_value, created = Dialect.objects.get_or_create(name=each_dialect, language=language_object_with_iso_value)
                                         #language_object_with_iso_value.language_dialects.add(dialect_object_with_dialect_value)
@@ -2520,7 +2520,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                         else: # 6) thus Language Name is defined but does not exist in database
                             language, created = Language.objects.get_or_create(iso=iso_value,
                                 defaults={'name': language_value},)
-                            if model is "Language":
+                            if model == "Language":
                                 messages.info(request, 'A new language entry was created (ISO indicator: ' + language.iso + ', Name: ' + language.name + ')')
                                 return_object = language
                             elif ( model == "Collaborator native" ):
@@ -2532,9 +2532,9 @@ def import_language_field(request, headers, row, object_instance, model, documen
                             else:
                                 object_instance.language.add(language)
                                 messages.info(request, 'A new language entry was created (ISO indicator: ' + language.iso + ', Name: ' + language.name + '), and it was added to ' + object_instance_name)
-                            if model is "Item":
+                            if model == "Item":
                                 dialect, created = DialectInstance.objects.get_or_create(item=object_instance, language=language, defaults={'modified_by': request.user.get_username()})
-                            elif ( model is "Document") or ( model == "Item document" ):
+                            elif ( model == "Document") or ( model == "Item document" ):
                                 dialect, created = DialectInstance.objects.get_or_create(document=object_instance, language=language, defaults={'modified_by': request.user.get_username()})
                             elif model == "Collaborator native":
                                 dialect, created = DialectInstance.objects.get_or_create(collaborator_native=object_instance, language=language, defaults={'modified_by': request.user.get_username()})
@@ -2548,7 +2548,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                                     dialect_value = re.sub(r"[,\s]*$", r"", dialect_value)
                                     dialect_values = dialect_value.strip().split(',')
                                     dialect_values = [i.strip() for i in dialect_values]
-                                    if model is "Language":
+                                    if model == "Language":
                                         for each_dialect in dialect_values:
                                             dialect_object_with_dialect_value, created = Dialect.objects.get_or_create(name=each_dialect, language=language)
                                             #language.language_dialects.add(dialect_object_with_dialect_value)
@@ -2567,7 +2567,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                 if is_valid_param(language_value):
                     if is_valid_param(language_object_with_language_value):
                         # 8) thus Language Name is defined and exists in database
-                        if model is "Language":
+                        if model == "Language":
                             #language_object_with_language_value.language_dialects.clear()
                             Dialect.objects.filter(language=language_object_with_language_value).delete()
                             return_object = language_object_with_language_value
@@ -2577,9 +2577,9 @@ def import_language_field(request, headers, row, object_instance, model, documen
                             object_instance.other_languages.add(language_object_with_language_value)
                         else:
                             object_instance.language.add(language_object_with_language_value)
-                        if model is "Item":
+                        if model == "Item":
                             dialect, created = DialectInstance.objects.get_or_create(item=object_instance, language=language_object_with_language_value, defaults={'modified_by': request.user.get_username()})
-                        elif ( model is "Document") or ( model == "Item document" ):
+                        elif ( model == "Document") or ( model == "Item document" ):
                             dialect, created = DialectInstance.objects.get_or_create(document=object_instance, language=language_object_with_language_value, defaults={'modified_by': request.user.get_username()})
                         elif model == "Collaborator native":
                             dialect, created = DialectInstance.objects.get_or_create(collaborator_native=object_instance, language=language_object_with_language_value, defaults={'modified_by': request.user.get_username()})
@@ -2593,7 +2593,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                                 dialect_value = re.sub(r"[,\s]*$", r"", dialect_value)
                                 dialect_values = dialect_value.strip().split(',')
                                 dialect_values = [i.strip() for i in dialect_values]
-                                if model is "Language":
+                                if model == "Language":
                                     for each_dialect in dialect_values:
                                         dialect_object_with_dialect_value, created = Dialect.objects.get_or_create(name=each_dialect, language=language_object_with_language_value)
                                         #language_object_with_language_value.language_dialects.add(dialect_object_with_dialect_value)
@@ -2868,7 +2868,7 @@ def import_date_field(model_field, human_fields, headers, row, object_instance):
             date_2 = re.sub(r"^/*", "", date_2)
 
             if date_1 == date_2:
-                if date_1 is not "":
+                if date_1 != "":
                     setattr(object_instance, model_field, date_1)
 #                    print(object_instance.catalog_number + "got to G")
                     return True

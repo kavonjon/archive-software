@@ -2191,7 +2191,7 @@ def date_processing(date): #this is probably deprecated
 
 ##### reverse choices was here
 
-def import_field(request, model_field, human_fields, headers, row, object_instance, model, choices=None, multiselect=False, yesno=False):
+def import_field(request, model_field, human_fields, headers, row, object_instance, model, choices=None, multiselect=False, yesno=False, validate_glottocode=False):
     # model_field: string, human_fields: tuple, headers: list, row: list, object_instance: object instance,
     # choices: tuple of tuples from django models
 
@@ -2207,6 +2207,8 @@ def import_field(request, model_field, human_fields, headers, row, object_instan
             object_instance_name = 'Document with unique ID: ' + str(object_instance.id)
     elif ( model == "Collaborator native" ) or ( model == "Collaborator other" ) or ( model == "Collaborator" ):
         object_instance_name = 'Collaborator: ' + str(object_instance.name) + ' (' + str(object_instance.collaborator_id) + ')'
+    elif ( model == "Language" ):
+        object_instance_name = 'Language: ' + str(object_instance.name)
 
     for human_field in human_fields:
         human_field_indeces = list_string_find_indices(headers, human_field)
@@ -2228,6 +2230,17 @@ def import_field(request, model_field, human_fields, headers, row, object_instan
                         computer_readable_list = [choice[0] for choice in choices]
                         if not model_field_value in computer_readable_list:
                             stripped_human_field = human_field.replace('^', '').replace('$', '')
+                            messages.warning(request, object_instance_name + " was not added/updated (all changes were reverted): " + stripped_human_field + " has an invalid value")
+                            return False
+                if validate_glottocode == "single":
+                    if len(model_field_value) != 8 or not re.match(r'^.*\d{4}$', model_field_value):
+                        messages.warning(request, object_instance_name + " was not added/updated (all changes were reverted): " + stripped_human_field + " has an invalid value")
+                        return False
+                if validate_glottocode == "multiple":
+                    glottocodes = [code.strip() for code in model_field_value.split(',')]
+                    # Validate each glottocode
+                    for glottocode in glottocodes:
+                        if len(glottocode) != 8 or not re.match(r'^.*\d{4}$', glottocode):
                             messages.warning(request, object_instance_name + " was not added/updated (all changes were reverted): " + stripped_human_field + " has an invalid value")
                             return False
                 setattr(object_instance, model_field, model_field_value)
@@ -3541,11 +3554,20 @@ def ImportView(request):
             if not return_object:
                 continue
 
+            level_success = import_field(request, 'level', ('^Level$',), headers, row, return_object, model = 'Language', choices="LEVELS")
+            glottocode_success = import_field(request, 'glottocode', ('^Glottocode$',), headers, row, return_object, model = 'Language', validate_glottocode="Single")
             import_field(request, 'family', ('^Family$',), headers, row, return_object, model = "Language")
+            import_field(request, 'family', ('^Language family$',), headers, row, return_object, model = "Language")
+            family_glottocode_success = import_field(request, 'family_id', ('^Family glottocode$',), headers, row, return_object, model = "Language", validate_glottocode="Single")
             import_field(request, 'pri_subgroup', ('^Primary Subgroup$',), headers, row, return_object, model = "Language")
+            pri_subgroup_glottocode_success = import_field(request, 'pri_subgroup_id', ('^Primary subgroup glottocode$',), headers, row, return_object, model = "Language", validate_glottocode="Single")
             import_field(request, 'sec_subgroup', ('^Secondary Subgroup$',), headers, row, return_object, model = "Language")
+            sec_subgroup_glottocode_success = import_field(request, 'sec_subgroup_id', ('^Secondary subgroup glottocode$',), headers, row, return_object, model = "Language", validate_glottocode="Single")
             import_field(request, 'alt_name', ('^Alternate Name\(s\)$',), headers, row, return_object, model = "Language")
+            import_field(request, 'alt_name', ('^Alternative Name\(s\)$',), headers, row, return_object, model = "Language")
+            import_field(request, 'dialects', ('^Dialects$',), headers, row, return_object, model = "Language")
             import_field(request, 'region', ('^Region$',), headers, row, return_object, model = "Language")
+            import_field(request, 'tribes', ('^Tribes$',), headers, row, return_object, model = "Language")
             import_field(request, 'notes', ('^Notes$',), headers, row, return_object, model = "Language")
 
             return_object.modified_by = request.user.get_username()

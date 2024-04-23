@@ -24,7 +24,17 @@
 </div>
 <div class="row">
     <div class="col-md-4">
-        <b>ISO (or other unique identifier):</b> {{ language.iso }}
+        <b>Glottocode:</b> {{ language.glottocode }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>ISO:</b> {{ language.iso }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Level:</b> {{ language.get_level_display }}
     </div>
 </div>
 <div class="row">
@@ -34,7 +44,17 @@
 </div>
 <div class="row">
     <div class="col-md-4">
+        <b>Family glottocode:</b> {{ language.family_id }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
         <b>Primary subgroup:</b> {{ language.pri_subgroup }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Primary subgroup glottocode:</b> {{ language.pri_subgroup_id }}
     </div>
 </div>
 <div class="row">
@@ -44,7 +64,22 @@
 </div>
 <div class="row">
     <div class="col-md-4">
-        <b>Dialects:</b>{% if request.user|has_group:"Archivist"%} (click on an existing dialect to edit) <a class="stealth" href="dialects/add"><i class="fa fa-plus"></i></a>{% endif %}
+        <b>Secondary subgroup glottocode:</b> {{ language.sec_subgroup_id }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Dialects</b> (comma separated list): {{ language.dialects }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Dialect glottocodes</b> (comma separated list): {{ language.dialects_ids }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Dialects (old, not for migration):</b>{% if request.user|has_group:"Archivist"%} (click on an existing dialect to edit) <a class="stealth" href="dialects/add"><i class="fa fa-plus"></i></a>{% endif %}
     </div>
 </div>
 {% for dialect in dialect_info %}
@@ -60,7 +95,21 @@
         <b>Region:</b> {{ language.region }}
     </div>
 </div>
-
+<div class="row">
+    <div class="col-md-4">
+        <b>Latitude:</b> {{ language.latitude }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Longitude:</b> {{ language.longitude }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <b>Tribes:</b> {{ language.tribes }}
+    </div>
+</div>
 <div class="row">
     <div class="col-md-4">
         <b>Notes:</b> {{ language.notes }}

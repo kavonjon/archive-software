@@ -17,104 +17,93 @@
         <b>Language name:</b> {{ language.name }}
     </div>
 </div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Alternative names:</b> {{ language.alt_name }}
+<div class="container">
+    <div class="row mt-2">
+        <div class="col-auto">
+            <b>Alternative names:</b> {{ language.alt_name }}
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-auto d-inline-block">
+            <b>ISO:</b> {{ language.iso }}
+        </div>
+        <div class="col-auto d-inline-block">
+            <b>Glottocode:</b> {{ language.glottocode }}
+        </div>
+        <div class="col-auto d-inline-block">
+            <b>Level:</b> {{ language.get_level_display }}
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-auto d-inline-block">
+            <b>Family:</b> {{ language.family }} {% if language.family_abbrev == language.family %}{% else %}(Abbreviation: {{ language.family_abbrev }}){% endif %}
+        </div>
+        <div class="col-auto d-inline-block">
+            <b>Family glottocode:</b> {{ language.family_id }}
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-auto d-inline-block">
+            <b>Primary subgroup:</b> {{ language.pri_subgroup }} {% if language.pri_subgroup_abbrev == language.pri_subgroup %}{% else %}(Abbreviation: {{ language.pri_subgroup_abbrev }}){% endif %}
+        </div>
+        <div class="col-auto d-inline-block">
+            <b>Primary subgroup glottocode:</b> {{ language.pri_subgroup_id }}
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-auto d-inline-block">
+            <b>Secondary subgroup:</b> {{ language.sec_subgroup }} {% if language.sec_subgroup_abbrev == language.sec_subgroup %}{% else %}(Abbreviation: {{ language.sec_subgroup_abbrev }}){% endif %}
+        </div>
+        <div class="col-auto d-inline-block">
+            <b>Secondary subgroup glottocode:</b> {{ language.sec_subgroup_id }}
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-auto d-inline-block">
+            <b>Dialects</b> (comma separated list): {{ language.dialects }}
+        </div>
+        <div class="col-auto d-inline-block">
+            <b>Dialect glottocodes</b> (comma separated list): {{ language.dialects_ids }}
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-auto d-inline-block">
+            <b>Region:</b> {{ language.region }}
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-auto d-inline-block">
+            <b>Latitude:</b> {{ language.latitude }}
+        </div>
+        <div class="col-auto d-inline-block">
+            <b>Longitude:</b> {{ language.longitude }}
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-auto d-inline-block">
+            <b>Tribes:</b> {{ language.tribes }}
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-auto d-inline-block">
+            <b>Notes:</b> {{ language.notes }}
+        </div>
     </div>
 </div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Glottocode:</b> {{ language.glottocode }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <b>ISO:</b> {{ language.iso }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Level:</b> {{ language.get_level_display }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Family:</b> {{ language.family }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Family glottocode:</b> {{ language.family_id }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Primary subgroup:</b> {{ language.pri_subgroup }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Primary subgroup glottocode:</b> {{ language.pri_subgroup_id }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Secondary subgroup:</b> {{ language.sec_subgroup }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Secondary subgroup glottocode:</b> {{ language.sec_subgroup_id }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Dialects</b> (comma separated list): {{ language.dialects }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Dialect glottocodes</b> (comma separated list): {{ language.dialects_ids }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Dialects (old, not for migration):</b>{% if request.user|has_group:"Archivist"%} (click on an existing dialect to edit) <a class="stealth" href="dialects/add"><i class="fa fa-plus"></i></a>{% endif %}
+
+<div class="row mt-3">
+    <div class="col-auto">
+        <b>Dialects (old, not for migration):</b>{% if request.user|has_group:"Archivist"%} (click on an existing dialect to edit) <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="dialects/add"><i class="fa fa-plus"></i></a>{% endif %}
     </div>
 </div>
 {% for dialect in dialect_info %}
 <div class="row">
-    <div class="col-md-12 indented">
-        <b>Dialect:</b> {% if request.user|has_group:"Archivist"%}<a class="stealth" href="{% url 'dialect_edit' dialect.pk %}"> {{ dialect.name }}</a>
+    <div class="col-auto indented">
+        <b>Dialect:</b> {% if request.user|has_group:"Archivist"%}<a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'dialect_edit' dialect.pk %}"> {{ dialect.name }}</a>
 <a href="{% url "dialect_delete" dialect.id %}"><i class="fas fa-times"></i></a>{% else %}{{ dialect.name }}{% endif %}
     </div>
 </div>
 {% endfor %}
-<div class="row">
-    <div class="col-md-4">
-        <b>Region:</b> {{ language.region }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Latitude:</b> {{ language.latitude }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Longitude:</b> {{ language.longitude }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Tribes:</b> {{ language.tribes }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-4">
-        <b>Notes:</b> {{ language.notes }}
-    </div>
-</div>
 <div class="row">
     <div class="col-md-4">
         <b>Last updated:</b> {{ language.updated }}
@@ -134,7 +123,7 @@
 {% for collaborator_with_language in collaborators_with_language %}
 <div class="row">
   <div class="col-md-12">
-      <a class="stealth" href="{% url 'collaborator_detail' collaborator_with_language.pk %}">{% anonymize_collaborators collaborator_with_language request.user 'name' %}</a>
+      <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'collaborator_detail' collaborator_with_language.pk %}">{% anonymize_collaborators collaborator_with_language request.user 'name' %}</a>
   </div>
 </div>
 {% endfor %}
@@ -147,7 +136,7 @@
 {% for item_with_language in items_with_language %}
 <div class="row">
   <div class="col-md-12">
-      <a class="stealth" href="{% url 'item_detail' item_with_language.pk %}">{{ item_with_language }}</a>
+      <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'item_detail' item_with_language.pk %}">{{ item_with_language }}</a>
   </div>
 </div>
 {% endfor %}

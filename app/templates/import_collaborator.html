@@ -15,17 +15,14 @@
 
   <p>Use this page to add collaborators to the database via excel spreadsheet upload. <br />
   File should be a .xls(x), with one row of headers.<br />
-  <a href="{% static 'collaborator_import_template.xlsx' %}">Download the template .xlsx file</a> to see expected columns<br />
-  <a href="{% static 'date_formatting.xlsx' %}">Download the date formatting .xlsx file</a> for info on date formats supported during import</p>
+  <a class="link-opacity-40-hover link-underline link-underline-opacity-0 link-underline-opacity-75-hover" href="{% static 'collaborator_import_template.xlsx' %}">Download the template .xlsx file</a> to see expected columns<br />
+  <a class="link-opacity-40-hover link-underline link-underline-opacity-0 link-underline-opacity-75-hover" href="{% static 'date_formatting.xlsx' %}">Download the date formatting .xlsx file</a> for info on date formats supported during import</p>
   <form method='POST' enctype='multipart/form-data'>
     {% csrf_token %}
-    <div class="form-row">
-        <div class="custom-file mb-3 mr-5">
-          <input type="file" class="custom-file-input" id="customFile" name="file">
-          <label class="custom-file-label" for="customFile">Choose file</label>
-        </div>
+    <div class="mb-3">
+      <input type="file" class="form-control" id="customFile" name="file">
     </div>
-
+  
     <div class="mt-3">
       <button type="submit" class="btn btn-primary">Submit</button>
     </div>

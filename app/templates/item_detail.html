@@ -69,7 +69,7 @@
 {% for language, dialect in dialect_info %}
 <div class="row">
     <div class="col-md-12 indented">
-        <b>Language:</b> <a class="stealth" href="{% url 'language_detail' language.pk %}">{{ language }}</a>, <b>Dialect(s):</b>{% if request.user|has_group:"Archivist"%} <a class="stealth" href="{% url 'dialect_instance_edit' dialect.pk %}">{% endif %} {% if dialect.name.all|join:", " %} {{ dialect.name.all|join:", "}} {% else %} (blank) {% endif %}{% if request.user|has_group:"Archivist"%} </a>{% endif %}
+        <b>Language:</b> <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'language_detail' language.pk %}">{{ language }}</a>, <b>Dialect(s):</b>{% if request.user|has_group:"Archivist"%} <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'dialect_instance_edit' dialect.pk %}">{% endif %} {% if dialect.name.all|join:", " %} {{ dialect.name.all|join:", "}} {% else %} (blank) {% endif %}{% if request.user|has_group:"Archivist"%} </a>{% endif %}
     </div>
 </div>
 {% endfor %}
@@ -102,7 +102,7 @@
     </div>
 </div>
 {% for document in documents %}
-<a class="stealth" href="{% url 'document_detail' document.pk %}">
+<a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'document_detail' document.pk %}">
     <div class="row">
         <div class="col-md-12">
             {{ document.filename }} {{ document.title }}
@@ -151,7 +151,7 @@
 {% for collaborator, role in collaborator_info %}
 <div class="row">
     <div class="col-md-12">
-        <b>Collaborator:</b> <a class="stealth" href="{% url 'collaborator_detail' collaborator.pk %}">{% anonymize_collaborators collaborator request.user 'name' %}</a>, <b>Role:</b> {% if request.user|has_group:"Archivist"%}<a class="stealth" href="{% url 'collaborator_role_edit' role.pk %}">{% endif %} {% if role.role %} {{ role.role }} {% else %} (blank) {% endif %}{% if request.user|has_group:"Archivist"%} </a>{% endif %}
+        <b>Collaborator:</b> <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'collaborator_detail' collaborator.pk %}">{% anonymize_collaborators collaborator request.user 'name' %}</a>, <b>Role:</b> {% if request.user|has_group:"Archivist"%}<a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'collaborator_role_edit' role.pk %}">{% endif %} {% if role.role %} {{ role.role }} {% else %} (blank) {% endif %}{% if request.user|has_group:"Archivist"%} </a>{% endif %}
     </div>
 </div>
 {% endfor %}
@@ -349,14 +349,14 @@
 </div>
 <div class="row">
     <div class="col-md-6">
-        <b>Geographic coordinates:</b>{% if request.user|has_group:"Archivist"%} (click on an existing point to edit) <a class="stealth" href="geographic/add"><i class="fa fa-plus"></i></a>{% endif %}
+        <b>Geographic coordinates:</b>{% if request.user|has_group:"Archivist"%} (click on an existing point to edit) <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="geographic/add"><i class="fa fa-plus"></i></a>{% endif %}
     </div>
 </div>
 {% for geographic in geographic_info %}
 <div class="row">
     <div class="col-md-12 indented">
-        <b>Latitude:</b> {% if request.user|has_group:"Archivist"%}<a class="stealth" href="{% url 'geographic_edit' geographic.pk %}"> {{ geographic.lat }}</a>{% else %}{{ geographic.lat }}{% endif %},
-        <b>Longitude:</b> {% if request.user|has_group:"Archivist"%}<a class="stealth" href="{% url 'geographic_edit' geographic.pk %}"> {{ geographic.long }}</a>
+        <b>Latitude:</b> {% if request.user|has_group:"Archivist"%}<a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'geographic_edit' geographic.pk %}"> {{ geographic.lat }}</a>{% else %}{{ geographic.lat }}{% endif %},
+        <b>Longitude:</b> {% if request.user|has_group:"Archivist"%}<a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'geographic_edit' geographic.pk %}"> {{ geographic.long }}</a>
 <a href="{% url "geographic_delete" geographic.id %}"><i class="fas fa-times"></i></a>{% else %}{{ geographic.long }}{% endif %}
     </div>
 </div>

@@ -3,14 +3,14 @@
 {% load metadata_templatetags %}
 
 {% block page_content %}
-<div class="page-title" style="display: inline">Export columns settings</div>{% if request.user|has_group:"Archivist"%}<div style="display: inline"><a class="stealth" href="add"><i class="fa fa-plus"></i></a></div>{% endif %}
+<div class="page-title" style="display: inline">Export columns settings</div>{% if request.user|has_group:"Archivist"%}<div style="display: inline"><a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="add"><i class="bi bi-plus fs-2"></i></a></div>{% endif %}
 <div class="row">
     <div class="col-md-4">
         <b>Name</b>
     </div>
 </div>
 {% for columns_export in queryset %}
-<a class="stealth" href="{% url 'columns_export_detail' columns_export.pk %}">
+<a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'columns_export_detail' columns_export.pk %}">
     <div class="row">
         <div class="col-md-4">
             {{ columns_export.name }}

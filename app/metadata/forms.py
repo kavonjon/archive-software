@@ -16,10 +16,13 @@ class LanguageForm(ModelForm):
                   'level',
                   'family',
                   'family_id',
+                  'family_abbrev',
                   'pri_subgroup',
                   'pri_subgroup_id',
+                  'pri_subgroup_abbrev',
                   'sec_subgroup',
                   'sec_subgroup_id',
+                  'sec_subgroup_abbrev',
                   'region',
                   'latitude',
                   'longitude',
@@ -69,6 +72,14 @@ class LanguageForm(ModelForm):
                 raise ValidationError('Dialect glottocodes must be a comma separated list of strings of text with 8 characters and the last 4 characters must be numeric.')
 
         return dialects_ids
+    
+    def save(self, commit=True, *args, **kwargs):
+        modified_by = kwargs.pop('modified_by', None)
+        instance = super().save(commit=False, *args, **kwargs)
+        instance.modified_by = modified_by
+        if commit:
+            instance.save()
+        return instance
     
 class DialectForm(ModelForm):
     class Meta:

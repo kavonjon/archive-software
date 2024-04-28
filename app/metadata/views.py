@@ -1,9 +1,10 @@
-import os, csv, io, datetime, re, mutagen, librosa
+import os, csv, io, datetime, re, mutagen, librosa, json
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Color, PatternFill, Font, Border
 from openpyxl.writer.excel import save_virtual_workbook
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
+from django.conf import settings
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
@@ -1804,16 +1805,29 @@ def language_detail(request, pk):
 @user_passes_test(is_member_of_archivist, login_url='/no-permission', redirect_field_name=None)
 def language_edit(request, pk):
     qs = get_object_or_404(Language, id=pk)
+    glcodes = []
+    languoids = []
     if request.method == "POST":
         form = LanguageForm(request.POST, instance=qs)
         if form.is_valid():
-            qs.modified_by = request.user.get_username()
-            qs.save()
-            form.save()
+            form.save(modified_by=request.user.get_username())
             return redirect("../")
     else:
+        # Get the path to the CSV file
+        csv_path = os.path.join(settings.STATIC_ROOT, 'codelist.csv')
+        # Open the CSV file and read its contents
+        with open(csv_path, 'r') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                glcodes.append(dict(row)['glottocode'])
+                languoids.append(dict(row))
         form = LanguageForm(instance=qs)
-    return render(request, 'language_edit.html', {'form': form})
+    context = {
+        'form': form,
+        'glcodes': json.dumps(glcodes),
+        'languoids': json.dumps(languoids)
+    }
+    return render(request, 'language_edit.html', context)
 
 class language_add(UserPassesTestMixin, FormView):
     def test_func(self):
@@ -1821,14 +1835,24 @@ class language_add(UserPassesTestMixin, FormView):
     def handle_no_permission(self):
         return redirect('/no-permission')
     form_class = LanguageForm
-    template_name = "add.html"
+    template_name = "language_edit.html"
     def form_valid(self, form):
-        self.object = form.save()
+        self.object = form.save(modified_by=self.request.user.get_username())
         pk = self.object.pk
-        instance = Language.objects.get(pk=pk)
-        instance.modified_by = self.request.user.get_username()
-        instance.save()
         return redirect("../%s/" %pk )
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        glcodes = []
+        languoids = []
+        csv_path = os.path.join(settings.STATIC_ROOT, 'codelist.csv')
+        with open(csv_path, 'r') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                glcodes.append(dict(row)['glottocode'])
+                languoids.append(dict(row))
+        context['glcodes'] = json.dumps(glcodes)
+        context['languoids'] = json.dumps(languoids)
+        return context
 
 class language_delete(UserPassesTestMixin, DeleteView):
     def test_func(self):
@@ -2068,12 +2092,12 @@ class geographic_add(UserPassesTestMixin, FormView):
         instance = Geographic.objects.get(pk=pk)
         catalog_url_match = re.search('catalog/([0-9]{1,})', url_path, flags=re.I)
         if catalog_url_match:
-            print(catalog_url_match.groups(1))
+            # print(catalog_url_match.groups(1))
             parent_item = Item.objects.get(id=catalog_url_match.groups(1)[0])
             instance.item = parent_item
         document_url_match = re.search('documents/([0-9]{1,})', url_path, flags=re.I)
         if document_url_match:
-            print(document_url_match.groups(1))
+            # print(document_url_match.groups(1))
             parent_item = Document.objects.get(id=document_url_match.groups(1)[0])
             instance.document = parent_item
 
@@ -2191,10 +2215,10 @@ def date_processing(date): #this is probably deprecated
 
 ##### reverse choices was here
 
-def import_field(request, model_field, human_fields, headers, row, object_instance, model, choices=None, multiselect=False, yesno=False, validate_glottocode=False):
+def import_field(request, model_field, human_fields, headers, row, object_instance, model, choices=None, multiselect=False, yesno=False, validate_glottocode=False, validate_coord=False):
     # model_field: string, human_fields: tuple, headers: list, row: list, object_instance: object instance,
     # choices: tuple of tuples from django models
-
+    automate_glottocode_flag = False
     object_instance_name = ''
     if model == "Item":
         object_instance_name = 'Item: ' + str(object_instance.catalog_number)
@@ -2214,6 +2238,7 @@ def import_field(request, model_field, human_fields, headers, row, object_instan
         human_field_indeces = list_string_find_indices(headers, human_field)
         if is_valid_param(human_field_indeces):
             model_field_value = row[human_field_indeces[0]]
+            stripped_human_field = human_field.replace('^', '').replace('$', '')
             if is_valid_param(model_field_value):
                 old_value = getattr(object_instance, model_field)
                 if yesno:
@@ -2233,16 +2258,26 @@ def import_field(request, model_field, human_fields, headers, row, object_instan
                             messages.warning(request, object_instance_name + " was not added/updated (all changes were reverted): " + stripped_human_field + " has an invalid value")
                             return False
                 if validate_glottocode == "single":
-                    if len(model_field_value) != 8 or not re.match(r'^.*\d{4}$', model_field_value):
+                    test_value = str(model_field_value).strip()
+                    if len(test_value) != 8 or not re.match(r'^.*\d{4}$', test_value):
                         messages.warning(request, object_instance_name + " was not added/updated (all changes were reverted): " + stripped_human_field + " has an invalid value")
                         return False
                 if validate_glottocode == "multiple":
-                    glottocodes = [code.strip() for code in model_field_value.split(',')]
+                    test_value = str(model_field_value).strip()
+                    glottocodes = [code.strip() for code in test_value.split(',')]
                     # Validate each glottocode
                     for glottocode in glottocodes:
                         if len(glottocode) != 8 or not re.match(r'^.*\d{4}$', glottocode):
                             messages.warning(request, object_instance_name + " was not added/updated (all changes were reverted): " + stripped_human_field + " has an invalid value")
                             return False
+                if validate_coord:
+                    if isinstance(model_field_value, (int, float)):
+                        pass  # model_field_value is an int or float, so it's valid
+                    elif isinstance(model_field_value, str) and model_field_value.isdigit():
+                        pass  # model_field_value is a string of digits, so it's valid
+                    else:
+                        messages.warning(request, object_instance_name + " was not added/updated (all changes were reverted): " + stripped_human_field + " has an invalid value")
+                        return False
                 setattr(object_instance, model_field, model_field_value)
                 if model_field == 'family':
                     print('family after: ' + str(object_instance.family))
@@ -2254,6 +2289,22 @@ def import_field(request, model_field, human_fields, headers, row, object_instan
                     stripped_human_field = human_field.replace('^', '').replace('$', '')
                     messages.warning(request, object_instance_name + " was not added/updated (all changes were reverted): " + stripped_human_field + " has an invalid value")
                     return False
+            else:
+                automate_glottocode_flag = True
+        else:
+            automate_glottocode_flag = True
+        if automate_glottocode_flag:
+            if validate_glottocode:
+                if human_fields[0] == '^Glottocode$':
+                    automate_glottocode('glottocode', 'name', object_instance)
+                elif human_fields[0] == '^Family glottocode$' or human_fields[0] == '^Family$':
+                    automate_glottocode('family_id', 'family', object_instance)
+                elif human_fields[0] == '^Primary subgroup glottocode$':
+                    automate_glottocode('pri_subgroup_id', 'pri_subgroup', object_instance)
+                elif human_fields[0] == '^Secondary subgroup glottocode$':
+                    automate_glottocode('sec_subgroup_id', 'sec_subgroup', object_instance)
+                elif human_fields[0] == '^Dialect glottocodes$':
+                    automate_glottocode('dialects_ids', 'dialects', object_instance)
     return True
 
 
@@ -2891,6 +2942,24 @@ def import_date_field(model_field, human_fields, headers, row, object_instance):
                 return True
     return False
 
+def automate_glottocode(model_field_glottocode, model_field_name, object_instance):
+    global languoids
+    # automate = True
+    # human_field_indeces = list_string_find_indices(headers, human_field_glottocode)
+    # if is_valid_param(human_field_indeces):
+    #     model_field_value = row[human_field_indeces[0]]
+    #     if is_valid_param(model_field_value):
+    #         automate = False
+    # if automate:
+    search_items = getattr(object_instance, model_field_name).lower().split(',')
+    results = []
+    for search in search_items:
+        search = search.strip()
+        languoid_results = [languoid['glottocode'] for languoid in languoids if languoid['name'].lower() == search]
+        if len(languoid_results) == 1:
+            results.append(languoid_results[0])
+    setattr(object_instance, model_field_glottocode, ', '.join(results))
+
 
 @login_required
 @user_passes_test(is_member_of_archivist, login_url='/no-permission', redirect_field_name=None)
@@ -3252,10 +3321,10 @@ def ImportView(request):
                         collaborator_role_indexes.extend( [None] * ( len(collaborator_indexes) - len(collaborator_role_indexes) ) ) # if import file has more Collaborator Name fields than Collaborator Role fields, make dummy Collaborator Role fields
                     else:
                         collaborator_role_indexes = [None] * len(collaborator_indexes) # if import file has Collaborator fields but no Collaborator Role fields, make dummy Collaborator Role fields
-                    print("Before clear: " + str(item.collaborator.all()))
+                    # print("Before clear: " + str(item.collaborator.all()))
                     item.collaborator.clear()
                     CollaboratorRole.objects.filter(item=item).delete()
-                    print("After clear: " + str(item.collaborator.all()))
+                    # print("After clear: " + str(item.collaborator.all()))
                     indexes = zip(collaborator_indexes, collaborator_role_indexes)
                     for collaborator_index, collaborator_role_index in indexes:
                         if is_valid_param(collaborator_index):
@@ -3546,30 +3615,57 @@ def ImportView(request):
 
         else: # check if you are on the language import page, based on URL
 
+            # Get the path to the CSV file
+            csv_path = os.path.join(settings.STATIC_ROOT, 'codelist.csv')
+            # Open the CSV file and read its contents
+            global languoids
+            languoids = []
+            with open(csv_path, 'r') as file:
+                reader = csv.DictReader(file)
+                for languiod in reader:
+                    languoids.append(dict(languiod))            
+
+
+
             import_language_field_success, return_object = import_language_field(request, headers, row, None, model = 'Language')
-            print(import_language_field_success)
-            print(return_object)
             if not import_language_field_success:
                 continue
             if not return_object:
                 continue
 
-            level_success = import_field(request, 'level', ('^Level$',), headers, row, return_object, model = 'Language', choices="LEVELS")
-            glottocode_success = import_field(request, 'glottocode', ('^Glottocode$',), headers, row, return_object, model = 'Language', validate_glottocode="Single")
+            glottocode_success = import_field(request, 'glottocode', ('^Glottocode$',), headers, row, return_object, model = 'Language', validate_glottocode="single")
             import_field(request, 'family', ('^Family$',), headers, row, return_object, model = "Language")
             import_field(request, 'family', ('^Language family$',), headers, row, return_object, model = "Language")
-            family_glottocode_success = import_field(request, 'family_id', ('^Family glottocode$',), headers, row, return_object, model = "Language", validate_glottocode="Single")
-            import_field(request, 'pri_subgroup', ('^Primary Subgroup$',), headers, row, return_object, model = "Language")
-            pri_subgroup_glottocode_success = import_field(request, 'pri_subgroup_id', ('^Primary subgroup glottocode$',), headers, row, return_object, model = "Language", validate_glottocode="Single")
-            import_field(request, 'sec_subgroup', ('^Secondary Subgroup$',), headers, row, return_object, model = "Language")
-            sec_subgroup_glottocode_success = import_field(request, 'sec_subgroup_id', ('^Secondary subgroup glottocode$',), headers, row, return_object, model = "Language", validate_glottocode="Single")
-            import_field(request, 'alt_name', ('^Alternate Name\(s\)$',), headers, row, return_object, model = "Language")
-            import_field(request, 'alt_name', ('^Alternative Name\(s\)$',), headers, row, return_object, model = "Language")
+            import_field(request, 'family_abbrev', ('^Family abbreviation$',), headers, row, return_object, model = "Language")
+            family_glottocode_success = import_field(request, 'family_id', ('^Family glottocode$',), headers, row, return_object, model = "Language", validate_glottocode="single")
+            import_field(request, 'pri_subgroup', ('^Primary subgroup$',), headers, row, return_object, model = "Language")
+            import_field(request, 'pri_subgroup_abbrev', ('^Primary subgroup abbreviation$',), headers, row, return_object, model = "Language")
+            pri_subgroup_glottocode_success = import_field(request, 'pri_subgroup_id', ('^Primary subgroup glottocode$',), headers, row, return_object, model = "Language", validate_glottocode="single")
+            import_field(request, 'sec_subgroup_abbrev', ('^Secondary subgroup abbreviation$',), headers, row, return_object, model = "Language")
+            import_field(request, 'sec_subgroup', ('^Secondary subgroup$',), headers, row, return_object, model = "Language")
+            sec_subgroup_glottocode_success = import_field(request, 'sec_subgroup_id', ('^Secondary subgroup glottocode$',), headers, row, return_object, model = "Language", validate_glottocode="single")
+            import_field(request, 'alt_name', ('^Alternate name\(s\)$',), headers, row, return_object, model = "Language")
+            import_field(request, 'alt_name', ('^Alternative name\(s\)$',), headers, row, return_object, model = "Language")
             import_field(request, 'dialects', ('^Dialects$',), headers, row, return_object, model = "Language")
+            dialect_ids_success = import_field(request, 'dialects_ids', ('^Dialect glottocodes$',), headers, row, return_object, model = "Language", validate_glottocode="multiple")
             import_field(request, 'region', ('^Region$',), headers, row, return_object, model = "Language")
+            latitude_success = import_field(request, 'latitude', ('^Latitude$',), headers, row, return_object, model = "Language", validate_coord=True)
+            longitude_success = import_field(request, 'longitude', ('^Longitude$',), headers, row, return_object, model = "Language", validate_coord=True)
             import_field(request, 'tribes', ('^Tribes$',), headers, row, return_object, model = "Language")
             import_field(request, 'notes', ('^Notes$',), headers, row, return_object, model = "Language")
 
+            import_success = ( glottocode_success and
+                                family_glottocode_success and
+                                pri_subgroup_glottocode_success and
+                                sec_subgroup_glottocode_success and
+                                dialect_ids_success and
+                                latitude_success and
+                                longitude_success )
+
+            if not import_success:
+                continue
+
+            return_object.level = 'Language'
             return_object.modified_by = request.user.get_username()
             return_object.save()
             messages.success(request, 'Language ' + return_object.name + ' (ISO Indicator: ' + return_object.iso + ')' + ' was updated')

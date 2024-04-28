@@ -7,15 +7,469 @@
 {% if error_message %}
     <p><strong>{{ error_message }}</strong></p>
 {% endif %}
-<form method="post" action="" enctype='multipart/form-data'>
+<form method="post" id="language_form" action="" enctype='multipart/form-data'>
     {% csrf_token %}
-    <table>
-        {{form}}
-    </table>
-    <input type="submit" value="Submit Form"/>
+    <div class="container">
+        <div class="row">
+            <div class="col-3"><b>{{ form.name.label }}</b></div>
+            <div class="col-auto language_name">{{ form.name }}</div>
+        </div>
+        <div class="row mt-1">
+            <div class="col-3"><b>{{ form.alt_name.label }}</b></div>
+            <div class="col-auto">{{ form.alt_name }}</div>
+        </div>
+        <div class="row mt-1">
+            <div class="col-3 pt-2 pb-2"><b>{{ form.glottocode.label }}</b></div>
+            <div class="col-auto glottocode_value">{{ form.glottocode }}</div>
+            <div class="col-auto pt-1 pb-2 fst-italic glottocode_lookup_text"></div>
+            <div type="button" class="col-auto p-1 m-1 btn btn-sm btn-primary d-none" id="glottocode_suggest_accept">Accept suggestion</div>
+        </div>
+        <div class="row text-danger">
+            {% if form.glottocode.errors %}
+                <ul>
+                    {% for error in form.glottocode.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        <div class="row mt-1">
+            <div class="col-3"><b>{{ form.iso.label }}</b></div>
+            <div class="col-auto">{{ form.iso }}</div>
+        </div>
+        <div class="row mt-1">
+            <div class="col-3"><b>{{ form.level.label }}</b></div>
+            <div class="col-auto">{{ form.level }}</div>
+        </div>
+        <div class="row mt-1">
+            <div class="col-3"><b>{{ form.family.label }}</b></div>
+            <div class="col-auto family_value">{{ form.family }}</div>
+            <div class="col-auto">Add abbreviation?</div>
+            <div class="col-auto"><input type="checkbox" id="add_family_abbrev" name="add_family_abbrev"></div>
+            <div class="col-auto family_abbrev_value">{{ form.family_abbrev }}</div>
+        </div>
+        <div class="row mt-1">
+            <div class="col-3 pt-2 pb-2"><b>{{ form.family_id.label }}</b></div>
+            <div class="col-auto family_id_value">{{ form.family_id }}</div>
+            <div class="col-auto pt-1 pb-2 fst-italic family_id_lookup_text"></div>
+            <div type="button" class="col-auto p-1 m-1 btn btn-sm btn-primary d-none" id="family_id_suggest_accept">Accept suggestion</div>
+ 
+        </div>
+        <div class="row text-danger">
+            {% if form.family_id.errors %}
+                <ul>
+                    {% for error in form.family_id.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        <div class="row">
+            <div class="col-3"><b>{{ form.pri_subgroup.label }}</b></div>
+            <div class="col-auto pri_subgroup_value">{{ form.pri_subgroup }}</div>
+            <div class="col-auto">Add abbreviation?</div>
+            <div class="col-auto"><input type="checkbox" id="add_pri_subgroup_abbrev" name="add_pri_subgroup_abbrev"></div>
+            <div class="col-auto pri_subgroup_abbrev_value">{{ form.pri_subgroup_abbrev }}</div>
+        </div>
+        <div class="row">
+            <div class="col-3 pt-2 pb-2"><b>{{ form.pri_subgroup_id.label }}</b></div>
+            <div class="col-auto pri_subgroup_id_value">{{ form.pri_subgroup_id }}</div>
+            <div class="col-auto pt-1 pb-2 fst-italic pri_subgroup_id_lookup_text"></div>
+            <div type="button" class="col-auto p-1 m-1 btn btn-sm btn-primary d-none" id="pri_subgroup_id_suggest_accept">Accept suggestion</div>
+        </div>
+        <div class="row text-danger">
+            {% if form.pri_subgroup_id.errors %}
+                <ul>
+                    {% for error in form.pri_subgroup_id.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        <div class="row">
+            <div class="col-3"><b>{{ form.sec_subgroup.label }}</b></div>
+            <div class="col-auto sec_subgroup_value">{{ form.sec_subgroup }}</div>
+            <div class="col-auto">Add abbreviation?</div>
+            <div class="col-auto"><input type="checkbox" id="add_sec_subgroup_abbrev" name="add_sec_subgroup_abbrev"></div>
+            <div class="col-auto sec_subgroup_abbrev_value">{{ form.sec_subgroup_abbrev }}</div>
+        </div>
+        <div class="row">
+            <div class="col-3 pt-2 pb-2"><b>{{ form.sec_subgroup_id.label }}</b></div>
+            <div class="col-auto sec_subgroup_id_value">{{ form.sec_subgroup_id }}</div>
+            <div class="col-auto pt-1 pb-2 fst-italic sec_subgroup_id_lookup_text"></div>
+            <div type="button" class="col-auto p-1 m-1 btn btn-sm btn-primary d-none" id="sec_subgroup_id_suggest_accept">Accept suggestion</div>
+        </div>
+        <div class="row text-danger">
+            {% if form.sec_subgroup_id.errors %}
+                <ul>
+                    {% for error in form.sec_subgroup_id.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        <div class="row">
+            <div class="col-3"><b>{{ form.region.label }}</b></div>
+            <div class="col-auto">{{ form.region }}</div>
+        </div>
+        <div class="row">
+            <div class="col-3 pt-2 pb-2"><b>{{ form.latitude.label }}</b></div>
+            <div class="col-auto latitude_value">{{ form.latitude }}</div>
+            <div class="col-auto pt-1 pb-2 fst-italic latitude_lookup_text"></div>
+            <div type="button" class="col-auto p-1 m-1 btn btn-sm btn-primary d-none" id="latitude_suggest_accept">Accept suggestion</div>
+        </div>
+        <div class="row">
+            <div class="col-3 pt-2 pb-2"><b>{{ form.longitude.label }}</b></div>
+            <div class="col-auto longitude_value">{{ form.longitude }}</div>
+            <div class="col-auto pt-1 pb-2 fst-italic longitude_lookup_text"></div>
+            <div type="button" class="col-auto p-1 m-1 btn btn-sm btn-primary d-none" id="longitude_suggest_accept">Accept suggestion</div>
+        </div>
+        <div class="row">
+            <div class="col-3"><b>{{ form.dialects.label }}</b></div>
+            <div class="col-auto">{{ form.dialects }}</div>
+        </div>
+        <div class="row">
+            <div class="col-3"><b>{{ form.dialects_ids.label }}</b></div>
+            <div class="col-auto">{{ form.dialects_ids }}</div>
+        </div>
+        <div class="row text-danger">
+            {% if form.dialects_ids.errors %}
+                <ul>
+                    {% for error in form.dialects_ids.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        <div class="row">
+            <div class="col-3"><b>{{ form.tribes.label }}</b></div>
+            <div class="col-auto">{{ form.tribes }}</div>
+        </div>
+        <div class="row">
+            <div class="col-3"><b>{{ form.notes.label }}</b></div>
+            <div class="col-auto">{{ form.notes }}</div>
+        </div>
+        <div class="row">
+            <input type="submit" class="btn btn-primary col-auto" value="Submit Form"/ >
+        </div>
+    </div>
+
 </form>
 
 
 
-{% endblock %}
+<script>
 
+    // load the glcodes variable from context
+    const glcodes = JSON.parse('{{ glcodes|escapejs|safe }}');
+    const languoids = JSON.parse('{{ languoids|escapejs|safe }}');
+    // console.log(glcodes);
+    // console.log(languoids);
+
+    class App {
+
+        constructor() {
+            this.languageName = document.querySelector('.language_name').querySelector('input');
+            this.glottocodeValue = document.querySelector('.glottocode_value').querySelector('input');
+            this.glottocodeLookupText = document.querySelector('.glottocode_lookup_text');
+            this.glottocodeSuggestAccept = document.getElementById('glottocode_suggest_accept');
+            this.familyValue = document.querySelector('.family_value').querySelector('input');
+            this.familyIdValue = document.querySelector('.family_id_value').querySelector('input');
+            this.familyAbbrevCheckbox = document.getElementById('add_family_abbrev');
+            this.familyAbbrevValue = document.querySelector('.family_abbrev_value').querySelector('input');
+            this.familyIdLookupText = document.querySelector('.family_id_lookup_text');
+            this.familySuggestAccept = document.getElementById('family_id_suggest_accept');
+            this.priSubgroupValue = document.querySelector('.pri_subgroup_value').querySelector('input');
+            this.priSubgroupIdValue = document.querySelector('.pri_subgroup_id_value').querySelector('input');
+            this.priSubgroupAbbrevCheckbox = document.getElementById('add_pri_subgroup_abbrev');
+            this.priSubgroupAbbrevValue = document.querySelector('.pri_subgroup_abbrev_value').querySelector('input');
+            this.priSubgroupIdLookupText = document.querySelector('.pri_subgroup_id_lookup_text');
+            this.priSubgroupSuggestAccept = document.getElementById('pri_subgroup_id_suggest_accept');
+            this.secSubgroupValue = document.querySelector('.sec_subgroup_value').querySelector('input');
+            this.secSubgroupIdValue = document.querySelector('.sec_subgroup_id_value').querySelector('input');
+            this.secSubgroupAbbrevCheckbox = document.getElementById('add_sec_subgroup_abbrev');
+            this.secSubgroupAbbrevValue = document.querySelector('.sec_subgroup_abbrev_value').querySelector('input');
+            this.secSubgroupIdLookupText = document.querySelector('.sec_subgroup_id_lookup_text');
+            this.secSubgroupSuggestAccept = document.getElementById('sec_subgroup_id_suggest_accept');
+            this.latitudeValue = document.querySelector('.latitude_value').querySelector('input');
+            this.latitudeLookupText = document.querySelector('.latitude_lookup_text');
+            this.latitudeSuggestAccept = document.getElementById('latitude_suggest_accept');
+            this.longitudeValue = document.querySelector('.longitude_value').querySelector('input');
+            this.longitudeLookupText = document.querySelector('.longitude_lookup_text');
+            this.longitudeSuggestAccept = document.getElementById('longitude_suggest_accept');
+
+            // make a function that calls the search function and updates the text for glottocodeLookupText
+            this._updateSuggestedGlottocde(this.languageName.value, this.glottocodeValue.value, this.glottocodeLookupText, this.glottocodeSuggestAccept)
+
+            // add an event listener to the languageName input that calls the function
+            this.languageName.addEventListener('input', () => {
+                this._updateSuggestedGlottocde(this.languageName.value, this.glottocodeValue.value, this.glottocodeLookupText, this.glottocodeSuggestAccept);
+                this._updatelatlong();
+            });
+
+            this.glottocodeValue.addEventListener('input', () => {
+                this._updateSuggestedGlottocde(this.languageName.value, this.glottocodeValue.value, this.glottocodeLookupText, this.glottocodeSuggestAccept);
+                this._updatelatlong();
+            });
+
+            this.glottocodeSuggestAccept.addEventListener('click', () => {
+                this._acceptSuggestion(this.glottocodeValue, this.glottocodeLookupText, this.glottocodeSuggestAccept);
+            });
+
+            if (!this.familyAbbrevValue.value) {
+                this.familyAbbrevValue.value = this.familyValue.value;
+            }
+            if ( this.familyAbbrevValue.value == this.familyValue.value) {
+                this.familyAbbrevCheckbox.checked = false;
+                this.familyAbbrevValue.style.display = 'none';
+            } else {
+                this.familyAbbrevCheckbox.checked = true;
+                this.familyAbbrevValue.style.display = 'block';
+            }
+            this.familyAbbrevCheckbox.addEventListener('change', () => {
+                this._toggleAbbreviation(this.familyAbbrevCheckbox, this.familyAbbrevValue);
+            });
+
+            // make a function that calls the search function and updates the text for familyLookupText
+            this._updateSuggestedGlottocde(this.familyValue.value, this.familyIdValue.value, this.familyIdLookupText, this.familySuggestAccept)
+
+            // add an event listener to the familyValue input that calls the function
+            this.familyValue.addEventListener('input', () => {
+                this._updateSuggestedGlottocde(this.familyValue.value, this.familyIdValue.value, this.familyIdLookupText, this.familySuggestAccept);
+            });
+
+            this.familyIdValue.addEventListener('input', () => {
+                this._updateSuggestedGlottocde(this.familyValue.value, this.familyIdValue.value, this.familyIdLookupText, this.familySuggestAccept);
+            });
+
+            this.familySuggestAccept.addEventListener('click', () => {
+                this._acceptSuggestion(this.familyIdValue, this.familyIdLookupText, this.familySuggestAccept);
+            });
+
+            if (!this.priSubgroupAbbrevValue.value) {
+                this.priSubgroupAbbrevValue.value = this.priSubgroupValue.value;
+            }
+            if ( this.priSubgroupAbbrevValue.value == this.priSubgroupValue.value) {
+                this.priSubgroupAbbrevCheckbox.checked = false;
+                this.priSubgroupAbbrevValue.style.display = 'none';
+            } else {
+                this.priSubgroupAbbrevCheckbox.checked = true;
+                this.priSubgroupAbbrevValue.style.display = 'block';
+            }
+            this.priSubgroupAbbrevCheckbox.addEventListener('change', () => {
+                this._toggleAbbreviation(this.priSubgroupAbbrevCheckbox, this.priSubgroupAbbrevValue);
+            });
+
+            // make a function that calls the search function and updates the text for priSubgroupLookupText
+            this._updateSuggestedGlottocde(this.priSubgroupValue.value, this.priSubgroupIdValue.value, this.priSubgroupIdLookupText, this.priSubgroupSuggestAccept)
+
+            // add an event listener to the priSubgroupValue input that calls the function
+            this.priSubgroupValue.addEventListener('input', () => {
+                this._updateSuggestedGlottocde(this.priSubgroupValue.value, this.priSubgroupIdValue.value,  this.priSubgroupIdLookupText, this.priSubgroupSuggestAccept);
+            });
+
+            this.priSubgroupIdValue.addEventListener('input', () => {
+                this._updateSuggestedGlottocde(this.priSubgroupValue.value, this.priSubgroupIdValue.value, this.priSubgroupIdLookupText, this.priSubgroupSuggestAccept);
+            });
+
+            this.priSubgroupSuggestAccept.addEventListener('click', () => {
+                this._acceptSuggestion(this.priSubgroupIdValue, this.priSubgroupIdLookupText, this.priSubgroupSuggestAccept);
+            });
+
+            if (!this.secSubgroupAbbrevValue.value) {
+                this.secSubgroupAbbrevValue.value = this.secSubgroupValue.value;
+            }
+            if ( this.secSubgroupAbbrevValue.value == this.secSubgroupValue.value) {
+                this.secSubgroupAbbrevCheckbox.checked = false;
+                this.secSubgroupAbbrevValue.style.display = 'none';
+            } else {
+                this.secSubgroupAbbrevCheckbox.checked = true;
+                this.secSubgroupAbbrevValue.style.display = 'block';
+            }
+            this.secSubgroupAbbrevCheckbox.addEventListener('change', () => {
+                this._toggleAbbreviation(this.secSubgroupAbbrevCheckbox, this.secSubgroupAbbrevValue);
+            });
+
+            // make a function that calls the search function and updates the text for secSubgroupLookupText
+            this._updateSuggestedGlottocde(this.secSubgroupValue.value, this.secSubgroupIdValue.value, this.secSubgroupIdLookupText, this.secSubgroupSuggestAccept)
+
+            // add an event listener to the secSubgroupValue input that calls the function
+            this.secSubgroupValue.addEventListener('input', () => {
+                this._updateSuggestedGlottocde(this.secSubgroupValue.value, this.secSubgroupIdValue.value, this.secSubgroupIdLookupText, this.secSubgroupSuggestAccept);
+            });
+
+            this.secSubgroupIdValue.addEventListener('input', () => {
+                this._updateSuggestedGlottocde(this.secSubgroupValue.value, this.secSubgroupIdValue.value, this.secSubgroupIdLookupText, this.secSubgroupSuggestAccept);
+            });
+
+            this.secSubgroupSuggestAccept.addEventListener('click', () => {
+                this._acceptSuggestion(this.secSubgroupIdValue, this.secSubgroupIdLookupText, this.secSubgroupSuggestAccept);
+            });
+
+            this.longitudeValue.addEventListener('input', () => {
+                this._updatelatlong();
+            });
+            
+            this.longitudeSuggestAccept.addEventListener('click', () => {
+                this._acceptSuggestion(this.longitudeValue, this.longitudeLookupText, this.longitudeSuggestAccept);
+            });
+
+            this.form = document.getElementById('language_form');
+            this.form.addEventListener('submit', (e) => this._handleSubmit(e));
+        }
+
+        _toggleAbbreviation(checkbox, value) {
+            if (checkbox.checked) {
+                value.style.display = 'block';
+            } else {
+                value.style.display = 'none';
+            }
+        }
+
+        _searchLanguoids(value) {
+            const search = value.toLowerCase();
+            const results = languoids.filter(languoid => languoid.name.toLowerCase() === search);
+            return results.length === 1 ? results[0] : null;
+        }
+
+        _updateSuggestedGlottocde(value, idValue, lookupText, suggestAccept) {
+            const result = this._searchLanguoids(value);
+            if (result) {
+                lookupText.dataset.value = result.glottocode;
+                lookupText.textContent = `Suggested glottocode: ${result.glottocode}`;
+                if (lookupText == this.glottocodeLookupText) {
+                    if (result.longitude) {
+                        this.longitudeLookupText.dataset.value = result.longitude;
+                    }
+                    if (result.latitude) {
+                        this.latitudeLookupText.dataset.value = result.latitude;
+                    }
+                }
+                suggestAccept.classList.remove('d-none');
+                suggestAccept.classList.add('btn-primary');
+                suggestAccept.classList.remove('btn-secondary');
+                if (idValue === '') {
+                    suggestAccept.textContent = 'Suggestion will be adopted on save';
+                    suggestAccept.disabled = false;
+                } else if (result.glottocode === idValue) {
+                    suggestAccept.textContent = 'Suggestion adopted';
+                    suggestAccept.disabled = true;
+                    suggestAccept.classList.remove('btn-primary');
+                    suggestAccept.classList.add('btn-secondary');
+                } else {
+                    suggestAccept.textContent = 'Accept suggestion';
+                    suggestAccept.disabled = false;
+                }
+            } else {
+                lookupText.dataset.value = '';
+                lookupText.textContent = '';
+                suggestAccept.classList.add('d-none');
+                suggestAccept.disabled = true;
+                if (lookupText == this.glottocodeLookupText) {
+                    this.longitudeLookupText.dataset.value = "";
+                    this.latitudeLookupText.dataset.value = "";
+                }
+            }
+            this._updatelatlong();
+        }
+
+        _updatelatlong () {
+            this._updateCoord('latitude');
+            this._updateCoord('longitude');
+        }
+
+        _updateCoord(coord) {
+            let lookupText;
+            let suggestAccept;
+            let value;
+            if (coord === 'latitude') {
+                lookupText = this.latitudeLookupText;
+                suggestAccept = this.latitudeSuggestAccept;
+                value = this.latitudeValue;
+            } else {
+                lookupText = this.longitudeLookupText;
+                suggestAccept = this.longitudeSuggestAccept;
+                value = this.longitudeValue;
+            }
+            if (lookupText.dataset.value) {
+                if (this.glottocodeValue.value === '' || this.glottocodeLookupText.dataset.value === this.glottocodeValue.value) {
+                    suggestAccept.classList.remove('d-none');
+                    suggestAccept.classList.add('btn-primary');
+                    suggestAccept.classList.remove('btn-secondary');
+                    lookupText.textContent = `Suggested longitude: ${lookupText.dataset.value}`;
+                    if (value.value === '') {
+                        suggestAccept.textContent = 'Suggestion will be adopted on save';
+                    } else if (Number(lookupText.dataset.value) === Number(value.value)) {
+                        suggestAccept.textContent = 'Suggestion adopted';
+                        suggestAccept.disabled = true;
+                        suggestAccept.classList.remove('btn-primary');
+                        suggestAccept.classList.add('btn-secondary');
+                    } else {
+                        suggestAccept.textContent = 'Accept suggestion';
+                        suggestAccept.disabled = false;
+                    }
+                    
+                } else {
+                    suggestAccept.classList.add('d-none');
+                    lookupText.textContent = `Suggested longitude: ${lookupText.dataset.value} (accept glottocode to use)`;
+                }
+            } else {
+                lookupText.textContent = '';
+                suggestAccept.classList.add('d-none');
+            }
+        }
+
+        _acceptSuggestion(idValue, lookupText, suggestAccept) {
+            if (lookupText.dataset.value) {
+                idValue.value = lookupText.dataset.value;
+                suggestAccept.textContent = 'Suggestion adopted';
+                suggestAccept.disabled = true;
+                suggestAccept.classList.remove('btn-primary');
+                suggestAccept.classList.add('btn-secondary');
+                if (lookupText === this.longitudeLookupText || lookupText === this.latitudeLookupText) {
+                } else {
+                    this._updatelatlong();
+                }
+            }
+        }
+
+        _adoptSuggestion(idValue, lookupText) {
+            if (lookupText.dataset.value) {
+                if (idValue.value == '') {
+                    idValue.value = lookupText.dataset.value;
+                    console.log(lookupText.dataset.value);
+                }
+            }
+        }
+
+        _handleSubmit(e) {
+            e.preventDefault();
+
+            if (!this.familyAbbrevCheckbox.checked) {
+                this.familyAbbrevValue.value = '';
+            }
+            if (!this.priSubgroupAbbrevCheckbox.checked) {
+                this.priSubgroupAbbrevValue.value = '';
+            }
+            if (!this.secSubgroupAbbrevCheckbox.checked) {
+                this.secSubgroupAbbrevValue.value = '';
+            }
+
+            // adopt suggestions
+            this._adoptSuggestion(this.glottocodeValue, this.glottocodeLookupText);
+            this._adoptSuggestion(this.familyIdValue, this.familyIdLookupText);
+            this._adoptSuggestion(this.priSubgroupIdValue, this.priSubgroupIdLookupText);
+            this._adoptSuggestion(this.secSubgroupIdValue, this.secSubgroupIdLookupText);
+            this._adoptSuggestion(this.latitudeValue, this.latitudeLookupText);
+            this._adoptSuggestion(this.longitudeValue, this.longitudeLookupText);
+
+            // Submit the form
+            this.form.submit();
+        }
+
+    }
+    const app = new App();
+</script>
+
+
+{% endblock %}

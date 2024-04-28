@@ -1,3 +1,6 @@
+Pipfile
+Pipfile.lock
+
 # general
 ungit/
 
@@ -8,6 +11,7 @@ app/archive/secrets.py
 app/archive/deploychoice.py
 app/runserver.py
 app/media/imports
+app/static
 docs/reference
 
 

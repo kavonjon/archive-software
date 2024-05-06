@@ -69,49 +69,67 @@ FORMAT_CHOICES = (('audio_cd', 'audio CD'),
                   ('vhs', 'VHS'),
                   ('video_reel', 'video reel'))
 
+# GENRE_CHOICES = (('49', '49'),
 GENRE_CHOICES = (('article', 'Article'),
                  ('book', 'Book'),
-                 ('ceremony', 'Ceremony'),
+                 ('ceremony', 'Ceremony'), # SLATED FOR DELETION
                  ('ceremonial', 'Ceremonial'),
-                 ('chant', 'Chant'),
+                 ('chant', 'Chant'), # SLATED FOR DELETION
                  ('conversation', 'Conversation'),
                  ('correspondence', 'Correspondence'),
-                 ('curse', 'Curse'), #possibly deprecated
+                 ('curse', 'Curse'), # SLATED FOR DELETION
                  ('dataset', 'Dataset'),
-                 ('debate', 'Debate'), # Dispute also imports as this
+                 ('debate', 'Debate'), # SLATED FOR DELETION
                  ('description', 'Description'),
                  ('document', 'Document'), #possibly deprecated
                  ('drama', 'Drama'),
                  ('educational', 'Educational material'),
+                #  ('educational_material_family', 'Educational materials - Family'),
+                #  ('educational_material_learners', 'Educational materials - For learners'),
+                #  ('educational_material_teachers', 'Educational materials - For teachers'),
+                #  ('educational_materials_planning', 'Educational materials - Language planning'),
                  ('elicitation', 'Elicitation'),
                  ('ethnography', 'Ethnography'),
                  ('field_notes', 'Field notes'),
+                #  ('for_children', 'For children'),
                  ('grammar', 'Grammar'),
-                 ('greeting', 'Greeting/Leave-taking'),
+                 ('greeting', 'Greeting/Leave-taking'), # SLATED FOR DELETION
+                #  ('hand_game', 'Hand game'),
                  ('history', 'History'),
-                 ('instructions', 'Instructions'),
-                 ('instrumental', 'Instrumental music'), #possibly deprecated
+                #  ('hymn', 'Hymn'),
+                 ('instructions', 'Instructions'), # SLATED FOR DELETION
+                 ('instrumental', 'Instrumental music'), # SLATED FOR DELETION
                  ('interview', 'Interview'),
                  ('lexicon', 'Lexicon'),
-                 ('meeting', 'Meeting'),
+                 ('meeting', 'Meeting'), # SLATED FOR DELETION
+                #  ('music', 'Music'),
                  ('myth', 'Myth'),
                  ('narrative', 'Narrative'),
+                #  ('native_american_church', 'Native American Church'),
                  ('oratory', 'Oratory'),
                  ('photograph', 'Photograph'),
                  ('poetry', 'Poetry'),
+                #  ('popular_production', 'Popular production'),
+                #  ('powwow', 'Powwow'),
                  ('prayer', 'Prayer'),
-                 ('procedure', 'Procedure'),
-                 ('proverb', 'Proverb'),
+                 ('procedure', 'Procedure'), # rename in separate migration
+                 ('proverb', 'Proverb'), # rename in separate migration
                  ('reader', 'Reader'),
-                 ('recipe', 'Recipe'),
+                 ('recipe', 'Recipe'), # SLATED FOR DELETION
                  ('ritual', 'Ritual song'),
+                #  ('round_dance', 'Round dance'),
                  ('sketch', 'Sketch'),
                  ('song', 'Song'),
                  ('speech', 'Speech play'),
+                #  ('stomp_dance', 'Stomp dance'),
+                #  ('sundance', 'Sundance'),
+                #  ('textbook', 'Textbook'),
                  ('thesis', 'Thesis'),
+                #  ('traditional_story', 'Traditional story'),
                  ('transcript', 'Transcript'),
                  ('translation', 'Translation'),
                  ('unintelligible', 'Unintelligible speech'),
+                #  ('war_dance', 'War dance'),
                  ('wordlist', 'Wordlist'))
 
 MONTH_CHOICES = (('01', 'January'),
@@ -164,8 +182,8 @@ MUSIC_CHOICES = (('ceremonial', 'Ceremonial'),
                  ('hymns', 'Hymns'),
                  ('children', 'Children'))
 
-DESCRIPTIVE_MATERIALS_CHOICES = (('dictionaries', 'Dictionaries'),
-                                 ('grammars', 'Grammars'),
+LANGUAGE_DESCRIPTION_CHOICES = (('lexicon-dictionary', 'Lexicon: Dictionary'),
+                                 ('grammar', 'Grammar'),
                                  ('transcribed_texts', 'Transcribed texts'))
 
 
@@ -455,7 +473,7 @@ class Item(models.Model):
     educational_materials_text = models.TextField(blank=True)
     music = MultiSelectField(choices=MUSIC_CHOICES, blank=True)
     music_text = models.TextField(blank=True)
-    descriptive_materials = MultiSelectField(choices=DESCRIPTIVE_MATERIALS_CHOICES, blank=True)
+    language_description_type = MultiSelectField(choices=LANGUAGE_DESCRIPTION_CHOICES, blank=True)
     descriptive_materials_text = models.TextField(blank=True)
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -608,7 +626,7 @@ class Columns_export(models.Model):
     item_type_of_accession = models.BooleanField(default=True)
     item_educational_materials = models.BooleanField(default=True)
     item_music = models.BooleanField(default=True)
-    item_descriptive_materials = models.BooleanField(default=True)
+    item_language_description_type = models.BooleanField(default=True)
     item_added = models.BooleanField(default=True)
     item_updated = models.BooleanField(default=True)
     item_modified_by = models.BooleanField(default=True)

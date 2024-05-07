@@ -109,4 +109,9 @@ class Command(BaseCommand):
                     input("Press Enter to continue...")
 
 
-        move_value_across_multiselect_fields("genre", "language_description_type", "grammar", "grammar")
+        # move_value_across_multiselect_fields("genre", "language_description_type", "grammar", "grammar")
+
+        move_value_across_multiselect_fields("genre", "language_description_type", "field_notes", "fieldnotes")
+        move_value_across_multiselect_fields("genre", "language_description_type", "sketch", "grammar-sketch")
+        move_value_across_multiselect_fields("genre", "language_description_type", "lexicon", "lexicon")
+        move_value_across_multiselect_fields("genre", "language_description_type", "wordlist", "lexicon-wordlist")

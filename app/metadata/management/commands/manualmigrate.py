@@ -46,7 +46,12 @@ class Command(BaseCommand):
                 print(f"{count}/{num_items}")
                 current_value = getattr(item, field)
                 if isinstance(current_value, list):
-                    new_value_list = [value.replace(old_value, new_value) for value in current_value]
+                    # if new_value is in current_value, just remove old value
+                    if new_value in current_value:
+                        new_value_list = [value for value in current_value if value != old_value]
+                    # if new_value is not in current_value, replace old value with new value
+                    else:
+                        new_value_list = [value.replace(old_value, new_value) for value in current_value]
                     new_value_str = ', '.join(new_value_list)
                     print('Item: ' + item.catalog_number + ' ' + field + ': ' + ', '.join(current_value) + ' -> ' + new_value_str)
                     input()
@@ -111,7 +116,27 @@ class Command(BaseCommand):
 
         # move_value_across_multiselect_fields("genre", "language_description_type", "grammar", "grammar")
 
-        move_value_across_multiselect_fields("genre", "language_description_type", "field_notes", "fieldnotes")
-        move_value_across_multiselect_fields("genre", "language_description_type", "sketch", "grammar-sketch")
-        move_value_across_multiselect_fields("genre", "language_description_type", "lexicon", "lexicon")
-        move_value_across_multiselect_fields("genre", "language_description_type", "wordlist", "lexicon-wordlist")
+        # move_value_across_multiselect_fields("genre", "language_description_type", "field_notes", "fieldnotes")
+        # move_value_across_multiselect_fields("genre", "language_description_type", "sketch", "grammar-sketch")
+        # move_value_across_multiselect_fields("genre", "language_description_type", "lexicon", "lexicon")
+        # move_value_across_multiselect_fields("genre", "language_description_type", "wordlist", "lexicon-wordlist")
+
+        move_value_across_multiselect_fields("music", "genre", "49", "49")
+        move_value_across_multiselect_fields("music", "genre", "children", "for_children")
+        move_value_across_multiselect_fields("music", "genre", "hand_game", "hand_game")
+        move_value_across_multiselect_fields("music", "genre", "hymns", "hymn")
+        move_value_across_multiselect_fields("music", "genre", "nac", "native_american_church")
+        move_value_across_multiselect_fields("music", "genre", "powwow", "powwow")
+        move_value_across_multiselect_fields("music", "genre", "round_dance", "round_dance")
+        move_value_across_multiselect_fields("music", "genre", "stomp_dance", "stomp_dance")
+        move_value_across_multiselect_fields("music", "genre", "sundance", "sundance")
+        move_value_across_multiselect_fields("music", "genre", "war_dance", "war_dance")
+        move_value_across_multiselect_fields("music", "genre", "ceremonial", "ceremonial")
+        rename_multiselect_value("genre", "song", "music")
+        rename_multiselect_value("genre", "reader", "textbook")
+        rename_multiselect_value("genre", "myth", "traditional_story")
+        rename_multiselect_value("genre", "procedure", "procedural")
+        rename_multiselect_value("genre", "proverb", "saying_proverb")
+        rename_multiselect_value("genre", "ceremony", "ceremonial")
+        rename_multiselect_value("genre", "ritual", "music")
+        rename_multiselect_value("genre", "recipe", "procedural")

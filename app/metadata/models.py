@@ -182,9 +182,19 @@ MUSIC_CHOICES = (('ceremonial', 'Ceremonial'),
                  ('hymns', 'Hymns'),
                  ('children', 'Children'))
 
-LANGUAGE_DESCRIPTION_CHOICES = (('lexicon-dictionary', 'Lexicon: Dictionary'),
-                                 ('grammar', 'Grammar'),
-                                 ('transcribed_texts', 'Transcribed texts'))
+LANGUAGE_DESCRIPTION_CHOICES = (('primary-text', 'Primary text'),
+                                ('primary-text-igt', 'Primary text: IGT'),
+                                ('grammar', 'Grammar'),
+                                ('grammar-sketch', 'Grammar: Sketch'),
+                                ('grammar-specific-feature', 'Grammar: Specific feature'),
+                                ('lexicon', 'Lexicon'),
+                                ('lexicon-dictionary', 'Lexicon: Dictionary'),
+                                ('lexicon-wordlist', 'Lexicon: Wordlist'),
+                                ('transcript', 'Transcript'),
+                                ('translation', 'Translation'),
+                                ('comparative', 'Comparative'),
+                                ('fieldnotes', 'Field notes'),
+                                ('transcribed_texts', 'Transcribed texts'))
 
 
 

@@ -1,4 +1,4 @@
-import re
+import re, copy
 from openpyxl import Workbook, load_workbook
 from django.db.models import Count, Sum, Max, Q
 from metadata.models import Item, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, MUSIC_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
@@ -61,5 +61,52 @@ class Command(BaseCommand):
                     print(item.catalog_number + " failed to move " + field + " text")
                     input("Press Enter to continue...")
 
-        rename_multiselect_value("language_description_type", "grammars", "grammar")
-        rename_multiselect_value("language_description_type", "dictionaries", "lexicon-dictionary")
+        # rename_multiselect_value("language_description_type", "grammars", "grammar")
+        # rename_multiselect_value("language_description_type", "dictionaries", "lexicon-dictionary")
+
+        def move_value_across_multiselect_fields(old_field, new_field, old_value, new_value):
+            num_items = Item.objects.filter(**{f'{old_field}__contains': old_value}).count()
+            count = 0
+            for item in Item.objects.filter(**{f'{old_field}__contains': old_value}):
+                count += 1
+                print(f"{count}/{num_items}")
+                old_field_current_value = getattr(item, old_field)
+                if isinstance(old_field_current_value, list):
+                    new_field_current_value = getattr(item, new_field)
+                    if isinstance(new_field_current_value, list):
+                        # check if old_value is in new_field_current_value
+                        if new_value not in new_field_current_value:
+                            # make a copy of new_field_current_value
+                            new_field_new_value = copy.deepcopy(new_field_current_value)
+                            # first remove new_value if it's in new_field but not the correct case
+                            if new_value.lower() in (value.lower() for value in new_field_new_value):
+                                new_field_new_value = [value for value in new_field_new_value if value.lower() != new_value.lower()]
+                            # then add new_value
+                            new_field_new_value.append(new_value)
+                            # sort the list
+                            new_field_new_value = ', '.join(sorted(new_field_new_value))
+                        else:
+                            new_field_new_value = ', '.join(list(new_field_current_value))
+                        old_field_new_value_list = [value for value in old_field_current_value if value != old_value]
+                        old_field_new_value = ', '.join(sorted(old_field_new_value_list))
+                        print('Item: ' + item.catalog_number + ' ' + old_field + ': ' + ', '.join(old_field_current_value) + ' -> ' + old_field + ': ' + old_field_new_value)
+                        
+                        print('Item: ' + item.catalog_number + ' ' + new_field + ': ' + ', '.join(new_field_current_value) + ' -> ' + new_field + ': ' + new_field_new_value)
+                        input()
+                        setattr(item, new_field, new_field_new_value)
+                        setattr(item, old_field, old_field_new_value)
+                    else:
+                        print('Error: may not be a multiple select field')
+                        break
+                else:
+                    print('Error: may not be a multiple select field')
+                    break
+                try:
+                    item.clean()
+                    item.save()
+                except:
+                    print(item.catalog_number + " failed to move " + old_field + " text")
+                    input("Press Enter to continue...")
+
+
+        move_value_across_multiselect_fields("genre", "language_description_type", "grammar", "grammar")

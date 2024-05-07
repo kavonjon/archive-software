@@ -147,10 +147,10 @@ class Command(BaseCommand):
         # rename_multiselect_value("genre", "recipe", "procedural")
 
         # {'', 'Teacher', 'Student', 'Family', 'Administrative'}
-        # move_value_across_multiselect_fields("educational_materials_text", "genre", "Teacher", "educational_material_teachers",True)
-        # move_value_across_multiselect_fields("educational_materials_text", "genre", "Student", "educational_material_learners",True)
-        # move_value_across_multiselect_fields("educational_materials_text", "genre", "Family", "educational_material_family",True)
-        # move_value_across_multiselect_fields("educational_materials_text", "genre", "Administrative", "educational_materials_planning",True)
+        move_value_across_multiselect_fields("educational_materials_text", "genre", "Teacher", "educational_material_teachers",True)
+        move_value_across_multiselect_fields("educational_materials_text", "genre", "Student", "educational_material_learners",True)
+        move_value_across_multiselect_fields("educational_materials_text", "genre", "Family", "educational_material_family",True)
+        move_value_across_multiselect_fields("educational_materials_text", "genre", "Administrative", "educational_materials_planning",True)
 
 
 
@@ -177,13 +177,13 @@ class Command(BaseCommand):
                     print(item.catalog_number + " failed to move " + field + " text")
                     input("Press Enter to continue...")
 
-        # remove_multiselect_value("genre", "chant")
-        # remove_multiselect_value("genre", "curse")
-        # remove_multiselect_value("genre", "debate")
-        # remove_multiselect_value("genre", "description")
-        # remove_multiselect_value("genre", "greeting")
-        # remove_multiselect_value("genre", "instructions")
-        # remove_multiselect_value("genre", "instrumental")
-        # remove_multiselect_value("genre", "meeting")
-        # remove_multiselect_value("genre", "Dispute")
-        # remove_multiselect_value("genre", "dispute")
+        remove_multiselect_value("genre", "chant")
+        remove_multiselect_value("genre", "curse")
+        remove_multiselect_value("genre", "debate")
+        remove_multiselect_value("genre", "description")
+        remove_multiselect_value("genre", "greeting")
+        remove_multiselect_value("genre", "instructions")
+        remove_multiselect_value("genre", "instrumental")
+        remove_multiselect_value("genre", "meeting")
+        remove_multiselect_value("genre", "Dispute")
+        remove_multiselect_value("genre", "dispute")

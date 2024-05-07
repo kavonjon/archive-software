@@ -69,14 +69,14 @@ class Command(BaseCommand):
         # rename_multiselect_value("language_description_type", "grammars", "grammar")
         # rename_multiselect_value("language_description_type", "dictionaries", "lexicon-dictionary")
 
-        def move_value_across_multiselect_fields(old_field, new_field, old_value, new_value):
+        def move_value_across_multiselect_fields(old_field, new_field, old_value, new_value, old_text_field=False):
             num_items = Item.objects.filter(**{f'{old_field}__contains': old_value}).count()
             count = 0
             for item in Item.objects.filter(**{f'{old_field}__contains': old_value}):
                 count += 1
                 print(f"{count}/{num_items}")
                 old_field_current_value = getattr(item, old_field)
-                if isinstance(old_field_current_value, list):
+                if isinstance(old_field_current_value, list) or old_text_field:
                     new_field_current_value = getattr(item, new_field)
                     if isinstance(new_field_current_value, list):
                         # check if old_value is in new_field_current_value
@@ -92,9 +92,14 @@ class Command(BaseCommand):
                             new_field_new_value = ', '.join(sorted(new_field_new_value))
                         else:
                             new_field_new_value = ', '.join(list(new_field_current_value))
-                        old_field_new_value_list = [value for value in old_field_current_value if value != old_value]
-                        old_field_new_value = ', '.join(sorted(old_field_new_value_list))
-                        print('Item: ' + item.catalog_number + ' ' + old_field + ': ' + ', '.join(old_field_current_value) + ' -> ' + old_field + ': ' + old_field_new_value)
+
+                        if old_text_field: # ASSUMES OLD_FIELD VALUES HAVE ONE TERM
+                            old_field_new_value = ''
+                            print('Item: ' + item.catalog_number + ' ' + old_field + ': ' + old_field_current_value + ' -> ' + old_field + ': ' + old_field_new_value)
+                        else:
+                            old_field_new_value_list = [value for value in old_field_current_value if value != old_value]
+                            old_field_new_value = ', '.join(sorted(old_field_new_value_list))
+                            print('Item: ' + item.catalog_number + ' ' + old_field + ': ' + ', '.join(old_field_current_value) + ' -> ' + old_field + ': ' + old_field_new_value)
                         
                         print('Item: ' + item.catalog_number + ' ' + new_field + ': ' + ', '.join(new_field_current_value) + ' -> ' + new_field + ': ' + new_field_new_value)
                         input()
@@ -104,7 +109,7 @@ class Command(BaseCommand):
                         print('Error: may not be a multiple select field')
                         break
                 else:
-                    print('Error: may not be a multiple select field')
+                    print('Error: may not be a multiple select field, and old_text_field is not set to True')
                     break
                 try:
                     item.clean()
@@ -121,22 +126,64 @@ class Command(BaseCommand):
         # move_value_across_multiselect_fields("genre", "language_description_type", "lexicon", "lexicon")
         # move_value_across_multiselect_fields("genre", "language_description_type", "wordlist", "lexicon-wordlist")
 
-        move_value_across_multiselect_fields("music", "genre", "49", "49")
-        move_value_across_multiselect_fields("music", "genre", "children", "for_children")
-        move_value_across_multiselect_fields("music", "genre", "hand_game", "hand_game")
-        move_value_across_multiselect_fields("music", "genre", "hymns", "hymn")
-        move_value_across_multiselect_fields("music", "genre", "nac", "native_american_church")
-        move_value_across_multiselect_fields("music", "genre", "powwow", "powwow")
-        move_value_across_multiselect_fields("music", "genre", "round_dance", "round_dance")
-        move_value_across_multiselect_fields("music", "genre", "stomp_dance", "stomp_dance")
-        move_value_across_multiselect_fields("music", "genre", "sundance", "sundance")
-        move_value_across_multiselect_fields("music", "genre", "war_dance", "war_dance")
-        move_value_across_multiselect_fields("music", "genre", "ceremonial", "ceremonial")
-        rename_multiselect_value("genre", "song", "music")
-        rename_multiselect_value("genre", "reader", "textbook")
-        rename_multiselect_value("genre", "myth", "traditional_story")
-        rename_multiselect_value("genre", "procedure", "procedural")
-        rename_multiselect_value("genre", "proverb", "saying_proverb")
-        rename_multiselect_value("genre", "ceremony", "ceremonial")
-        rename_multiselect_value("genre", "ritual", "music")
-        rename_multiselect_value("genre", "recipe", "procedural")
+        # move_value_across_multiselect_fields("music", "genre", "49", "49")
+        # move_value_across_multiselect_fields("music", "genre", "children", "for_children")
+        # move_value_across_multiselect_fields("music", "genre", "hand_game", "hand_game")
+        # move_value_across_multiselect_fields("music", "genre", "hymns", "hymn")
+        # move_value_across_multiselect_fields("music", "genre", "nac", "native_american_church")
+        # move_value_across_multiselect_fields("music", "genre", "powwow", "powwow")
+        # move_value_across_multiselect_fields("music", "genre", "round_dance", "round_dance")
+        # move_value_across_multiselect_fields("music", "genre", "stomp_dance", "stomp_dance")
+        # move_value_across_multiselect_fields("music", "genre", "sundance", "sundance")
+        # move_value_across_multiselect_fields("music", "genre", "war_dance", "war_dance")
+        # move_value_across_multiselect_fields("music", "genre", "ceremonial", "ceremonial")
+        # rename_multiselect_value("genre", "song", "music")
+        # rename_multiselect_value("genre", "reader", "textbook")
+        # rename_multiselect_value("genre", "myth", "traditional_story")
+        # rename_multiselect_value("genre", "procedure", "procedural")
+        # rename_multiselect_value("genre", "proverb", "saying_proverb")
+        # rename_multiselect_value("genre", "ceremony", "ceremonial")
+        # rename_multiselect_value("genre", "ritual", "music")
+        # rename_multiselect_value("genre", "recipe", "procedural")
+
+        # {'', 'Teacher', 'Student', 'Family', 'Administrative'}
+        # move_value_across_multiselect_fields("educational_materials_text", "genre", "Teacher", "educational_material_teachers",True)
+        # move_value_across_multiselect_fields("educational_materials_text", "genre", "Student", "educational_material_learners",True)
+        # move_value_across_multiselect_fields("educational_materials_text", "genre", "Family", "educational_material_family",True)
+        # move_value_across_multiselect_fields("educational_materials_text", "genre", "Administrative", "educational_materials_planning",True)
+
+
+
+        def remove_multiselect_value(field,old_value):
+            num_items = Item.objects.filter(**{f'{field}__contains': old_value}).count()
+            count = 0
+            for item in Item.objects.filter(**{f'{field}__contains': old_value}):
+                count += 1
+                print(f"{count}/{num_items}")
+                current_value = getattr(item, field)
+                if isinstance(current_value, list):
+                    new_value_list = [value for value in current_value if value != old_value]
+                    new_value_str = ', '.join(new_value_list)
+                    print('Item: ' + item.catalog_number + ' ' + field + ': ' + ', '.join(current_value) + ' -> ' + new_value_str)
+                    input()
+                    setattr(item, field, new_value_str)
+                else:
+                    print('Error: may not be a multiple select field')
+                    break
+                try:
+                    item.clean()
+                    item.save()
+                except:
+                    print(item.catalog_number + " failed to move " + field + " text")
+                    input("Press Enter to continue...")
+
+        # remove_multiselect_value("genre", "chant")
+        # remove_multiselect_value("genre", "curse")
+        # remove_multiselect_value("genre", "debate")
+        # remove_multiselect_value("genre", "description")
+        # remove_multiselect_value("genre", "greeting")
+        # remove_multiselect_value("genre", "instructions")
+        # remove_multiselect_value("genre", "instrumental")
+        # remove_multiselect_value("genre", "meeting")
+        # remove_multiselect_value("genre", "Dispute")
+        # remove_multiselect_value("genre", "dispute")

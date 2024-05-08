@@ -3451,8 +3451,7 @@ def ImportView(request):
                 import_field(request, 'total_number_of_pages_and_physical_description', ('^Total Number of Pages and Physical Description$',), headers, row, item, model = 'Item')
                 type_of_accession_success = import_field(request, 'type_of_accession', ('^Type of Accession$',), headers, row, item, model = 'Item', choices=ACCESSION_CHOICES)
                 import_field(request, 'educational_materials', ('^Educational Materials$',), headers, row, item, model = 'Item')
-                # import_field(request, 'language_description_type', ('^Language description type$',), headers, row, item, model = 'Item')
-                language_description_type_success = import_field(request, 'language_description_type', ('^Descriptive Materials$',), headers, row, item, model = 'Item', choices=LANGUAGE_DESCRIPTION_CHOICES, multiselect=True)
+                language_description_type_success = import_field(request, 'language_description_type', ('^Language Description Type$',), headers, row, item, model = 'Item', choices=LANGUAGE_DESCRIPTION_CHOICES, multiselect=True)
 
                 import_success = ( import_language_field_success and
                                    document_import_success and

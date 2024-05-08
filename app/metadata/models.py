@@ -89,15 +89,15 @@ FORMAT_CHOICES = (('audio_cd', 'audio CD'),
 GENRE_CHOICES = (('49', '49'),
                  ('article', 'Article'),
                  ('book', 'Book'),
-                 ('ceremony', 'Ceremony'), # SLATED FOR DELETION
+                #  ('ceremony', 'Ceremony'), # SLATED FOR DELETION
                  ('ceremonial', 'Ceremonial'),
-                 ('chant', 'Chant'), # SLATED FOR DELETION
+                #  ('chant', 'Chant'), # SLATED FOR DELETION
                  ('conversation', 'Conversation'),
                  ('correspondence', 'Correspondence'),
-                 ('curse', 'Curse'), # SLATED FOR DELETION
+                #  ('curse', 'Curse'), # SLATED FOR DELETION
                  ('dataset', 'Dataset'),
-                 ('debate', 'Debate'), # SLATED FOR DELETION
-                 ('description', 'Description'),
+                #  ('debate', 'Debate'), # SLATED FOR DELETION
+                #  ('description', 'Description'),
                  ('document', 'Document'), #possibly deprecated
                  ('drama', 'Drama'),
                  ('educational', 'Educational material'),
@@ -107,20 +107,20 @@ GENRE_CHOICES = (('49', '49'),
                  ('educational_materials_planning', 'Educational materials - Language planning'),
                  ('elicitation', 'Elicitation'),
                  ('ethnography', 'Ethnography'),
-                 ('field_notes', 'Field notes'),
+                #  ('field_notes', 'Field notes'),
                  ('for_children', 'For children'),
-                 ('grammar', 'Grammar'),
-                 ('greeting', 'Greeting/Leave-taking'), # SLATED FOR DELETION
+                #  ('grammar', 'Grammar'),
+                #  ('greeting', 'Greeting/Leave-taking'), # SLATED FOR DELETION
                  ('hand_game', 'Hand game'),
                  ('history', 'History'),
                  ('hymn', 'Hymn'),
-                 ('instructions', 'Instructions'), # SLATED FOR DELETION
-                 ('instrumental', 'Instrumental music'), # SLATED FOR DELETION
+                #  ('instructions', 'Instructions'), # SLATED FOR DELETION
+                #  ('instrumental', 'Instrumental music'), # SLATED FOR DELETION
                  ('interview', 'Interview'),
-                 ('lexicon', 'Lexicon'),
-                 ('meeting', 'Meeting'), # SLATED FOR DELETION
+                #  ('lexicon', 'Lexicon'),
+                #  ('meeting', 'Meeting'), # SLATED FOR DELETION
                  ('music', 'Music'),
-                 ('myth', 'Myth'),
+                #  ('myth', 'Myth'),
                  ('narrative', 'Narrative'),
                  ('native_american_church', 'Native American Church'),
                  ('oratory', 'Oratory'),
@@ -130,15 +130,15 @@ GENRE_CHOICES = (('49', '49'),
                  ('powwow', 'Powwow'),
                  ('prayer', 'Prayer'),
                  ('procedural', 'Procedural'),
-                 ('procedure', 'Procedure'), # rename in separate migration
-                 ('proverb', 'Proverb'), # rename in separate migration
-                 ('reader', 'Reader'),
-                 ('recipe', 'Recipe'), # SLATED FOR DELETION
-                 ('ritual', 'Ritual song'),
+                #  ('procedure', 'Procedure'), # rename in separate migration
+                #  ('proverb', 'Proverb'), # rename in separate migration
+                #  ('reader', 'Reader'),
+                #  ('recipe', 'Recipe'), # SLATED FOR DELETION
+                #  ('ritual', 'Ritual song'),
                  ('round_dance', 'Round dance'),
                  ('saying_proverb', 'Saying or Proverb'),
-                 ('sketch', 'Sketch'),
-                 ('song', 'Song'),
+                #  ('sketch', 'Sketch'),
+                #  ('song', 'Song'),
                  ('speech', 'Speech play'),
                  ('stomp_dance', 'Stomp dance'),
                  ('sundance', 'Sundance'),
@@ -148,8 +148,8 @@ GENRE_CHOICES = (('49', '49'),
                  ('transcript', 'Transcript'),
                  ('translation', 'Translation'),
                  ('unintelligible', 'Unintelligible speech'),
-                 ('war_dance', 'War dance'),
-                 ('wordlist', 'Wordlist'))
+                 ('war_dance', 'War dance'))
+                #  ('wordlist', 'Wordlist'))
 
 MONTH_CHOICES = (('01', 'January'),
                  ('02', 'February'),

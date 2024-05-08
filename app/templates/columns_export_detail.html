@@ -112,6 +112,13 @@
 </div>
 <div class="row">
     <div class="col-md-6">
+        <b>Column: Item, Descriptive Materials:</b> {% if columns_export.item_language_description_type %}Yes
+                                       {% else %}No
+                                       {% endif %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-6">
         <b>Column: Item, Associated ephemera:</b> {% if columns_export.item_associated_ephemera %}Yes
                                        {% else %}No
                                        {% endif %}
@@ -272,18 +279,7 @@
                                        {% endif %}
     </div>
 </div>
-<div class="row">
-    <div class="col-md-6">
-        <h2>Browse categories</h2>
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-6">
-        <b>Column: Item, Descriptive Materials:</b> {% if columns_export.item_language_description_type %}Yes
-                                       {% else %}No
-                                       {% endif %}
-    </div>
-</div>
+
 <div class="row">
     <div class="col-md-6">
         <h2>Condition</h2>

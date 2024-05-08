@@ -503,7 +503,7 @@ class Item(models.Model):
     # music = MultiSelectField(choices=MUSIC_CHOICES, blank=True)
     # music_text = models.TextField(blank=True)
     language_description_type = MultiSelectField(choices=LANGUAGE_DESCRIPTION_CHOICES, blank=True)
-    descriptive_materials_text = models.TextField(blank=True)
+    # descriptive_materials_text = models.TextField(blank=True)
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     modified_by = models.CharField(max_length=255)

@@ -17,7 +17,7 @@ from django.utils.decorators import method_decorator
 from django.forms.models import model_to_dict
 from django.db.models import Count, Sum, Max, Q
 from django.views.generic.edit import FormView, DeleteView
-from .models import Item, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
+from .models import Item, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
 from .forms import LanguageForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
 
 def is_member_of_archivist(user):
@@ -613,11 +613,6 @@ def item_index(request):
                         sheet_column_counter += 1
                         header_cell = sheet.cell(row=1, column=sheet_column_counter )
                     column_counter += 1
-            if column_choice.item_educational_materials:
-                header_cell.value = 'Educational materials'
-                header_cell.fill = style_browse
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
             if column_choice.item_language_description_type:
                 header_cell.value = 'Language description type'
                 header_cell.fill = style_browse
@@ -2238,11 +2233,15 @@ def import_field(request, model_field, human_fields, headers, row, object_instan
                     elif re.search(r"no", model_field_value, flags=re.I):
                         model_field_value = False
                 if choices:
-                    model_field_value = reverse_lookup_choices(choices, model_field_value)
                     if multiselect:
                         model_field_value = re.sub(r"\n", r", ", model_field_value)
                         model_field_value = re.sub(r"[,\s]*$", r"", model_field_value)
+                        model_field_value = reverse_lookup_choices(choices, model_field_value, strict=True)
+                        if model_field_value is None:
+                            messages.warning(request, object_instance_name + " was not added/updated (all changes were reverted): " + stripped_human_field + " has an invalid value")
+                            return False
                     else:
+                        model_field_value = reverse_lookup_choices(choices, model_field_value)
                         computer_readable_list = [choice[0] for choice in choices]
                         if not model_field_value in computer_readable_list:
                             stripped_human_field = human_field.replace('^', '').replace('$', '')
@@ -3420,7 +3419,7 @@ def ImportView(request):
                 import_field(request, 'filemaker_legacy_pk_id', ('PK_ID',), headers, row, item, model = 'Item')
                 import_field(request, 'filemaker_legacy_pk_id', ('Filemaker Legacy PK ID',), headers, row, item, model = 'Item')
                 general_content_success = import_field(request, 'general_content', ('^General Content$',), headers, row, item, model = 'Item', choices=CONTENT_CHOICES)
-                genre_success = import_field(request, 'genre', ('^Genre$',), headers, row, item, model = 'Item', choices=GENRE_CHOICES, multiselect=True)
+                genre_success = import_field(request, 'genre', ('^Genre$',), headers, row, item, model = 'Item', choices=STRICT_GENRE_CHOICES, multiselect=True)
                 import_field(request, 'global_region', ('^Global Region$',), headers, row, item, model = 'Item')
                 import_field(request, 'indigenous_title', ('^Indigenous Title$',), headers, row, item, model = 'Item')
                 import_field(request, 'ipm_issues', ('^IPM Issues$',), headers, row, item, model = 'Item')
@@ -3487,7 +3486,7 @@ def ImportView(request):
                         collaborator_roles.delete()
                         for old_collaborator_role in old_collaborator_roles:
                             collaborator_role, created = CollaboratorRole.objects.get_or_create(item=item, collaborator=old_collaborator_role, defaults={'modified_by': request.user.get_username()})
-                            collaborator_role.role.set(old_collaborator_roles[old_collaborator_role], clear=True)
+                            collaborator_role.role = old_collaborator_roles[old_collaborator_role]
 
                     continue
 

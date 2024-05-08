@@ -39,17 +39,17 @@ CONDITION_CHOICES = (('excellent', 'Excellent'),
                      ('fair', 'Fair'),
                      ('poor', 'Poor'))
 
-CONTENT_CHOICES = (('audio', 'Audio'),
-                   ('audio-video', 'Audio/Video'),
-                   ('publication_book', 'Publication: Book'),
-                   ('manuscript', 'Manuscript'),
-                   ('ephemera', 'Ephemera'),
-                   ('website', 'Website'))
+# CONTENT_CHOICES = (('audio', 'Audio'),
+#                    ('audio-video', 'Audio/Video'),
+#                    ('publication_book', 'Publication: Book'),
+#                    ('manuscript', 'Manuscript'),
+#                    ('ephemera', 'Ephemera'),
+#                    ('website', 'Website'))
 
 CONTENT_CHOICES = (('3d_object', '3D Object'),
                    ('audio', 'Audio'),
                    ('audio-video', 'Audio/Video'),
-                   ('book', 'Book'),
+                #    ('book', 'Book'),
                    ('dataset', 'Dataset'),
                    ('ephemera', 'Ephemera'),
                    ('image', 'Image (Photograph)'),
@@ -101,10 +101,10 @@ GENRE_CHOICES = (('49', '49'),
                  ('document', 'Document'), #possibly deprecated
                  ('drama', 'Drama'),
                  ('educational', 'Educational material'),
-                 ('educational_material_family', 'Educational materials - Family'),
-                 ('educational_material_learners', 'Educational materials - For learners'),
-                 ('educational_material_teachers', 'Educational materials - For teachers'),
-                 ('educational_materials_planning', 'Educational materials - Language planning'),
+                 ('educational_material_family', 'Educational materials: Family'),
+                 ('educational_material_learners', 'Educational materials: For learners'),
+                 ('educational_material_teachers', 'Educational materials: For teachers'),
+                 ('educational_materials_planning', 'Educational materials: Language planning'),
                  ('elicitation', 'Elicitation'),
                  ('ethnography', 'Ethnography'),
                 #  ('field_notes', 'Field notes'),
@@ -150,6 +150,44 @@ GENRE_CHOICES = (('49', '49'),
                  ('unintelligible', 'Unintelligible speech'),
                  ('war_dance', 'War dance'))
                 #  ('wordlist', 'Wordlist'))
+
+STRICT_GENRE_CHOICES = (('49', '49'),
+                 ('ceremonial', 'Ceremonial'),
+                 ('conversation', 'Conversation'),
+                 ('correspondence', 'Correspondence'),
+                 ('drama', 'Drama'),
+                 ('educational_material_family', 'Educational materials: Family'),
+                 ('educational_material_learners', 'Educational materials: For learners'),
+                 ('educational_material_teachers', 'Educational materials: For teachers'),
+                 ('educational_materials_planning', 'Educational materials: Language planning'),
+                 ('elicitation', 'Elicitation'),
+                 ('ethnography', 'Ethnography'),
+                 ('for_children', 'For children'),
+                 ('hand_game', 'Hand game'),
+                 ('history', 'History'),
+                 ('hymn', 'Hymn'),
+                 ('interview', 'Interview'),
+                 ('music', 'Music'),
+                 ('narrative', 'Narrative'),
+                 ('native_american_church', 'Native American Church'),
+                 ('oratory', 'Oratory'),
+                 ('poetry', 'Poetry'),
+                 ('popular_production', 'Popular production'),
+                 ('powwow', 'Powwow'),
+                 ('prayer', 'Prayer'),
+                 ('procedural', 'Procedural'),
+                 ('round_dance', 'Round dance'),
+                 ('saying_proverb', 'Saying or Proverb'),
+                 ('speech', 'Speech play'),
+                 ('stomp_dance', 'Stomp dance'),
+                 ('sundance', 'Sundance'),
+                 ('textbook', 'Textbook'),
+                 ('traditional_story', 'Traditional story'),
+                 ('transcript', 'Transcript'),
+                 ('translation', 'Translation'),
+                 ('unintelligible', 'Unintelligible speech'),
+                 ('war_dance', 'War dance'))
+
 
 MONTH_CHOICES = (('01', 'January'),
                  ('02', 'February'),
@@ -217,14 +255,22 @@ LANGUAGE_DESCRIPTION_CHOICES = (('primary-text', 'Primary text'),
 
 
 
-def reverse_lookup_choices(choices, entry):
+def reverse_lookup_choices(choices, entry, strict=False):
     for choice in list(choices):
         human_readable_text = choice[1].replace('(', '\(').replace(')', '\)') # need parentheses to be escaped
         computer_readable_text = choice[0]
         entry = re.sub(human_readable_text, computer_readable_text, str(entry), flags=re.I) # re.I ignores case
+    if strict:
+        print(entry)
+        ## check if each of the terms in the comma separated list generated from entry are in the choices
+        # make a list of all the second elements in the choices
+        machine_choices = [choice[0] for choice in list(choices)]
+        print(machine_choices)
+        for term in entry.split(","):
+            print(term.strip())
+            if term.strip() not in machine_choices:
+                return None
     return entry
-####need validation on import, because right now with this replace function, it will input anything that is below char limit, and admin wont display anything
-####but change will need to continue to support multiselectfield as well
 
 
 def validate_date_text(value):

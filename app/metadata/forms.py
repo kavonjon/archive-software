@@ -150,7 +150,6 @@ class ItemForm(ModelForm):
                   'copyrighted_notes',
                   'permission_to_publish_online',
                   'collaborator',
-                  'educational_materials_text',
                   'music',
                   'language_description_type',
                   'availability_status',

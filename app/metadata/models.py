@@ -46,6 +46,23 @@ CONTENT_CHOICES = (('audio', 'Audio'),
                    ('ephemera', 'Ephemera'),
                    ('website', 'Website'))
 
+CONTENT_CHOICES = (('3d_object', '3D Object'),
+                   ('audio', 'Audio'),
+                   ('audio-video', 'Audio/Video'),
+                   ('book', 'Book'),
+                   ('dataset', 'Dataset'),
+                   ('ephemera', 'Ephemera'),
+                   ('image', 'Image (Photograph)'),
+                   ('manuscript', 'Manuscript'),
+                   ('multimedia', 'Multimedia'),
+                   ('other', 'Other'),
+                   ('publication_article', 'Publication: Journal Article'),
+                   ('publication_book', 'Publication: Book'),
+                   ('publication_chapter', 'Publication: Book chapter'),
+                   ('publication_other', 'Publication (other)'),
+                   ('publication_thesis', 'Publication: Thesis'),
+                   ('website', 'Website'))
+
 FORMAT_CHOICES = (('audio_cd', 'audio CD'),
                   ('audio_reel', 'audio reel'),
                   ('book', 'book'),

@@ -17,7 +17,7 @@ from django.utils.decorators import method_decorator
 from django.forms.models import model_to_dict
 from django.db.models import Count, Sum, Max, Q
 from django.views.generic.edit import FormView, DeleteView
-from .models import Item, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, MUSIC_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
+from .models import Item, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
 from .forms import LanguageForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
 
 def is_member_of_archivist(user):
@@ -618,11 +618,6 @@ def item_index(request):
                 header_cell.fill = style_browse
                 sheet_column_counter += 1
                 header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_music:
-                header_cell.value = 'Music'
-                header_cell.fill = style_browse
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
             if column_choice.item_language_description_type:
                 header_cell.value = 'Language description type'
                 header_cell.fill = style_browse
@@ -1078,10 +1073,6 @@ def item_index(request):
                         collaborator_zip = zip(collaborator_rows, collaborator_role_rows_joined)
                         collaborator_rows = [i for sublist in collaborator_zip for i in sublist]
                     xl_row.extend(collaborator_rows)
-                if column_choice.item_educational_materials:
-                    xl_row.append(item.educational_materials_text)
-                if column_choice.item_music:
-                    xl_row.append(item.get_music_display().replace(', ','\n') )
                 if column_choice.item_language_description_type:
                     xl_row.append(item.get_language_description_type_display().replace(', ','\n') )
                 if column_choice.item_availability_status:
@@ -3461,8 +3452,6 @@ def ImportView(request):
                 import_field(request, 'total_number_of_pages_and_physical_description', ('^Total Number of Pages and Physical Description$',), headers, row, item, model = 'Item')
                 type_of_accession_success = import_field(request, 'type_of_accession', ('^Type of Accession$',), headers, row, item, model = 'Item', choices=ACCESSION_CHOICES)
                 import_field(request, 'educational_materials', ('^Educational Materials$',), headers, row, item, model = 'Item')
-                # import_field(request, 'music', ('^Music$',), headers, row, item, model = 'Item')
-                music_success = import_field(request, 'music', ('^Music$',), headers, row, item, model = 'Item', choices=MUSIC_CHOICES, multiselect=True)
                 # import_field(request, 'language_description_type', ('^Language description type$',), headers, row, item, model = 'Item')
                 language_description_type_success = import_field(request, 'language_description_type', ('^Descriptive Materials$',), headers, row, item, model = 'Item', choices=LANGUAGE_DESCRIPTION_CHOICES, multiselect=True)
 
@@ -3482,7 +3471,6 @@ def ImportView(request):
                                    original_format_medium_success and
                                    permission_to_publish_online_success and
                                    type_of_accession_success and
-                                   music_success and
                                    language_description_type_success )
 
                 if not import_success:

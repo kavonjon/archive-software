@@ -189,17 +189,17 @@ ROLE_CHOICES = (('annotator', 'Annotator'),
                 ('transcriber', 'Transcriber'),
                 ('translator', 'Translator'))
 
-MUSIC_CHOICES = (('ceremonial', 'Ceremonial'),
-                 ('war_dance', 'War dance'),
-                 ('round_dance', 'Round dance'),
-                 ('stomp_dance', 'Stomp dance'),
-                 ('49', '49'),
-                 ('sundance', 'Sundance'),
-                 ('powwow', 'Powwow'),
-                 ('hand_game', 'Hand game'),
-                 ('nac', 'NAC'),
-                 ('hymns', 'Hymns'),
-                 ('children', 'Children'))
+# MUSIC_CHOICES = (('ceremonial', 'Ceremonial'),
+#                  ('war_dance', 'War dance'),
+#                  ('round_dance', 'Round dance'),
+#                  ('stomp_dance', 'Stomp dance'),
+#                  ('49', '49'),
+#                  ('sundance', 'Sundance'),
+#                  ('powwow', 'Powwow'),
+#                  ('hand_game', 'Hand game'),
+#                  ('nac', 'NAC'),
+#                  ('hymns', 'Hymns'),
+#                  ('children', 'Children'))
 
 LANGUAGE_DESCRIPTION_CHOICES = (('primary-text', 'Primary text'),
                                 ('primary-text-igt', 'Primary text: IGT'),
@@ -500,8 +500,8 @@ class Item(models.Model):
     total_number_of_pages_and_physical_description = models.CharField(max_length=255, blank=True)
     type_of_accession = models.CharField(max_length=12, choices=ACCESSION_CHOICES, blank=True) # automate across deposit
     # educational_materials_text = models.TextField(blank=True)
-    music = MultiSelectField(choices=MUSIC_CHOICES, blank=True)
-    music_text = models.TextField(blank=True)
+    # music = MultiSelectField(choices=MUSIC_CHOICES, blank=True)
+    # music_text = models.TextField(blank=True)
     language_description_type = MultiSelectField(choices=LANGUAGE_DESCRIPTION_CHOICES, blank=True)
     descriptive_materials_text = models.TextField(blank=True)
     added = models.DateTimeField(auto_now_add=True)
@@ -653,8 +653,8 @@ class Columns_export(models.Model):
     item_temporary_accession_number = models.BooleanField(default=True)
     item_total_number_of_pages_and_physical_description = models.BooleanField(default=True)
     item_type_of_accession = models.BooleanField(default=True)
-    item_educational_materials = models.BooleanField(default=True)
-    item_music = models.BooleanField(default=True)
+    # item_educational_materials = models.BooleanField(default=True)
+    # item_music = models.BooleanField(default=True)
     item_language_description_type = models.BooleanField(default=True)
     item_added = models.BooleanField(default=True)
     item_updated = models.BooleanField(default=True)

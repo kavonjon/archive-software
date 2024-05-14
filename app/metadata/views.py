@@ -452,14 +452,28 @@ def item_index(request):
                     # Construct custom fields
                     custom_fields = {
                         "archive_item:item": item.catalog_number,
+                        "archive_item:call_number": item.call_number,
                         "archive_item:genre": [
                             {"id": each_genre}
                             for each_genre in item.genre
                         ],
+                        "archive_item:lang_desc_type": [
+                            {"id": each_language_description_type}
+                            for each_language_description_type in item.language_description_type
+                        ],
                         "archive_item:all_languages": [
                             {"id": each_language.glottocode}
                             for each_language in item.language.all()
-                        ]
+                        ],
+                        "archive_item:availability_status": {
+                            "id": item.availability_status,
+                        },
+                        "archive_item:collecting_notes": item.collecting_notes,
+                        "archive_item:global_region": item.global_region,
+                        "archive_item:public_event": True if item.public_event == "Yes" else False,
+                        "archive_item:original_format_medium": {
+                            "id": item.original_format_medium,
+                        }
                     }
 
                     # Construct access control details

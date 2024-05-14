@@ -457,6 +457,13 @@ def item_index(request):
                             {"id": each_genre.replace('_', '-'),}
                             for each_genre in item.genre
                         ],
+                        "archive_item:genre": [
+                            {"id": each_genre.replace('_', '-'),}
+                            for each_genre in item.genre
+                            if each_genre not in ["book", "article", "dataset", "document", "educational", "photograph", "thesis"]
+                        ],
+
+
                         "archive_item:lang_desc_type": [
                             {"id": each_language_description_type.replace('_', '-')}
                             for each_language_description_type in item.language_description_type

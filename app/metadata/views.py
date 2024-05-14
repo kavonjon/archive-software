@@ -434,7 +434,7 @@ def item_index(request):
                     # Construct metadata
                     metadata = {
                         "resource_type": {
-                            "id": item_dict['general_content'].replace('_', '-'),
+                            "id": item_dict['general_content'].replace('_', '-').replace('audio-video', 'video'),
                         },
                         "creators": [
                             {"person_or_org": {

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load static %}
+{% load metadata_templatetags %}
+
+{% block page_content %}
+<div class="page-title" style="display: inline">Language stats</div>
+
+<div class="table-responsive">
+  <table class="table">
+    <thead>
+      <tr>
+        <th scope="col">#</th>
+        <th scope="col">Name</th>
+        <th scope="col">ISO</th>
+        <th scope="col">Glottocode</th>
+        <th scope="col">Number of Items</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for language in languages %}
+        <tr>
+          <th scope="row">{{ forloop.counter }}</th>
+          <td>{{ language.name }}</td>
+          <td>{{ language.iso }}</td>
+          <td>{{ language.glottocode }}</td>
+          <td>{{ language.num_items }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

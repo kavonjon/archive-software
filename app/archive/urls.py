@@ -19,7 +19,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path, include
 from django.views.generic import TemplateView
-from metadata.views import item_index, item_detail, item_edit, item_add, item_delete,language_index, language_detail, language_edit, language_add, language_delete, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete
+from metadata.views import item_index, item_detail, item_edit, item_add, item_delete,language_index, language_detail, language_edit, language_add, language_delete, language_stats, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -32,6 +32,8 @@ urlpatterns = [
     path("catalog/add/", item_add.as_view(), name="item_add"),
     path('catalog/<int:pk>/delete/', item_delete.as_view(), name='item_delete'),
     path("catalog/<int:parent_pk>/geographic/add/", geographic_add.as_view(), name="geographic_add"),
+    path("migrate/", item_index, name="migrate"),
+    path("api/item-update-migrate/<int:pk>/", ItemUpdateMigrateView.as_view(), name="item_update_migrate"),
     path("documents/", document_index, name="document_index"),
     path("documents/<int:pk>/", document_detail, name="document_detail"),
     path("documents/<int:pk>/edit/", document_edit, name="document_edit"),
@@ -43,6 +45,7 @@ urlpatterns = [
     path("languages/<int:pk>/edit/", language_edit, name="language_edit"),
     path("languages/add/", language_add.as_view(), name="languages_add"),
     path('languages/<int:pk>/delete/', language_delete.as_view(), name='language_delete'),
+    path('languages/stats/', language_stats, name='language_stats'),
     path("dialect-instances/<int:pk>/edit/", dialect_instance_edit, name="dialect_instance_edit"),
     path("dialects/<int:pk>/edit/", dialect_edit, name="dialect_edit"),
     path("languages/<int:lang_pk>/dialects/add/", dialect_add.as_view(), name="dialect_add"),

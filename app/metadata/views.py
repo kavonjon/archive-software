@@ -1,4 +1,4 @@
-import os, csv, io, datetime, re, mutagen, librosa, json
+import os, csv, io, datetime, re, mutagen, librosa, json, zipfile
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Color, PatternFill, Font, Border
 from openpyxl.writer.excel import save_virtual_workbook
@@ -11,17 +11,27 @@ from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.admin.utils import flatten
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse, StreamingHttpResponse
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.forms.models import model_to_dict
 from django.db.models import Count, Sum, Max, Q
 from django.views.generic.edit import FormView, DeleteView
+from rest_framework import generics
+from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin
 from .models import Item, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
+from .serializers import ItemMigrateSerializer
 from .forms import LanguageForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
 
 def is_member_of_archivist(user):
     return user.groups.filter(name="Archivist").exists()
+
+class ItemUpdateMigrateView(LoginRequiredMixin, UserPassesTestMixin, generics.UpdateAPIView):
+    queryset = Item.objects.all()
+    serializer_class = ItemMigrateSerializer
+
+    def test_func(self):
+        return is_member_of_archivist(self.request.user)
 
 @login_required
 def item_index(request):
@@ -378,971 +388,1092 @@ def item_index(request):
         results_duration_datetime = 0
 
     if 'export' in request.GET:
-    # for now this only exports the columns in the main table, not including related tables
 
-        if is_valid_param(columns_choice_name):
-            column_choice = Columns_export.objects.get(name=columns_choice_name)
+        if re.search('migrate', url_path, flags=re.I):
+            # export json files for each item marked for migration, plus a combined json file, as a zip file
+            items_to_migrate = Item.objects.filter(migrate=True)
+            # items_to_migrate = items_to_migrate.order_by('catalog_number')
+            # items_to_migrate = items_to_migrate.prefetch_related('language', 'collaborator', 'item_documents', 'item_documents__language', 'item_documents__collaborator')
+            # items_to_migrate = items_to_migrate.prefetch_related('item_dialectinstances', 'item_dialectinstances__name')
+            # # items_to_migrate = items_to_migrate.prefetch_related('item_collaboratorroles', 'item_collaboratorroles__role')
+            # items_to_migrate = items_to_migrate.prefetch_related('item_geographic')
 
-            items_in_qs = Item.objects.filter(catalog_number__in=list(qs.values_list('catalog_number', flat=True)))
+            # Path to the zip file in the media folder
+            zip_path = os.path.join(settings.MEDIA_ROOT, 'items.zip')
+            # Directory path
+            json_dir_path = os.path.join(settings.MEDIA_ROOT, 'migrate-json')
+            # Create the directory if it doesn't exist
+            os.makedirs(json_dir_path, exist_ok=True)
 
-            # Determine how many language columns are needed
-            language_list = items_in_qs.annotate(key_count=Count('language__name'))
-            language_counts = []
-            for entry in language_list:
-                language_counts.append(entry.key_count)
-            max_language_counts = max(language_counts)
-            if max_language_counts < 1:
-                max_language_counts = 1
+            # for each item, create a json file
+            with zipfile.ZipFile(zip_path, 'w') as zipf:
 
-            # Determine how many collaborator columns are needed
-            collaborator_list = items_in_qs.annotate(key_count=Count('collaborator__name'))
-            collaborator_counts = []
-            for entry in collaborator_list:
-                collaborator_counts.append(entry.key_count)
-            max_collaborator_counts = max(collaborator_counts)
-            if max_collaborator_counts < 1:
-                max_collaborator_counts = 1
+                
+                for item in items_to_migrate:
+                    item_dict = model_to_dict(item)
+                    # item_dict['language'] = [model_to_dict(language) for language in item.language.all()]
+                    item_dict['language'] = list(item.language.values_list('id', flat=True))
+                    # # item_dict['dialect'] = [model_to_dict(dialect) for dialect in item.dialect.all()]
+                    # item_dict['collaborator'] = [model_to_dict(collaborator) for collaborator in item.collaborator.all()]
+                    item_dict['collaborator'] = list(item.collaborator.values_list('id', flat=True))
+                    # item_dict['item_documents'] = [model_to_dict(document) for document in item.item_documents.all()]
+                    # item_dict['item_dialectinstances'] = [model_to_dict(dialect) for dialect in item.item_dialectinstances.all()]
+                    # item_dict['item_collaboratorroles'] = [model_to_dict(role) for role in item.item_collaboratorroles.all()]
+                    # item_dict['item_geographic'] = [model_to_dict(geographic) for geographic in item.item_geographic.all()]
+                    # item_dict['item_geographic__parent'] = [model_to_dict(geographic) for geographic in item.item_geographic.all()]
 
-            # Determine how many document columns are needed
-            document_list = items_in_qs.annotate(key_count=Count('item_documents'))
-            document_counts = []
-            for entry in document_list:
-                document_counts.append(entry.key_count)
-            max_document_counts = max(document_counts)
-            if max_document_counts < 1:
-                max_document_counts = 1
+                    # Split the date string by "/"
+                    deposit_date_parts = item.deposit_date.split("/")
+                    # Reverse the order of the elements
+                    deposit_date_parts.reverse()
+                    # Add a leading zero to elements with only one digit
+                    deposit_date_parts = [part.zfill(2) for part in deposit_date_parts]
+                    # Join the elements back together into a string
+                    item_dict['deposit_date_formatted'] = "-".join(deposit_date_parts)
 
-            # Determine how many document language columns are needed
-            document_language_list = Document.objects.filter(item__in=items_in_qs).annotate(key_count=Count('language__name'))
-            document_language_counts = []
-            for entry in document_language_list:
-                document_language_counts.append(entry.key_count)
-            if is_valid_param(document_language_counts):
-                max_document_language_counts = max(document_language_counts)
-                if max_document_language_counts < 1:
+                    # Construct metadata
+                    metadata = {
+                        "resource_type": {
+                            "id": item_dict['general_content'],
+                        },
+                        "creators": [
+                            {"person_or_org": {
+                                "type": "personal",
+                                "name": "Rood, David S.",
+                                "given_name": "David S.",
+                                "family_name": "Rood"
+                            }}
+                        ],
+                        "title": item.english_title,
+                        "publication_date": item_dict['deposit_date_formatted'],
+                        "description": item.description_scope_and_content
+                    }
+
+                    # Construct custom fields
+                    custom_fields = {
+                        "archive_item:item": item.catalog_number,
+                        "archive_item:genre": [
+                            {"id": each_genre}
+                            for each_genre in item.genre
+                        ],
+                        "archive_item:all_languages": [
+                            {"id": each_language.glottocode}
+                            for each_language in item.language.all()
+                        ]
+                    }
+
+                    # Construct access control details
+                    access = {
+                        "record": "public",
+                        "files": "public",
+                        "embargo": {
+                            "active": False,
+                            "reason": None
+                        },
+                        "status": "open"
+                    }
+
+                    item_output = {
+                        "metadata": metadata,
+                        "custom_fields": custom_fields,
+                        "access": access
+                    }
+
+                    item_json = json.dumps(item_output, indent=4)
+                    item_filename = item.catalog_number + '.json'
+                    item_path = os.path.join(json_dir_path, item_filename)
+
+                    # Write the JSON data to a file
+                    with open(item_path, 'w') as f:
+                        f.write(item_json)
+
+                    # Add the file to the zip file
+                    zipf.write(item_path, arcname=item_filename)
+
+
+            # Create a generator that reads the file and yields the data
+            def file_iterator():
+                try:
+                    with open(zip_path, 'rb') as f:
+                        for chunk in iter(lambda: f.read(4096), b''):
+                            yield chunk
+                finally:
+                    os.remove(zip_path)
+
+            # Create a StreamingHttpResponse that uses the file_iterator
+            response = StreamingHttpResponse(file_iterator(), content_type='application/zip')
+            response['Content-Disposition'] = f'attachment; filename="{zip_path}"'
+
+            # # Delete the files from the default storage
+            # default_storage.delete(json_file)
+            return response
+
+
+        else:
+            # for now this only exports the columns in the main table, not including related tables
+            if is_valid_param(columns_choice_name):
+                column_choice = Columns_export.objects.get(name=columns_choice_name)
+
+                items_in_qs = Item.objects.filter(catalog_number__in=list(qs.values_list('catalog_number', flat=True)))
+
+                # Determine how many language columns are needed
+                language_list = items_in_qs.annotate(key_count=Count('language__name'))
+                language_counts = []
+                for entry in language_list:
+                    language_counts.append(entry.key_count)
+                max_language_counts = max(language_counts)
+                if max_language_counts < 1:
+                    max_language_counts = 1
+
+                # Determine how many collaborator columns are needed
+                collaborator_list = items_in_qs.annotate(key_count=Count('collaborator__name'))
+                collaborator_counts = []
+                for entry in collaborator_list:
+                    collaborator_counts.append(entry.key_count)
+                max_collaborator_counts = max(collaborator_counts)
+                if max_collaborator_counts < 1:
+                    max_collaborator_counts = 1
+
+                # Determine how many document columns are needed
+                document_list = items_in_qs.annotate(key_count=Count('item_documents'))
+                document_counts = []
+                for entry in document_list:
+                    document_counts.append(entry.key_count)
+                max_document_counts = max(document_counts)
+                if max_document_counts < 1:
+                    max_document_counts = 1
+
+                # Determine how many document language columns are needed
+                document_language_list = Document.objects.filter(item__in=items_in_qs).annotate(key_count=Count('language__name'))
+                document_language_counts = []
+                for entry in document_language_list:
+                    document_language_counts.append(entry.key_count)
+                if is_valid_param(document_language_counts):
+                    max_document_language_counts = max(document_language_counts)
+                    if max_document_language_counts < 1:
+                        max_document_language_counts = 1
+                else:
                     max_document_language_counts = 1
-            else:
-                max_document_language_counts = 1
 
-            # Determine how many document language columns are needed
-            document_collaborator_list = Document.objects.filter(item__in=items_in_qs).annotate(key_count=Count('collaborator__name'))
-            document_collaborator_counts = []
-            for entry in document_collaborator_list:
-                document_collaborator_counts.append(entry.key_count)
-            if is_valid_param(document_collaborator_counts):
-                max_document_collaborator_counts = max(document_collaborator_counts)
-                if max_document_collaborator_counts < 1:
+                # Determine how many document language columns are needed
+                document_collaborator_list = Document.objects.filter(item__in=items_in_qs).annotate(key_count=Count('collaborator__name'))
+                document_collaborator_counts = []
+                for entry in document_collaborator_list:
+                    document_collaborator_counts.append(entry.key_count)
+                if is_valid_param(document_collaborator_counts):
+                    max_document_collaborator_counts = max(document_collaborator_counts)
+                    if max_document_collaborator_counts < 1:
+                        max_document_collaborator_counts = 1
+                else:
                     max_document_collaborator_counts = 1
-            else:
-                max_document_collaborator_counts = 1
 
-    #        # Create the HttpResponse object with the appropriate CSV header.
-    #        response = HttpResponse(content_type='text/csv')
-    #        response['Content-Disposition'] = 'attachment; filename="csv_filtered_write.csv"'
-    #
-    #        writer = csv.writer(response)
+        #        # Create the HttpResponse object with the appropriate CSV header.
+        #        response = HttpResponse(content_type='text/csv')
+        #        response['Content-Disposition'] = 'attachment; filename="csv_filtered_write.csv"'
+        #
+        #        writer = csv.writer(response)
 
 
 
-            style_general = PatternFill(start_color='00FFFF66',
-                                        end_color='00FFFF66',
+                style_general = PatternFill(start_color='00FFFF66',
+                                            end_color='00FFFF66',
+                                            fill_type='solid')
+                style_document_odd = PatternFill(start_color='0080FF80',
+                                                end_color='0080FF80',
+                                                fill_type='solid')
+
+                style_document_even = PatternFill(start_color='0079D279',
+                                                end_color='0079D279',
+                                                fill_type='solid')
+
+                style_access = PatternFill(start_color='0099DDFF',
+                                        end_color='0099DDFF',
                                         fill_type='solid')
-            style_document_odd = PatternFill(start_color='0080FF80',
-                                             end_color='0080FF80',
-                                             fill_type='solid')
 
-            style_document_even = PatternFill(start_color='0079D279',
-                                              end_color='0079D279',
-                                              fill_type='solid')
+                style_collaborator_odd = PatternFill(start_color='009999FF',
+                                                    end_color='009999FF',
+                                                    fill_type='solid')
 
-            style_access = PatternFill(start_color='0099DDFF',
-                                       end_color='0099DDFF',
-                                       fill_type='solid')
+                style_collaborator_even = PatternFill(start_color='006666FF',
+                                                    end_color='006666FF',
+                                                    fill_type='solid')
 
-            style_collaborator_odd = PatternFill(start_color='009999FF',
-                                                 end_color='009999FF',
-                                                 fill_type='solid')
+                style_browse = PatternFill(start_color='BCAED5',
+                                            end_color='BCAED5',
+                                            fill_type='solid')
 
-            style_collaborator_even = PatternFill(start_color='006666FF',
-                                                  end_color='006666FF',
-                                                  fill_type='solid')
+                style_condition = PatternFill(start_color='00CC80FF',
+                                            end_color='00CC80FF',
+                                            fill_type='solid')
 
-            style_browse = PatternFill(start_color='BCAED5',
-                                          end_color='BCAED5',
-                                          fill_type='solid')
+                style_accessions = PatternFill(start_color='00FF99FF',
+                                            end_color='00FF99FF',
+                                            fill_type='solid')
 
-            style_condition = PatternFill(start_color='00CC80FF',
-                                          end_color='00CC80FF',
-                                          fill_type='solid')
+                style_location = PatternFill(start_color='00FF9999',
+                                            end_color='00FF9999',
+                                            fill_type='solid')
 
-            style_accessions = PatternFill(start_color='00FF99FF',
-                                           end_color='00FF99FF',
-                                           fill_type='solid')
+                style_digitization = PatternFill(start_color='00FFB380',
+                                                end_color='00FFB380',
+                                                fill_type='solid')
 
-            style_location = PatternFill(start_color='00FF9999',
-                                         end_color='00FF9999',
-                                         fill_type='solid')
+                style_books = PatternFill(start_color='00CCFF66',
+                                        end_color='00CCFF66',
+                                        fill_type='solid')
 
-            style_digitization = PatternFill(start_color='00FFB380',
-                                             end_color='00FFB380',
-                                             fill_type='solid')
+                style_external = PatternFill(start_color='00B3FFEC',
+                                            end_color='00B3FFEC',
+                                            fill_type='solid')
 
-            style_books = PatternFill(start_color='00CCFF66',
-                                      end_color='00CCFF66',
-                                      fill_type='solid')
+                style_deprecated = PatternFill(start_color='00CCCCCC',
+                                            end_color='00CCCCCC',
+                                            fill_type='solid')
 
-            style_external = PatternFill(start_color='00B3FFEC',
-                                         end_color='00B3FFEC',
-                                         fill_type='solid')
+                new_workbook = Workbook()
+                sheet = new_workbook.active
 
-            style_deprecated = PatternFill(start_color='00CCCCCC',
-                                           end_color='00CCCCCC',
-                                           fill_type='solid')
-
-            new_workbook = Workbook()
-            sheet = new_workbook.active
-
-            sheet_column_counter = 1
-            header_cell = sheet.cell(row=1, column=sheet_column_counter )
-
-            if column_choice.item_catalog_number:
-                header_cell.value = 'Catalog number'
-                header_cell.fill = style_general
-                sheet_column_counter += 1
+                sheet_column_counter = 1
                 header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_item_access_level:
-                header_cell.value = 'Item access level'
-                header_cell.fill = style_general
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_call_number:
-                header_cell.value = 'Call number'
-                header_cell.fill = style_general
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_accession_date:
-                header_cell.value = 'Accession date'
-                header_cell.fill = style_general
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_additional_digital_file_location:
-                header_cell.value = 'Additional digital file location'
-                header_cell.fill = style_general
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_indigenous_title:
-                header_cell.value = 'Indigenous title'
-                header_cell.fill = style_general
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_english_title:
-                header_cell.value = 'English title'
-                header_cell.fill = style_general
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_general_content:
-                header_cell.value = 'General content'
-                header_cell.fill = style_general
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_language:
-                column_counter = 1
-                while column_counter <= max_language_counts:
-                    header_cell.value = 'Language name %s' %column_counter
+
+                if column_choice.item_catalog_number:
+                    header_cell.value = 'Catalog number'
                     header_cell.fill = style_general
                     sheet_column_counter += 1
                     header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                    if column_choice.item_dialect:
-                        header_cell.value = 'Dialect %s' %column_counter
+                if column_choice.item_item_access_level:
+                    header_cell.value = 'Item access level'
+                    header_cell.fill = style_general
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                if column_choice.item_call_number:
+                    header_cell.value = 'Call number'
+                    header_cell.fill = style_general
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                if column_choice.item_accession_date:
+                    header_cell.value = 'Accession date'
+                    header_cell.fill = style_general
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                if column_choice.item_additional_digital_file_location:
+                    header_cell.value = 'Additional digital file location'
+                    header_cell.fill = style_general
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                if column_choice.item_indigenous_title:
+                    header_cell.value = 'Indigenous title'
+                    header_cell.fill = style_general
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                if column_choice.item_english_title:
+                    header_cell.value = 'English title'
+                    header_cell.fill = style_general
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                if column_choice.item_general_content:
+                    header_cell.value = 'General content'
+                    header_cell.fill = style_general
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                if column_choice.item_language:
+                    column_counter = 1
+                    while column_counter <= max_language_counts:
+                        header_cell.value = 'Language name %s' %column_counter
                         header_cell.fill = style_general
                         sheet_column_counter += 1
                         header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                    column_counter += 1
-            if column_choice.item_creation_date:
-                header_cell.value = 'Creation date'
-                header_cell.fill = style_general
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_description_scope_and_content:
-                header_cell.value = 'Description scope and content'
-                header_cell.fill = style_general
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_genre:
-                header_cell.value = 'Genre'
-                header_cell.fill = style_general
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_associated_ephemera:
-                header_cell.value = 'Associated ephemera'
-                header_cell.fill = style_general
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-
-            if column_choice.item_access_level_restrictions:
-                header_cell.value = 'Access level restrictions'
-                header_cell.fill = style_access
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_copyrighted_notes:
-                header_cell.value = 'Copyrighted notes'
-                header_cell.fill = style_access
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_permission_to_publish_online:
-                header_cell.value = 'Permission to publish online'
-                header_cell.fill = style_access
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_collaborator:
-                column_counter = 1
-                while column_counter <= max_collaborator_counts:
-                    header_cell.value = 'Collaborator name %s' %column_counter
-                    if column_counter % 2 == 0: #even
-                        header_cell.fill = style_collaborator_even
-                    else:
-                        header_cell.fill = style_collaborator_odd
+                        if column_choice.item_dialect:
+                            header_cell.value = 'Dialect %s' %column_counter
+                            header_cell.fill = style_general
+                            sheet_column_counter += 1
+                            header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                        column_counter += 1
+                if column_choice.item_creation_date:
+                    header_cell.value = 'Creation date'
+                    header_cell.fill = style_general
                     sheet_column_counter += 1
                     header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                    if column_choice.item_collaborator_role:
-                        header_cell.value = 'Collaborator role %s' %column_counter
+                if column_choice.item_description_scope_and_content:
+                    header_cell.value = 'Description scope and content'
+                    header_cell.fill = style_general
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                if column_choice.item_genre:
+                    header_cell.value = 'Genre'
+                    header_cell.fill = style_general
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                if column_choice.item_associated_ephemera:
+                    header_cell.value = 'Associated ephemera'
+                    header_cell.fill = style_general
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
+
+                if column_choice.item_access_level_restrictions:
+                    header_cell.value = 'Access level restrictions'
+                    header_cell.fill = style_access
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                if column_choice.item_copyrighted_notes:
+                    header_cell.value = 'Copyrighted notes'
+                    header_cell.fill = style_access
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                if column_choice.item_permission_to_publish_online:
+                    header_cell.value = 'Permission to publish online'
+                    header_cell.fill = style_access
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                if column_choice.item_collaborator:
+                    column_counter = 1
+                    while column_counter <= max_collaborator_counts:
+                        header_cell.value = 'Collaborator name %s' %column_counter
                         if column_counter % 2 == 0: #even
                             header_cell.fill = style_collaborator_even
                         else:
                             header_cell.fill = style_collaborator_odd
                         sheet_column_counter += 1
                         header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                    column_counter += 1
-            if column_choice.item_language_description_type:
-                header_cell.value = 'Language description type'
-                header_cell.fill = style_browse
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_availability_status:
-                header_cell.value = 'Availability status'
-                header_cell.fill = style_condition
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_availability_status_notes:
-                header_cell.value = 'Availability status notes'
-                header_cell.fill = style_condition
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_condition:
-                header_cell.value = 'Condition'
-                header_cell.fill = style_condition
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_condition_notes:
-                header_cell.value = 'Condition notes'
-                header_cell.fill = style_condition
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_ipm_issues:
-                header_cell.value = 'IPM issues'
-                header_cell.fill = style_condition
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_conservation_treatments_performed:
-                header_cell.value = 'Conservation treatments performed'
-                header_cell.fill = style_condition
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_accession_number:
-                header_cell.value = 'Accession number'
-                header_cell.fill = style_accessions
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_accession_date:
-                header_cell.value = 'Accession date'
-                header_cell.fill = style_accessions
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_type_of_accession:
-                header_cell.value = 'Type of accession'
-                header_cell.fill = style_accessions
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_acquisition_notes:
-                header_cell.value = 'Acquisition notes'
-                header_cell.fill = style_accessions
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_project_grant:
-                header_cell.value = 'Project/grant'
-                header_cell.fill = style_accessions
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_collection_name:
-                header_cell.value = 'Collection name'
-                header_cell.fill = style_accessions
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_collector_name:
-                header_cell.value = 'Collector name'
-                header_cell.fill = style_accessions
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_collector_info:
-                header_cell.value = 'Collector information'
-                header_cell.fill = style_accessions
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_collectors_number:
-                header_cell.value = "Collector's number"
-                header_cell.fill = style_accessions
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_collection_date:
-                header_cell.value = 'Collection date'
-                header_cell.fill = style_accessions
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_collecting_notes:
-                header_cell.value = 'Collecting notes'
-                header_cell.fill = style_accessions
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_depositor_name:
-                header_cell.value = 'Depositor name'
-                header_cell.fill = style_accessions
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_depositor_contact_information:
-                header_cell.value = 'Depositor contact information'
-                header_cell.fill = style_accessions
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_deposit_date:
-                header_cell.value = 'Deposit date'
-                header_cell.fill = style_accessions
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_municipality_or_township:
-                header_cell.value = 'Municipality or township'
-                header_cell.fill = style_location
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_county_or_parish:
-                header_cell.value = 'County or parish'
-                header_cell.fill = style_location
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_state_or_province:
-                header_cell.value = 'State or province'
-                header_cell.fill = style_location
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_country_or_territory:
-                header_cell.value = 'Country or territory'
-                header_cell.fill = style_location
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_global_region:
-                header_cell.value = 'Global region'
-                header_cell.fill = style_location
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_recording_context:
-                header_cell.value = 'Recording context'
-                header_cell.fill = style_location
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_public_event:
-                header_cell.value = 'Public event'
-                header_cell.fill = style_location
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_geographic_lat_long:
-                header_cell.value = 'Latitude'
-                header_cell.fill = style_location
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                header_cell.value = 'Longitude'
-                header_cell.fill = style_location
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_original_format_medium:
-                header_cell.value = 'Original format medium'
-                header_cell.fill = style_digitization
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_recorded_on:
-                header_cell.value = 'Recorded on'
-                header_cell.fill = style_digitization
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_equipment_used:
-                header_cell.value = 'Equipment used'
-                header_cell.fill = style_digitization
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_software_used:
-                header_cell.value = 'Software used'
-                header_cell.fill = style_digitization
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_conservation_recommendation:
-                header_cell.value = 'Conservation recommendation'
-                header_cell.fill = style_digitization
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_location_of_original:
-                header_cell.value = 'Location of original'
-                header_cell.fill = style_digitization
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_other_information:
-                header_cell.value = 'Other information'
-                header_cell.fill = style_digitization
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_publisher:
-                header_cell.value = 'Publisher'
-                header_cell.fill = style_books
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_publisher_address:
-                header_cell.value = 'Publisher address'
-                header_cell.fill = style_books
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_isbn:
-                header_cell.value = 'ISBN'
-                header_cell.fill = style_books
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_loc_catalog_number:
-                header_cell.value = 'LOC catalog number'
-                header_cell.fill = style_books
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_total_number_of_pages_and_physical_description:
-                header_cell.value = 'Total number of pages and physical description'
-                header_cell.fill = style_books
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_temporary_accession_number:
-                header_cell.value = 'Temporary accession number'
-                header_cell.fill = style_external
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_lender_loan_number:
-                header_cell.value = 'Lender loan number'
-                header_cell.fill = style_external
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_other_institutional_number:
-                header_cell.value = 'Other institutional number'
-                header_cell.fill = style_external
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_migration_file_format:
-                header_cell.value = 'Migration file format'
-                header_cell.fill = style_deprecated
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_migration_location:
-                header_cell.value = 'Migration location'
-                header_cell.fill = style_deprecated
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_digital_file_location:
-                header_cell.value = 'Digital file location'
-                header_cell.fill = style_deprecated
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_cataloged_by:
-                header_cell.value = 'Cataloged by'
-                header_cell.fill = style_deprecated
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_cataloged_date:
-                header_cell.value = 'Cataloged date'
-                header_cell.fill = style_deprecated
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            if column_choice.item_filemaker_legacy_pk_id:
-                header_cell.value = 'Filemaker legacy PK ID'
-                header_cell.fill = style_deprecated
-                sheet_column_counter += 1
-                header_cell = sheet.cell(row=1, column=sheet_column_counter )
-            column_counter = 1
-            while column_counter <= max_document_counts:
-                if column_choice.item_document_filename:
-                    header_cell.value = 'Document %s filename' %column_counter
-                    if column_counter % 2 == 0: #even
-                        header_cell.fill = style_document_even
-                    else:
-                        header_cell.fill = style_document_odd
-                    sheet_column_counter += 1
-                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                if column_choice.item_document_filetype:
-                    header_cell.value = 'Document %s filetype' %column_counter
-                    if column_counter % 2 == 0: #even
-                        header_cell.fill = style_document_even
-                    else:
-                        header_cell.fill = style_document_odd
-                    sheet_column_counter += 1
-                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                if column_choice.item_document_access_level:
-                    header_cell.value = 'Document %s access level' %column_counter
-                    if column_counter % 2 == 0: #even
-                        header_cell.fill = style_document_even
-                    else:
-                        header_cell.fill = style_document_odd
-                    sheet_column_counter += 1
-                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                if column_choice.item_document_enumerator:
-                    header_cell.value = 'Document %s enumerator' %column_counter
-                    if column_counter % 2 == 0: #even
-                        header_cell.fill = style_document_even
-                    else:
-                        header_cell.fill = style_document_odd
-                    sheet_column_counter += 1
-                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                if column_choice.item_document_title:
-                    header_cell.value = 'Document %s title' %column_counter
-                    if column_counter % 2 == 0: #even
-                        header_cell.fill = style_document_even
-                    else:
-                        header_cell.fill = style_document_odd
-                    sheet_column_counter += 1
-                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                if column_choice.item_document_duration:
-                    header_cell.value = 'Document %s duration' %column_counter
-                    if column_counter % 2 == 0: #even
-                        header_cell.fill = style_document_even
-                    else:
-                        header_cell.fill = style_document_odd
-                    sheet_column_counter += 1
-                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                if column_choice.item_document_filesize:
-                    header_cell.value = 'Document %s filesize' %column_counter
-                    if column_counter % 2 == 0: #even
-                        header_cell.fill = style_document_even
-                    else:
-                        header_cell.fill = style_document_odd
-                    sheet_column_counter += 1
-                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                if column_choice.item_document_av_spec:
-                    header_cell.value = 'Document %s A/V specs' %column_counter
-                    if column_counter % 2 == 0: #even
-                        header_cell.fill = style_document_even
-                    else:
-                        header_cell.fill = style_document_odd
-                    sheet_column_counter += 1
-                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                if column_choice.item_document_creation_date:
-                    header_cell.value = 'Document %s creation date' %column_counter
-                    if column_counter % 2 == 0: #even
-                        header_cell.fill = style_document_even
-                    else:
-                        header_cell.fill = style_document_odd
-                    sheet_column_counter += 1
-                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                if column_choice.item_document_language:
-                    language_column_counter = 1
-                    while language_column_counter <= max_document_language_counts:
-                        header_cell.value = ('Document %(document_count)s language name %(language_count)s' %{'document_count': column_counter, 'language_count': language_column_counter})
-                        if column_counter % 2 == 0: #even
-                            header_cell.fill = style_document_even
-                        else:
-                            header_cell.fill = style_document_odd
-                        sheet_column_counter += 1
-                        header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                        if column_choice.item_document_dialect:
-                            header_cell.value = ('Document %(document_count)s dialect %(language_count)s' %{'document_count': column_counter, 'language_count': language_column_counter})
+                        if column_choice.item_collaborator_role:
+                            header_cell.value = 'Collaborator role %s' %column_counter
                             if column_counter % 2 == 0: #even
-                                header_cell.fill = style_document_even
+                                header_cell.fill = style_collaborator_even
                             else:
-                                header_cell.fill = style_document_odd
+                                header_cell.fill = style_collaborator_odd
                             sheet_column_counter += 1
                             header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                        language_column_counter += 1
-
-                if column_choice.item_document_collaborator:
-                    collaborator_column_counter = 1
-                    while collaborator_column_counter <= max_document_collaborator_counts:
-                        header_cell.value = 'Document %(document_count)s collaborator %(collaborator_count)s' %{'document_count': column_counter, "collaborator_count": collaborator_column_counter}
-                        if column_counter % 2 == 0: #even
-                            header_cell.fill = style_document_even
-                        else:
-                            header_cell.fill = style_document_odd
-                        sheet_column_counter += 1
-                        header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                        if column_choice.item_document_collaborator_role:
-                            header_cell.value = ('Document %(document_count)s collaborator role %(collaborator_count)s' %{'document_count': column_counter, "collaborator_count": collaborator_column_counter})
-                            if column_counter % 2 == 0: #even
-                                header_cell.fill = style_document_even
-                            else:
-                                header_cell.fill = style_document_odd
-                            sheet_column_counter += 1
-                            header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                        collaborator_column_counter += 1
-
-                if column_choice.item_document_geographic_lat_long:
-                    header_cell.value = 'Document %s latitude' %column_counter
-                    if column_counter % 2 == 0: #even
-                        header_cell.fill = style_document_even
-                    else:
-                        header_cell.fill = style_document_odd
-                    sheet_column_counter += 1
-                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                    header_cell.value = 'Document %s longitude' %column_counter
-                    if column_counter % 2 == 0: #even
-                        header_cell.fill = style_document_even
-                    else:
-                        header_cell.fill = style_document_odd
-                    sheet_column_counter += 1
-                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                column_counter += 1
-
-            for item in qs:
-                xl_row = []
-                if column_choice.item_catalog_number:
-                    xl_row.append(item.catalog_number)
-                if column_choice.item_item_access_level:
-                    xl_row.append(item.get_item_access_level_display())
-                if column_choice.item_call_number:
-                    xl_row.append(item.call_number)
-                if column_choice.item_accession_date:
-                    xl_row.append(item.accession_date)
-                if column_choice.item_additional_digital_file_location:
-                    xl_row.append(item.additional_digital_file_location)
-                if column_choice.item_indigenous_title:
-                    xl_row.append(item.indigenous_title)
-                if column_choice.item_english_title:
-                    xl_row.append(item.english_title)
-                if column_choice.item_general_content:
-                    xl_row.append(item.get_general_content_display())
-                if column_choice.item_language:
-                    language_rows = []
-                    language_rows.extend( item.language.all().values_list('name', flat=True).order_by('name') )
-                    language_rows.extend( [''] * ( max_language_counts - len(item.language.all()) ) )
-                    if column_choice.item_dialect:
-                        dialect_rows = []
-                        item_dialects = item.item_dialectinstances.all().order_by('language__name')
-                        for item_dialect in item_dialects:
-                            dialect_rows.append( "\n".join( item_dialect.name.all().values_list('name', flat=True).order_by('name') ) )
-                        #dialect_rows.extend( item.item_dialectinstances.all().values_list('name__name', flat=True).order_by('language__name') )
-                        dialect_rows.extend( [''] * ( max_language_counts - len(item.item_dialectinstances.all()) ) )
-                        language_zip = zip(language_rows, dialect_rows)
-                        language_rows = [i for sublist in language_zip for i in sublist]
-                    xl_row.extend(language_rows)
-                if column_choice.item_creation_date:
-                    xl_row.append(item.creation_date)
-                if column_choice.item_description_scope_and_content:
-                    xl_row.append(item.description_scope_and_content)
-                if column_choice.item_genre:
-                    xl_row.append(item.get_genre_display().replace(', ','\n') )
-                if column_choice.item_associated_ephemera:
-                    xl_row.append(item.associated_ephemera)
-
-
-                if column_choice.item_access_level_restrictions:
-                    xl_row.append(item.access_level_restrictions)
-                if column_choice.item_copyrighted_notes:
-                    xl_row.append(item.copyrighted_notes)
-                if column_choice.item_permission_to_publish_online:
-                    if item.permission_to_publish_online:
-                        xl_row.append('yes')
-                    elif item.permission_to_publish_online is None:
-                        xl_row.append('')
-                    else:
-                        xl_row.append('no')
-                if column_choice.item_collaborator:
-                    collaborator_rows = []
-                    collaborator_rows.extend( item.collaborator.all().values_list('name', flat=True).order_by('name') )
-                    collaborator_rows.extend( [''] * ( max_collaborator_counts - len(item.collaborator.all()) ) )
-                    if column_choice.item_collaborator_role:
-                        collaborator_role_rows = []
-                        item_collaborator_roles = item.item_collaboratorroles.all().order_by('collaborator__name')
-                        for item_collaborator_role in item_collaborator_roles:
-                            collaborator_role_rows.append( item_collaborator_role.get_role_display() )
-                        #collaborator_role_rows.extend( item.item_collaboratorroles.all().values_list('role', flat=True).order_by('collaborator__name') )
-                        collaborator_role_rows.extend( [''] * ( max_collaborator_counts - len(item.item_collaboratorroles.all()) ) )
-                        collaborator_role_rows_joined = []
-                        for collaborator_role_row in collaborator_role_rows:
-                            collaborator_role_rows_joined.append( collaborator_role_row.replace(', ','\n') )
-                        collaborator_zip = zip(collaborator_rows, collaborator_role_rows_joined)
-                        collaborator_rows = [i for sublist in collaborator_zip for i in sublist]
-                    xl_row.extend(collaborator_rows)
+                        column_counter += 1
                 if column_choice.item_language_description_type:
-                    xl_row.append(item.get_language_description_type_display().replace(', ','\n') )
+                    header_cell.value = 'Language description type'
+                    header_cell.fill = style_browse
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_availability_status:
-                    xl_row.append(item.get_availability_status_display())
+                    header_cell.value = 'Availability status'
+                    header_cell.fill = style_condition
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_availability_status_notes:
-                    xl_row.append(item.availability_status_notes)
+                    header_cell.value = 'Availability status notes'
+                    header_cell.fill = style_condition
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_condition:
-                    xl_row.append(item.get_condition_display())
+                    header_cell.value = 'Condition'
+                    header_cell.fill = style_condition
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_condition_notes:
-                    xl_row.append(item.condition_notes)
+                    header_cell.value = 'Condition notes'
+                    header_cell.fill = style_condition
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_ipm_issues:
-                    xl_row.append(item.ipm_issues)
+                    header_cell.value = 'IPM issues'
+                    header_cell.fill = style_condition
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_conservation_treatments_performed:
-                    xl_row.append(item.conservation_treatments_performed)
+                    header_cell.value = 'Conservation treatments performed'
+                    header_cell.fill = style_condition
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_accession_number:
-                    xl_row.append(item.accession_number)
+                    header_cell.value = 'Accession number'
+                    header_cell.fill = style_accessions
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_accession_date:
-                    xl_row.append(item.accession_date)
+                    header_cell.value = 'Accession date'
+                    header_cell.fill = style_accessions
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_type_of_accession:
-                    xl_row.append(item.get_type_of_accession_display())
+                    header_cell.value = 'Type of accession'
+                    header_cell.fill = style_accessions
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_acquisition_notes:
-                    xl_row.append(item.acquisition_notes)
+                    header_cell.value = 'Acquisition notes'
+                    header_cell.fill = style_accessions
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_project_grant:
-                    xl_row.append(item.project_grant)
+                    header_cell.value = 'Project/grant'
+                    header_cell.fill = style_accessions
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_collection_name:
-                    xl_row.append(item.collection_name)
+                    header_cell.value = 'Collection name'
+                    header_cell.fill = style_accessions
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_collector_name:
-                    xl_row.append(item.collector_name)
+                    header_cell.value = 'Collector name'
+                    header_cell.fill = style_accessions
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_collector_info:
-                    xl_row.append(item.collector_info)
+                    header_cell.value = 'Collector information'
+                    header_cell.fill = style_accessions
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_collectors_number:
-                    xl_row.append(item.collectors_number)
+                    header_cell.value = "Collector's number"
+                    header_cell.fill = style_accessions
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_collection_date:
-                    xl_row.append(item.collection_date)
+                    header_cell.value = 'Collection date'
+                    header_cell.fill = style_accessions
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_collecting_notes:
-                    xl_row.append(item.collecting_notes)
+                    header_cell.value = 'Collecting notes'
+                    header_cell.fill = style_accessions
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_depositor_name:
-                    xl_row.append(item.depositor_name)
+                    header_cell.value = 'Depositor name'
+                    header_cell.fill = style_accessions
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_depositor_contact_information:
-                    xl_row.append(item.depositor_contact_information)
+                    header_cell.value = 'Depositor contact information'
+                    header_cell.fill = style_accessions
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_deposit_date:
-                    xl_row.append(item.deposit_date)
+                    header_cell.value = 'Deposit date'
+                    header_cell.fill = style_accessions
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_municipality_or_township:
-                    xl_row.append(item.municipality_or_township)
+                    header_cell.value = 'Municipality or township'
+                    header_cell.fill = style_location
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_county_or_parish:
-                    xl_row.append(item.county_or_parish)
+                    header_cell.value = 'County or parish'
+                    header_cell.fill = style_location
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_state_or_province:
-                    xl_row.append(item.state_or_province)
+                    header_cell.value = 'State or province'
+                    header_cell.fill = style_location
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_country_or_territory:
-                    xl_row.append(item.country_or_territory)
+                    header_cell.value = 'Country or territory'
+                    header_cell.fill = style_location
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_global_region:
-                    xl_row.append(item.global_region)
+                    header_cell.value = 'Global region'
+                    header_cell.fill = style_location
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_recording_context:
-                    xl_row.append(item.recording_context)
+                    header_cell.value = 'Recording context'
+                    header_cell.fill = style_location
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_public_event:
-                    xl_row.append(item.public_event)
+                    header_cell.value = 'Public event'
+                    header_cell.fill = style_location
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_geographic_lat_long:
-                    if item.item_geographic.first():
-                        xl_row.append(item.item_geographic.first().lat)
-                        xl_row.append(item.item_geographic.first().long)
-                    else:
-                        xl_row.append('')
-                        xl_row.append('')
+                    header_cell.value = 'Latitude'
+                    header_cell.fill = style_location
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                    header_cell.value = 'Longitude'
+                    header_cell.fill = style_location
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_original_format_medium:
-                    xl_row.append(item.get_original_format_medium_display())
+                    header_cell.value = 'Original format medium'
+                    header_cell.fill = style_digitization
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_recorded_on:
-                    xl_row.append(item.recorded_on)
+                    header_cell.value = 'Recorded on'
+                    header_cell.fill = style_digitization
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_equipment_used:
-                    xl_row.append(item.equipment_used)
+                    header_cell.value = 'Equipment used'
+                    header_cell.fill = style_digitization
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_software_used:
-                    xl_row.append(item.software_used)
+                    header_cell.value = 'Software used'
+                    header_cell.fill = style_digitization
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_conservation_recommendation:
-                    xl_row.append(item.conservation_recommendation)
+                    header_cell.value = 'Conservation recommendation'
+                    header_cell.fill = style_digitization
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_location_of_original:
-                    xl_row.append(item.location_of_original)
+                    header_cell.value = 'Location of original'
+                    header_cell.fill = style_digitization
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_other_information:
-                    xl_row.append(item.other_information)
+                    header_cell.value = 'Other information'
+                    header_cell.fill = style_digitization
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_publisher:
-                    xl_row.append(item.publisher)
+                    header_cell.value = 'Publisher'
+                    header_cell.fill = style_books
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_publisher_address:
-                    xl_row.append(item.publisher_address)
+                    header_cell.value = 'Publisher address'
+                    header_cell.fill = style_books
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_isbn:
-                    xl_row.append(item.isbn)
+                    header_cell.value = 'ISBN'
+                    header_cell.fill = style_books
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_loc_catalog_number:
-                    xl_row.append(item.loc_catalog_number)
+                    header_cell.value = 'LOC catalog number'
+                    header_cell.fill = style_books
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_total_number_of_pages_and_physical_description:
-                    xl_row.append(item.total_number_of_pages_and_physical_description)
+                    header_cell.value = 'Total number of pages and physical description'
+                    header_cell.fill = style_books
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_temporary_accession_number:
-                    xl_row.append(item.temporary_accession_number)
+                    header_cell.value = 'Temporary accession number'
+                    header_cell.fill = style_external
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_lender_loan_number:
-                    xl_row.append(item.lender_loan_number)
+                    header_cell.value = 'Lender loan number'
+                    header_cell.fill = style_external
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_other_institutional_number:
-                    xl_row.append(item.other_institutional_number)
+                    header_cell.value = 'Other institutional number'
+                    header_cell.fill = style_external
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_migration_file_format:
-                    xl_row.append(item.migration_file_format)
+                    header_cell.value = 'Migration file format'
+                    header_cell.fill = style_deprecated
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_migration_location:
-                    xl_row.append(item.migration_location)
+                    header_cell.value = 'Migration location'
+                    header_cell.fill = style_deprecated
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_digital_file_location:
-                    xl_row.append(item.digital_file_location)
+                    header_cell.value = 'Digital file location'
+                    header_cell.fill = style_deprecated
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_cataloged_by:
-                    xl_row.append(item.cataloged_by)
+                    header_cell.value = 'Cataloged by'
+                    header_cell.fill = style_deprecated
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_cataloged_date:
-                    xl_row.append(item.cataloged_date)
+                    header_cell.value = 'Cataloged date'
+                    header_cell.fill = style_deprecated
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_filemaker_legacy_pk_id:
-                    xl_row.append(item.filemaker_legacy_pk_id)
-
-                current_item_documents = item.item_documents.all().order_by('filename')
-                for current_item_document in current_item_documents:
+                    header_cell.value = 'Filemaker legacy PK ID'
+                    header_cell.fill = style_deprecated
+                    sheet_column_counter += 1
+                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                column_counter = 1
+                while column_counter <= max_document_counts:
                     if column_choice.item_document_filename:
-                        xl_row.append(current_item_document.filename)
+                        header_cell.value = 'Document %s filename' %column_counter
+                        if column_counter % 2 == 0: #even
+                            header_cell.fill = style_document_even
+                        else:
+                            header_cell.fill = style_document_odd
+                        sheet_column_counter += 1
+                        header_cell = sheet.cell(row=1, column=sheet_column_counter )
                     if column_choice.item_document_filetype:
-                        xl_row.append(current_item_document.filetype)
+                        header_cell.value = 'Document %s filetype' %column_counter
+                        if column_counter % 2 == 0: #even
+                            header_cell.fill = style_document_even
+                        else:
+                            header_cell.fill = style_document_odd
+                        sheet_column_counter += 1
+                        header_cell = sheet.cell(row=1, column=sheet_column_counter )
                     if column_choice.item_document_access_level:
-                        xl_row.append(current_item_document.get_access_level_display())
+                        header_cell.value = 'Document %s access level' %column_counter
+                        if column_counter % 2 == 0: #even
+                            header_cell.fill = style_document_even
+                        else:
+                            header_cell.fill = style_document_odd
+                        sheet_column_counter += 1
+                        header_cell = sheet.cell(row=1, column=sheet_column_counter )
                     if column_choice.item_document_enumerator:
-                        xl_row.append(current_item_document.enumerator)
+                        header_cell.value = 'Document %s enumerator' %column_counter
+                        if column_counter % 2 == 0: #even
+                            header_cell.fill = style_document_even
+                        else:
+                            header_cell.fill = style_document_odd
+                        sheet_column_counter += 1
+                        header_cell = sheet.cell(row=1, column=sheet_column_counter )
                     if column_choice.item_document_title:
-                        xl_row.append(current_item_document.title)
+                        header_cell.value = 'Document %s title' %column_counter
+                        if column_counter % 2 == 0: #even
+                            header_cell.fill = style_document_even
+                        else:
+                            header_cell.fill = style_document_odd
+                        sheet_column_counter += 1
+                        header_cell = sheet.cell(row=1, column=sheet_column_counter )
                     if column_choice.item_document_duration:
-                        xl_row.append(current_item_document.duration)
+                        header_cell.value = 'Document %s duration' %column_counter
+                        if column_counter % 2 == 0: #even
+                            header_cell.fill = style_document_even
+                        else:
+                            header_cell.fill = style_document_odd
+                        sheet_column_counter += 1
+                        header_cell = sheet.cell(row=1, column=sheet_column_counter )
                     if column_choice.item_document_filesize:
-                        xl_row.append(current_item_document.filesize)
+                        header_cell.value = 'Document %s filesize' %column_counter
+                        if column_counter % 2 == 0: #even
+                            header_cell.fill = style_document_even
+                        else:
+                            header_cell.fill = style_document_odd
+                        sheet_column_counter += 1
+                        header_cell = sheet.cell(row=1, column=sheet_column_counter )
                     if column_choice.item_document_av_spec:
-                        xl_row.append(current_item_document.av_spec)
+                        header_cell.value = 'Document %s A/V specs' %column_counter
+                        if column_counter % 2 == 0: #even
+                            header_cell.fill = style_document_even
+                        else:
+                            header_cell.fill = style_document_odd
+                        sheet_column_counter += 1
+                        header_cell = sheet.cell(row=1, column=sheet_column_counter )
                     if column_choice.item_document_creation_date:
-                        xl_row.append(current_item_document.creation_date)
+                        header_cell.value = 'Document %s creation date' %column_counter
+                        if column_counter % 2 == 0: #even
+                            header_cell.fill = style_document_even
+                        else:
+                            header_cell.fill = style_document_odd
+                        sheet_column_counter += 1
+                        header_cell = sheet.cell(row=1, column=sheet_column_counter )
                     if column_choice.item_document_language:
+                        language_column_counter = 1
+                        while language_column_counter <= max_document_language_counts:
+                            header_cell.value = ('Document %(document_count)s language name %(language_count)s' %{'document_count': column_counter, 'language_count': language_column_counter})
+                            if column_counter % 2 == 0: #even
+                                header_cell.fill = style_document_even
+                            else:
+                                header_cell.fill = style_document_odd
+                            sheet_column_counter += 1
+                            header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                            if column_choice.item_document_dialect:
+                                header_cell.value = ('Document %(document_count)s dialect %(language_count)s' %{'document_count': column_counter, 'language_count': language_column_counter})
+                                if column_counter % 2 == 0: #even
+                                    header_cell.fill = style_document_even
+                                else:
+                                    header_cell.fill = style_document_odd
+                                sheet_column_counter += 1
+                                header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                            language_column_counter += 1
+
+                    if column_choice.item_document_collaborator:
+                        collaborator_column_counter = 1
+                        while collaborator_column_counter <= max_document_collaborator_counts:
+                            header_cell.value = 'Document %(document_count)s collaborator %(collaborator_count)s' %{'document_count': column_counter, "collaborator_count": collaborator_column_counter}
+                            if column_counter % 2 == 0: #even
+                                header_cell.fill = style_document_even
+                            else:
+                                header_cell.fill = style_document_odd
+                            sheet_column_counter += 1
+                            header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                            if column_choice.item_document_collaborator_role:
+                                header_cell.value = ('Document %(document_count)s collaborator role %(collaborator_count)s' %{'document_count': column_counter, "collaborator_count": collaborator_column_counter})
+                                if column_counter % 2 == 0: #even
+                                    header_cell.fill = style_document_even
+                                else:
+                                    header_cell.fill = style_document_odd
+                                sheet_column_counter += 1
+                                header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                            collaborator_column_counter += 1
+
+                    if column_choice.item_document_geographic_lat_long:
+                        header_cell.value = 'Document %s latitude' %column_counter
+                        if column_counter % 2 == 0: #even
+                            header_cell.fill = style_document_even
+                        else:
+                            header_cell.fill = style_document_odd
+                        sheet_column_counter += 1
+                        header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                        header_cell.value = 'Document %s longitude' %column_counter
+                        if column_counter % 2 == 0: #even
+                            header_cell.fill = style_document_even
+                        else:
+                            header_cell.fill = style_document_odd
+                        sheet_column_counter += 1
+                        header_cell = sheet.cell(row=1, column=sheet_column_counter )
+                    column_counter += 1
+
+                for item in qs:
+                    xl_row = []
+                    if column_choice.item_catalog_number:
+                        xl_row.append(item.catalog_number)
+                    if column_choice.item_item_access_level:
+                        xl_row.append(item.get_item_access_level_display())
+                    if column_choice.item_call_number:
+                        xl_row.append(item.call_number)
+                    if column_choice.item_accession_date:
+                        xl_row.append(item.accession_date)
+                    if column_choice.item_additional_digital_file_location:
+                        xl_row.append(item.additional_digital_file_location)
+                    if column_choice.item_indigenous_title:
+                        xl_row.append(item.indigenous_title)
+                    if column_choice.item_english_title:
+                        xl_row.append(item.english_title)
+                    if column_choice.item_general_content:
+                        xl_row.append(item.get_general_content_display())
+                    if column_choice.item_language:
                         language_rows = []
-                        language_rows.extend( current_item_document.language.all().values_list('name', flat=True).order_by('name') )
-                        language_rows.extend( [''] * ( max_document_language_counts - len(current_item_document.language.all()) ) )
-                        if column_choice.item_document_dialect:
+                        language_rows.extend( item.language.all().values_list('name', flat=True).order_by('name') )
+                        language_rows.extend( [''] * ( max_language_counts - len(item.language.all()) ) )
+                        if column_choice.item_dialect:
                             dialect_rows = []
-                            current_item_document_dialects = current_item_document.document_dialectinstances.all().order_by('language__name')
-                            for current_item_document_dialect in current_item_document_dialects:
-                                dialect_rows.append( "\n".join( current_item_document_dialect.name.all().values_list('name', flat=True).order_by('name') ) )
-                            #dialect_rows.extend( current_item_document.document_dialectinstances.all().values_list('name__name', flat=True).order_by('language__name') )
-                            dialect_rows.extend( [''] * ( max_document_language_counts - len(current_item_document.document_dialectinstances.all()) ) )
+                            item_dialects = item.item_dialectinstances.all().order_by('language__name')
+                            for item_dialect in item_dialects:
+                                dialect_rows.append( "\n".join( item_dialect.name.all().values_list('name', flat=True).order_by('name') ) )
+                            #dialect_rows.extend( item.item_dialectinstances.all().values_list('name__name', flat=True).order_by('language__name') )
+                            dialect_rows.extend( [''] * ( max_language_counts - len(item.item_dialectinstances.all()) ) )
                             language_zip = zip(language_rows, dialect_rows)
                             language_rows = [i for sublist in language_zip for i in sublist]
                         xl_row.extend(language_rows)
+                    if column_choice.item_creation_date:
+                        xl_row.append(item.creation_date)
+                    if column_choice.item_description_scope_and_content:
+                        xl_row.append(item.description_scope_and_content)
+                    if column_choice.item_genre:
+                        xl_row.append(item.get_genre_display().replace(', ','\n') )
+                    if column_choice.item_associated_ephemera:
+                        xl_row.append(item.associated_ephemera)
 
 
-                    if column_choice.item_document_collaborator:
+                    if column_choice.item_access_level_restrictions:
+                        xl_row.append(item.access_level_restrictions)
+                    if column_choice.item_copyrighted_notes:
+                        xl_row.append(item.copyrighted_notes)
+                    if column_choice.item_permission_to_publish_online:
+                        if item.permission_to_publish_online:
+                            xl_row.append('yes')
+                        elif item.permission_to_publish_online is None:
+                            xl_row.append('')
+                        else:
+                            xl_row.append('no')
+                    if column_choice.item_collaborator:
                         collaborator_rows = []
-                        collaborator_rows.extend( current_item_document.collaborator.all().values_list('name', flat=True).order_by('name') )
-                        collaborator_rows.extend( [''] * ( max_document_collaborator_counts - len(current_item_document.collaborator.all()) ) )
-                        if column_choice.item_document_collaborator_role:
+                        collaborator_rows.extend( item.collaborator.all().values_list('name', flat=True).order_by('name') )
+                        collaborator_rows.extend( [''] * ( max_collaborator_counts - len(item.collaborator.all()) ) )
+                        if column_choice.item_collaborator_role:
                             collaborator_role_rows = []
-                            current_item_document_collaborator_roles = current_item_document.document_collaboratorroles.all().order_by('collaborator__name')
-                            for current_item_document_collaborator_role in current_item_document_collaborator_roles:
-                                collaborator_role_rows.append( current_item_document_collaborator_role.get_role_display() )
-
-                            #collaborator_role_rows.extend( current_item_document.document_collaboratorroles.all().values_list('role', flat=True).order_by('collaborator__name') )
-                            collaborator_role_rows.extend( [''] * ( max_document_collaborator_counts - len(current_item_document.document_collaboratorroles.all()) ) )
+                            item_collaborator_roles = item.item_collaboratorroles.all().order_by('collaborator__name')
+                            for item_collaborator_role in item_collaborator_roles:
+                                collaborator_role_rows.append( item_collaborator_role.get_role_display() )
+                            #collaborator_role_rows.extend( item.item_collaboratorroles.all().values_list('role', flat=True).order_by('collaborator__name') )
+                            collaborator_role_rows.extend( [''] * ( max_collaborator_counts - len(item.item_collaboratorroles.all()) ) )
                             collaborator_role_rows_joined = []
                             for collaborator_role_row in collaborator_role_rows:
                                 collaborator_role_rows_joined.append( collaborator_role_row.replace(', ','\n') )
                             collaborator_zip = zip(collaborator_rows, collaborator_role_rows_joined)
                             collaborator_rows = [i for sublist in collaborator_zip for i in sublist]
                         xl_row.extend(collaborator_rows)
-                    if column_choice.item_document_geographic_lat_long:
-                        if current_item_document.document_geographic.first():
-                            xl_row.append(current_item_document.document_geographic.first().lat)
-                            xl_row.append(current_item_document.document_geographic.first().long)
+                    if column_choice.item_language_description_type:
+                        xl_row.append(item.get_language_description_type_display().replace(', ','\n') )
+                    if column_choice.item_availability_status:
+                        xl_row.append(item.get_availability_status_display())
+                    if column_choice.item_availability_status_notes:
+                        xl_row.append(item.availability_status_notes)
+                    if column_choice.item_condition:
+                        xl_row.append(item.get_condition_display())
+                    if column_choice.item_condition_notes:
+                        xl_row.append(item.condition_notes)
+                    if column_choice.item_ipm_issues:
+                        xl_row.append(item.ipm_issues)
+                    if column_choice.item_conservation_treatments_performed:
+                        xl_row.append(item.conservation_treatments_performed)
+                    if column_choice.item_accession_number:
+                        xl_row.append(item.accession_number)
+                    if column_choice.item_accession_date:
+                        xl_row.append(item.accession_date)
+                    if column_choice.item_type_of_accession:
+                        xl_row.append(item.get_type_of_accession_display())
+                    if column_choice.item_acquisition_notes:
+                        xl_row.append(item.acquisition_notes)
+                    if column_choice.item_project_grant:
+                        xl_row.append(item.project_grant)
+                    if column_choice.item_collection_name:
+                        xl_row.append(item.collection_name)
+                    if column_choice.item_collector_name:
+                        xl_row.append(item.collector_name)
+                    if column_choice.item_collector_info:
+                        xl_row.append(item.collector_info)
+                    if column_choice.item_collectors_number:
+                        xl_row.append(item.collectors_number)
+                    if column_choice.item_collection_date:
+                        xl_row.append(item.collection_date)
+                    if column_choice.item_collecting_notes:
+                        xl_row.append(item.collecting_notes)
+                    if column_choice.item_depositor_name:
+                        xl_row.append(item.depositor_name)
+                    if column_choice.item_depositor_contact_information:
+                        xl_row.append(item.depositor_contact_information)
+                    if column_choice.item_deposit_date:
+                        xl_row.append(item.deposit_date)
+                    if column_choice.item_municipality_or_township:
+                        xl_row.append(item.municipality_or_township)
+                    if column_choice.item_county_or_parish:
+                        xl_row.append(item.county_or_parish)
+                    if column_choice.item_state_or_province:
+                        xl_row.append(item.state_or_province)
+                    if column_choice.item_country_or_territory:
+                        xl_row.append(item.country_or_territory)
+                    if column_choice.item_global_region:
+                        xl_row.append(item.global_region)
+                    if column_choice.item_recording_context:
+                        xl_row.append(item.recording_context)
+                    if column_choice.item_public_event:
+                        xl_row.append(item.public_event)
+                    if column_choice.item_geographic_lat_long:
+                        if item.item_geographic.first():
+                            xl_row.append(item.item_geographic.first().lat)
+                            xl_row.append(item.item_geographic.first().long)
                         else:
                             xl_row.append('')
                             xl_row.append('')
+                    if column_choice.item_original_format_medium:
+                        xl_row.append(item.get_original_format_medium_display())
+                    if column_choice.item_recorded_on:
+                        xl_row.append(item.recorded_on)
+                    if column_choice.item_equipment_used:
+                        xl_row.append(item.equipment_used)
+                    if column_choice.item_software_used:
+                        xl_row.append(item.software_used)
+                    if column_choice.item_conservation_recommendation:
+                        xl_row.append(item.conservation_recommendation)
+                    if column_choice.item_location_of_original:
+                        xl_row.append(item.location_of_original)
+                    if column_choice.item_other_information:
+                        xl_row.append(item.other_information)
+                    if column_choice.item_publisher:
+                        xl_row.append(item.publisher)
+                    if column_choice.item_publisher_address:
+                        xl_row.append(item.publisher_address)
+                    if column_choice.item_isbn:
+                        xl_row.append(item.isbn)
+                    if column_choice.item_loc_catalog_number:
+                        xl_row.append(item.loc_catalog_number)
+                    if column_choice.item_total_number_of_pages_and_physical_description:
+                        xl_row.append(item.total_number_of_pages_and_physical_description)
+                    if column_choice.item_temporary_accession_number:
+                        xl_row.append(item.temporary_accession_number)
+                    if column_choice.item_lender_loan_number:
+                        xl_row.append(item.lender_loan_number)
+                    if column_choice.item_other_institutional_number:
+                        xl_row.append(item.other_institutional_number)
+                    if column_choice.item_migration_file_format:
+                        xl_row.append(item.migration_file_format)
+                    if column_choice.item_migration_location:
+                        xl_row.append(item.migration_location)
+                    if column_choice.item_digital_file_location:
+                        xl_row.append(item.digital_file_location)
+                    if column_choice.item_cataloged_by:
+                        xl_row.append(item.cataloged_by)
+                    if column_choice.item_cataloged_date:
+                        xl_row.append(item.cataloged_date)
+                    if column_choice.item_filemaker_legacy_pk_id:
+                        xl_row.append(item.filemaker_legacy_pk_id)
+
+                    current_item_documents = item.item_documents.all().order_by('filename')
+                    for current_item_document in current_item_documents:
+                        if column_choice.item_document_filename:
+                            xl_row.append(current_item_document.filename)
+                        if column_choice.item_document_filetype:
+                            xl_row.append(current_item_document.filetype)
+                        if column_choice.item_document_access_level:
+                            xl_row.append(current_item_document.get_access_level_display())
+                        if column_choice.item_document_enumerator:
+                            xl_row.append(current_item_document.enumerator)
+                        if column_choice.item_document_title:
+                            xl_row.append(current_item_document.title)
+                        if column_choice.item_document_duration:
+                            xl_row.append(current_item_document.duration)
+                        if column_choice.item_document_filesize:
+                            xl_row.append(current_item_document.filesize)
+                        if column_choice.item_document_av_spec:
+                            xl_row.append(current_item_document.av_spec)
+                        if column_choice.item_document_creation_date:
+                            xl_row.append(current_item_document.creation_date)
+                        if column_choice.item_document_language:
+                            language_rows = []
+                            language_rows.extend( current_item_document.language.all().values_list('name', flat=True).order_by('name') )
+                            language_rows.extend( [''] * ( max_document_language_counts - len(current_item_document.language.all()) ) )
+                            if column_choice.item_document_dialect:
+                                dialect_rows = []
+                                current_item_document_dialects = current_item_document.document_dialectinstances.all().order_by('language__name')
+                                for current_item_document_dialect in current_item_document_dialects:
+                                    dialect_rows.append( "\n".join( current_item_document_dialect.name.all().values_list('name', flat=True).order_by('name') ) )
+                                #dialect_rows.extend( current_item_document.document_dialectinstances.all().values_list('name__name', flat=True).order_by('language__name') )
+                                dialect_rows.extend( [''] * ( max_document_language_counts - len(current_item_document.document_dialectinstances.all()) ) )
+                                language_zip = zip(language_rows, dialect_rows)
+                                language_rows = [i for sublist in language_zip for i in sublist]
+                            xl_row.extend(language_rows)
 
 
-                for blank_document in range(max_document_counts - len(current_item_documents)):
-                    if column_choice.item_document_filename:
-                        xl_row.append('')
-                    if column_choice.item_document_filetype:
-                        xl_row.append('')
-                    if column_choice.item_document_access_level:
-                        xl_row.append('')
-                    if column_choice.item_document_enumerator:
-                        xl_row.append('')
-                    if column_choice.item_document_title:
-                        xl_row.append('')
-                    if column_choice.item_document_duration:
-                        xl_row.append('')
-                    if column_choice.item_document_filesize:
-                        xl_row.append('')
-                    if column_choice.item_document_av_spec:
-                        xl_row.append('')
-                    if column_choice.item_document_creation_date:
-                        xl_row.append('')
-                    if column_choice.item_document_language:
-                        xl_row.extend( [''] * max_document_language_counts )
-                    if column_choice.item_document_dialect:
-                        xl_row.extend( [''] * max_document_language_counts )
-                    if column_choice.item_document_collaborator:
-                        xl_row.extend( [''] * max_document_collaborator_counts )
-                    if column_choice.item_document_collaborator_role:
-                        xl_row.extend( [''] * max_document_collaborator_counts )
-                    if column_choice.item_document_geographic_lat_long:
-                        xl_row.append('')
-                        xl_row.append('')
+                        if column_choice.item_document_collaborator:
+                            collaborator_rows = []
+                            collaborator_rows.extend( current_item_document.collaborator.all().values_list('name', flat=True).order_by('name') )
+                            collaborator_rows.extend( [''] * ( max_document_collaborator_counts - len(current_item_document.collaborator.all()) ) )
+                            if column_choice.item_document_collaborator_role:
+                                collaborator_role_rows = []
+                                current_item_document_collaborator_roles = current_item_document.document_collaboratorroles.all().order_by('collaborator__name')
+                                for current_item_document_collaborator_role in current_item_document_collaborator_roles:
+                                    collaborator_role_rows.append( current_item_document_collaborator_role.get_role_display() )
+
+                                #collaborator_role_rows.extend( current_item_document.document_collaboratorroles.all().values_list('role', flat=True).order_by('collaborator__name') )
+                                collaborator_role_rows.extend( [''] * ( max_document_collaborator_counts - len(current_item_document.document_collaboratorroles.all()) ) )
+                                collaborator_role_rows_joined = []
+                                for collaborator_role_row in collaborator_role_rows:
+                                    collaborator_role_rows_joined.append( collaborator_role_row.replace(', ','\n') )
+                                collaborator_zip = zip(collaborator_rows, collaborator_role_rows_joined)
+                                collaborator_rows = [i for sublist in collaborator_zip for i in sublist]
+                            xl_row.extend(collaborator_rows)
+                        if column_choice.item_document_geographic_lat_long:
+                            if current_item_document.document_geographic.first():
+                                xl_row.append(current_item_document.document_geographic.first().lat)
+                                xl_row.append(current_item_document.document_geographic.first().long)
+                            else:
+                                xl_row.append('')
+                                xl_row.append('')
 
 
-#####################################################
-                # document_rows_zip = []
-                # if column_choice.item_document_filename:
-                #     document_filename_rows = []
-                #     document_filename_rows.extend( item.item_documents.all().values_list('filename', flat=True) )
-                #     document_filename_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
-                #     document_rows_zip.append('document_filename_rows')
-                # if column_choice.item_document_filetype:
-                #     document_filetype_rows = []
-                #     document_filetype_rows.extend( item.item_documents.all().values_list('filetype', flat=True) )
-                #     document_filetype_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
-                #     document_rows_zip.append('document_filetype_rows')
-                # if column_choice.item_document_enumerator:
-                #     document_enumerator_rows = []
-                #     document_enumerator_rows.extend( item.item_documents.all().values_list('enumerator', flat=True) )
-                #     document_enumerator_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
-                #     document_rows_zip.append('document_enumerator_rows')
-                # if column_choice.item_document_title:
-                #     document_title_rows = []
-                #     document_title_rows.extend( item.item_documents.all().values_list('title', flat=True) )
-                #     document_title_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
-                #     document_rows_zip.append('document_title_rows')
-                # if column_choice.item_document_duration:
-                #     document_duration_rows = []
-                #     document_duration_rows.extend( item.item_documents.all().values_list('duration', flat=True) )
-                #     document_duration_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
-                #     document_rows_zip.append('document_duration_rows')
-                # if column_choice.item_document_filesize:
-                #     document_filesize_rows = []
-                #     document_filesize_rows.extend( item.item_documents.all().values_list('filesize', flat=True) )
-                #     document_filesize_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
-                #     document_rows_zip.append('document_filesize_rows')
-                # if column_choice.item_document_av_spec:
-                #     document_av_spec_rows = []
-                #     document_av_spec_rows.extend( item.item_documents.all().values_list('av_spec', flat=True) )
-                #     document_av_spec_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
-                #     document_rows_zip.append('document_av_spec_rows')
-                # if column_choice.item_document_language:
-                #     document_language_rows = []
-                #     document_languages = item.item_documents.all()
-                #     for each_document_languages in document_languages:
-                #         document_language_rows.append( ", ".join( each_document_languages.language.all().values_list('name', flat=True) ) )
-                #     document_language_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
-                #     document_rows_zip.append('document_language_rows')
-                # if column_choice.item_document_collaborator:
-                #     document_collaborator_rows = []
-                #     document_collaborators = item.item_documents.all()
-                #     for each_document_collaborators in document_collaborators:
-                #         document_collaborator_rows.append( ",".join( each_document_collaborators.collaborator.all().values_list('name', flat=True) ) )
-                #     document_collaborator_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
-                #     document_rows_zip.append('document_collaborator_rows')
-                #
-                # if document_rows_zip:
-                #     document_rows = eval( document_rows_zip[0] )
-                #     if len(document_rows_zip) > 1:
-                #         document_rows = []
-                #         for i in range(max_document_counts):
-                #             for j in range(len(document_rows_zip)):
-                #                 document_rows.append( eval( document_rows_zip[j] )[i] )
-                #
-                #     xl_row.extend( document_rows )
-                #
-
-######################################
+                    for blank_document in range(max_document_counts - len(current_item_documents)):
+                        if column_choice.item_document_filename:
+                            xl_row.append('')
+                        if column_choice.item_document_filetype:
+                            xl_row.append('')
+                        if column_choice.item_document_access_level:
+                            xl_row.append('')
+                        if column_choice.item_document_enumerator:
+                            xl_row.append('')
+                        if column_choice.item_document_title:
+                            xl_row.append('')
+                        if column_choice.item_document_duration:
+                            xl_row.append('')
+                        if column_choice.item_document_filesize:
+                            xl_row.append('')
+                        if column_choice.item_document_av_spec:
+                            xl_row.append('')
+                        if column_choice.item_document_creation_date:
+                            xl_row.append('')
+                        if column_choice.item_document_language:
+                            xl_row.extend( [''] * max_document_language_counts )
+                        if column_choice.item_document_dialect:
+                            xl_row.extend( [''] * max_document_language_counts )
+                        if column_choice.item_document_collaborator:
+                            xl_row.extend( [''] * max_document_collaborator_counts )
+                        if column_choice.item_document_collaborator_role:
+                            xl_row.extend( [''] * max_document_collaborator_counts )
+                        if column_choice.item_document_geographic_lat_long:
+                            xl_row.append('')
+                            xl_row.append('')
 
 
+    #####################################################
+                    # document_rows_zip = []
+                    # if column_choice.item_document_filename:
+                    #     document_filename_rows = []
+                    #     document_filename_rows.extend( item.item_documents.all().values_list('filename', flat=True) )
+                    #     document_filename_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
+                    #     document_rows_zip.append('document_filename_rows')
+                    # if column_choice.item_document_filetype:
+                    #     document_filetype_rows = []
+                    #     document_filetype_rows.extend( item.item_documents.all().values_list('filetype', flat=True) )
+                    #     document_filetype_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
+                    #     document_rows_zip.append('document_filetype_rows')
+                    # if column_choice.item_document_enumerator:
+                    #     document_enumerator_rows = []
+                    #     document_enumerator_rows.extend( item.item_documents.all().values_list('enumerator', flat=True) )
+                    #     document_enumerator_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
+                    #     document_rows_zip.append('document_enumerator_rows')
+                    # if column_choice.item_document_title:
+                    #     document_title_rows = []
+                    #     document_title_rows.extend( item.item_documents.all().values_list('title', flat=True) )
+                    #     document_title_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
+                    #     document_rows_zip.append('document_title_rows')
+                    # if column_choice.item_document_duration:
+                    #     document_duration_rows = []
+                    #     document_duration_rows.extend( item.item_documents.all().values_list('duration', flat=True) )
+                    #     document_duration_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
+                    #     document_rows_zip.append('document_duration_rows')
+                    # if column_choice.item_document_filesize:
+                    #     document_filesize_rows = []
+                    #     document_filesize_rows.extend( item.item_documents.all().values_list('filesize', flat=True) )
+                    #     document_filesize_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
+                    #     document_rows_zip.append('document_filesize_rows')
+                    # if column_choice.item_document_av_spec:
+                    #     document_av_spec_rows = []
+                    #     document_av_spec_rows.extend( item.item_documents.all().values_list('av_spec', flat=True) )
+                    #     document_av_spec_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
+                    #     document_rows_zip.append('document_av_spec_rows')
+                    # if column_choice.item_document_language:
+                    #     document_language_rows = []
+                    #     document_languages = item.item_documents.all()
+                    #     for each_document_languages in document_languages:
+                    #         document_language_rows.append( ", ".join( each_document_languages.language.all().values_list('name', flat=True) ) )
+                    #     document_language_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
+                    #     document_rows_zip.append('document_language_rows')
+                    # if column_choice.item_document_collaborator:
+                    #     document_collaborator_rows = []
+                    #     document_collaborators = item.item_documents.all()
+                    #     for each_document_collaborators in document_collaborators:
+                    #         document_collaborator_rows.append( ",".join( each_document_collaborators.collaborator.all().values_list('name', flat=True) ) )
+                    #     document_collaborator_rows.extend( [''] * ( max_document_counts - len(item.item_documents.all()) ) )
+                    #     document_rows_zip.append('document_collaborator_rows')
+                    #
+                    # if document_rows_zip:
+                    #     document_rows = eval( document_rows_zip[0] )
+                    #     if len(document_rows_zip) > 1:
+                    #         document_rows = []
+                    #         for i in range(max_document_counts):
+                    #             for j in range(len(document_rows_zip)):
+                    #                 document_rows.append( eval( document_rows_zip[j] )[i] )
+                    #
+                    #     xl_row.extend( document_rows )
+                    #
 
-                sheet.append(xl_row)
+    ######################################
 
 
-            response = HttpResponse(content=save_virtual_workbook(new_workbook), content_type='application/vnd.ms-excel')
-            response['Content-Disposition'] = 'attachment; filename=metadata-export.xlsx'
 
-            return response
+                    sheet.append(xl_row)
+
+
+                response = HttpResponse(content=save_virtual_workbook(new_workbook), content_type='application/vnd.ms-excel')
+                response['Content-Disposition'] = 'attachment; filename=metadata-export.xlsx'
+
+                return response
 
 
     paginator = Paginator(qs, 100)
@@ -1351,6 +1482,8 @@ def item_index(request):
 
     if re.search('search', url_path, flags=re.I):
         template = 'item_search.html'
+    elif re.search('migrate', url_path, flags=re.I):
+        template = 'item_migrate.html'
     else:
         template = 'item_index.html'
 
@@ -1848,6 +1981,18 @@ class language_delete(UserPassesTestMixin, DeleteView):
     model = Language
     success_url = '/languages/'
 
+@login_required
+@user_passes_test(is_member_of_archivist, login_url='/no-permission', redirect_field_name=None)
+def language_stats(request):
+
+    # Get a list of languages and the number of items associated with each language
+    languages = Language.objects.annotate(num_items=Count('item_languages')).order_by('-num_items')
+
+    context = {
+        'languages' : languages
+    }
+
+    return render(request, 'language_stats.html', context)
 
 @login_required
 @user_passes_test(is_member_of_archivist, login_url='/no-permission', redirect_field_name=None)

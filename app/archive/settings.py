@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'multiselectfield',
     'video_encoding',
+    'rest_framework',
     'metadata',
 ]
 

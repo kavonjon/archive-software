@@ -88,6 +88,7 @@
             <a class="nav-link dropdown-toggle" href="/languages/" id="dropdown-languages" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Languages</a>
             <div class="dropdown-menu" aria-labelledby="dropdown-languages">
               <a class="dropdown-item" href="/languages/">Languages</a>
+              <a class="dropdown-item" href="/languages/stats">Stats</a>
               {% if request.user|has_group:"Archivist"%}<a class="dropdown-item" href="/languages/import/">Import</a>
               {% else %}<a class="dropdown-item disabled" href="/languages/import/" aria-disabled="true">Import</a>
               {% endif %}
@@ -104,6 +105,9 @@
           </li>
           <li class="nav-item">
             <a class="nav-link" href="/export-columns/">Export columns</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/migrate/">Migration</a>
           </li>
 
         </ul>

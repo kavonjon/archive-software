@@ -454,7 +454,7 @@ def item_index(request):
                         "archive_item:item": item.catalog_number,
                         "archive_item:call_number": item.call_number,
                         "archive_item:genre": [
-                            {"id": each_genre.replace('_', '-'),}
+                            {"id": each_genre.replace('_', '-').replace('educational-material-learners', 'educational-material-for-learners').replace('educational-material-teachers', 'educational-material-for-teachers'),}
                             for each_genre in item.genre
                         ],
                         "archive_item:genre": [

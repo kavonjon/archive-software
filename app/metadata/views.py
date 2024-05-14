@@ -434,7 +434,7 @@ def item_index(request):
                     # Construct metadata
                     metadata = {
                         "resource_type": {
-                            "id": item_dict['general_content'],
+                            "id": item_dict['general_content'].replace('_', '-'),
                         },
                         "creators": [
                             {"person_or_org": {
@@ -454,11 +454,11 @@ def item_index(request):
                         "archive_item:item": item.catalog_number,
                         "archive_item:call_number": item.call_number,
                         "archive_item:genre": [
-                            {"id": each_genre}
+                            {"id": each_genre.replace('_', '-'),}
                             for each_genre in item.genre
                         ],
                         "archive_item:lang_desc_type": [
-                            {"id": each_language_description_type}
+                            {"id": each_language_description_type.replace('_', '-')}
                             for each_language_description_type in item.language_description_type
                         ],
                         "archive_item:all_languages": [

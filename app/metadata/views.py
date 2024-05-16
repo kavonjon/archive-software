@@ -1851,6 +1851,10 @@ def language_index(request):
         sheet_column_counter += 1
         header_cell = sheet.cell(row=1, column=sheet_column_counter )
 
+        header_cell.value = 'Glottocode'
+        sheet_column_counter += 1
+        header_cell = sheet.cell(row=1, column=sheet_column_counter )
+
         header_cell.value = 'Language name'
         sheet_column_counter += 1
         header_cell = sheet.cell(row=1, column=sheet_column_counter )
@@ -1859,7 +1863,15 @@ def language_index(request):
         sheet_column_counter += 1
         header_cell = sheet.cell(row=1, column=sheet_column_counter )
 
-        header_cell.value = 'Language family'
+        header_cell.value = 'Family'
+        sheet_column_counter += 1
+        header_cell = sheet.cell(row=1, column=sheet_column_counter )
+
+        header_cell.value = 'Family abbreviation'
+        sheet_column_counter += 1
+        header_cell = sheet.cell(row=1, column=sheet_column_counter )
+
+        header_cell.value = 'Family glottocode'
         sheet_column_counter += 1
         header_cell = sheet.cell(row=1, column=sheet_column_counter )
 
@@ -1867,7 +1879,23 @@ def language_index(request):
         sheet_column_counter += 1
         header_cell = sheet.cell(row=1, column=sheet_column_counter )
 
+        header_cell.value = 'Primary subgroup abbreviation'
+        sheet_column_counter += 1
+        header_cell = sheet.cell(row=1, column=sheet_column_counter )
+
+        header_cell.value = 'Primary subgroup glottocode'
+        sheet_column_counter += 1
+        header_cell = sheet.cell(row=1, column=sheet_column_counter )
+
         header_cell.value = 'Secondary subgroup'
+        sheet_column_counter += 1
+        header_cell = sheet.cell(row=1, column=sheet_column_counter )
+
+        header_cell.value = 'Secondary subgroup abbreviation'
+        sheet_column_counter += 1
+        header_cell = sheet.cell(row=1, column=sheet_column_counter )
+
+        header_cell.value = 'Secondary subgroup glottocode'
         sheet_column_counter += 1
         header_cell = sheet.cell(row=1, column=sheet_column_counter )
 
@@ -1879,6 +1907,18 @@ def language_index(request):
         sheet_column_counter += 1
         header_cell = sheet.cell(row=1, column=sheet_column_counter )
 
+        header_cell.value = 'Latitude'
+        sheet_column_counter += 1
+        header_cell = sheet.cell(row=1, column=sheet_column_counter )
+
+        header_cell.value = 'Longitude'
+        sheet_column_counter += 1
+        header_cell = sheet.cell(row=1, column=sheet_column_counter )
+
+        header_cell.value = 'Tribes'
+        sheet_column_counter += 1
+        header_cell = sheet.cell(row=1, column=sheet_column_counter )
+
         header_cell.value = 'Notes'
         sheet_column_counter += 1
         header_cell = sheet.cell(row=1, column=sheet_column_counter )
@@ -1887,16 +1927,26 @@ def language_index(request):
         for language in qs:
             xl_row = []
             xl_row.append(language.iso)
+            xl_row.append(language.glottocode)
             xl_row.append(language.name)
             xl_row.append(language.alt_name)
             xl_row.append(language.family)
+            xl_row.append(language.family_abbrev)
+            xl_row.append(language.family_id)
             xl_row.append(language.pri_subgroup)
+            xl_row.append(language.pri_subgroup_abbrev)
+            xl_row.append(language.pri_subgroup_id)
             xl_row.append(language.sec_subgroup)
+            xl_row.append(language.sec_subgroup_abbrev)
+            xl_row.append(language.sec_subgroup_id)
 
             dialects_in_language = Dialect.objects.filter(language=language).values_list('name', flat=True).order_by('name')
 
             xl_row.append(", ".join( dialects_in_language ))
             xl_row.append(language.region)
+            xl_row.append(language.latitude)
+            xl_row.append(language.longitude)
+            xl_row.append(language.tribes)
             xl_row.append(language.notes)
 
             sheet.append(xl_row)

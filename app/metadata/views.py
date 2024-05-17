@@ -1798,6 +1798,8 @@ def language_index(request):
     name_contains_query = request.GET.get('name_contains')
     family_contains_query = request.GET.get('family_contains')
     primary_subgroup_contains_query = request.GET.get('primary_subgroup_contains')
+    region_contains_query = request.GET.get('region_contains')
+    has_items_query = request.GET.get('has_items')
 
     order_choice_last = order_choice
     iso_contains_query_last = ''
@@ -1805,6 +1807,8 @@ def language_index(request):
     name_contains_query_last = ''
     family_contains_query_last = ''
     primary_subgroup_contains_query_last = ''
+    region_contains_query_last = ''
+    has_items_query_last = ''
 
     EMPTY_KEYWORD = 'EMPTY'
 
@@ -1842,8 +1846,23 @@ def language_index(request):
         else:
             qs = qs.filter(pri_subgroup__icontains = primary_subgroup_contains_query)
         primary_subgroup_contains_query_last = primary_subgroup_contains_query
+    
+    if is_valid_param(region_contains_query):
+        if region_contains_query == EMPTY_KEYWORD:
+            qs = qs.filter(region__exact='')
+        else:
+            qs = qs.filter(region__icontains = region_contains_query)
+        region_contains_query_last = region_contains_query
+
+    if is_valid_param(has_items_query):
+        if has_items_query == 'items':
+            qs = qs.filter(item_languages__isnull=False)
+        elif has_items_query == 'no_items':
+            qs = qs.filter(item_languages__isnull=True)
+        has_items_query_last = has_items_query
 
     qs = qs.distinct()
+    qs = qs.annotate(item_count=Count('item_languages')).distinct()
 
 #    print(type(order_choice))
     if order_choice == "updated":
@@ -1992,6 +2011,8 @@ def language_index(request):
         'name_contains_query_last' : name_contains_query_last,
         'family_contains_query_last' : family_contains_query_last,
         'primary_subgroup_contains_query_last' : primary_subgroup_contains_query_last,
+        'region_contains_query_last' : region_contains_query_last,
+        'has_items_query_last' : has_items_query_last
     }
 
     return render(request, 'language_index.html', context)

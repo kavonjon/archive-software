@@ -1794,31 +1794,53 @@ def language_index(request):
     qs = Language.objects.all()
     order_choice = request.GET.get("form_control_sort")
     iso_contains_query = request.GET.get('iso_contains')
+    glottocode_contains_query = request.GET.get('glottocode_contains')
     name_contains_query = request.GET.get('name_contains')
     family_contains_query = request.GET.get('family_contains')
     primary_subgroup_contains_query = request.GET.get('primary_subgroup_contains')
 
     order_choice_last = order_choice
     iso_contains_query_last = ''
+    glottocode_contains_query_last = ''
     name_contains_query_last = ''
     family_contains_query_last = ''
     primary_subgroup_contains_query_last = ''
 
+    EMPTY_KEYWORD = 'EMPTY'
 
     if is_valid_param(iso_contains_query):
-        qs = qs.filter(iso__icontains = iso_contains_query)
+        if iso_contains_query == EMPTY_KEYWORD:
+            qs = qs.filter(iso__exact='')
+        else:
+            qs = qs.filter(iso__icontains=iso_contains_query)
         iso_contains_query_last = iso_contains_query
 
+    if is_valid_param(glottocode_contains_query):
+        if glottocode_contains_query == EMPTY_KEYWORD:
+            qs = qs.filter(glottocode__exact='')
+        else:
+            qs = qs.filter(glottocode__icontains = glottocode_contains_query)
+        glottocode_contains_query_last = glottocode_contains_query
+
     if is_valid_param(name_contains_query):
-        qs = qs.filter(name__icontains = name_contains_query)
+        if name_contains_query == EMPTY_KEYWORD:
+            qs = qs.filter(name__exact='')
+        else:
+            qs = qs.filter(name__icontains = name_contains_query)
         name_contains_query_last = name_contains_query
 
     if is_valid_param(family_contains_query):
-        qs = qs.filter(family__icontains = family_contains_query)
+        if family_contains_query == EMPTY_KEYWORD:
+            qs = qs.filter(family__exact='')
+        else:
+            qs = qs.filter(family__icontains = family_contains_query)
         family_contains_query_last = family_contains_query
 
     if is_valid_param(primary_subgroup_contains_query):
-        qs = qs.filter(pri_subgroup__icontains = primary_subgroup_contains_query)
+        if primary_subgroup_contains_query == EMPTY_KEYWORD:
+            qs = qs.filter(pri_subgroup__exact='')
+        else:
+            qs = qs.filter(pri_subgroup__icontains = primary_subgroup_contains_query)
         primary_subgroup_contains_query_last = primary_subgroup_contains_query
 
     qs = qs.distinct()
@@ -1966,6 +1988,7 @@ def language_index(request):
         'results_count' : results_count,
         'order_choice_last' : order_choice_last,
         'iso_contains_query_last' : iso_contains_query_last,
+        'glottocode_contains_query_last' : glottocode_contains_query_last,
         'name_contains_query_last' : name_contains_query_last,
         'family_contains_query_last' : family_contains_query_last,
         'primary_subgroup_contains_query_last' : primary_subgroup_contains_query_last,
@@ -2013,9 +2036,11 @@ def language_edit(request, pk):
                 languoids.append(dict(row))
         form = LanguageForm(instance=qs)
     context = {
+
         'form': form,
         'glcodes': json.dumps(glcodes),
-        'languoids': json.dumps(languoids)
+        'languoids': json.dumps(languoids),
+        'title': 'Edit language'
     }
     return render(request, 'language_edit.html', context)
 
@@ -2042,6 +2067,7 @@ class language_add(UserPassesTestMixin, FormView):
                 languoids.append(dict(row))
         context['glcodes'] = json.dumps(glcodes)
         context['languoids'] = json.dumps(languoids)
+        context['title'] = 'Add a new language'
         return context
 
 class language_delete(UserPassesTestMixin, DeleteView):

@@ -3,9 +3,21 @@
 {% load metadata_templatetags %}
 
 {% block page_content %}
-<div class="page-title" style="display: inline">Languages</div>{% if request.user|has_group:"Archivist"%}<div style="display: inline"><a class="stealth" href="add"><i class="bi bi-plus fs-2"></i></a></div>{% endif %}
+<div class="d-flex justify-content-between">
+  <div>
+    <div class="page-title" style="display: inline">Languages</div>
+    {% if request.user|has_group:"Archivist"%}
+    <div style="display: inline"><a class="stealth" href="add"><i class="bi bi-plus fs-2"></i></a></div>
+    {% endif %}
+  </div>
+  <div class="p-2 bg-warning text-dark rounded border border-light">
+    Use EMPTY to search for empty fields
+  </div>
+</div>
+
+
 <form method="GET" action="." class="mb-2">
-  <div class="container">
+  <div class="">
     <div class="row">
         <div class="col-md-1">
             <button type="submit" class="btn btn-primary" name="filter">Sort</button>
@@ -29,12 +41,25 @@
     </div>
     <div class="row">
         <div class="col-md-3">
-          <div class="input-group">
-            <input class="form-control py-2 border-right-0 border" type="search" name="iso_contains"
-                placeholder="ISO code contains..." value="{{ iso_contains_query_last }}" />
-            <span class="input-group-text bg-transparent">
-              <i class="bi bi-search"></i>
-            </span>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="input-group">
+                <input class="form-control py-2 border-right-0 border" type="search" name="iso_contains"
+                    placeholder="ISO code contains..." value="{{ iso_contains_query_last }}" />
+                <span class="input-group-text bg-transparent">
+                  <i class="bi bi-search"></i>
+                </span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="input-group">
+                <input class="form-control py-2 border-right-0 border" type="search" name="glottocode_contains"
+                    placeholder="Glottocode contains..." value="{{ glottocode_contains_query_last }}" />
+                <span class="input-group-text bg-transparent">
+                  <i class="bi bi-search"></i>
+                </span>
+              </div>
+            </div>
           </div>
         </div>
         <div class="col-md-3">
@@ -71,7 +96,14 @@
 <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'language_detail' language.pk %}">
     <div class="row">
         <div class="col-md-3">
-            {{ language.iso }}
+          <div class="row">
+            <div class="col-md-6">
+              {{ language.iso }}
+            </div>
+            <div class="col-md-6">
+              {{ language.glottocode }}
+            </div>
+          </div>
         </div>
         <div class="col-md-3">
             {{ language.name }}

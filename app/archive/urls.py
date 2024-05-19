@@ -16,12 +16,16 @@ Including another URLconf
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.conf import settings
+from django.conf.urls import handler500
 from django.conf.urls.static import static
 from django.urls import path, include
 from django.views.generic import TemplateView
-from metadata.views import item_index, item_detail, item_edit, item_add, item_delete,language_index, language_detail, language_edit, language_add, language_delete, language_stats, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView
+from metadata.views import item_index, item_detail, item_edit, item_add, item_delete,language_index, language_detail, language_edit, language_add, language_delete, language_stats, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView, custom_error_500, trigger_error
+
+handler500 = custom_error_500
 
 urlpatterns = [
+    path('trigger-error/', trigger_error),
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
     path("", TemplateView.as_view(template_name='home.html')),

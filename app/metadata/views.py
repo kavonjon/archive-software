@@ -26,6 +26,12 @@ from .forms import LanguageForm, DialectForm, DialectInstanceForm, DialectInstan
 def is_member_of_archivist(user):
     return user.groups.filter(name="Archivist").exists()
 
+def custom_error_500(request):
+    return render(request, '500.html', {}, status=500)
+
+def trigger_error(request):
+    division_by_zero = 1 / 0
+
 class ItemUpdateMigrateView(LoginRequiredMixin, UserPassesTestMixin, generics.UpdateAPIView):
     queryset = Item.objects.all()
     serializer_class = ItemMigrateSerializer

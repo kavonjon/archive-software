@@ -1,7 +1,8 @@
 import re, copy
 from openpyxl import Workbook, load_workbook
 from django.db.models import Count, Sum, Max, Q
-from metadata.models import Item, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, MUSIC_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
+from django.db import transaction
+from metadata.models import Item, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
 from metadata.views import is_valid_param
 from django.core.management.base import BaseCommand
 
@@ -205,4 +206,39 @@ class Command(BaseCommand):
                     print(item.catalog_number + " failed to move " + field + " text")
                     input("Press Enter to continue...")
         
-        move_choices_value("general_content", "book", "publication_book")
+        # move_choices_value("general_content", "book", "publication_book")
+
+
+        # Get all Language instances where glottocode is blank
+        languages = Language.objects.filter(glottocode='')
+        num_languages = languages.count()
+        # Start the enumeration from 9001
+        counter = 1
+        # Use a transaction to ensure data consistency
+        with transaction.atomic():
+            for language in languages:
+                # Assign the enumerated value to glottocode
+                new_value = 'fake' + str(counter + 9000)
+                language.glottocode = new_value
+                print(str(counter) + '/' + str(num_languages))
+                print('Language: ' + language.name + ' ' + 'glottocode: ""' + ' -> ' + new_value)
+                input()
+                language.save()
+                # Increment the counter
+                counter += 1
+        
+        # Get all Language instances where level is not 'language'
+        languages = Language.objects.exclude(level='language')
+        num_languages = languages.count()
+        counter = 1
+
+        # Use a transaction to ensure data consistency
+        with transaction.atomic():
+            for language in languages:
+                # Change the level value to 'language'
+                print(str(counter) + '/' + str(num_languages))
+                print('Language: ' + language.name + ' ' + 'language: ' + language.level + ' -> ' + 'language')
+                input()
+                language.level = 'language'
+                language.save()
+                counter += 1

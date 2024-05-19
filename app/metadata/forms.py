@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.forms import ModelForm
 from django.forms.widgets import CheckboxSelectMultiple
 from django.db.models import Max
-from .models import Item, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video
+from .models import Item, ItemTitle, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video
 
 class LanguageForm(ModelForm):
     class Meta:
@@ -200,6 +200,11 @@ class ItemForm(ModelForm):
                   'cataloged_date',
                   'filemaker_legacy_pk_id']
 
+
+class ItemTitleForm(ModelForm):
+    class Meta:
+        model = ItemTitle
+        fields = ['title', 'language']
 
 class Columns_exportForm(ModelForm):
     class Meta:

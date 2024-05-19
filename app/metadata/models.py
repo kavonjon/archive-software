@@ -565,6 +565,13 @@ class Item(models.Model):
         self.creation_date = validate_date_text(self.creation_date)
         self.deposit_date = validate_date_text(self.deposit_date)
 
+class ItemTitle(models.Model):
+    title = models.CharField(max_length=255)
+    language = models.ForeignKey(Language, related_name="title_language", on_delete=models.CASCADE)
+    item = models.ForeignKey(Item, related_name='title_item', on_delete=models.CASCADE)
+    def __str__(self):
+        return self.item.catalog_number + ": " + self.title
+
 class Document(models.Model):
     filename = models.CharField(max_length=255)
     filetype = models.CharField(max_length=32, blank=True)

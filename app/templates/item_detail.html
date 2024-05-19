@@ -46,6 +46,13 @@
         <b>Additional digital file location:</b> {{ item.additional_digital_file_location }}
     </div>
 </div>
+{% for title in titles %}
+<div class="row">
+    <div class="col-md-12">
+        <b>Title:</b> {{ title.title }} (Language: {{ title.language }})
+    </div>
+</div>
+{% endfor %}
 <div class="row">
     <div class="col-md-12">
         <b>Indigenous title:</b> {{ item.indigenous_title }}

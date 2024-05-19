@@ -19,7 +19,7 @@ from django.db.models import Count, Sum, Max, Q
 from django.views.generic.edit import FormView, DeleteView
 from rest_framework import generics
 from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin
-from .models import Item, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
+from .models import Item, ItemTitle, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
 from .serializers import ItemMigrateSerializer
 from .forms import LanguageForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
 
@@ -1538,6 +1538,10 @@ def item_index(request):
 @login_required
 def item_detail(request, pk):
     item = Item.objects.get(pk=pk)
+
+    # get all the titles for the item
+    titles = ItemTitle.objects.filter(item__pk=pk).order_by('title')
+
     documents = Document.objects.filter(item__pk=pk).order_by('filename')
 
     for collaborator in item.collaborator.all():
@@ -1556,6 +1560,7 @@ def item_detail(request, pk):
 
     context = {
         'item': item,
+        'titles' : titles,
         'documents' : documents,
         'collaborator_info' : collaborator_info,
         'dialect_info' : dialect_info,

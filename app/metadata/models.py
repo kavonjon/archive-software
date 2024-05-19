@@ -353,8 +353,8 @@ class Language(models.Model):
     LEVELS = (('family', 'Family'),
             ('language', 'Language'),
             ('dialect', 'dialect'))
-    glottocode = models.CharField(max_length=8, blank=True)
-    iso = models.CharField(max_length=32, unique=True)
+    glottocode = models.CharField(max_length=8, blank=True, unique=True)
+    iso = models.CharField(max_length=32, blank=True)
     name = models.CharField(max_length=255)
     level = models.CharField(max_length=8, choices=LEVELS)
     family = models.CharField(max_length=255, blank=True)

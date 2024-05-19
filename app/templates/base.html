@@ -89,7 +89,7 @@
             <div class="dropdown-menu" aria-labelledby="dropdown-languages">
               <a class="dropdown-item" href="/languages/">Languages</a>
               <a class="dropdown-item" href="/languages/stats">Stats</a>
-              {% if request.user|has_group:"Archivist"%}<a class="dropdown-item" href="/languages/import/">Import</a>
+              {% if request.user|has_group:"Archivist"%}<a class="dropdown-item disabled" href="/languages/import/">Import</a>
               {% else %}<a class="dropdown-item disabled" href="/languages/import/" aria-disabled="true">Import</a>
               {% endif %}
             </div>

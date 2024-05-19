@@ -3223,6 +3223,8 @@ def ImportView(request):
     elif re.search('collaborators', url_path, flags=re.I):
         template = 'import_collaborator.html'
     else:
+        ## redirect to the language page (disable import) while I am converting to glottocodes
+        return redirect('/languages/')
         template = 'import_language.html'
 
     prompt_message = 'Order of CSV should be...'
@@ -3863,6 +3865,10 @@ def ImportView(request):
                     messages.success(request, collaborator.name + ' (ID: ' + str(collaborator.collaborator_id) + ') was updated')
 
         else: # check if you are on the language import page, based on URL
+
+            ## redirect to the language page (disable import) while I am converting to glottocodes
+            return redirect('languages/')
+
 
             # Get the path to the CSV file
             csv_path = os.path.join(settings.STATIC_ROOT, 'codelist.csv')

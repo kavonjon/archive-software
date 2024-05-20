@@ -2,7 +2,7 @@ import re, copy
 from openpyxl import Workbook, load_workbook
 from django.db.models import Count, Sum, Max, Q
 from django.db import transaction
-from metadata.models import Item, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
+from metadata.models import Item, ItemTitle, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
 from metadata.views import is_valid_param
 from django.core.management.base import BaseCommand
 
@@ -209,36 +209,69 @@ class Command(BaseCommand):
         # move_choices_value("general_content", "book", "publication_book")
 
 
-        # Get all Language instances where glottocode is blank
-        languages = Language.objects.filter(glottocode='')
-        num_languages = languages.count()
-        # Start the enumeration from 9001
-        counter = 1
-        # Use a transaction to ensure data consistency
-        with transaction.atomic():
-            for language in languages:
-                # Assign the enumerated value to glottocode
-                new_value = 'fake' + str(counter + 9000)
-                language.glottocode = new_value
-                print(str(counter) + '/' + str(num_languages))
-                print('Language: ' + language.name + ' ' + 'glottocode: ""' + ' -> ' + new_value)
-                input()
-                language.save()
-                # Increment the counter
-                counter += 1
+        # # Get all Language instances where glottocode is blank
+        # languages = Language.objects.filter(glottocode='')
+        # num_languages = languages.count()
+        # # Start the enumeration from 9001
+        # counter = 1
+        # # Use a transaction to ensure data consistency
+        # with transaction.atomic():
+        #     for language in languages:
+        #         # Assign the enumerated value to glottocode
+        #         new_value = 'fake' + str(counter + 9000)
+        #         language.glottocode = new_value
+        #         print(str(counter) + '/' + str(num_languages))
+        #         print('Language: ' + language.name + ' ' + 'glottocode: ""' + ' -> ' + new_value)
+        #         input()
+        #         language.save()
+        #         # Increment the counter
+        #         counter += 1
         
-        # Get all Language instances where level is not 'language'
-        languages = Language.objects.exclude(level='language')
-        num_languages = languages.count()
-        counter = 1
+        # # Get all Language instances where level is not 'language'
+        # languages = Language.objects.exclude(level='language')
+        # num_languages = languages.count()
+        # counter = 1
 
-        # Use a transaction to ensure data consistency
-        with transaction.atomic():
-            for language in languages:
-                # Change the level value to 'language'
-                print(str(counter) + '/' + str(num_languages))
-                print('Language: ' + language.name + ' ' + 'language: ' + language.level + ' -> ' + 'language')
-                input()
-                language.level = 'language'
-                language.save()
-                counter += 1
+        # # Use a transaction to ensure data consistency
+        # with transaction.atomic():
+        #     for language in languages:
+        #         # Change the level value to 'language'
+        #         print(str(counter) + '/' + str(num_languages))
+        #         print('Language: ' + language.name + ' ' + 'language: ' + language.level + ' -> ' + 'language')
+        #         input()
+        #         language.level = 'language'
+        #         language.save()
+        #         counter += 1
+
+
+        # make a function that gets every item's english title and makes an ItemTitle with title=that item's english title, item= that item, and language=english. Check first if there is already an ItemTitle for this before making a new one
+        def create_item_titles():
+            counter = 0
+            items = Item.objects.all()
+            english_language = Language.objects.get(glottocode='stan1293')
+            farsi_language = Language.objects.get(glottocode='west2369')
+            with transaction.atomic():
+                for item in items:
+                    if counter > 1000000:
+                        break
+                    if item.english_title:
+                        english_title = item.english_title
+                        # Check if an ItemTitle already exists for this item and language
+                        if not ItemTitle.objects.filter(item=item, language=english_language, title=english_title).exists():
+                            # Create a new ItemTitle
+                            item_title = ItemTitle(title=english_title, item=item, language=english_language)
+                            print('Counter: ' + str(counter))
+                            counter += 1
+                            print('Item: ' + item.catalog_number + ' ' + 'English title: -> Title (English):' + english_title)
+                            input()
+                            item_title.save()
+                    if item.indigenous_title:
+                        indigenous_title = item.indigenous_title
+                        # Check if an ItemTitle already exists for this item and language
+                        if not ItemTitle.objects.filter(item=item, language=farsi_language, title=indigenous_title).exists():
+                            # Create a new ItemTitle
+                            item_title = ItemTitle(title=indigenous_title, item=item, language=farsi_language)
+                            print('Item: ' + item.catalog_number + ' ' + 'Indigenous title: -> Title (Western Farsi):' + indigenous_title)
+                            input()
+                            item_title.save()
+        create_item_titles()

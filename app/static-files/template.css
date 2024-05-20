@@ -39,3 +39,7 @@ hr {
 .pagination {
   margin: 2rem;
 }
+
+.bg-middling {
+  background-color: #d3d3d3;
+}

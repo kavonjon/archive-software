@@ -271,7 +271,10 @@ class Command(BaseCommand):
                         if not ItemTitle.objects.filter(item=item, language=farsi_language, title=indigenous_title).exists():
                             # Create a new ItemTitle
                             item_title = ItemTitle(title=indigenous_title, item=item, language=farsi_language)
+                            print('Counter: ' + str(counter))
+                            counter += 1
                             print('Item: ' + item.catalog_number + ' ' + 'Indigenous title: -> Title (Western Farsi):' + indigenous_title)
                             input()
                             item_title.save()
         create_item_titles()
+        

@@ -244,37 +244,37 @@ class Command(BaseCommand):
         #         counter += 1
 
 
-        # make a function that gets every item's english title and makes an ItemTitle with title=that item's english title, item= that item, and language=english. Check first if there is already an ItemTitle for this before making a new one
-        def create_item_titles():
-            counter = 0
-            items = Item.objects.all()
-            english_language = Language.objects.get(glottocode='stan1293')
-            farsi_language = Language.objects.get(glottocode='west2369')
-            with transaction.atomic():
-                for item in items:
-                    if counter > 1000000:
-                        break
-                    if item.english_title:
-                        english_title = item.english_title
-                        # Check if an ItemTitle already exists for this item and language
-                        if not ItemTitle.objects.filter(item=item, language=english_language, title=english_title).exists():
-                            # Create a new ItemTitle
-                            item_title = ItemTitle(title=english_title, item=item, language=english_language)
-                            print('Counter: ' + str(counter))
-                            counter += 1
-                            print('Item: ' + item.catalog_number + ' ' + 'English title: -> Title (English):' + english_title)
-                            input()
-                            item_title.save()
-                    if item.indigenous_title:
-                        indigenous_title = item.indigenous_title
-                        # Check if an ItemTitle already exists for this item and language
-                        if not ItemTitle.objects.filter(item=item, language=farsi_language, title=indigenous_title).exists():
-                            # Create a new ItemTitle
-                            item_title = ItemTitle(title=indigenous_title, item=item, language=farsi_language)
-                            print('Counter: ' + str(counter))
-                            counter += 1
-                            print('Item: ' + item.catalog_number + ' ' + 'Indigenous title: -> Title (Western Farsi):' + indigenous_title)
-                            input()
-                            item_title.save()
-        create_item_titles()
+        # # make a function that gets every item's english title and makes an ItemTitle with title=that item's english title, item= that item, and language=english. Check first if there is already an ItemTitle for this before making a new one
+        # def create_item_titles():
+        #     counter = 0
+        #     items = Item.objects.all()
+        #     english_language = Language.objects.get(glottocode='stan1293')
+        #     farsi_language = Language.objects.get(glottocode='west2369')
+        #     with transaction.atomic():
+        #         for item in items:
+        #             if counter > 1000000:
+        #                 break
+        #             if item.english_title:
+        #                 english_title = item.english_title
+        #                 # Check if an ItemTitle already exists for this item and language
+        #                 if not ItemTitle.objects.filter(item=item, language=english_language, title=english_title).exists():
+        #                     # Create a new ItemTitle
+        #                     item_title = ItemTitle(title=english_title, item=item, language=english_language)
+        #                     print('Counter: ' + str(counter))
+        #                     counter += 1
+        #                     print('Item: ' + item.catalog_number + ' ' + 'English title: -> Title (English):' + english_title)
+        #                     input()
+        #                     item_title.save()
+        #             if item.indigenous_title:
+        #                 indigenous_title = item.indigenous_title
+        #                 # Check if an ItemTitle already exists for this item and language
+        #                 if not ItemTitle.objects.filter(item=item, language=farsi_language, title=indigenous_title).exists():
+        #                     # Create a new ItemTitle
+        #                     item_title = ItemTitle(title=indigenous_title, item=item, language=farsi_language)
+        #                     print('Counter: ' + str(counter))
+        #                     counter += 1
+        #                     print('Item: ' + item.catalog_number + ' ' + 'Indigenous title: -> Title (Western Farsi):' + indigenous_title)
+        #                     input()
+        #                     item_title.save()
+        # create_item_titles()
         

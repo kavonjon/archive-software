@@ -437,6 +437,17 @@ def item_index(request):
                     # Join the elements back together into a string
                     item_dict['deposit_date_formatted'] = "-".join(deposit_date_parts)
 
+                    # construct additional titles
+                    item_titles = ItemTitle.objects.filter(item=item)
+                    additional_titles = []
+                    for title in item_titles:
+                        additional_title = {
+                            "title": title.title,
+                            "type": {"id": "translated-title"},
+                            "lang": {"id": title.language.glottocode}
+                        }
+                        additional_titles.append(additional_title)
+
                     # Construct metadata
                     metadata = {
                         "resource_type": {
@@ -445,12 +456,13 @@ def item_index(request):
                         "creators": [
                             {"person_or_org": {
                                 "type": "personal",
-                                "name": "Rood, David S.",
-                                "given_name": "David S.",
-                                "family_name": "Rood"
+                                "name": "na, na",
+                                "given_name": "na",
+                                "family_name": "na"
                             }}
                         ],
                         "title": item.english_title,
+                        "additional_titles": additional_titles,
                         "publication_date": item_dict['deposit_date_formatted'],
                         "description": item.description_scope_and_content
                     }
@@ -459,34 +471,50 @@ def item_index(request):
                     custom_fields = {
                         "archive_item:item": item.catalog_number,
                         "archive_item:call_number": item.call_number,
-                        "archive_item:genre": [
-                            {"id": each_genre.replace('_', '-').replace('educational-material-learners', 'educational-material-for-learners').replace('educational-material-teachers', 'educational-material-for-teachers'),}
-                            for each_genre in item.genre
-                        ],
-                        "archive_item:genre": [
-                            {"id": each_genre.replace('_', '-'),}
-                            for each_genre in item.genre
-                            if each_genre not in ["book", "article", "dataset", "document", "educational", "photograph", "thesis"]
-                        ],
-
-
-                        "archive_item:lang_desc_type": [
-                            {"id": each_language_description_type.replace('_', '-')}
-                            for each_language_description_type in item.language_description_type
-                        ],
                         "archive_item:all_languages": [
                             {"id": each_language.glottocode}
                             for each_language in item.language.all()
                         ],
+                        "archive_item:genre": [
+                            {"id": each_genre.replace('_', '-').replace('educational-material-learners', 'educational-material-for-learners').replace('educational-material-teachers', 'educational-material-for-teachers'),}
+                            for each_genre in item.genre
+                            if each_genre not in ["book", "article", "dataset", "document", "educational", "photograph", "thesis"]
+
+                        ],
+                        # "archive_item:genre": [
+                        #     {"id": each_genre.replace('_', '-'),}
+                        #     for each_genre in item.genre
+                        #     if each_genre not in ["book", "article", "dataset", "document", "educational", "photograph", "thesis"]
+                        # ],
+                        "archive_item:lang_desc_type": [
+                            {"id": each_language_description_type.replace('_', '-')}
+                            for each_language_description_type in item.language_description_type
+                        ],
+                        "archive_item:associated_ephemera": item.associated_ephemera,
+                        "archive_item:access_level_restrictions": item.access_level_restrictions,
+                        "archive_item:copyrighted_notes": item.copyrighted_notes,
                         "archive_item:availability_status": {
                             "id": item.availability_status,
                         },
+                        "archive_item:availability_status_notes": item.availability_status_notes,
+
                         "archive_item:collecting_notes": item.collecting_notes,
                         "archive_item:global_region": item.global_region,
+                        "archive_item:recording_context": item.recording_context,
                         "archive_item:public_event": True if item.public_event == "Yes" else False,
                         "archive_item:original_format_medium": {
                             "id": item.original_format_medium,
-                        }
+                        },
+                        "archive_item:recorded_on": item.recorded_on,
+                        "archive_item:equipment_used": item.equipment_used,
+                        "archive_item:software_used": item.software_used,
+                        "archive_item:location_of_original": item.location_of_original,
+                        "archive_item:other_information": item.other_information,
+                        "archive_item:publisher": item.publisher,
+                        "archive_item:isbn": item.isbn,
+                        "archive_item:loc_catalog_number": item.loc_catalog_number,
+                        "archive_item:lender_loan_number": item.lender_loan_number,
+                        "archive_item:total_number_of_pages_and_physical_description": item.total_number_of_pages_and_physical_description,
                     }
 
                     # Construct access control details
@@ -1540,6 +1568,18 @@ def item_index(request):
         'columns_form_data' : Columns_export.objects.values_list('name', flat=True)
     }
     return render(request, template, context)
+
+@login_required
+@user_passes_test(is_member_of_archivist, login_url='/no-permission', redirect_field_name=None)
+def item_migrate_list(request):
+    qs = Item.objects.filter(migrate=True).order_by('catalog_number')
+    paginator = Paginator(qs, 100)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    context = {
+        'queryset': page_obj
+    }
+    return render(request, 'item_migrate.html', context)
 
 @login_required
 def item_detail(request, pk):

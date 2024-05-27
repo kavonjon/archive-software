@@ -495,7 +495,7 @@ def item_index(request):
                         "archive_item:access_level_restrictions": item.access_level_restrictions,
                         "archive_item:copyrighted_notes": item.copyrighted_notes,
                         "archive_item:availability_status": {
-                            "id": item.availability_status,
+                            "id": item.availability_status.replace('_', '-'),
                         },
                         "archive_item:availability_status_notes": item.availability_status_notes,
 
@@ -504,7 +504,7 @@ def item_index(request):
                         "archive_item:recording_context": item.recording_context,
                         "archive_item:public_event": True if item.public_event == "Yes" else False,
                         "archive_item:original_format_medium": {
-                            "id": item.original_format_medium,
+                            "id": item.original_format_medium.replace('_', '-'),
                         },
                         "archive_item:recorded_on": item.recorded_on,
                         "archive_item:equipment_used": item.equipment_used,

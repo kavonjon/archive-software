@@ -24,6 +24,16 @@
 </div>
 <div class="row">
     <div class="col-md-12">
+        <b>First name:</b> {% anonymize_collaborators collaborator request.user 'firstname' %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Last name:</b> {% anonymize_collaborators collaborator request.user 'lastname' %}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
         <b>Nickname:</b> {% if request.user|has_group:"Archivist"%}{{ collaborator.nickname }}{% else %}{% if collaborator.anonymous %}(hidden){% else %}{{ collaborator.nickname }}{% endif %}{% endif %}
     </div>
 </div>

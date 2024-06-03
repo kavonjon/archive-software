@@ -30,7 +30,7 @@ def has_group(user, group_name):
     groups = user.groups.all().values_list('name', flat=True)
     return True if group_name in groups else False
 
-def collaborator_to_name_string(collaborator, style='name'):
+def collaborator_to_name_string(collaborator, style):
     if style == 'all_names':
         name_list = [collaborator.name]
         if collaborator.nickname:
@@ -38,6 +38,10 @@ def collaborator_to_name_string(collaborator, style='name'):
         if collaborator.other_names:
             name_list.append(collaborator.other_names)
         return ', '.join(name_list)
+    elif style == 'firstname':
+        return collaborator.firstname
+    elif style == 'lastname':
+        return collaborator.lastname
     else:
         return collaborator.name
 

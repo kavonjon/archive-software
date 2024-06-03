@@ -450,6 +450,8 @@ class Collaborator(models.Model):
     deathdate_max = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=255, blank=True) # old name: sex, need to import
     name = models.CharField(max_length=255, blank=True)
+    firstname = models.CharField(max_length=255, blank=True)
+    lastname = models.CharField(max_length=255, blank=True)
     native_languages = models.ManyToManyField(Language, through='DialectInstance', through_fields=('collaborator_native', 'language'), verbose_name="Native/First languages", related_name='collaborator_native_languages', blank=True)
     nickname = models.CharField(max_length=255, blank=True)
     origin = models.CharField(max_length=255, blank=True)

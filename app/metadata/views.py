@@ -472,12 +472,13 @@ def item_index(request):
                     custom_fields = {
                         "archive_item:item": item.catalog_number,
                         "archive_item:call_number": item.call_number,
+                        "archive_item:access_level": item.get_item_access_level_display(),
                         "archive_item:all_languages": [
                             {"id": each_language.glottocode}
                             for each_language in item.language.all()
                         ],
                         "archive_item:genre": [
-                            {"id": each_genre.replace('_', '-').replace('educational-material-learners', 'educational-material-for-learners').replace('educational-material-teachers', 'educational-material-for-teachers'),}
+                            {"id": each_genre.replace('_', '-'),}
                             for each_genre in item.genre
                             if each_genre not in ["book", "article", "dataset", "document", "educational", "photograph", "thesis"]
 

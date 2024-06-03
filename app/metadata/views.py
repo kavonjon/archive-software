@@ -421,8 +421,16 @@ def item_index(request):
                     # item_dict['language'] = [model_to_dict(language) for language in item.language.all()]
                     item_dict['language'] = list(item.language.values_list('id', flat=True))
                     # # item_dict['dialect'] = [model_to_dict(dialect) for dialect in item.dialect.all()]
-                    # item_dict['collaborator'] = [model_to_dict(collaborator) for collaborator in item.collaborator.all()]
-                    item_dict['collaborator'] = list(item.collaborator.values_list('id', flat=True))
+                    # item_dict['collaborators'] = [model_to_dict(collaborator) for collaborator in item.collaborator.all()]
+                    item_dict['collaborators'] = [
+                        {
+                            **model_to_dict(collaborator),
+                            'firstname': collaborator.firstname,
+                            'lastname': collaborator.lastname
+                        } for collaborator in item.collaborator.all()
+                    ]
+                    print(item_dict['collaborators'])
+                    # item_dict['collaborators'] = list(item.collaborator.values_list('id', flat=True))
                     # item_dict['item_documents'] = [model_to_dict(document) for document in item.item_documents.all()]
                     # item_dict['item_dialectinstances'] = [model_to_dict(dialect) for dialect in item.item_dialectinstances.all()]
                     # item_dict['item_collaboratorroles'] = [model_to_dict(role) for role in item.item_collaboratorroles.all()]
@@ -455,13 +463,16 @@ def item_index(request):
                             "id": item_dict['general_content'].replace('_', '-').replace('audio-video', 'video'),
                         },
                         "creators": [
-                            {"person_or_org": {
-                                "type": "personal",
-                                "name": str(item.firstname) + ", " + str(item.lastname),
-                                "given_name": "na",
-                                "family_name": "na"
-                            }}
+                            {
+                                "person_or_org": {
+                                    "type": "personal",
+                                    "name": f"{collaborator['firstname']}, {collaborator['lastname']}",
+                                    "given_name": collaborator['firstname'],
+                                    "family_name": collaborator['lastname']
+                                }
+                            } for collaborator in item_dict['collaborators']
                         ],
+
                         "title": item.english_title,
                         "additional_titles": additional_titles,
                         "publication_date": item_dict['deposit_date_formatted'],

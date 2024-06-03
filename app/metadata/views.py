@@ -457,7 +457,7 @@ def item_index(request):
                         "creators": [
                             {"person_or_org": {
                                 "type": "personal",
-                                "name": "na, na",
+                                "name": str(item.firstname) + ", " + str(item.lastname),
                                 "given_name": "na",
                                 "family_name": "na"
                             }}

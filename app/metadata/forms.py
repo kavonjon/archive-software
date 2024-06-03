@@ -101,6 +101,8 @@ class CollaboratorForm(ModelForm):
         model = Collaborator
         fields = ['collaborator_id',
                   'name',
+                  'firstname',
+                  'lastname',
                   'nickname',
                   'other_names',
                   'anonymous',

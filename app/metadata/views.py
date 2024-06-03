@@ -429,7 +429,6 @@ def item_index(request):
                             'lastname': collaborator.lastname
                         } for collaborator in item.collaborator.all()
                     ]
-                    print(item_dict['collaborators'])
                     # item_dict['collaborators'] = list(item.collaborator.values_list('id', flat=True))
                     # item_dict['item_documents'] = [model_to_dict(document) for document in item.item_documents.all()]
                     # item_dict['item_dialectinstances'] = [model_to_dict(dialect) for dialect in item.item_dialectinstances.all()]
@@ -471,8 +470,16 @@ def item_index(request):
                                     "family_name": collaborator['lastname']
                                 }
                             } for collaborator in item_dict['collaborators']
+                        ] if len(item_dict['collaborators']) > 0 else [
+                            {
+                                "person_or_org": {
+                                    "type": "personal",
+                                    "name": "na, na",
+                                    "given_name": "na",
+                                    "family_name": "na"
+                                }
+                            }
                         ],
-
                         "title": item.english_title,
                         "additional_titles": additional_titles,
                         "publication_date": item_dict['deposit_date_formatted'],

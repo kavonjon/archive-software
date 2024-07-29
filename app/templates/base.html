@@ -117,7 +117,7 @@
               <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
               <i class="fa fa-user px-2" aria-hidden="true"></i> {{ user.get_username }}<span class="caret"></span></button>
               <ul class="dropdown-menu dropdown-menu-right">
-                <a class="dropdown-item" href="/accounts/password_change">Change password</a>
+                <a class="dropdown-item" href="{% url 'password_change' %}">Change password</a>
                 <a class="dropdown-item" href="/accounts/logout">Logout</a>
               </ul>
             </div>

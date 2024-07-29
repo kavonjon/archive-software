@@ -3,5 +3,5 @@ class ScriptNameMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        request.META['SCRIPT_NAME'] = '/django'
+        request.META['SCRIPT_NAME'] = '/dj'
         return self.get_response(request)

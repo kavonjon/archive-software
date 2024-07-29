@@ -168,8 +168,10 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
 
-STATIC_URL = '/static/'
-MEDIA_URL = '/media/'
+#STATIC_URL = '/static/'
+#MEDIA_URL = '/media/'
+STATIC_URL = '/django/static/'
+MEDIA_URL = '/django/media/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static-files')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -192,3 +194,6 @@ else:
     EMAIL_HOST_USER = env('EMAIL_HOST_USER')
     EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
     ADMINS = ast.literal_eval(env('ADMINS'))
+
+#for serving at subpath /django
+FORCE_SCRIPT_NAME = '/django'

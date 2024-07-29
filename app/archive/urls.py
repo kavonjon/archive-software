@@ -20,11 +20,11 @@ from django.conf.urls import handler500
 from django.conf.urls.static import static
 from django.urls import path, include
 from django.views.generic import TemplateView
-from metadata.views import item_index, item_migrate_list, item_detail, item_edit, item_add, item_delete,language_index, collection_detail, language_detail, language_edit, language_add, language_delete, language_stats, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView, custom_error_500, trigger_error
+from metadata.views import item_index, item_migrate_list, item_detail, item_edit, item_add, item_delete,language_index, language_detail, language_edit, language_add, language_delete, language_stats, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView, custom_error_500, trigger_error
 
 handler500 = custom_error_500
 
-baseurlpatterns = [
+urlpatterns = [
     path('trigger-error/', trigger_error),
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
@@ -39,7 +39,7 @@ baseurlpatterns = [
     path("migrate/", item_index, name="migrate"),
     path("migrate/list/", item_migrate_list, name="migrate_list"),
     path("api/item-update-migrate/<int:pk>/", ItemUpdateMigrateView.as_view(), name="item_update_migrate"),
-    path("collections/<int:pk>/", collection_detail, name="collection_detail"),
+#    path("collections/<int:pk>/", collection_detail, name="collection_detail"),
     path("documents/", document_index, name="document_index"),
     path("documents/<int:pk>/", document_detail, name="document_detail"),
     path("documents/<int:pk>/edit/", document_edit, name="document_edit"),
@@ -77,7 +77,7 @@ baseurlpatterns = [
     path('languages/import/', ImportView, name='import_language'),
 ]
 
-urlpatterns = path('django/', include(baseurlpatterns)),  # prepend 'django/' to all URLs
+urlpatterns = path(r'dj/', include(urlpatterns)),  # prepend 'django/' to all URLs
 
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

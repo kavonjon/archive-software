@@ -84,7 +84,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'myapp.middleware.ScriptNameMiddleware',
+    'archive.middleware.ScriptNameMiddleware',
 ]
 
 ROOT_URLCONF = 'archive.urls'
@@ -171,8 +171,8 @@ USE_TZ = True
 
 #STATIC_URL = '/static/'
 #MEDIA_URL = '/media/'
-STATIC_URL = '/django/static/'
-MEDIA_URL = '/django/media/'
+STATIC_URL = '/dj/static/'
+MEDIA_URL = '/dj/media/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static-files')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -197,4 +197,6 @@ else:
     ADMINS = ast.literal_eval(env('ADMINS'))
 
 #for serving at subpath /django
-FORCE_SCRIPT_NAME = '/django'
+FORCE_SCRIPT_NAME = '/dj'
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

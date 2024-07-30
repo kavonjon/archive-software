@@ -77,7 +77,7 @@ urlpatterns = [
     path('languages/import/', ImportView, name='import_language'),
 ]
 
-urlpatterns = path(r'dj/', include(urlpatterns)),  # prepend 'django/' to all URLs
+#urlpatterns = path(r'dj/', include(urlpatterns)),  # prepend 'django/' to all URLs
 
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

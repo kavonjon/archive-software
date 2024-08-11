@@ -497,7 +497,25 @@ class Geographic(models.Model):
     # def __str__(self):
     #     return str(self.lat)
 
+
+class Collection(models.Model):
+    collection_abbr = models.CharField(max_length=3)
+    name = models.CharField(max_length=255)
+    extent = models.CharField(max_length=255, blank=True)
+    description = models.TextField(blank=True, verbose_name="collection description of scope and content")
+    background = models.TextField(blank=True, verbose_name="background information")
+    conventions = models.TextField(blank=True, verbose_name="description of arrangement, collector conventions")
+    access_statement = models.TextField(blank=True, verbose_name="access/use statement")
+    added = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+    modified_by = models.CharField(max_length=255)
+    class Meta:
+        ordering = ['collection_abbr']
+    def __str__(self):
+        return self.collection_abbr
+
 class Item(models.Model):
+    collection = models.ForeignKey(Collection, related_name='collection_items', on_delete=models.SET_NULL, null=True, blank=True)
     access_level_restrictions = models.TextField(blank=True)
     accession_date = models.CharField(max_length=255, blank=True, validators =[validate_date_text])
     accession_date_min = models.DateField(null=True, blank=True)

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load static %}
+{% load metadata_templatetags %}
+
+{% block page_content %}
+<h1>Collection {{collection.collection_abbr}} metadata</h1>
+{% if request.user|has_group:"Archivist"%}
+<div class="form-row">
+    <h1>
+    <a class="btn btn-primary" href="edit/" role="button">Edit</a>
+    <a href="{% url "collection_delete" collection.id %}"><i class="fas fa-times"></i></a>
+    </h1>
+</div>
+{% endif %}
+<div class="row">
+    <div class="col-md-12">
+        <h2>General</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Collection name:</b> {{ collection.name }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Collection abbreviation:</b> {{ collection.collection.abbr }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Description of scope and content</b> {{ collection.description }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Background information, project history, community info:</b> {{ collection.background }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Description of arrangement, collector conventions:</b> {{ collection.conventions }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Access/use statement:</b> {{ collection.access_statement }}
+    </div>
+</div>
+<div>
+    <br /><hr />
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <h2>Versioning</h2>
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Last updated:</b> {{ collection.updated }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>By:</b> {{ collection.modified_by }}
+    </div>
+</div>
+{{ geographic_points|json_script:"geographic_points" }}
+<script>
+  let locations = JSON.parse(document.getElementById('geographic_points').textContent);
+</script>
+<script src="{% static 'map.js' %}" type="application/javascript"></script>
+
+{% endblock %}

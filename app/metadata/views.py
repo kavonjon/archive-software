@@ -19,9 +19,9 @@ from django.db.models import Count, Sum, Max, Q
 from django.views.generic.edit import FormView, DeleteView
 from rest_framework import generics
 from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin
-from .models import Item, ItemTitle, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
+from .models import Item, ItemTitle, Collection, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
 from .serializers import ItemMigrateSerializer
-from .forms import LanguageForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
+from .forms import CollectionForm, LanguageForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
 
 def is_member_of_archivist(user):
     return user.groups.filter(name="Archivist").exists()
@@ -1695,7 +1695,102 @@ class item_delete(UserPassesTestMixin, DeleteView):
     model = Item
     success_url = '/catalog/'
 
+@login_required
+def collection_index(request):
+    qs = Collection.objects.all()
+    order_choice = request.GET.get("form_control_sort")
+    abbr_contains_query = request.GET.get('abbr_contains')
+    name_contains_query = request.GET.get('name_contains')
 
+    order_choice_last = order_choice
+    abbr_contains_query_last = ''
+    name_contains_query_last = ''
+
+    if is_valid_param(abbr_contains_query):
+        qs = qs.filter(collection_abbr__icontains = abbr_contains_query)
+        abbr_contains_query_last = abbr_contains_query
+
+    if is_valid_param(name_contains_query):
+        qs = qs.filter(name__icontains = name_contains_query)
+        name_contains_query_last = name_contains_query
+
+    qs = qs.distinct()
+
+#    print(type(order_choice))
+    if order_choice == "updated":
+        qs = qs.order_by('-updated')
+    else:
+        qs = qs.order_by('collection_abbr')
+
+    results_count = qs.count()
+
+    paginator = Paginator(qs, 100)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'queryset': page_obj,
+        'results_count' : results_count,
+        'order_choice_last' : order_choice_last,
+        'abbr_contains_query_last' : abbr_contains_query_last,
+        'name_contains_query_last' : name_contains_query_last,
+    }
+    return render(request, 'collection_index.html', context)
+
+
+@login_required
+def collection_detail(request, pk):
+    collection = Collection.objects.get(pk=pk)
+
+    # get all the items for the collection
+    items = Item.objects.filter(collection__pk=pk).order_by('catalog_number')
+
+    context = {
+        'collection': collection,
+        'items' : items,
+    }
+    return render(request, 'collection_detail.html', context)
+
+
+class collection_add(UserPassesTestMixin, FormView):
+    def test_func(self):
+        return self.request.user.groups.filter(name="Archivist").exists()
+    def handle_no_permission(self):
+        return redirect('/no-permission')
+    form_class = CollectionForm
+    template_name = "add.html"
+    def form_valid(self, form):
+        self.object = form.save()
+        pk = self.object.pk
+        instance = Collection.objects.get(pk=pk)
+        instance.modified_by = self.request.user.get_username()
+        instance.save()
+
+        return redirect("../%s/" %pk )
+    
+@login_required
+@user_passes_test(is_member_of_archivist, login_url='/no-permission', redirect_field_name=None)
+def collection_edit(request, pk):
+    collection = get_object_or_404(Collection, id=pk)
+    if request.method == "POST":
+        form = CollectionForm(request.POST, instance=collection)
+        if form.is_valid():
+
+            collection.modified_by = request.user.get_username()
+            collection.save()
+            form.save()
+            return redirect("../")
+    else:
+        form = CollectionForm(instance=collection)
+    return render(request, 'collection_edit.html', {'form': form})
+
+class collection_delete(UserPassesTestMixin, DeleteView):
+    def test_func(self):
+        return self.request.user.groups.filter(name="Archivist").exists()
+    def handle_no_permission(self):
+        return redirect('/no-permission')
+    model = Collection
+    success_url = '/collections/'
 
 @login_required
 def document_index(request):

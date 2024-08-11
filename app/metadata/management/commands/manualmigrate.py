@@ -290,4 +290,4 @@ class Command(BaseCommand):
         # rename_multiselect_value("genre", "sundance", "music_sundance")
         # rename_multiselect_value("genre", "war_dance", "music_war_dance")
 
-        rename_multiselect_value("genre", "educational_materials_planning", "educational_material_planning")
+        # rename_multiselect_value("genre", "educational_materials_planning", "educational_material_planning")

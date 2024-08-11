@@ -4,7 +4,12 @@ from django.core.exceptions import ValidationError
 from django.forms import ModelForm
 from django.forms.widgets import CheckboxSelectMultiple
 from django.db.models import Max
-from .models import Item, ItemTitle, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video
+from .models import Collection, Item, ItemTitle, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video
+
+class CollectionForm(ModelForm):
+    class Meta:
+        model = Collection
+        exclude = ['added', 'updated', 'modified_by']
 
 class LanguageForm(ModelForm):
     class Meta:
@@ -164,6 +169,7 @@ class ItemForm(ModelForm):
                   'type_of_accession',
                   'acquisition_notes',
                   'project_grant',
+                  'collection',
                   'collection_name',
                   'collector_name',
                   'collector_info',

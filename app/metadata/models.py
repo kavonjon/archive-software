@@ -499,13 +499,18 @@ class Geographic(models.Model):
 
 
 class Collection(models.Model):
-    collection_abbr = models.CharField(max_length=3)
+    collection_abbr = models.CharField(max_length=10)
     name = models.CharField(max_length=255)
+    languages = models.ManyToManyField(Language, verbose_name="list of languages", related_name='collection_languages', blank=True)
     extent = models.CharField(max_length=255, blank=True)
+    abstract = models.TextField(blank=True)
+    date_range = models.CharField(max_length=255, blank=True)
     description = models.TextField(blank=True, verbose_name="collection description of scope and content")
     background = models.TextField(blank=True, verbose_name="background information")
     conventions = models.TextField(blank=True, verbose_name="description of arrangement, collector conventions")
+    acquisition = models.TextField(blank=True, verbose_name="acquisition information")
     access_statement = models.TextField(blank=True, verbose_name="access/use statement")
+    citation_authors = models.TextField(blank=True, verbose_name="citation authors")
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     modified_by = models.CharField(max_length=255)

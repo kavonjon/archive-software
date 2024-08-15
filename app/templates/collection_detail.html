@@ -24,7 +24,27 @@
 </div>
 <div class="row">
     <div class="col-md-12">
-        <b>Collection abbreviation:</b> {{ collection.collection.abbr }}
+        <b>Collection abbreviation:</b> {{ collection.collection_abbr }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Languages Represented:</b> {{ collection.languages.all|join:", "}}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Extent:</b> {{ collection.extent }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Date range:</b> {{ collection.date_range }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Abstract:</b> {{ collection.abstract }}
     </div>
 </div>
 <div class="row">
@@ -44,7 +64,17 @@
 </div>
 <div class="row">
     <div class="col-md-12">
+        <b>Acquisition information:</b> {{ collection.acquisition }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
         <b>Access/use statement:</b> {{ collection.access_statement }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
+        <b>Creators:</b> {{ collection.citation_authors }}
     </div>
 </div>
 <div>

@@ -28,6 +28,7 @@ urlpatterns = [
     path('trigger-error/', trigger_error),
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
+    path("select2/", include("django_select2.urls")),
     path("", TemplateView.as_view(template_name='home.html')),
     path("no-permission", TemplateView.as_view(template_name='no_permission.html')),
     path("catalog/", item_index, name="item_index"),

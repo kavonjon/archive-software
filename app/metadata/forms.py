@@ -4,12 +4,16 @@ from django.core.exceptions import ValidationError
 from django.forms import ModelForm
 from django.forms.widgets import CheckboxSelectMultiple
 from django.db.models import Max
+from django_select2.forms import Select2MultipleWidget
 from .models import Collection, Item, ItemTitle, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video
 
 class CollectionForm(ModelForm):
     class Meta:
         model = Collection
         exclude = ['added', 'updated', 'modified_by']
+        widgets = {
+            'languages': Select2MultipleWidget,  # Apply Select2 to the M2M field
+        }
 
 class LanguageForm(ModelForm):
     class Meta:
@@ -120,6 +124,10 @@ class CollaboratorForm(ModelForm):
                   'deathdate',
                   'gender',
                   'other_info']
+        widgets = {
+            'native_languages': Select2MultipleWidget,  # Apply Select2 to the M2M field
+            'other_languages': Select2MultipleWidget,  # Apply Select2 to the M2M field
+        }
     def __init__(self, *args, **kwargs):
         super(CollaboratorForm, self).__init__(*args, **kwargs)
         collaborator_next_id = Collaborator.objects.all().aggregate(Max('collaborator_id'))['collaborator_id__max'] + 1
@@ -207,7 +215,10 @@ class ItemForm(ModelForm):
                   'cataloged_by',
                   'cataloged_date',
                   'filemaker_legacy_pk_id']
-
+        widgets = {
+            'language': Select2MultipleWidget,  # Apply Select2 to the M2M field
+            'genre': Select2MultipleWidget,  # Apply Select2 to the M2M field
+        }
 
 class ItemTitleForm(ModelForm):
     class Meta:
@@ -360,6 +371,9 @@ class DocumentForm(ModelForm):
                   'language',
                   'collaborator',
                   'item']
+        widgets = {
+            'language': Select2MultipleWidget,  # Apply Select2 to the M2M field
+        }
 
 class VideoForm(ModelForm):
     class Meta:

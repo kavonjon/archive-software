@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     'multiselectfield',
     'video_encoding',
     'rest_framework',
+    'django_select2',
     'metadata',
 ]
 

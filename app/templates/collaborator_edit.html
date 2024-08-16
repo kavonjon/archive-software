@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% load static %}
 
+{% block extra_css %}
+    <!-- Include Select2 CSS -->
+    {{ form.media.css }}
+{% endblock %}
+
 {% block page_content %}
 <h1>Edit collaborator</h1>
 
@@ -19,3 +24,12 @@
 
 {% endblock %}
 
+{% block extra_js %}
+    <!-- Include Select2 JS -->
+    {{ form.media.js }}
+    <script>
+        $(document).ready(function() {
+            $('select.django-select2').select2();
+        });
+    </script>
+{% endblock %}

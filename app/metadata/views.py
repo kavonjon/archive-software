@@ -20,7 +20,7 @@ from django.views.generic.edit import FormView, DeleteView
 from rest_framework import generics
 from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin
 from .models import Item, ItemTitle, Collection, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
-from .serializers import ItemMigrateSerializer
+from .serializers import ItemMigrateSerializer, LanguageSerializer
 from .forms import CollectionForm, LanguageForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
 
 def is_member_of_archivist(user):
@@ -32,6 +32,14 @@ def custom_error_500(request):
 def trigger_error(request):
     division_by_zero = 1 / 0
 
+
+class LanguageListView(LoginRequiredMixin, UserPassesTestMixin, generics.ListAPIView):
+    queryset = Language.objects.all()
+    serializer_class = LanguageSerializer
+
+    def test_func(self):
+        return self.request.user.groups.filter(name='Archivist').exists()
+    
 class ItemUpdateMigrateView(LoginRequiredMixin, UserPassesTestMixin, generics.UpdateAPIView):
     queryset = Item.objects.all()
     serializer_class = ItemMigrateSerializer

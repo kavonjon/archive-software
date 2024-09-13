@@ -2,7 +2,36 @@
 {% load static %}
 {% load metadata_templatetags %}
 
+{% block extra_css %}
+    <!-- Include Select2 and AG Grid -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
+  <!-- <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.full.min.js"></script> -->
+
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
+  
+
+  <link rel="stylesheet" href="https://unpkg.com/ag-grid-community/styles/ag-grid.css" />
+  <link rel="stylesheet" href="https://unpkg.com/ag-grid-community/styles/ag-theme-alpine.css" />
+
+  <script src="https://unpkg.com/ag-grid-community/dist/ag-grid-community.noStyle.js"></script>
+
+  <style>
+    .custom-editor-container {
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+{% endblock %}
+
+
+
 {% block page_content %}
+<div id="myGrid" style="height: 600px; width: 100%;" class="ag-theme-alpine"></div>
+
 <div class="d-flex justify-content-between">
   <div>
     <div class="page-title" style="display: inline">Languages</div>
@@ -159,6 +188,199 @@
         {% endif %}
     </span>
 </div>
+
+<script>
+  class App {
+    constructor(gridElement) {
+      this.gridElement = gridElement;
+      this.languoids = [];
+      this.gridOptions = this.initGridOptions();
+      this.gridApi = null;
+      this.initGrid();
+    }
+
+    async _fetchLanguages() {
+      const headers = { 'Content-Type': 'application/json' };
+      return fetch(`/api/languages/`, { headers })
+        .then(res => res.json())
+        .then(data => {
+          this.languoids = data;
+          this.gridOptions.context.languoids = this.languoids;
+
+          if (this.gridApi) {
+            this.gridApi.applyTransaction({ add: this.languoids }); // Populate grid with fetched data
+          } else {
+            console.error("Grid API not available");
+          }
+        })
+        .catch(error => {
+          console.error("Error fetching languages:", error);
+        });
+    }
+
+    initGridOptions() {
+      return {
+        columnDefs: [
+          { field: 'name', headerName: 'Language', editable: true },
+          {
+            field: 'dialects_languoids',
+            headerName: 'Dialects',
+            editable: true,
+            cellRenderer: this.customM2MRenderer.bind(this),
+            cellEditor: CustomM2MEditor,
+            valueFormatter: this.dialectsValueFormatter,
+            valueParser: this.dialectsValueParser,
+            cellClassRules: {
+              'invalid-cell': (params) => this.isInvalidM2M(params.value),
+            },
+          },
+        ],
+        rowData: [],
+        defaultColDef: {
+          editable: true,
+          resizable: true,
+          sortable: true,
+        },
+        context: { languoids: this.languoids },
+        onGridReady: (params) => {
+          this.gridApi = params.api;
+          this._fetchLanguages();
+        },
+        processCellFromClipboard: (params) => this.processPaste(params),
+        processCellForClipboard: (params) => this.processCopy(params),
+        onCellValueChanged: (params) => {
+          this.handleValidation(params);
+        },
+      };
+    }
+
+    initGrid() {
+      this.gridApi = agGrid.createGrid(this.gridElement, this.gridOptions);
+    }
+
+    // Custom copy-paste logic
+    processPaste(params) {
+      const { column, value } = params;
+      if (column.colId === 'dialects_languoids') {
+        const parsedValue = this.dialectsValueParser({ newValue: value, context: this.gridOptions.context });
+        return parsedValue;
+      }
+      return value;
+    }
+
+    processCopy(params) {
+      const { column, value } = params;
+      if (column.colId === 'dialects_languoids') {
+        return this.dialectsValueFormatter({ value });
+      }
+      return value;
+    }
+
+    // Custom validation logic
+    handleValidation(params) {
+      const { colDef, data, newValue } = params;
+      if (colDef.field === 'dialects_languoids') {
+        const isValid = !this.isInvalidM2M(newValue);
+        data.dialects_languoids = newValue;
+        params.node.setDataValue('dialects_languoids', newValue);
+        params.api.refreshCells({ force: true });
+      }
+    }
+
+    // Custom validation for M2M fields (e.g., dialects)
+    isInvalidM2M(value) {
+      return !Array.isArray(value) || value.some(item => !item || !item.name);
+    }
+
+    // Value Formatter for displaying dialects
+    dialectsValueFormatter(params) {
+      if (params.value && Array.isArray(params.value)) {
+        return params.value.map(dialect => dialect.name).join(', ');
+      }
+      return '';
+    }
+
+    // Value Parser for parsing pasted values
+    dialectsValueParser(params) {
+      const names = params.newValue.split(',').map(name => name.trim());
+      return names.map(name => {
+        const matchingDialect = params.context.languoids.find(lang => lang.name === name);
+        return matchingDialect ? { id: matchingDialect.id, name: matchingDialect.name } : { id: null, name };
+      });
+    }
+
+    // Custom cell renderer for dialects
+    customM2MRenderer(params) {
+      return this.dialectsValueFormatter(params);
+    }
+
+    // Static method to provide options for Select2
+    static getOptions(languoids) {
+      return languoids.map(lang => ({ id: lang.id, text: lang.name }));
+    }
+  }
+
+  // Custom Select2-based editor for M2M relationships
+  class CustomM2MEditor {
+    init(params) {
+      this.params = params;
+      this.container = document.createElement('div');
+      this.container.classList.add('custom-editor-container');
+      this.selectElement = document.createElement('select');
+      this.selectElement.setAttribute('multiple', 'multiple');
+      this.selectElement.style.width = '100%';
+      this.container.appendChild(this.selectElement);
+
+      if (this.params.context.languoids.length > 0) {
+        this.initializeSelect2();
+      } else {
+        console.error("No languoids data available for Select2");
+      }
+    }
+
+    initializeSelect2() {
+      $(this.selectElement).select2({
+        data: App.getOptions(this.params.context.languoids),
+        dropdownParent: $(this.container),
+      });
+
+      const selectedItems = this.params.value || [];
+      const selectedIds = selectedItems.map(item => item.id);
+      $(this.selectElement).val(selectedIds).trigger('change');
+    }
+
+    getGui() {
+      return this.container;
+    }
+
+    afterGuiAttached() {
+      $(this.selectElement).select2('open');
+    }
+
+    getValue() {
+      const selectedData = $(this.selectElement).select2('data');
+      return selectedData.map(item => ({ id: item.id, name: item.text }));
+    }
+
+    destroy() {
+      $(this.selectElement).select2('destroy');
+      this.container.remove();
+    }
+
+    isPopup() {
+      return true;
+    }
+
+    focusIn() {
+      $(this.selectElement).select2('open');
+    }
+  }
+
+  // Initialize the App class and attach it to the DOM element for the grid
+  const app = new App(document.getElementById('myGrid'));
+
+</script>
+
 
 <script>
 $('select[name=form_control_sort]').val("{{ order_choice_last }}");

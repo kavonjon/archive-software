@@ -397,6 +397,7 @@ class Language(models.Model):
     latitude = models.DecimalField(max_digits=22, decimal_places=16, blank=True, null=True)
     dialects = models.CharField(max_length=255, blank=True)
     dialects_ids = models.CharField(max_length=255, blank=True, verbose_name='Dialect glottocodes')
+    dialects_languoids = models.ManyToManyField('Language', verbose_name='Dialects languoids', related_name='language_dialects_languoids', blank=True)
     language = models.CharField(max_length=255, blank=True)
     language_id = models.CharField(max_length=8, blank=True)
     tribes = models.CharField(max_length=255, blank=True)

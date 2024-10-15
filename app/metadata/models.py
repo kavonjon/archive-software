@@ -517,6 +517,8 @@ class Collection(models.Model):
     acquisition = models.TextField(blank=True, verbose_name="acquisition information")
     access_statement = models.TextField(blank=True, verbose_name="access/use statement")
     citation_authors = models.TextField(blank=True, verbose_name="citation authors")
+    access_levels = MultiSelectField(choices=ACCESS_CHOICES, blank=True)
+    genres = MultiSelectField(choices=GENRE_CHOICES, blank=True)
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     modified_by = models.CharField(max_length=255)

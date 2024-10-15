@@ -12,7 +12,11 @@ class Command(BaseCommand):
         from metadata.models import Collection, Item
 
         # Build the collections map
-        collections_map = {f"{collection.collection_abbr} ({collection.name})": collection.collection_abbr for collection in Collection.objects.all()}
+        collections_map = {
+            f"{collection.collection_abbr} ({collection.name})": collection.collection_abbr 
+            for collection in Collection.objects.all() 
+            if collection.collection_abbr and len(collection.collection_abbr) == 3
+        }
 
         print("Collections map:")
         for collection in collections_map:

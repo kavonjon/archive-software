@@ -15,13 +15,20 @@ from django.http import Http404, HttpResponse, StreamingHttpResponse
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.forms.models import model_to_dict
+from django.db import transaction
 from django.db.models import Count, Sum, Max, Q
 from django.views.generic.edit import FormView, DeleteView
-from rest_framework import generics
+from rest_framework import generics, status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.filters import BaseFilterBackend
 from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin
 from .models import Item, ItemTitle, Collection, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
-from .serializers import ItemMigrateSerializer, LanguageSerializer
+from .serializers import ItemMigrateSerializer, LanguageSerializer, LanguagesUpdateSerializer
 from .forms import CollectionForm, LanguageForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
+import logging
+
+logger = logging.getLogger(__name__)
 
 def is_member_of_archivist(user):
     return user.groups.filter(name="Archivist").exists()
@@ -32,14 +39,92 @@ def custom_error_500(request):
 def trigger_error(request):
     division_by_zero = 1 / 0
 
+def batch_edit_view(request, glottocode=None):
+    context = {
+        'view_type': 'languoids'  # default view type
+    }
+    
+    if 'batch/languages' in request.path:
+        context['view_type'] = 'languages'
+    elif 'batch/families' in request.path:
+        context['view_type'] = 'families'
+    elif glottocode:
+        context['view_type'] = 'descendants'
+        context['glottocode'] = glottocode
+
+    return render(request, 'language_index.html', context)
+
+class LanguageFilter(BaseFilterBackend):
+    def filter_queryset(self, request, queryset, view):
+        level = request.query_params.get('level')
+        if level:
+            queryset = queryset.filter(level=level)
+        return queryset
 
 class LanguageListView(LoginRequiredMixin, UserPassesTestMixin, generics.ListAPIView):
     queryset = Language.objects.all()
     serializer_class = LanguageSerializer
+    filter_backends = [LanguageFilter]
 
     def test_func(self):
         return self.request.user.groups.filter(name='Archivist').exists()
-    
+
+class LanguageDescendantsView(LoginRequiredMixin, UserPassesTestMixin, generics.ListAPIView):
+    serializer_class = LanguageSerializer
+
+    def get_queryset(self):
+        glottocode = self.kwargs.get('glottocode')
+        root = Language.objects.get(glottocode=glottocode)
+        descendants = root.get_descendants(include_self=True)
+        return descendants
+
+    def test_func(self):
+        return self.request.user.groups.filter(name='Archivist').exists()
+
+class UpdateLanguagesView(APIView):
+    @transaction.atomic
+    def post(self, request):
+        data = request.data
+        if not isinstance(data, list):
+            return Response({'error': 'Expected a list of objects.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        updated_languages = []
+        created_languages = []
+        errors = []
+
+        for item in data:
+            try:
+                if 'id' in item and item['id']:
+                    # Update existing language
+                    language_instance = Language.objects.get(pk=item['id'])
+                    serializer = LanguagesUpdateSerializer(language_instance, data=item, partial=True)
+                else:
+                    # Create new language
+                    serializer = LanguagesUpdateSerializer(data=item)
+
+                if serializer.is_valid():
+                    language = serializer.save()
+                    if 'id' in item and item['id']:
+                        updated_languages.append(language)
+                    else:
+                        created_languages.append(language)
+                else:
+                    errors.append({
+                        'row': item.get('id', 'new'),
+                        'errors': serializer.errors
+                    })
+            except Exception as e:
+                errors.append({
+                    'row': item.get('id', 'new'),
+                    'errors': str(e)
+                })
+
+        return Response({
+            'updated': LanguageSerializer(updated_languages, many=True).data,
+            'created': LanguageSerializer(created_languages, many=True).data,
+            'errors': errors
+        })
+
 class ItemUpdateMigrateView(LoginRequiredMixin, UserPassesTestMixin, generics.UpdateAPIView):
     queryset = Item.objects.all()
     serializer_class = ItemMigrateSerializer

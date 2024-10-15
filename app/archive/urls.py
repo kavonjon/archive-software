@@ -20,7 +20,7 @@ from django.conf.urls import handler500
 from django.conf.urls.static import static
 from django.urls import path, include
 from django.views.generic import TemplateView
-from metadata.views import collection_index, collection_detail, collection_add, collection_edit, collection_delete, item_index, item_migrate_list, item_detail, item_edit, item_add, item_delete,language_index, language_detail, language_edit, language_add, language_delete, language_stats, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView, LanguageListView, custom_error_500, trigger_error
+from metadata.views import collection_index, collection_detail, collection_add, collection_edit, collection_delete, item_index, item_migrate_list, item_detail, item_edit, item_add, item_delete,language_index, language_detail, language_edit, language_add, language_delete, language_stats, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView, LanguageListView, LanguageDescendantsView, batch_edit_view, UpdateLanguagesView, custom_error_500, trigger_error
 
 handler500 = custom_error_500
 
@@ -41,6 +41,8 @@ urlpatterns = [
     path("migrate/list/", item_migrate_list, name="migrate_list"),
     path("api/item-update-migrate/<int:pk>/", ItemUpdateMigrateView.as_view(), name="item_update_migrate"),
     path("api/languages/", LanguageListView.as_view(), name="languages_list"),
+    path("api/languages/<str:glottocode>/descendants/", LanguageDescendantsView.as_view(), name="language_descendants"),
+    path("api/update-languages/", UpdateLanguagesView.as_view(), name='update-languages'),
     path("collections/", collection_index, name="collection_index"),
     path("collections/<int:pk>/", collection_detail, name="collection_detail"),
     path("collections/<int:pk>/edit/", collection_edit, name="collection_edit"),
@@ -53,6 +55,10 @@ urlpatterns = [
     path('documents/<int:pk>/delete/', document_delete.as_view(), name='document_delete'),
     path("documents/<int:parent_pk>/geographic/add/", geographic_add.as_view(), name="geographic_add"),
     path("languages/", language_index, name="language_index"),
+    path('languages/batch/', batch_edit_view, name='batch_edit_languoids'),
+    path('languages/batch/languages/', batch_edit_view, name='batch_edit_languages'),
+    path('languages/batch/families/', batch_edit_view, name='batch_edit_families'),
+    path('languages/batch/<str:glottocode>/', batch_edit_view, name='batch_edit_descendants'),
     path("languages/<int:pk>/", language_detail, name="language_detail"),
     path("languages/<int:pk>/edit/", language_edit, name="language_edit"),
     path("languages/add/", language_add.as_view(), name="languages_add"),

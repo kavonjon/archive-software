@@ -12,10 +12,11 @@ class Command(BaseCommand):
         from metadata.models import Collection, Item
 
         # Build the collections map
-        collections_map = {collection.name: collection.collection_abbr for collection in Collection.objects.all()}
+        collections_map = {f"({collection.collection_abbr}) {collection.name}": collection.collection_abbr for collection in Collection.objects.all()}
 
         print("Collections map:")
-        print(collections_map)
+        for collection in collections_map:
+            print(collection)
 
         # Find and print Item.collection_name values not in collections_map
         missing_collections = set()

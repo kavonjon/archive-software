@@ -59,13 +59,17 @@ class Command(BaseCommand):
         for item in Item.objects.all():
             if item.collection_name and item.collection_name in collections_map:
                 collection_abbr = collections_map[item.collection_name]
-                try:
-                    collection = Collection.objects.get(collection_abbr=collection_abbr)
-                    item.collection = collection
-                    item.save()
-                    print(f"Updated item {item.catalog_number} with collection {item.collection.collection_abbr}")
-                except Collection.DoesNotExist:
-                    print(f"No Collection found with abbreviation: {collection_abbr} for item: {item.catalog_number}")
+                # check if the correct collection is already associated with the item
+                if item.collection and item.collection.collection_abbr == collection_abbr:
+                    print(f"Collection {collection_abbr} is already associated with item {item.catalog_number}")
+                else:
+                    try:
+                        collection = Collection.objects.get(collection_abbr=collection_abbr)
+                        item.collection = collection
+                        item.save()
+                        print(f"Updated item {item.catalog_number} with collection {item.collection.collection_abbr}")
+                    except Collection.DoesNotExist:
+                        print(f"No Collection found with abbreviation: {collection_abbr} for item: {item.catalog_number}")
             else:
                 print(f"No matching collection found for item: {item.catalog_number} with collection_name: {item.collection_name}")
             input()

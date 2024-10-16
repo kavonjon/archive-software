@@ -63,11 +63,11 @@ class Command(BaseCommand):
                     collection = Collection.objects.get(collection_abbr=collection_abbr)
                     item.collection = collection
                     item.save()
+                    print(f"Updated item {item.catalog_number} with collection {item.collection.collection_abbr}")
                 except Collection.DoesNotExist:
                     print(f"No Collection found with abbreviation: {collection_abbr} for item: {item.catalog_number}")
             else:
-                print(f"No matching collection found for item: {item.id} with collection_name: {item.collection_name}")
-            print(f"Updated item {item.catalog_number} with collection {item.collection.collection_abbr}")
+                print(f"No matching collection found for item: {item.catalog_number} with collection_name: {item.collection_name}")
             input()
 
         print("All items updated.")

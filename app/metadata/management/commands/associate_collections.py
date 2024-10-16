@@ -9,6 +9,16 @@ from django.core.management.base import BaseCommand
 class Command(BaseCommand):
     def handle(self, **options):
 
+
+        # Update the collection_name field in the Item model, changing instances of "and" to "&"
+        for item in Item.objects.all():
+            item.collection_name = item.collection_name.replace(" and ", " & ")
+            print("Updated item", item.id, "with collection_name", item.collection_name)
+            item.save()
+            input()
+
+
+
         # Build the collections map
         collections_map = {
             f"{collection.collection_abbr} ({collection.name})": collection.collection_abbr 

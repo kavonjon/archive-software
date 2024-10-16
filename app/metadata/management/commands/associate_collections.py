@@ -12,10 +12,12 @@ class Command(BaseCommand):
 
         # Update the collection_name field in the Item model, changing instances of "and" to "&"
         for item in Item.objects.all():
-            item.collection_name = item.collection_name.replace(" and ", " & ")
-            print("Updated item", item.id, "with collection_name", item.collection_name)
-            item.save()
-            input()
+            # if the collection_name is not empty and contains " and "
+            if item.collection_name and " and " in item.collection_name:
+                item.collection_name = item.collection_name.replace(" and ", " & ")
+                print("Updated item", item.catalog_number, "with collection_name", item.collection_name)
+                item.save()
+                input()
 
 
 

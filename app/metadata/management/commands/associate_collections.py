@@ -67,7 +67,7 @@ class Command(BaseCommand):
                     print(f"No Collection found with abbreviation: {collection_abbr} for item: {item.catalog_number}")
             else:
                 print(f"No matching collection found for item: {item.id} with collection_name: {item.collection_name}")
-            print(f"Updated item {item.catalog_number} with collection {item.collection__collection_abbr}")
+            print(f"Updated item {item.catalog_number} with collection {item.collection.collection_abbr}")
             input()
 
         print("All items updated.")

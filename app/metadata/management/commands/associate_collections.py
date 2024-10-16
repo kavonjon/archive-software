@@ -11,12 +11,20 @@ class Command(BaseCommand):
 
 
         # Update the collection_name field in the Item model, changing instances of "and" to "&"
+        # Get a count of the number of items that need to be updated
+        count = Item.objects.filter(collection_name__contains=" and ").count()
+        print(f"Number of items that need to be updated: {count}")
+        input("Press Enter to continue...")
+
+        i = 0
         for item in Item.objects.all():
             # if the collection_name is not empty and contains " and "
             if item.collection_name and " and " in item.collection_name:
                 item.collection_name = item.collection_name.replace(" and ", " & ")
+                print(i, " of ", count)
                 print("Updated item", item.catalog_number, "with collection_name", item.collection_name)
                 item.save()
+                i += 1
                 input()
 
 
@@ -56,10 +64,10 @@ class Command(BaseCommand):
                     item.collection = collection
                     item.save()
                 except Collection.DoesNotExist:
-                    print(f"No Collection found with abbreviation: {collection_abbr} for item: {item.id}")
+                    print(f"No Collection found with abbreviation: {collection_abbr} for item: {item.catalog_number}")
             else:
                 print(f"No matching collection found for item: {item.id} with collection_name: {item.collection_name}")
-            print(f"Updated item {item.id} with collection_abbr {item.collection_abbr}")
+            print(f"Updated item {item.catalog_number} with collection {item.collection__collection_abbr}")
             input()
 
         print("All items updated.")

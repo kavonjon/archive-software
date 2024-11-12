@@ -146,10 +146,7 @@ const SpreadsheetWithStatus = ({ data, statusGetter, ...props }) => {
         const cells = spreadsheetRef.current.querySelectorAll('.Spreadsheet__cell');
         if (cells.length > 0) {
           const cellRect = cells[0].getBoundingClientRect();
-          const newHeight = cellRect.height;
-          if (newHeight !== cellHeight) {  // Only update if height actually changed
-            setCellHeight(newHeight);
-          }
+          setCellHeight(cellRect.height);
         }
       }
     };
@@ -158,7 +155,7 @@ const SpreadsheetWithStatus = ({ data, statusGetter, ...props }) => {
     window.addEventListener('resize', updateCellHeight);
 
     return () => window.removeEventListener('resize', updateCellHeight);
-  }, []);
+  }, [data]); // Re-run when data changes, as this might affect cell size
 
   return (
     <div className="spreadsheet-with-status">
@@ -193,15 +190,15 @@ const LanguoidSheet = ({ onClose }) => {
   const [viewType, setViewType] = useState('');
   const [title, setTitle] = useState('');
   const [languoids, setLanguoids] = useState({});
-  const [savedLanguoids, setSavedLanguoids] = useState({});
   const [data, setData] = useState([]);
+  const [savedData, setSavedData] = useState([]);
   const [modifiedCells, setModifiedCells] = useState({}); // Track modified cells
   const [isEditing, setIsEditing] = useState(false); // Add this line
   const [updatedDuringSession, setUpdatedDuringSession] = useState({});
   const [selectedRange, setSelectedRange] = useState(null);
   const [activeCell, setActiveCell] = useState(null);
   const [editedCellValue, setEditedCellValue] = useState(null);
-  // const [pendingChanges, setPendingChanges] = useState([]);
+  const [pendingChanges, setPendingChanges] = useState([]);
   const [showWarning, setShowWarning] = useState(false);
   const [invalidRows, setInvalidRows] = useState([]);
   const [visibleColumnInfo, setVisibleColumnInfo] = useState([]);
@@ -292,10 +289,8 @@ const LanguoidSheet = ({ onClose }) => {
   }, [languoids]);
 
   useEffect(() => {
-    if (!data) return; // Add this guard clause
-    
     const checkGlottocodes = data.some((row, index) => 
-      !isRowEmpty(index, data) && !row[getColumnIndex('glottocode')].value
+      !isRowEmpty(index) && !row[getColumnIndex('glottocode')].value
     );
     setCanGenerateGlottocodes(checkGlottocodes);
 
@@ -348,7 +343,6 @@ const LanguoidSheet = ({ onClose }) => {
       }, {});
       
       setLanguoids(languoidsObject);
-      setSavedLanguoids(languoidsObject);
 
       if (viewType === 'descendants') {
         const rootLanguoid = processedData.find(l => l.glottocode === glottocode);
@@ -363,13 +357,12 @@ const LanguoidSheet = ({ onClose }) => {
         );
       } else {
         spreadsheetData = convertLanguoidsToSpreadsheetData(processedData, visibleColumnInfo);
-        const extraRows = Array(100).fill().map(() => 
-          visibleColumnInfo.map(() => ({ value: '' }))
-        );
+        const extraRows = Array(100).fill().map(() => visibleColumnInfo.map(() => ({ value: '' })));
         spreadsheetData = [...spreadsheetData, ...extraRows];
       }
       console.log('Spreadsheet data:', spreadsheetData);
       setData(spreadsheetData);
+      setSavedData(spreadsheetData);
       setIsLoading(false);
     } catch (error) {
       console.error("Error fetching languoids:", error);
@@ -474,160 +467,117 @@ const LanguoidSheet = ({ onClose }) => {
     return isMulti && !Array.isArray(value) ? [value] : value;
   };
 
-  const hasValueChanged = (newValue, originalValue) => {
-    // Handle empty values
-    if (!newValue && !originalValue) return false;
-    if (!newValue && originalValue === '') return false;
-    if (newValue === '' && !originalValue) return false;
-
-    // Handle arrays
-    if (Array.isArray(newValue) && Array.isArray(originalValue)) {
-      return newValue.length !== originalValue.length || 
-             newValue.some((val, index) => hasValueChanged(val, originalValue[index]));
-    }
-
-    // Handle strings
-    if (typeof newValue === 'string' && typeof originalValue === 'string') {
-      return newValue.trim() !== originalValue.trim();
-    }
-
-    // Handle objects (non-null)
-    if (typeof newValue === 'object' && newValue !== null &&
-        typeof originalValue === 'object' && originalValue !== null) {
-      const keys1 = Object.keys(newValue);
-      const keys2 = Object.keys(originalValue);
-      return keys1.length !== keys2.length || 
-             keys1.some(key => hasValueChanged(newValue[key], originalValue[key]));
+  const hasValueChanged = (oldValue, newValue) => {
+    if (oldValue === newValue) return false;
+    
+    if (Array.isArray(oldValue) && Array.isArray(newValue)) {
+      return oldValue.length !== newValue.length || 
+             oldValue.some((val, index) => val !== newValue[index]);
     }
     
-    // Handle other types
-    return newValue !== originalValue;
+    if (typeof oldValue === 'object' && oldValue !== null &&
+        typeof newValue === 'object' && newValue !== null) {
+      const keys1 = Object.keys(oldValue);
+      const keys2 = Object.keys(newValue);
+      return keys1.length !== keys2.length || 
+             keys1.some(key => oldValue[key] !== newValue[key]);
+    }
+    
+    return true;
   };
 
   const handleChange = useCallback((changes) => {
-    // Process all changes in a single pass
-    const [newData, newSavedLanguoids] = produce([data, savedLanguoids], ([dataDraft, savedDraft]) => {
+    // console.log('Changes:', changes);
+    // console.log("data:", data);
+    setData(produce(draft => {
       changes.forEach((rowChanges, rowIndex) => {
-        if (!Array.isArray(rowChanges)) return;
-        
-        const id = rowToIdMap[rowIndex];
-        
-        rowChanges.forEach((cell, columnIndex) => {
-          if (!cell || typeof cell.value === 'undefined') return;
-          if (rowIndex < 0 || rowIndex >= dataDraft.length || 
-              columnIndex < 0 || columnIndex >= dataDraft[rowIndex].length) return;
-          
-          const columnInfo = visibleColumnInfo[columnIndex];
-          if (!columnInfo) return;
+        if (Array.isArray(rowChanges)) {
+          rowChanges.forEach((cell, columnIndex) => {
+            if (cell && typeof cell.value !== 'undefined') {
+              const columnInfo = visibleColumnInfo[columnIndex];
+              let newValue;
 
-          // Update data (spreadsheet display)
-          dataDraft[rowIndex][columnIndex] = {
-            value: cell.value,
-            className: getCellValidationClass(cell.value, rowIndex, columnIndex)
-          };
+              if (columnInfo.type === 'multi-languoid' || columnInfo.type === 'single-languoid') {
+                newValue = parseLanguoidValue(cell.value, columnInfo.type === 'multi-languoid');
+              } else {
+                newValue = cell.value;
+              }
 
-          // Update savedLanguoids if valid
-          if (id && isValidChange(cell.value, columnInfo, rowIndex, columnIndex)) {
-            if (!savedDraft[id]) {
-              savedDraft[id] = { ...languoids[id] } || { id };
+              if (rowIndex >= 0 && rowIndex < draft.length && 
+                  columnIndex >= 0 && columnIndex < draft[rowIndex].length) {
+                // Only update if the value has actually changed
+                if (hasValueChanged(draft[rowIndex][columnIndex].value, newValue)) {
+                  // Direct assignment of value and className
+                  draft[rowIndex][columnIndex].value = newValue;
+                  draft[rowIndex][columnIndex].className = cell.className || '';
+                  
+                  // Store changes to apply later
+                  if (!isEditing) {
+                    setPendingChanges(prev => [...prev, [rowIndex, columnIndex]]);
+                  }
+                }
+              } else {
+                console.error(`Invalid indices: row ${rowIndex}, column ${columnIndex}`);
+              }
             }
-            savedDraft[id][columnInfo.key] = processValueForApi(cell.value, columnInfo.type);
+          });
+        } else {
+          console.error(`Invalid row changes at index ${rowIndex}:`, rowChanges);
+        }
+      });
+    }));
+
+    setLanguoids(produce(draft => {
+      changes.forEach((rowChanges, rowIndex) => {
+        const rowData = data[rowIndex];
+        if (rowData) {  // Add this check
+          let id = rowData.id || `new_${Date.now()}_${rowIndex}`;
+          
+          if (!draft[id]) {
+            draft[id] = {};
           }
-        });
+          
+          rowChanges.forEach((cell, columnIndex) => {
+            const columnInfo = visibleColumnInfo[columnIndex];
+            if (columnInfo && columnInfo.key) {
+              let newValue;
+
+              if (columnInfo.type === 'multi-languoid' || columnInfo.type === 'single-languoid') {
+                newValue = parseLanguoidValue(cell.value, columnInfo.type === 'multi-languoid');
+              } else {
+                newValue = cell.value;
+              }
+
+              // Only update if the value has actually changed
+              if (hasValueChanged(draft[id][columnInfo.key], newValue)) {
+                draft[id][columnInfo.key] = newValue;
+              }
+            } else {
+              console.warn(`Column info not found for index ${columnIndex}`);
+            }
+          });
+        } else {
+          console.warn(`Row data not found for index ${rowIndex}`);
+        }
       });
-    });
+    }));
 
-    // Update both state variables
-    setData(newData);
-    setSavedLanguoids(newSavedLanguoids);
-  }, [data, savedLanguoids, languoids, visibleColumnInfo, rowToIdMap]);
+  }, [isEditing, visibleColumnInfo]);
 
-  // New helper functions
-  const getCellValidationClass = (value, rowIndex, columnIndex) => {
-    if (isRowEmpty(rowIndex, data)) {
-      return '';
-    }
 
-    const columnInfo = visibleColumnInfo[columnIndex];
-    if (!columnInfo) return '';
-
-    const id = rowToIdMap[rowIndex];
-    
-    // Special handling for required fields (glottocode and name)
-    if ((columnInfo.key === 'glottocode' || columnInfo.key === 'name') && 
-        (!value || value.trim() === '')) {
-      // If any other cell in this row has data, these fields are required
-      const rowHasData = data[rowIndex].some((cell, idx) => {
-        const colKey = visibleColumnInfo[idx]?.key;
-        return colKey && 
-               colKey !== 'glottocode' && 
-               colKey !== 'name' && 
-               cell.value && 
-               cell.value.trim() !== '';
+  useEffect(() => {
+    if (pendingChanges.length > 0 && !isEditing) {
+      pendingChanges.forEach(([row, column]) => {
+        applyChange(row, column);
       });
-      
-      if (rowHasData) {
-        return 'invalid-cell';
-      }
+      setPendingChanges([]); // Clear pending changes after applying
     }
-
-    // Get the reference value to compare against
-    let referenceValue;
-    if (id && languoids[id]) {
-      referenceValue = languoids[id][columnInfo.key];
-    } else {
-      referenceValue = createBlankLanguoid()[columnInfo.key];
-    }
-
-    // Only mark as modified if the value differs from reference
-    // and isn't empty itself
-    const hasChanged = hasValueChanged(value, referenceValue);
-    const isEmpty = value === '' || value === null || value === undefined;
-    
-    if (hasChanged && !isEmpty) {
-      if (!isValidChange(value, columnInfo, rowIndex, columnIndex)) {
-        return 'invalid-cell';
-      }
-      return 'modified-cell';
-    }
-
-    return '';
-  };
-
-  const isValidChange = (value, columnInfo, rowIndex, columnIndex) => {
-    if (!columnInfo.validate) return true;
-    return columnInfo.validate(value, languoids);
-  };
-
-  const processValueForApi = (value, type) => {
-    switch (type) {
-      case 'multi-languoid':
-        return Array.isArray(value) 
-          ? value 
-          : value.split(',').map(v => ({ name: v.trim() }));
-      case 'single-languoid':
-        return typeof value === 'string' 
-          ? { name: value.trim() } 
-          : value;
-      default:
-        return value;
-    }
-  };
-
-  // useEffect(() => {
-  //   if (pendingChanges.length > 0 && !isEditing) {
-  //     pendingChanges.forEach(([row, column]) => {
-  //       applyChange(row, column);
-  //     });
-  //     setPendingChanges([]); // Clear pending changes after applying
-  //   }
-  // }, [pendingChanges, isEditing, applyChange]);
+  }, [pendingChanges, isEditing, applyChange]);
 
   const applyChange = useCallback((row, column, isEmptyRow) => {
-    return
     console.log(`Applying changes to row ${row}, column ${column}`);
     const columnInfo = visibleColumnInfo[column];
-    const oldValue = savedLanguoids[row][column].value;
+    const oldValue = savedData[row][column].value;
     const newValue = data[row][column].value;
     console.log('oldValue:', oldValue);
     console.log('newValue:', newValue);
@@ -662,7 +612,7 @@ const LanguoidSheet = ({ onClose }) => {
       };
     }));
 
-  }, [data, savedLanguoids, languoids, visibleColumnInfo]);
+  }, [data, savedData, languoids, visibleColumnInfo]);
 
   const handlePaste = (copiedData) => {
     console.log('Pasted data:', copiedData);
@@ -687,51 +637,176 @@ const LanguoidSheet = ({ onClose }) => {
   };
 
   const handleUpdate = async () => {
-    // Check for invalid cells
-    const invalidCells = findInvalidCells();
-    if (invalidCells.length > 0) {
-      setInvalidRows(invalidCells);
+    const invalidRowIndices = Object.entries(modifiedCells).reduce((acc, [key, cellState]) => {
+      if (cellState && cellState.valid === false) {
+        const [rowIndex] = key.split('-').map(Number);
+        if (!acc.includes(rowIndex)) {
+          acc.push(rowIndex);
+        }
+      }
+      return acc;
+    }, []);
+
+    if (invalidRowIndices.length > 0) {
+      const invalidRowsData = invalidRowIndices.map(rowIndex => ({
+        rowNumber: rowIndex + 1,
+        name: data[rowIndex][getColumnIndex('name')].value,
+        glottocode: data[rowIndex][getColumnIndex('glottocode')].value
+      }));
+      setInvalidRows(invalidRowsData);
       setShowWarning(true);
       return;
     }
 
     try {
-      // Find changed records by comparing savedLanguoids with languoids
-      const changedRecords = Object.entries(savedLanguoids)
-        .filter(([id, savedLang]) => {
-          const originalLang = languoids[id];
-          return !originalLang || hasLanguoidChanged(savedLang, originalLang);
-        })
-        .map(([_, lang]) => lang);
+      console.log('Updating and creating languages...');
+      
+      const rowsToUpdate = Object.entries(modifiedCells).reduce((acc, [key, cellState]) => {
+        if (cellState && cellState.modified) {
+          const [rowIndex, columnIndex] = key.split('-').map(Number);
+          const id = rowToIdMap[rowIndex];
+          
+          if (!acc[id]) {
+            if (id && id.startsWith('new_')) {
+              // This is a new row, don't include the ID
+              acc[id] = {};
+            } else {
+              // This is an existing row, include the ID
+              acc[id] = { id };
+            }
+          }
+          
+          const columnInfo = visibleColumnInfo[columnIndex];
+          acc[id][columnInfo.key] = data[rowIndex][columnIndex].value;
+        }
+        return acc;
+      }, {});
 
-      if (changedRecords.length === 0) {
+      const dataToUpdate = Object.entries(rowsToUpdate).map(([rowIndex, rowData]) => {
+        const updatedRowData = { ...rowData };
+        const languoidId = rowToIdMap[rowIndex];
+        const languoid = languoids[languoidId];
+
+        if (!languoid) {
+          console.warn(`No languoid found for row ${rowIndex}`);
+          return null;
+        }
+
+        visibleColumnInfo.forEach(column => {
+          const { key, type } = column;
+          
+          switch (type) {
+            case 'single-languoid':
+              if (updatedRowData[key]) {
+                updatedRowData[key] = languoid[key]?.id || null;
+              }
+              break;
+            
+            case 'multi-languoid':
+              if (updatedRowData[key]) {
+                updatedRowData[key] = languoid[key].map(child => child.id);
+              }
+              break;
+            
+            case 'level':
+              // Assuming LEVEL_VOCABULARY is available and maps display values to backend values
+              if (updatedRowData[key]) {
+                const backendLevel = Object.entries(LEVEL_VOCABULARY).find(([, display]) => display === updatedRowData[key])?.[0];
+                updatedRowData[key] = backendLevel || updatedRowData[key];
+              }
+              break;
+            
+            // Handle other types if necessary
+            default:
+              // For other types, we can keep the value as is
+              break;
+          }
+        });
+
+        // Check if it's a new languoid
+        if (languoidId.startsWith('new_')) {
+          // For new languoids, don't include the ID
+          return updatedRowData;
+        } else {
+          // For existing languoids, include the ID
+          return {
+            id: languoidId,
+            ...updatedRowData
+          };
+        }
+
+      }).filter(Boolean); // Remove any null entries
+
+      console.log('Data to update:', JSON.stringify(dataToUpdate, null, 2));
+
+      if (dataToUpdate.length === 0) {
         console.log('No modifications to update');
         return;
       }
 
-      const response = await axios.post('/api/update-languages/', changedRecords);
+      const response = await axios.post('/api/update-languages/', dataToUpdate, {
+        withCredentials: true,
+      });
       
+      console.log('Update response:', response.data);
+
       if (response.data.status === 'success') {
-        // Update languoids with new data
-        setLanguoids(prev => ({
-          ...prev,
-          ...response.data.updated.reduce((acc, lang) => {
-            acc[lang.id] = lang;
-            return acc;
-          }, {})
-        }));
+        console.log('Update successful.');
+        setModifiedCells({});
         
-        // Clear modifications
-        setSavedLanguoids(prev => ({
-          ...prev,
-          ...response.data.updated.reduce((acc, lang) => {
-            acc[lang.id] = lang;
+        // Process updated languages
+        response.data.updated.forEach(updatedLang => {
+          console.log(`Updated language: ${updatedLang.name} (ID: ${updatedLang.id})`);
+          setLanguoids(prevLanguoids => ({
+            ...prevLanguoids,
+            [updatedLang.id]: { ...prevLanguoids[updatedLang.id], ...updatedLang }
+          }));
+        });
+
+        // Process created languages
+        response.data.created.forEach(createdLang => {
+          console.log(`Created new language: ${createdLang.name} (ID: ${createdLang.id})`);
+          // Find the row with the temporary ID and update it
+          const tempId = Object.keys(rowToIdMap).find(key => rowToIdMap[key].startsWith('new_'));
+          if (tempId) {
+            setRowToIdMap(prevMap => {
+              const newMap = { ...prevMap };
+              Object.keys(newMap).forEach(key => {
+                if (newMap[key] === tempId) {
+                  newMap[key] = createdLang.id;
+                }
+              });
+              return newMap;
+            });
+            
+            setLanguoids(prevLanguoids => {
+              const { [tempId]: _, ...rest } = prevLanguoids;
+              return {
+                ...rest,
+                [createdLang.id]: createdLang
+              };
+            });
+          }
+        });
+
+        // Update the updatedDuringSession state
+        setUpdatedDuringSession(prevState => ({
+          ...prevState,
+          ...Object.keys(rowsToUpdate).reduce((acc, id) => {
+            const rowIndex = Object.keys(rowToIdMap).find(key => rowToIdMap[key] === id);
+            if (rowIndex) {
+              acc[rowIndex] = true;
+            }
             return acc;
           }, {})
         }));
+      } else {
+        console.error('Update failed:', response.data.errors);
+        // Handle errors, maybe show them to the user
       }
     } catch (error) {
       console.error('Error updating data:', error);
+      console.error('Error response:', error.response?.data);
     }
   };
 
@@ -877,19 +952,19 @@ const LanguoidSheet = ({ onClose }) => {
     return 'none';
   };
 
-  const isRowEmpty = (rowIndex, currentData) => {
-    if (!currentData || !currentData[rowIndex]) return true;
-    
-    return currentData[rowIndex].every(cell => {
-      const value = cell.value;
-      if (typeof value === 'string') {
-        return value.trim() === '';
-      } else if (typeof value === 'object' && value !== null) {
-        return !value.name || value.name.trim() === '';
+  const isRowEmpty = useCallback((rowIndex) => {
+    return visibleColumnInfo.every(column => {
+      const cellValue = data[rowIndex][column.index].value;
+      if (typeof cellValue === 'string') {
+        return cellValue.trim() === '';
+      } else if (typeof cellValue === 'object' && cellValue !== null) {
+        // For languoid objects, check if the name is empty
+        return !cellValue.name || cellValue.name.trim() === '';
       }
-      return !value;
+      // For any other type (including null or undefined), consider it empty
+      return true;
     });
-  };
+  }, [data, visibleColumnInfo]);
 
   // useEffect(() => {
   //   console.log('Current modifiedCells state:', modifiedCells);
@@ -941,14 +1016,7 @@ const LanguoidSheet = ({ onClose }) => {
     });
 
     setData(prevData => [...prevData, ...newRows]);
-    setSavedLanguoids(prevSavedLanguoids => ({
-      ...prevSavedLanguoids,
-      ...newRows.reduce((acc, row) => {
-        const id = row[0].value;
-        acc[id] = row;
-        return acc;
-      }, {})
-    }));
+    setSavedData(prevSavedData => [...prevSavedData, ...newRows]);
 
     setRowToIdMap(prevMap => {
       const newMap = { ...prevMap };
@@ -1087,31 +1155,6 @@ const LanguoidSheet = ({ onClose }) => {
 
       return newData;
     });
-  };
-
-  // Helper to create a blank languoid with default values
-  const createBlankLanguoid = () => {
-    // Get structure from first languoid in the data, or use empty object if none exist
-    const template = Object.values(languoids)[0] || {};
-    
-    // Create blank languoid with same keys but empty values
-    return Object.keys(template).reduce((blank, key) => {
-      const originalValue = template[key];
-      
-      // Set appropriate blank value based on the type of the original
-      if (Array.isArray(originalValue)) {
-        blank[key] = [];
-      } else if (originalValue === null) {
-        blank[key] = null;
-      } else if (typeof originalValue === 'object') {
-        blank[key] = null;  // or {} depending on your needs
-      } else if (typeof originalValue === 'number') {
-        blank[key] = 0;     // or null depending on your needs
-      } else {
-        blank[key] = '';
-      }
-      return blank;
-    }, {});
   };
 
   return (

@@ -406,6 +406,12 @@ def item_index(request):
 
         if re.search('migrate', url_path, flags=re.I):
             # export json files for each item marked for migration, plus a combined json file, as a zip file
+
+            # Get collections for items being migrated
+            collections_to_migrate = Collection.objects.filter(
+                collection_abbr__regex=r'^[A-Za-z]{3}$'
+            )
+
             items_to_migrate = Item.objects.filter(migrate=True)
             # items_to_migrate = items_to_migrate.order_by('catalog_number')
             # items_to_migrate = items_to_migrate.prefetch_related('language', 'collaborator', 'item_documents', 'item_documents__language', 'item_documents__collaborator')
@@ -423,7 +429,23 @@ def item_index(request):
             # for each item, create a json file
             with zipfile.ZipFile(zip_path, 'w') as zipf:
 
-                
+                # Create json files for collections
+                for collection in collections_to_migrate:
+                    collection_dict = model_to_dict(collection)
+                    collection_dict['languages'] = list(collection.languages.values_list('id', flat=True))
+                    
+                    # Create json file for collection
+                    print(collection.collection_abbr)
+                    collection_filename = collection.collection_abbr + '.json'
+                    collection_json_path = os.path.join(json_dir_path, collection_filename)
+                    print(collection_json_path)
+                    with open(collection_json_path, 'w') as f:
+                        json.dump(collection_dict, f, indent=4)
+
+                    # Add the file to the zip file
+                    zipf.write(collection_json_path, arcname=collection_filename)
+
+
                 for item in items_to_migrate:
                     item_dict = model_to_dict(item)
                     # item_dict['language'] = [model_to_dict(language) for language in item.language.all()]

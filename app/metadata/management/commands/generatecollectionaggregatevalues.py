@@ -45,10 +45,11 @@ class Command(BaseCommand):
             for item in items:
                 if item.item_access_level:
                     access_levels.add(item.item_access_level)
-            if access_levels and not collection.access_levels:
-                # Set to most restrictive access level
-                collection.access_levels = max(access_levels)
-                self.stdout.write(f"Set access level to {collection.access_levels} for {collection.collection_abbr}")
+            # if access_levels and not collection.access_levels:
+            if access_levels:
+                # Add all unique access levels found
+                collection.access_levels = list(access_levels)
+                self.stdout.write(f"Set access levels to {list(access_levels)} for {collection.collection_abbr}")
 
             # Aggregate date range
             date_range = items.aggregate(

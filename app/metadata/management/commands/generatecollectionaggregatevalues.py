@@ -37,7 +37,7 @@ class Command(BaseCommand):
                 if item.genre:
                     genres.update(item.genre)
             if genres and not collection.genres:
-                collection.genres = list(genres)
+                collection.genres = sorted(list(genres))
                 self.stdout.write(f"Added {len(genres)} genres to {collection.collection_abbr}")
 
             # Aggregate access levels
@@ -47,9 +47,9 @@ class Command(BaseCommand):
                     access_levels.add(item.item_access_level)
             # if access_levels and not collection.access_levels:
             if access_levels:
-                # Add all unique access levels found
-                collection.access_levels = list(access_levels)
-                self.stdout.write(f"Set access levels to {list(access_levels)} for {collection.collection_abbr}")
+                # Sort and add all unique access levels found
+                collection.access_levels = sorted(list(access_levels))
+                self.stdout.write(f"Set access levels to {sorted(list(access_levels))} for {collection.collection_abbr}")
 
             # Aggregate date range
             date_range = items.aggregate(

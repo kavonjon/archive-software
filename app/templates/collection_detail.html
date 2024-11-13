@@ -29,6 +29,11 @@
 </div>
 <div class="row">
     <div class="col-md-12">
+        <b>Access levels:</b> {{ collection.get_access_levels_display }}
+    </div>
+</div>
+<div class="row">
+    <div class="col-md-12">
         <b>Languages Represented:</b> {{ collection.languages.all|join:", "}}
     </div>
 </div>

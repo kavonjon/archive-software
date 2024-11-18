@@ -432,18 +432,40 @@ def item_index(request):
                 # Create json files for collections
                 for collection in collections_to_migrate:
                     collection_dict = model_to_dict(collection)
-                    collection_dict['languages'] = list(collection.languages.values_list('id', flat=True))
-                    
+                    # collection_dict['languages'] = list(collection.languages.values_list('id', 'glottocode', 'name'))
+
+                    collection_output = {
+                        "slug": collection.collection_abbr.lower(),
+                        "metadata": {
+                            "title": collection.name
+                        },
+                        "custom_fields": {
+                            "identifier": collection.collection_abbr,
+                            # Add all other fields from collection_dict here
+                            # Remove fields we've already used
+                            **{k: v for k, v in collection_dict.items() 
+                            if k not in ['id', 'name', 'collection_abbr', 'modified_by']},
+
+                            # Add the languages list
+                            "languages": list(collection.languages.values_list('glottocode', flat=True))
+                        },
+                        "access": {
+                            "visibility": "public",
+                            "member_policy": "open",
+                            "record_policy": "open"
+                        }
+                    }
+
                     # Create json file for collection
                     print(collection.collection_abbr)
                     collection_filename = collection.collection_abbr + '.json'
                     collection_json_path = os.path.join(json_dir_path, collection_filename)
                     print(collection_json_path)
                     with open(collection_json_path, 'w') as f:
-                        json.dump(collection_dict, f, indent=4)
+                        json.dump(collection_output, f, indent=4)
 
-                    # Add the file to the zip file
-                    zipf.write(collection_json_path, arcname=collection_filename)
+                    # Add the file to the zip file in collections folder
+                    zipf.write(collection_json_path, arcname=os.path.join('collections', collection_filename))
 
 
                 for item in items_to_migrate:
@@ -591,8 +613,8 @@ def item_index(request):
                     with open(item_path, 'w') as f:
                         f.write(item_json)
 
-                    # Add the file to the zip file
-                    zipf.write(item_path, arcname=item_filename)
+                    # Add the file to the zip file in items folder
+                    zipf.write(item_path, arcname=os.path.join('items', item_filename))
 
 
             # Create a generator that reads the file and yields the data

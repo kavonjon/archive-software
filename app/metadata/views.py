@@ -440,14 +440,14 @@ def item_index(request):
                             "title": collection.name
                         },
                         "custom_fields": {
-                            "identifier": collection.collection_abbr,
+                            "archive_collection:identifier": collection.collection_abbr,
                             # Add all other fields from collection_dict here
                             # Remove fields we've already used
-                            **{k: v for k, v in collection_dict.items() 
+                            **{f"archive_collection:{k}": v for k, v in collection_dict.items() 
                             if k not in ['id', 'name', 'collection_abbr', 'modified_by']},
 
                             # Add the languages list
-                            "languages": list(collection.languages.values_list('glottocode', flat=True))
+                            "archive_collection:languages": list(collection.languages.values_list('glottocode', flat=True))
                         },
                         "access": {
                             "visibility": "public",

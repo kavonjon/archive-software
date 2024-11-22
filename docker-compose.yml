@@ -21,6 +21,12 @@ services:
     command: -p 54322
     volumes:
       - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_DB=${DBNAME}
+      - POSTGRES_USER=${DBUSER}
+      - POSTGRES_PASSWORD=${DBPASS}
 
   nginx:
     build: ./nginx

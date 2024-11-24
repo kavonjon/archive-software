@@ -450,7 +450,7 @@ def item_index(request):
                                     else v
                                 )
                                 for k, v in collection_dict.items()
-                                if k not in ['id', 'name', 'collection_abbr', 'modified_by']
+                                if k not in ['id', 'name', 'collection_abbr', 'languages', 'modified_by']
                             },
                             # Format languages list
                             "archive_collection:all_languages": [

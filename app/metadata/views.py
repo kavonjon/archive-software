@@ -437,7 +437,8 @@ def item_index(request):
                     collection_output = {
                         "slug": collection.collection_abbr.lower(),
                         "metadata": {
-                            "title": collection.name
+                            "title": collection.name,
+                            "description": collection.description,
                         },
                         "custom_fields": {
                             "archive_collection:identifier": collection.collection_abbr,
@@ -450,7 +451,7 @@ def item_index(request):
                                     else v
                                 )
                                 for k, v in collection_dict.items()
-                                if k not in ['id', 'name', 'collection_abbr', 'languages', 'modified_by']
+                                if k not in ['id', 'name', 'collection_abbr', 'description', 'languages', 'modified_by']
                             },
                             # Format languages list
                             "archive_collection:all_languages": [

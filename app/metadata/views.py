@@ -441,13 +441,22 @@ def item_index(request):
                         },
                         "custom_fields": {
                             "archive_collection:identifier": collection.collection_abbr,
-                            # Add all other fields from collection_dict here
-                            # Remove fields we've already used
-                            **{f"archive_collection:{k}": v for k, v in collection_dict.items() 
-                            if k not in ['id', 'name', 'collection_abbr', 'modified_by']},
-
-                            # Add the languages list
-                            "archive_collection:languages": list(collection.languages.values_list('glottocode', flat=True))
+                            # Process other fields from collection_dict
+                            **{
+                                f"archive_collection:{k}": (
+                                    # If the value is a list, format each item as {"id": item}
+                                    [{"id": str(item)} for item in v] if isinstance(v, (list, tuple)) 
+                                    # Otherwise use the value as-is
+                                    else v
+                                )
+                                for k, v in collection_dict.items()
+                                if k not in ['id', 'name', 'collection_abbr', 'modified_by']
+                            },
+                            # Format languages list
+                            "archive_collection:all_languages": [
+                                {"id": glottocode} 
+                                for glottocode in collection.languages.values_list('glottocode', flat=True)
+                            ]
                         },
                         "access": {
                             "visibility": "public",

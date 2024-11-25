@@ -438,7 +438,6 @@ def item_index(request):
                         "slug": collection.collection_abbr.lower(),
                         "metadata": {
                             "title": collection.name,
-                            "description": collection.description,
                         },
                         "custom_fields": {
                             "archive_collection:identifier": collection.collection_abbr,
@@ -453,6 +452,10 @@ def item_index(request):
                                 for k, v in collection_dict.items()
                                 if k not in ['id', 'name', 'collection_abbr', 'description', 'languages', 'modified_by']
                             },
+
+                            # add description to content field
+                            "archive_collection:content": collection.description,
+
                             # Format languages list
                             "archive_collection:all_languages": [
                                 {"id": glottocode} 

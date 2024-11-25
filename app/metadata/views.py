@@ -444,7 +444,9 @@ def item_index(request):
                             # Process other fields from collection_dict
                             **{
                                 f"archive_collection:{k}": (
-                                    # If the value is a list, format each item as {"id": item}
+                                    # For access_levels field, convert values to integers
+                                    [{"id": int(item)} for item in v] if k == 'access_levels' else
+                                    # For other lists, format each item as {"id": str(item)}
                                     [{"id": str(item)} for item in v] if isinstance(v, (list, tuple)) 
                                     # Otherwise use the value as-is
                                     else v

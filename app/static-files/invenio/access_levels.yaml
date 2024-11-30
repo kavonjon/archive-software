@@ -1,0 +1,15 @@
+- id: "1"
+  title:
+    en: Available to registered users
+
+- id: "2"
+  title:
+    en: Viewed on site
+
+- id: "3"
+  title:
+    en: Restricted with an embargo
+
+- id: "4"
+  title:
+    en: Restricted by depositor or someone else

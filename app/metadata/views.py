@@ -1,4 +1,4 @@
-import os, csv, io, datetime, re, mutagen, librosa, json, zipfile
+import os, csv, io, datetime, re, mutagen, librosa, json, zipfile, yaml
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Color, PatternFill, Font, Border
 from openpyxl.writer.excel import save_virtual_workbook
@@ -22,6 +22,7 @@ from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin
 from .models import Item, ItemTitle, Collection, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
 from .serializers import ItemMigrateSerializer, LanguageSerializer
 from .forms import CollectionForm, LanguageForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
+from django.contrib.staticfiles import finders
 
 def is_member_of_archivist(user):
     return user.groups.filter(name="Archivist").exists()
@@ -429,10 +430,31 @@ def item_index(request):
             # for each item, create a json file
             with zipfile.ZipFile(zip_path, 'w') as zipf:
 
+                def preprocess_newlines(obj):
+                    if isinstance(obj, dict):
+                        return {k: preprocess_newlines(v) for k, v in obj.items()}
+                    elif isinstance(obj, list):
+                        return [preprocess_newlines(item) for item in obj]
+                    elif isinstance(obj, str):
+                        return obj.replace('\\n', '\n')
+                    return obj
+
                 # Create json files for collections
                 for collection in collections_to_migrate:
                     collection_dict = model_to_dict(collection)
                     # collection_dict['languages'] = list(collection.languages.values_list('id', 'glottocode', 'name'))
+
+                    all_languages_yaml_path = finders.find('invenio/all_languages.yaml')
+                    with open(all_languages_yaml_path, 'r') as f:
+                        all_languages = yaml.safe_load(f)
+
+                    genres_yaml_path = finders.find('invenio/genres.yaml')
+                    with open(genres_yaml_path, 'r') as f:
+                        all_genres = yaml.safe_load(f)
+
+                    access_levels_yaml_path = finders.find('invenio/access_levels.yaml')
+                    with open(access_levels_yaml_path, 'r') as f:
+                        all_access_levels = yaml.safe_load(f)
 
                     collection_output = {
                         "slug": collection.collection_abbr.lower(),
@@ -444,10 +466,28 @@ def item_index(request):
                             # Process other fields from collection_dict
                             **{
                                 f"archive_collection:{k}": (
-                                    # # For access_levels field, convert values to integers
-                                    # [{"id": int(item)} for item in v] if k == 'access_levels' else
-                                    # For other lists, format each item as {"id": str(item)}
-                                    [{"id": str(item)} for item in v] if isinstance(v, (list, tuple)) 
+                                    # For access_levels field
+                                    json.dumps([
+                                        {
+                                            "id": level["id"],
+                                            "title": level["title"]
+                                        }
+                                        for item in v
+                                        for level in all_access_levels
+                                        if level["id"] == str(item)
+                                    ]) if k == 'access_levels' else
+                                    # For genre field
+                                    json.dumps([
+                                        {
+                                            "id": genre["id"],
+                                            "title": genre["title"].replace('\\n', '\n') if isinstance(genre["title"], str) else genre["title"]
+                                        }
+                                        for item in v
+                                        for genre in all_genres
+                                        if genre["id"] == str(item).replace('_', '-')
+                                    ]) if k == 'genres' else
+                                    # For other lists
+                                    json.dumps([{"id": str(item)} for item in v]) if isinstance(v, (list, tuple)) 
                                     # Otherwise use the value as-is
                                     else v
                                 )
@@ -458,11 +498,17 @@ def item_index(request):
                             # add description to content field
                             "archive_collection:content": collection.description,
 
-                            # Format languages list
-                            "archive_collection:all_languages": [
-                                {"id": glottocode} 
+                            # Format languages
+                            "archive_collection:all_languages": json.dumps([
+                                {
+                                    "id": lang["id"],
+                                    "props": lang["props"],
+                                    "title": lang["title"]
+                                }
                                 for glottocode in collection.languages.values_list('glottocode', flat=True)
-                            ]
+                                for lang in all_languages
+                                if lang["id"] == glottocode
+                            ])
                         },
                         "access": {
                             "visibility": "public",
@@ -477,6 +523,7 @@ def item_index(request):
                     collection_json_path = os.path.join(json_dir_path, collection_filename)
                     print(collection_json_path)
                     with open(collection_json_path, 'w') as f:
+                        # processed_output = preprocess_newlines(collection_output)
                         json.dump(collection_output, f, indent=4)
 
                     # Add the file to the zip file in collections folder

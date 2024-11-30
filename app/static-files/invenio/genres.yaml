@@ -1,0 +1,479 @@
+- id: music-forty-nine
+  props:
+    csl: music-forty-nine
+    subtype: ""
+    type: music-forty-nine
+  title:
+    en: "Music: 49"
+    es: "Música: 49"
+    pt: "Música: 49"
+
+- id: ceremonial
+  props:
+    csl: ceremonial
+    subtype: ""
+    type: ceremonial
+  title:
+    en: Ceremonial
+    es: Ceremonial
+    pt: Cerimonial
+
+- id: music-ceremonial
+  props:
+    csl: music-ceremonial
+    subtype: ""
+    type: music-ceremonial
+  title:
+    en: "Music: Ceremonial"
+    es: "Música: Ceremonial"
+    pt: "Música: Cerimonial"
+
+# - id: ceremony
+#   props:
+#     csl: ceremony
+#     subtype: ""
+#     type: ceremony
+#   title:
+#     en: Ceremony
+#     es: Ceremonia
+#     pt: Cerimônia
+
+# - id: chant
+#   props:
+#     csl: chant
+#     subtype: ""
+#     type: chant
+#   title:
+#     en: Chant
+#     es: Canto
+#     pt: Canto
+
+- id: music-for-children
+  props:
+    csl: music-for-children
+    subtype: ""
+    type: music-for-children
+  title:
+    en: "Music: For children"
+    es: "Música: Para niñes"
+    pt: "Música: Para crianças"
+
+- id: conversation
+  props:
+    csl: conversation
+    subtype: ""
+    type: conversation
+  title:
+    en: Conversation
+    es: Conversación
+    pt: Conversação
+
+- id: correspondence
+  props:
+    csl: correspondence
+    subtype: ""
+    type: correspondence
+  title:
+    en: Correspondence
+    es: Correspondencia
+    pt: Correspondência
+
+# - id: curse
+#   props:
+#     csl: curse
+#     subtype: ""
+#     type: curse
+#   title:
+#     en: Curse
+#     es: Maldición
+#     pt: Maldição
+
+# - id: dataset
+#   props:
+#     csl: dataset
+#     subtype: ""
+#     type: dataset
+#   title:
+#     en: Dataset
+#     es: Conjunto de datos
+#     pt: Conjunto de dados
+
+# - id: debate
+#   props:
+#     csl: debate
+#     subtype: ""
+#     type: debate
+#   title:
+#     en: Debate
+#     es: Debate
+#     pt: Debate
+
+- id: drama
+  props:
+    csl: drama
+    subtype: ""
+    type: drama
+  title:
+    en: Drama
+    es: Drama
+    pt: Drama
+
+- id: educational-material
+  props:
+    csl: educational-material
+    subtype: ""
+    type: educational-material
+  title:
+    en: Educational material
+    es: Material educativo
+    pt: Material educativo
+
+- id: educational-material-family
+  props:
+    csl: educational-material-family
+    subtype: educational-material-family
+    type: educational-material
+  title:
+    en: "Educational material: Family"
+    es: "Material educativo: Familia"
+    pt: "Material educativo: Família"
+
+- id: educational-material-learners
+  props:
+    csl: educational-material-learners
+    subtype: educational-material-learners
+    type: educational-material
+  title:
+    en: "Educational material: For learners"
+    es: "Material educativo: Para estudiantes"
+    pt: "Material educativo: Para alunes"
+
+- id: educational-material-teachers
+  props:
+    csl: educational-material-teachers
+    subtype: educational-material-teachers
+    type: educational-material
+  title:
+    en: "Educational material: For teachers"
+    es: "Material educativo: Para las maestres"
+    pt: "Material educativo: Para os professores"
+
+- id: educational-material-planning
+  props:
+    csl: educational-material-planning
+    subtype: educational-material-planning
+    type: educational-material
+  title:
+    en: "Educational material: Language planning"
+    es: "Material educativo: Planificación lingüística"
+    pt: "Material educativo: Planejamento de linguagem"
+
+- id: elicitation
+  props:
+    csl: elicitation
+    subtype: ""
+    type: elicitation
+  title:
+    en: Elicitation
+    es: Elicitación
+    pt: Elicitação
+
+- id: ethnography
+  props:
+    csl: ethnography
+    subtype: ""
+    type: ethnography
+  title:
+    en: Ethnography
+    es: Etnografía
+    pt: Etnografia
+
+# - id: greeting-leave-taking
+#   props:
+#     csl: greeting-leave-taking
+#     subtype: ""
+#     type: greeting-leave-taking
+#   title:
+#     en: Greeting/Leave-taking
+#     es: Saludo/Despedida
+#     pt: Saudação/Despedida
+
+- id: music-hand-game
+  props:
+    csl: music-hand-game
+    subtype: ""
+    type: music-hand-game
+  title:
+    en: "Music: Hand game"
+    es: "Música: Juego de manos"
+    pt: "Música: Jogo de mão"
+
+- id: history
+  props:
+    csl: history
+    subtype: ""
+    type: history
+  title:
+    en: History
+    es: Historia
+    pt: História
+
+- id: music-hymn
+  props:
+    csl: music-hymn
+    subtype: ""
+    type: music-hymn
+  title:
+    en: "Music: Hymn"
+    es: "Música: Himnos"
+    pt: "Música: Hinos"
+
+# - id: instructions
+#   props:
+#     csl: instructions
+#     subtype: ""
+#     type: instructions
+#   title:
+#     en: Instructions
+#     es: Instrucciones
+#     pt: Instruções
+
+- id: interview
+  props:
+    csl: interview
+    subtype: ""
+    type: interview
+  title:
+    en: Interview
+    es: Entrevista
+    pt: Entrevista
+
+# - id: meeting
+#   props:
+#     csl: meeting
+#     subtype: ""
+#     type: meeting
+#   title:
+#     en: Meeting
+#     es: Reunión
+#     pt: Reunião
+
+- id: music
+  props:
+    csl: music
+    subtype: ""
+    type: music
+  title:
+    en: Music
+    es: Música
+    pt: Música
+
+- id: narrative
+  props:
+    csl: narrative
+    subtype: ""
+    type: narrative
+  title:
+    en: Narrative
+    es: Narrativa
+    pt: Narrativa
+
+- id: music-native-american-church
+  props:
+    csl: music-native-american-church
+    subtype: ""
+    type: music-native-american-church
+  title:
+    en: "Music: Native American church"
+    es: "Música: Iglesia nativa americana"
+    pt: "Música: Igreja nativa americana"
+
+- id: oratory
+  props:
+    csl: oratory
+    subtype: ""
+    type: oratory
+  title:
+    en: Oratory
+    es: Oratoria
+    pt: Oratória
+
+- id: poetry
+  props:
+    csl: poetry
+    subtype: ""
+    type: poetry
+  title:
+    en: Poetry
+    es: Poesía
+    pt: Poesia
+
+- id: popular-production
+  props:
+    csl: popular-production
+    subtype: ""
+    type: popular-production
+  title:
+    en: Popular production
+    es: Producción popular
+    pt: Produção popular
+
+- id: music-powwow
+  props:
+    csl: music-powwow
+    subtype: ""
+    type: music-powwow
+  title:
+    en: "Music: Powwow"
+    es: "Música: Powwow"
+    pt: "Música: Powwow"
+
+- id: prayer
+  props:
+    csl: prayer
+    subtype: ""
+    type: prayer
+  title:
+    en: Prayer
+    es: Oración
+    pt: Oração
+
+- id: procedural
+  props:
+    csl: procedural
+    subtype: ""
+    type: procedural
+  title:
+    en: Procedural
+    es: Procesal
+    pt: Processual
+
+- id: saying-proverb
+  props:
+    csl: saying-proverb
+    subtype: ""
+    type: saying-proverb
+  title:
+    en: Saying or Proverb
+    es: Dicho o proverbio
+    pt: Ditado ou provérbio
+
+- id: textbook
+  props:
+    csl: textbook
+    subtype: ""
+    type: textbook
+  title:
+    en: Textbook
+    es: Libro de texto
+    pt: Livro didático
+
+# - id: recipe
+#   props:
+#     csl: recipe
+#     subtype: ""
+#     type: recipe
+#   title:
+#     en: Recipe
+#     es: Receta
+#     pt: Receita
+
+- id: music-round-dance
+  props:
+    csl: music-round-dance
+    subtype: ""
+    type: music-round-dance
+  title:
+    en: "Music: Round dance"
+    es: "Música: Baile redondo"
+    pt: "Música: Dança redonda"
+
+# - id: song
+#   props:
+#     csl: song
+#     subtype: ""
+#     type: song
+#   title:
+#     en: Song
+#     es: Canción
+#     pt: Canção
+
+- id: speech-play
+  props:
+    csl: speech-play
+    subtype: ""
+    type: speech-play
+  title:
+    en: Speech play
+    es: Juego de palabras/discurso
+    pt: Jogo de palavras/discurso
+
+- id: music-stomp-dance
+  props:
+    csl: music-stomp-dance
+    subtype: ""
+    type: music-stomp-dance
+  title:
+    en: "Music: Stomp dance"
+    es: "Música: Baile de pisotones"
+    pt: "Música: Dança pisada"
+
+- id: music-sundance
+  props:
+    csl: music-sundance
+    subtype: ""
+    type: music-sundance
+  title:
+    en: "Music: Sundance"
+    es: "Música: Danza del sol"
+    pt: "Música: Dança do sol"
+
+- id: traditional-story
+  props:
+    csl: traditional-story
+    subtype: ""
+    type: traditional-story
+  title:
+    en: Traditional story
+    es: Historia tradicional
+    pt: História tradicional
+
+- id: transcript
+  props:
+    csl: transcript
+    subtype: ""
+    type: transcript
+  title:
+    en: Transcript
+    es: Transcripción
+    pt: Transcrição
+
+- id: translation
+  props:
+    csl: translation
+    subtype: ""
+    type: translation
+  title:
+    en: Translation
+    es: Traducción
+    pt: Tradução
+
+- id: unintelligible-speech
+  props:
+    csl: unintelligible-speech
+    subtype: ""
+    type: unintelligible-speech
+  title:
+    en: Unintelligible speech
+    es: Discurso ininteligible
+    pt: Discurso ininteligível
+
+- id: music-war-dance
+  props:
+    csl: music-war-dance
+    subtype: ""
+    type: music-war-dance
+  title:
+    en: "Music: War dance"
+    es: "Música: Baile de guerra"
+    pt: "Música: Dança de guerra"

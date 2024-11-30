@@ -1,0 +1,5337 @@
+- id: stan1293
+  props:
+    family: indo1319
+    language: stan1293
+    self: stan1293
+    subfamily: germ1287
+    subsubfamily: ''
+  title:
+    en: English
+- id: stan1288
+  props:
+    family: indo1319
+    language: stan1288
+    self: stan1288
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Spanish
+- id: choc1276
+  props:
+    family: musk1252
+    language: choc1276
+    self: choc1276
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Choctaw
+- id: cher1273
+  props:
+    family: iroq1247
+    language: cher1273
+    self: cher1273
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Cherokee
+- id: hava1248
+  props:
+    family: ''
+    language: hava1248
+    self: hava1248
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Havasupai-Walapai-Yavapai
+- id: hava1249
+  props:
+    family: ''
+    language: hava1248
+    self: hava1249
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Havasupai-Walapai-Yavapai (Havasupai dialect)
+- id: wala1270
+  props:
+    family: ''
+    language: hava1248
+    self: wala1270
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Havasupai-Walapai-Yavapai (Walapai dialect)
+- id: yava1252
+  props:
+    family: ''
+    language: hava1248
+    self: yava1252
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Havasupai-Walapai-Yavapai (Yavapai dialect)
+- id: moha1258
+  props:
+    family: iroq1247
+    language: moha1258
+    self: moha1258
+    subfamily: ''
+    subsubfamily: moha1257
+  title:
+    en: Mohawk
+- id: sene1264
+  props:
+    family: iroq1247
+    language: sene1264
+    self: sene1264
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Seneca
+- id: arap1274
+  props:
+    family: algi1248
+    language: arap1274
+    self: arap1274
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Arapaho
+- id: quap1242
+  props:
+    family: ''
+    language: quap1242
+    self: quap1242
+    subfamily: siou1252
+    subsubfamily: dheg1241
+  title:
+    en: Quapaw
+- id: wich1260
+  props:
+    family: cadd1255
+    language: wich1260
+    self: wich1260
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Wichita
+- id: coma1245
+  props:
+    family: utoa1244
+    language: coma1245
+    self: coma1245
+    subfamily: ''
+    subsubfamily: numi1242
+  title:
+    en: Comanche
+- id: chey1247
+  props:
+    family: algi1248
+    language: chey1247
+    self: chey1247
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Cheyenne
+- id: cree1270
+  props:
+    family: musk1252
+    language: cree1270
+    self: cree1270
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Creek
+- id: algo1255
+  props:
+    family: algi1248
+    language: algo1255
+    self: algo1255
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Algonquin
+- id: atik1240
+  props:
+    family: algi1248
+    language: atik1240
+    self: atik1240
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Atikamekw
+- id: caro1243
+  props:
+    family: algi1248
+    language: caro1243
+    self: caro1243
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Carolina Algonquian
+- id: cent2136
+  props:
+    family: algi1248
+    language: cent2136
+    self: cent2136
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Central Ojibwa
+- id: chip1241
+  props:
+    family: algi1248
+    language: chip1241
+    self: chip1241
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Chippewa
+- id: east2544
+  props:
+    family: algi1248
+    language: east2544
+    self: east2544
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Eastern Abenaki
+- id: east2542
+  props:
+    family: algi1248
+    language: east2542
+    self: east2542
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Eastern Ojibwa
+- id: kick1244
+  props:
+    family: algi1248
+    language: kick1244
+    self: kick1244
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Kickapoo
+- id: meno1252
+  props:
+    family: algi1248
+    language: meno1252
+    self: meno1252
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Menominee
+- id: mesk1242
+  props:
+    family: algi1248
+    language: mesk1242
+    self: mesk1242
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Meskwaki-Sauk
+- id: mikm1235
+  props:
+    family: algi1248
+    language: mikm1235
+    self: mikm1235
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Mi'kmaq
+- id: mohe1244
+  props:
+    family: algi1248
+    language: mohe1244
+    self: mohe1244
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Mohegan-Montauk-Narragansett
+- id: moos1236
+  props:
+    family: algi1248
+    language: moos1236
+    self: moos1236
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Moose Cree
+- id: muns1251
+  props:
+    family: algi1248
+    language: muns1251
+    self: muns1251
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Munsee
+- id: nant1249
+  props:
+    family: algi1248
+    language: nant1249
+    self: nant1249
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Nanticoke
+- id: nask1242
+  props:
+    family: algi1248
+    language: nask1242
+    self: nask1242
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Naskapi
+- id: nawa1259
+  props:
+    family: algi1248
+    language: nawa1259
+    self: nawa1259
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Nawathinehena
+- id: nort1552
+  props:
+    family: algi1248
+    language: nort1552
+    self: nort1552
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Northern East Cree
+- id: nort2961
+  props:
+    family: algi1248
+    language: nort2961
+    self: nort2961
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Northwestern Ojibwa
+- id: otta1242
+  props:
+    family: algi1248
+    language: otta1242
+    self: otta1242
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Ottawa
+- id: plai1258
+  props:
+    family: algi1248
+    language: plai1258
+    self: plai1258
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Plains Cree
+- id: pota1247
+  props:
+    family: algi1248
+    language: pota1247
+    self: pota1247
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Potawatomi
+- id: powh1243
+  props:
+    family: algi1248
+    language: powh1243
+    self: powh1243
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Powhatan
+- id: quir1246
+  props:
+    family: algi1248
+    language: quir1246
+    self: quir1246
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Quiripi
+- id: seve1240
+  props:
+    family: algi1248
+    language: seve1240
+    self: seve1240
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Severn Ojibwa
+- id: shaw1249
+  props:
+    family: algi1248
+    language: shaw1249
+    self: shaw1249
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Shawnee
+- id: sout2978
+  props:
+    family: algi1248
+    language: sout2978
+    self: sout2978
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Southern East Cree
+- id: swam1239
+  props:
+    family: algi1248
+    language: swam1239
+    self: swam1239
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Swampy Cree
+- id: unam1242
+  props:
+    family: algi1248
+    language: unam1242
+    self: unam1242
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Unami
+- id: west2630
+  props:
+    family: algi1248
+    language: west2630
+    self: west2630
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Western Abenaki
+- id: west1510
+  props:
+    family: algi1248
+    language: west1510
+    self: west1510
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Western Ojibwa
+- id: wiyo1248
+  props:
+    family: algi1248
+    language: wiyo1248
+    self: wiyo1248
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Wiyot
+- id: wood1236
+  props:
+    family: algi1248
+    language: wood1236
+    self: wood1236
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Woods Cree
+- id: yuro1248
+  props:
+    family: algi1248
+    language: yuro1248
+    self: yuro1248
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Yurok
+- id: chip1261
+  props:
+    family: atha1245
+    language: chip1261
+    self: chip1261
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Chipewyan
+- id: coqu1236
+  props:
+    family: atha1245
+    language: coqu1236
+    self: coqu1236
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Coquille
+- id: carr1248
+  props:
+    family: atha1245
+    language: carr1248
+    self: carr1248
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Dakelh
+- id: dege1248
+  props:
+    family: atha1245
+    language: dege1248
+    self: dege1248
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Degexit'an
+- id: tana1289
+  props:
+    family: atha1245
+    language: tana1289
+    self: tana1289
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Dena'ina
+- id: dogr1252
+  props:
+    family: atha1245
+    language: dogr1252
+    self: dogr1252
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Dogrib
+- id: eyak1241
+  props:
+    family: atha1245
+    language: eyak1241
+    self: eyak1241
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Eyak
+- id: gali1261
+  props:
+    family: atha1245
+    language: gali1261
+    self: gali1261
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Galice
+- id: gwic1235
+  props:
+    family: atha1245
+    language: gwic1235
+    self: gwic1235
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Gwich'in
+- id: hann1241
+  props:
+    family: atha1245
+    language: hann1241
+    self: hann1241
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Han
+- id: holi1241
+  props:
+    family: atha1245
+    language: holi1241
+    self: holi1241
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Holikachuk
+- id: hupa1240
+  props:
+    family: atha1245
+    language: hupa1240
+    self: hupa1240
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Hupa
+- id: jica1244
+  props:
+    family: atha1245
+    language: jica1244
+    self: jica1244
+    subfamily: atha1247
+    subsubfamily: apac1239
+  title:
+    en: Jicarilla Apache
+- id: kask1239
+  props:
+    family: atha1245
+    language: kask1239
+    self: kask1239
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Kaska
+- id: kato1244
+  props:
+    family: atha1245
+    language: kato1244
+    self: kato1244
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Kato
+- id: koyu1237
+  props:
+    family: atha1245
+    language: koyu1237
+    self: koyu1237
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Koyukon
+- id: lipa1241
+  props:
+    family: atha1245
+    language: lipa1241
+    self: lipa1241
+    subfamily: atha1247
+    subsubfamily: apac1239
+  title:
+    en: Lipan Apache
+- id: lowe1425
+  props:
+    family: atha1245
+    language: lowe1425
+    self: lowe1425
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Lower Tanana
+- id: matt1239
+  props:
+    family: atha1245
+    language: matt1239
+    self: matt1239
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Mattole
+- id: mesc1238
+  props:
+    family: atha1245
+    language: mesc1238
+    self: mesc1238
+    subfamily: atha1247
+    subsubfamily: apac1239
+  title:
+    en: Mescalero-Chiricahua Apache
+- id: nava1243
+  props:
+    family: atha1245
+    language: nava1243
+    self: nava1243
+    subfamily: atha1247
+    subsubfamily: apac1239
+  title:
+    en: Navajo
+- id: nort2942
+  props:
+    family: atha1245
+    language: nort2942
+    self: nort2942
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: North Slavey
+- id: nort2941
+  props:
+    family: atha1245
+    language: nort2941
+    self: nort2941
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Northern Tutchone
+- id: seka1250
+  props:
+    family: atha1245
+    language: seka1250
+    self: seka1250
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Sekani
+- id: sout2959
+  props:
+    family: atha1245
+    language: sout2959
+    self: sout2959
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: South Slavey
+- id: sout2957
+  props:
+    family: atha1245
+    language: sout2957
+    self: sout2957
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Southern Tutchone
+- id: tagi1240
+  props:
+    family: atha1245
+    language: tagi1240
+    self: tagi1240
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Tagish
+- id: tahl1239
+  props:
+    family: atha1245
+    language: tahl1239
+    self: tahl1239
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Tahltan
+- id: tana1290
+  props:
+    family: atha1245
+    language: tana1290
+    self: tana1290
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Tanacross
+- id: tlin1245
+  props:
+    family: atha1245
+    language: tlin1245
+    self: tlin1245
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Tlingit
+- id: tset1236
+  props:
+    family: atha1245
+    language: tset1236
+    self: tset1236
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Tsetsaut
+- id: tutu1242
+  props:
+    family: atha1245
+    language: tutu1242
+    self: tutu1242
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Tututni
+- id: uppe1438
+  props:
+    family: atha1245
+    language: uppe1438
+    self: uppe1438
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Upper Kuskokwim
+- id: uppe1437
+  props:
+    family: atha1245
+    language: uppe1437
+    self: uppe1437
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Upper Tanana
+- id: wail1245
+  props:
+    family: atha1245
+    language: wail1245
+    self: wail1245
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Wailaki
+- id: west2615
+  props:
+    family: atha1245
+    language: west2615
+    self: west2615
+    subfamily: atha1247
+    subsubfamily: apac1239
+  title:
+    en: Western Apache
+- id: wits1234
+  props:
+    family: atha1245
+    language: wits1234
+    self: wits1234
+    subfamily: atha1247
+    subsubfamily: ''
+  title:
+    en: Witsuwit'en
+- id: arik1262
+  props:
+    family: cadd1255
+    language: arik1262
+    self: arik1262
+    subfamily: ''
+    subsubfamily: pawn1252
+  title:
+    en: Arikara
+- id: cadd1256
+  props:
+    family: cadd1255
+    language: cadd1256
+    self: cadd1256
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Caddo
+- id: kits1249
+  props:
+    family: cadd1255
+    language: kits1249
+    self: kits1249
+    subfamily: ''
+    subsubfamily: pawn1252
+  title:
+    en: Kitsai
+- id: pawn1254
+  props:
+    family: cadd1255
+    language: pawn1254
+    self: pawn1254
+    subfamily: ''
+    subsubfamily: pawn1252
+  title:
+    en: Pawnee
+- id: quil1240
+  props:
+    family: chim1311
+    language: quil1240
+    self: quil1240
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Quileute
+- id: kath1253
+  props:
+    family: chin1490
+    language: kath1253
+    self: kath1253
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kathlamet
+- id: wasc1240
+  props:
+    family: chin1490
+    language: wasc1240
+    self: wasc1240
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Wasco-Wishram
+- id: puri1259
+  props:
+    family: chum1262
+    language: puri1259
+    self: puri1259
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Purisimeño
+- id: vent1242
+  props:
+    family: chum1262
+    language: vent1242
+    self: vent1242
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Ventureño
+- id: coos1249
+  props:
+    family: coos1248
+    language: coos1249
+    self: coos1249
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Hanis
+- id: milu1241
+  props:
+    family: coos1248
+    language: milu1241
+    self: milu1241
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Miluk
+- id: aleu1260
+  props:
+    family: eski1264
+    language: aleu1260
+    self: aleu1260
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Aleut
+- id: east2534
+  props:
+    family: eski1264
+    language: east2534
+    self: east2534
+    subfamily: eski1265
+    subsubfamily: inui1246
+  title:
+    en: Eastern Canadian Inuktitut
+- id: kala1399
+  props:
+    family: eski1264
+    language: kala1399
+    self: kala1399
+    subfamily: eski1265
+    subsubfamily: inui1246
+  title:
+    en: Kalaallisut
+- id: nort2943
+  props:
+    family: eski1264
+    language: nort2943
+    self: nort2943
+    subfamily: eski1265
+    subsubfamily: inui1246
+  title:
+    en: North Alaskan Inupiatun
+- id: nort2945
+  props:
+    family: eski1264
+    language: nort2945
+    self: nort2945
+    subfamily: eski1265
+    subsubfamily: inui1246
+  title:
+    en: Seward Alaska Inupiatun
+- id: west2618
+  props:
+    family: eski1264
+    language: west2618
+    self: west2618
+    subfamily: eski1265
+    subsubfamily: inui1246
+  title:
+    en: Western Canadian Inuktitut
+- id: cayu1261
+  props:
+    family: iroq1247
+    language: cayu1261
+    self: cayu1261
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Cayuga
+- id: laur1250
+  props:
+    family: iroq1247
+    language: laur1250
+    self: laur1250
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Laurentian
+- id: nott1246
+  props:
+    family: iroq1247
+    language: nott1246
+    self: nott1246
+    subfamily: ''
+    subsubfamily: tusc1256
+  title:
+    en: Nottoway
+- id: onei1249
+  props:
+    family: iroq1247
+    language: onei1249
+    self: onei1249
+    subfamily: ''
+    subsubfamily: moha1257
+  title:
+    en: Oneida
+- id: onon1246
+  props:
+    family: iroq1247
+    language: onon1246
+    self: onon1246
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Onondaga
+- id: susq1241
+  props:
+    family: iroq1247
+    language: susq1241
+    self: susq1241
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Susquehannock
+- id: tusc1257
+  props:
+    family: iroq1247
+    language: tusc1257
+    self: tusc1257
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Tuscarora
+- id: nucl1648
+  props:
+    family: iroq1247
+    language: nucl1648
+    self: nucl1648
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Wyandot
+- id: adai1235
+  props:
+    family: ''
+    language: adai1235
+    self: adai1235
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Adai
+- id: alse1251
+  props:
+    family: ''
+    language: alse1251
+    self: alse1251
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Alsea-Yaquina
+- id: atak1252
+  props:
+    family: ''
+    language: atak1252
+    self: atak1252
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Atakapa
+- id: beot1247
+  props:
+    family: ''
+    language: beot1247
+    self: beot1247
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Beothuk
+- id: cayu1241
+  props:
+    family: ''
+    language: cayu1241
+    self: cayu1241
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Cayuse
+- id: chim1301
+  props:
+    family: ''
+    language: chim1301
+    self: chim1301
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Chimariko
+- id: chit1248
+  props:
+    family: ''
+    language: chit1248
+    self: chit1248
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Chitimacha
+- id: coah1252
+  props:
+    family: ''
+    language: coah1252
+    self: coah1252
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Coahuilteco
+- id: esse1238
+  props:
+    family: ''
+    language: esse1238
+    self: esse1238
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Esselen
+- id: haid1248
+  props:
+    family: ''
+    language: haid1248
+    self: haid1248
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Haida
+- id: kara1289
+  props:
+    family: ''
+    language: kara1289
+    self: kara1289
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Karankawa
+- id: klam1254
+  props:
+    family: ''
+    language: klam1254
+    self: klam1254
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Klamath-Modoc
+- id: kute1249
+  props:
+    family: ''
+    language: kute1249
+    self: kute1249
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kutenai
+- id: mola1238
+  props:
+    family: ''
+    language: mola1238
+    self: mola1238
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Molale
+- id: natc1249
+  props:
+    family: ''
+    language: natc1249
+    self: natc1249
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Natchez
+- id: sali1253
+  props:
+    family: ''
+    language: sali1253
+    self: sali1253
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Salinan
+- id: sius1254
+  props:
+    family: ''
+    language: sius1254
+    self: sius1254
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Siuslaw
+- id: take1257
+  props:
+    family: ''
+    language: take1257
+    self: take1257
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Takelma
+- id: timu1245
+  props:
+    family: ''
+    language: timu1245
+    self: timu1245
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Timucua
+- id: tonk1249
+  props:
+    family: ''
+    language: tonk1249
+    self: tonk1249
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Tonkawa
+- id: tuni1252
+  props:
+    family: ''
+    language: tuni1252
+    self: tuni1252
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Tunica
+- id: wash1253
+  props:
+    family: ''
+    language: wash1253
+    self: wash1253
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Washo
+- id: yana1271
+  props:
+    family: ''
+    language: yana1271
+    self: yana1271
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Yana
+- id: yuch1247
+  props:
+    family: ''
+    language: yuch1247
+    self: yuch1247
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Yuchi
+- id: zuni1245
+  props:
+    family: ''
+    language: zuni1245
+    self: zuni1245
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Zuni
+- id: kala1400
+  props:
+    family: kala1402
+    language: kala1400
+    self: kala1400
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Central Kalapuya
+- id: tual1242
+  props:
+    family: kala1402
+    language: tual1242
+    self: tual1242
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Tualatin-Yamhill
+- id: yonc1234
+  props:
+    family: kala1402
+    language: yonc1234
+    self: yonc1234
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Yoncalla
+- id: east1472
+  props:
+    family: kere1287
+    language: east1472
+    self: east1472
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Eastern Keres
+- id: west2632
+  props:
+    family: kere1287
+    language: west2632
+    self: west2632
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Western Keres
+- id: kiow1266
+  props:
+    family: kiow1265
+    language: kiow1266
+    self: kiow1266
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kiowa
+- id: picu1248
+  props:
+    family: kiow1265
+    language: picu1248
+    self: picu1248
+    subfamily: tiwa1255
+    subsubfamily: taos1246
+  title:
+    en: Picuris Northern Tiwa
+- id: piro1248
+  props:
+    family: kiow1265
+    language: piro1248
+    self: piro1248
+    subfamily: tiwa1255
+    subsubfamily: ''
+  title:
+    en: Piro
+- id: sout2961
+  props:
+    family: kiow1265
+    language: sout2961
+    self: sout2961
+    subfamily: tiwa1255
+    subsubfamily: ''
+  title:
+    en: Southern Tiwa
+- id: nort1550
+  props:
+    family: kiow1265
+    language: nort1550
+    self: nort1550
+    subfamily: tiwa1255
+    subsubfamily: taos1246
+  title:
+    en: Taos Northern Tiwa
+- id: tewa1261
+  props:
+    family: kiow1265
+    language: tewa1261
+    self: tewa1261
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Tewa
+- id: nise1244
+  props:
+    family: maid1262
+    language: nise1244
+    self: nise1244
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Nisenan
+- id: nort2952
+  props:
+    family: maid1262
+    language: nort2952
+    self: nort2952
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Northeast Maidu
+- id: nort2951
+  props:
+    family: maid1262
+    language: nort2951
+    self: nort2951
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Northwest Maidu
+- id: vall1252
+  props:
+    family: maid1262
+    language: vall1252
+    self: vall1252
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Valley Maidu
+- id: baym1241
+  props:
+    family: miwo1274
+    language: baym1241
+    self: baym1241
+    subfamily: miwo1275
+    subsubfamily: ''
+  title:
+    en: Bay Miwok
+- id: cent2140
+  props:
+    family: miwo1274
+    language: cent2140
+    self: cent2140
+    subfamily: miwo1275
+    subsubfamily: ''
+  title:
+    en: Central Sierra Miwok
+- id: coas1301
+  props:
+    family: miwo1274
+    language: coas1301
+    self: coas1301
+    subfamily: miwo1275
+    subsubfamily: ''
+  title:
+    en: Coast Miwok
+- id: kark1259
+  props:
+    family: miwo1274
+    language: kark1259
+    self: kark1259
+    subfamily: cost1250
+    subsubfamily: ''
+  title:
+    en: Karkin
+- id: lake1258
+  props:
+    family: miwo1274
+    language: lake1258
+    self: lake1258
+    subfamily: miwo1275
+    subsubfamily: ''
+  title:
+    en: Lake Miwok
+- id: nort2968
+  props:
+    family: miwo1274
+    language: nort2968
+    self: nort2968
+    subfamily: miwo1275
+    subsubfamily: ''
+  title:
+    en: Northern Sierra Miwok
+- id: plai1259
+  props:
+    family: miwo1274
+    language: plai1259
+    self: plai1259
+    subfamily: miwo1275
+    subsubfamily: ''
+  title:
+    en: Plains Miwok
+- id: sout2985
+  props:
+    family: miwo1274
+    language: sout2985
+    self: sout2985
+    subfamily: miwo1275
+    subsubfamily: ''
+  title:
+    en: Southern Sierra Miwok
+- id: mich1243
+  props:
+    family: ''
+    language: mich1243
+    self: mich1243
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Michif
+- id: alab1237
+  props:
+    family: musk1252
+    language: alab1237
+    self: alab1237
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Alabama
+- id: apal1237
+  props:
+    family: musk1252
+    language: apal1237
+    self: apal1237
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Apalachee
+- id: chic1270
+  props:
+    family: musk1252
+    language: chic1270
+    self: chic1270
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Chickasaw
+- id: koas1236
+  props:
+    family: musk1252
+    language: koas1236
+    self: koas1236
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Koasati
+- id: mika1239
+  props:
+    family: musk1252
+    language: mika1239
+    self: mika1239
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Mikasuki
+- id: mapu1245
+  props:
+    family: arau1255
+    language: mapu1245
+    self: mapu1245
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Mapudungun
+- id: acha1250
+  props:
+    family: araw1281
+    language: acha1250
+    self: acha1250
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Achagua
+- id: apur1254
+  props:
+    family: araw1281
+    language: apur1254
+    self: apur1254
+    subfamily: sout3131
+    subsubfamily: ''
+  title:
+    en: Apurinã
+- id: asha1243
+  props:
+    family: araw1281
+    language: asha1243
+    self: asha1243
+    subfamily: sout3131
+    subsubfamily: ''
+  title:
+    en: Asháninka
+- id: bani1254
+  props:
+    family: araw1281
+    language: bani1254
+    self: bani1254
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Avane
+- id: bare1276
+  props:
+    family: araw1281
+    language: bare1276
+    self: bare1276
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Baré
+- id: baur1253
+  props:
+    family: araw1281
+    language: baur1253
+    self: baur1253
+    subfamily: sout3131
+    subsubfamily: ''
+  title:
+    en: Baure
+- id: caqu1242
+  props:
+    family: araw1281
+    language: caqu1242
+    self: caqu1242
+    subfamily: sout3131
+    subsubfamily: ''
+  title:
+    en: Caquinte
+- id: cham1318
+  props:
+    family: araw1281
+    language: cham1318
+    self: cham1318
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Chamicuro
+- id: curr1243
+  props:
+    family: araw1281
+    language: curr1243
+    self: curr1243
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Curripaco
+- id: igna1246
+  props:
+    family: araw1281
+    language: igna1246
+    self: igna1246
+    subfamily: sout3131
+    subsubfamily: ''
+  title:
+    en: Ignaciano
+- id: inap1242
+  props:
+    family: araw1281
+    language: inap1242
+    self: inap1242
+    subfamily: sout3131
+    subsubfamily: ''
+  title:
+    en: Iñapari
+- id: araw1276
+  props:
+    family: araw1281
+    language: araw1276
+    self: araw1276
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Lokono
+- id: mach1267
+  props:
+    family: araw1281
+    language: mach1267
+    self: mach1267
+    subfamily: sout3131
+    subsubfamily: ''
+  title:
+    en: Machiguenga
+- id: mana1299
+  props:
+    family: araw1281
+    language: mana1299
+    self: mana1299
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Manao
+- id: mash1270
+  props:
+    family: araw1281
+    language: mash1270
+    self: mash1270
+    subfamily: sout3131
+    subsubfamily: ''
+  title:
+    en: Mashco Piro
+- id: nant1250
+  props:
+    family: araw1281
+    language: nant1250
+    self: nant1250
+    subfamily: sout3131
+    subsubfamily: ''
+  title:
+    en: Nanti
+- id: noma1263
+  props:
+    family: araw1281
+    language: noma1263
+    self: noma1263
+    subfamily: sout3131
+    subsubfamily: ''
+  title:
+    en: Nomatsiguenga
+- id: pali1279
+  props:
+    family: araw1281
+    language: pali1279
+    self: pali1279
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Palikúr
+- id: para1316
+  props:
+    family: araw1281
+    language: para1316
+    self: para1316
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Paraujano
+- id: piap1246
+  props:
+    family: araw1281
+    language: piap1246
+    self: piap1246
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Piapoco
+- id: resi1247
+  props:
+    family: araw1281
+    language: resi1247
+    self: resi1247
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Resígaro
+- id: sheb1234
+  props:
+    family: araw1281
+    language: sheb1234
+    self: sheb1234
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Shebayo
+- id: tari1256
+  props:
+    family: araw1281
+    language: tari1256
+    self: tari1256
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Tariana
+- id: waur1244
+  props:
+    family: araw1281
+    language: waur1244
+    self: waur1244
+    subfamily: cent2226
+    subsubfamily: ''
+  title:
+    en: Waurá
+- id: wayu1243
+  props:
+    family: araw1281
+    language: wayu1243
+    self: wayu1243
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Wayuu
+- id: xiri1243
+  props:
+    family: araw1281
+    language: xiri1243
+    self: xiri1243
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Xiriâna
+- id: yane1238
+  props:
+    family: araw1281
+    language: yane1238
+    self: yane1238
+    subfamily: sout3131
+    subsubfamily: ''
+  title:
+    en: Yanesha'
+- id: cent2142
+  props:
+    family: ayma1253
+    language: cent2142
+    self: cent2142
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Central Aymara
+- id: jaqa1244
+  props:
+    family: ayma1253
+    language: jaqa1244
+    self: jaqa1244
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Jaqaru
+- id: sout2996
+  props:
+    family: ayma1253
+    language: sout2996
+    self: sout2996
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Southern Aymara
+- id: chac1249
+  props:
+    family: barb1265
+    language: chac1249
+    self: chac1249
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Cha'palaa
+- id: guam1248
+  props:
+    family: barb1265
+    language: guam1248
+    self: guam1248
+    subfamily: ''
+    subsubfamily: coco1262
+  title:
+    en: Guambiano
+- id: colo1256
+  props:
+    family: barb1265
+    language: colo1256
+    self: colo1256
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Tsafiki
+- id: bora1263
+  props:
+    family: bora1262
+    language: bora1263
+    self: bora1263
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Bora
+- id: muin1242
+  props:
+    family: bora1262
+    language: muin1242
+    self: muin1242
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Muinane
+- id: apal1257
+  props:
+    family: cari1283
+    language: apal1257
+    self: apal1257
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Apalaí
+- id: baka1277
+  props:
+    family: cari1283
+    language: baka1277
+    self: baka1277
+    subfamily: peko1235
+    subsubfamily: ''
+  title:
+    en: Bakairí
+- id: hixk1239
+  props:
+    family: cari1283
+    language: hixk1239
+    self: hixk1239
+    subfamily: paru1239
+    subsubfamily: waiw1245
+  title:
+    en: Hixkaryána
+- id: macu1259
+  props:
+    family: cari1283
+    language: macu1259
+    self: macu1259
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Macushi
+- id: enap1235
+  props:
+    family: cari1283
+    language: enap1235
+    self: enap1235
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Panare
+- id: yukp1241
+  props:
+    family: cari1283
+    language: yukp1241
+    self: yukp1241
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Yukpa
+- id: chap1269
+  props:
+    family: chap1271
+    language: chap1269
+    self: chap1269
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Chapakura
+- id: kite1237
+  props:
+    family: chap1271
+    language: kite1237
+    self: kite1237
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kitemoka
+- id: orow1243
+  props:
+    family: chap1271
+    language: orow1243
+    self: orow1243
+    subfamily: more1263
+    subsubfamily: wari1269
+  title:
+    en: Oro Win
+- id: tora1263
+  props:
+    family: chap1271
+    language: tora1263
+    self: tora1263
+    subfamily: more1263
+    subsubfamily: ''
+  title:
+    en: Torá
+- id: wany1246
+  props:
+    family: chap1271
+    language: wany1246
+    self: wany1246
+    subfamily: more1263
+    subsubfamily: wari1269
+  title:
+    en: Wanyam
+- id: wari1268
+  props:
+    family: chap1271
+    language: wari1268
+    self: wari1268
+    subfamily: more1263
+    subsubfamily: wari1269
+  title:
+    en: Wari'
+- id: yaru1257
+  props:
+    family: chap1271
+    language: yaru1257
+    self: yaru1257
+    subfamily: more1263
+    subsubfamily: wari1269
+  title:
+    en: Yaru
+- id: chan1296
+  props:
+    family: char1238
+    language: chan1296
+    self: chan1296
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Chaná
+- id: char1240
+  props:
+    family: char1238
+    language: char1240
+    self: char1240
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Charrúa
+- id: bari1297
+  props:
+    family: chib1249
+    language: bari1297
+    self: bari1297
+    subfamily: ''
+    subsubfamily: magd1236
+  title:
+    en: Barí
+- id: chib1270
+  props:
+    family: chib1249
+    language: chib1270
+    self: chib1270
+    subfamily: ''
+    subsubfamily: magd1236
+  title:
+    en: Chibcha
+- id: chim1309
+  props:
+    family: chib1249
+    language: chim1309
+    self: chim1309
+    subfamily: ''
+    subsubfamily: magd1236
+  title:
+    en: Chimila
+- id: cogu1240
+  props:
+    family: chib1249
+    language: cogu1240
+    self: cogu1240
+    subfamily: ''
+    subsubfamily: magd1236
+  title:
+    en: Cogui
+- id: icaa1241
+  props:
+    family: chib1249
+    language: icaa1241
+    self: icaa1241
+    subfamily: ''
+    subsubfamily: magd1236
+  title:
+    en: Ica
+- id: tune1260
+  props:
+    family: chib1249
+    language: tune1260
+    self: tune1260
+    subfamily: ''
+    subsubfamily: magd1236
+  title:
+    en: Tunebo
+- id: agua1253
+  props:
+    family: jiva1245
+    language: agua1253
+    self: agua1253
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Aguaruna
+- id: haus1240
+  props:
+    family: chon1288
+    language: haus1240
+    self: haus1240
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Haush
+- id: onaa1245
+  props:
+    family: chon1288
+    language: onaa1245
+    self: onaa1245
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Selk'nam
+- id: tehu1242
+  props:
+    family: chon1288
+    language: tehu1242
+    self: tehu1242
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Tehuelche
+- id: teus1236
+  props:
+    family: chon1288
+    language: teus1236
+    self: teus1236
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Teushen
+- id: chay1248
+  props:
+    family: ''
+    language: chay1248
+    self: chay1248
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Shawi
+- id: anga1316
+  props:
+    family: ''
+    language: anga1316
+    self: anga1316
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Angaité
+- id: nort2971
+  props:
+    family: ''
+    language: nort2971
+    self: nort2971
+    subfamily: leng1262
+    subsubfamily: ''
+  title:
+    en: Enlhet Norte
+- id: sout2989
+  props:
+    family: ''
+    language: sout2989
+    self: sout2989
+    subfamily: leng1262
+    subsubfamily: ''
+  title:
+    en: Enxet Sur
+- id: sana1298
+  props:
+    family: ''
+    language: sana1298
+    self: sana1298
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Sanapaná
+- id: cuib1242
+  props:
+    family: guah1252
+    language: cuib1242
+    self: cuib1242
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Cuiba
+- id: guay1257
+  props:
+    family: guah1252
+    language: guay1257
+    self: guay1257
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Guayabero
+- id: kadi1248
+  props:
+    family: guai1249
+    language: kadi1248
+    self: kadi1248
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kadiwéu
+- id: moco1246
+  props:
+    family: guai1249
+    language: moco1246
+    self: moco1246
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Mocoví
+- id: pila1245
+  props:
+    family: guai1249
+    language: pila1245
+    self: pila1245
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Pilagá
+- id: amar1274
+  props:
+    family: hara1260
+    language: amar1274
+    self: amar1274
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Amarakaeri
+- id: huac1244
+  props:
+    family: hara1260
+    language: huac1244
+    self: huac1244
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Huachipaeri
+- id: chol1284
+  props:
+    family: ''
+    language: chol1284
+    self: chol1284
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Cholón
+- id: hibi1243
+  props:
+    family: ''
+    language: hibi1243
+    self: hibi1243
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Hibito
+- id: alle1238
+  props:
+    family: huar1251
+    language: alle1238
+    self: alle1238
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Allentiac
+- id: aika1237
+  props:
+    family: ''
+    language: aika1237
+    self: aika1237
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Aikanã
+- id: anda1286
+  props:
+    family: ''
+    language: anda1286
+    self: anda1286
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Andaqui
+- id: beto1237
+  props:
+    family: ''
+    language: beto1237
+    self: beto1237
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Betoi
+- id: cams1241
+  props:
+    family: ''
+    language: cams1241
+    self: cams1241
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Camsá
+- id: cani1243
+  props:
+    family: ''
+    language: cani1243
+    self: cani1243
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Canichana
+- id: chon1248
+  props:
+    family: ''
+    language: chon1248
+    self: chon1248
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Chono
+- id: cofa1242
+  props:
+    family: ''
+    language: cofa1242
+    self: cofa1242
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Cofán
+- id: cull1235
+  props:
+    family: ''
+    language: cull1235
+    self: cull1235
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Culli
+- id: guat1253
+  props:
+    family: ''
+    language: guat1253
+    self: guat1253
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Guató
+- id: iton1250
+  props:
+    family: ''
+    language: iton1250
+    self: iton1250
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Itonama
+- id: jira1235
+  props:
+    family: ''
+    language: jira1235
+    self: jira1235
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Jirajaran
+- id: kano1245
+  props:
+    family: ''
+    language: kano1245
+    self: kano1245
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kanoê
+- id: kwaz1243
+  props:
+    family: ''
+    language: kwaz1243
+    self: kwaz1243
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kwaza
+- id: leco1242
+  props:
+    family: ''
+    language: leco1242
+    self: leco1242
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Leco
+- id: lule1238
+  props:
+    family: ''
+    language: lule1238
+    self: lule1238
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Lule
+- id: moch1259
+  props:
+    family: ''
+    language: moch1259
+    self: moch1259
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Mochica
+- id: mose1249
+  props:
+    family: ''
+    language: mose1249
+    self: mose1249
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Mosetén-Chimané
+- id: movi1243
+  props:
+    family: ''
+    language: movi1243
+    self: movi1243
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Movima
+- id: muni1258
+  props:
+    family: ''
+    language: muni1258
+    self: muni1258
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Muniche
+- id: paez1247
+  props:
+    family: ''
+    language: paez1247
+    self: paez1247
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Páez
+- id: taus1253
+  props:
+    family: ''
+    language: taus1253
+    self: taus1253
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Taushiro
+- id: timo1237
+  props:
+    family: ''
+    language: timo1237
+    self: timo1237
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Timote-Cuica
+- id: tini1245
+  props:
+    family: ''
+    language: tini1245
+    self: tini1245
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Tinigua
+- id: trum1247
+  props:
+    family: ''
+    language: trum1247
+    self: trum1247
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Trumai
+- id: urar1246
+  props:
+    family: ''
+    language: urar1246
+    self: urar1246
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Urarina
+- id: vile1241
+  props:
+    family: ''
+    language: vile1241
+    self: vile1241
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Vilela
+- id: waor1240
+  props:
+    family: ''
+    language: waor1240
+    self: waor1240
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Waorani
+- id: wara1303
+  props:
+    family: ''
+    language: wara1303
+    self: wara1303
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Warao
+- id: yura1255
+  props:
+    family: ''
+    language: yura1255
+    self: yura1255
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Yuracaré
+- id: arik1265
+  props:
+    family: ''
+    language: arik1265
+    self: arik1265
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Arikapú
+- id: djeo1235
+  props:
+    family: ''
+    language: djeo1235
+    self: djeo1235
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Djeoromitxí
+- id: huam1247
+  props:
+    family: ''
+    language: huam1247
+    self: huam1247
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Huambisa
+- id: shua1257
+  props:
+    family: ''
+    language: shua1257
+    self: shua1257
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Shuar
+- id: cacu1241
+  props:
+    family: kaku1242
+    language: cacu1241
+    self: cacu1241
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kakua
+- id: cane1242
+  props:
+    family: ''
+    language: cane1242
+    self: cane1242
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Canela-Krahô
+- id: kain1272
+  props:
+    family: ''
+    language: kain1272
+    self: kain1272
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kaingang
+- id: kara1500
+  props:
+    family: ''
+    language: kara1500
+    self: kara1500
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Karajá
+- id: kaya1330
+  props:
+    family: ''
+    language: kaya1330
+    self: kaya1330
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kayapó
+- id: maxa1247
+  props:
+    family: ''
+    language: maxa1247
+    self: maxa1247
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Maxakalí
+- id: xava1240
+  props:
+    family: ''
+    language: xava1240
+    self: xava1240
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Xavánte
+- id: xokl1240
+  props:
+    family: ''
+    language: xokl1240
+    self: xokl1240
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Xokleng
+- id: chor1274
+  props:
+    family: mata1289
+    language: chor1274
+    self: chor1274
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Chorote
+- id: niva1238
+  props:
+    family: mata1289
+    language: niva1238
+    self: niva1238
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Nivaclé
+- id: medi1245
+  props:
+    family: ''
+    language: medi1245
+    self: medi1245
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Media Lengua
+- id: pira1253
+  props:
+    family: ''
+    language: pira1253
+    self: pira1253
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Pirahã
+- id: hupd1244
+  props:
+    family: nada1235
+    language: hupd1244
+    self: hupd1244
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Hup
+- id: nade1244
+  props:
+    family: nada1235
+    language: nade1244
+    self: nade1244
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Nadëb
+- id: sout2994
+  props:
+    family: ''
+    language: sout2994
+    self: sout2994
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Southern Nambikwara
+- id: mini1254
+  props:
+    family: algi1248
+    language: algo1255
+    self: mini1254
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Algonquin (Nipissing dialect)
+- id: peno1243
+  props:
+    family: algi1248
+    language: east2544
+    self: peno1243
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Eastern Abenaki (Penobscot dialect)
+- id: mesk1243
+  props:
+    family: algi1248
+    language: mesk1242
+    self: mesk1243
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Meskwaki-Sauk (Meskwakie dialect)
+- id: sacc1239
+  props:
+    family: algi1248
+    language: mesk1242
+    self: sacc1239
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Meskwaki-Sauk (Sac dialect)
+- id: pequ1242
+  props:
+    family: algi1248
+    language: mohe1244
+    self: pequ1242
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Mohegan-Montauk-Narragansett (Pequot-Mohegan dialect)
+- id: west2628
+  props:
+    family: algi1248
+    language: swam1239
+    self: west2628
+    subfamily: algo1257
+    subsubfamily: ''
+  title:
+    en: Swampy Cree (Western Swampy Cree dialect)
+- id: pehu1241
+  props:
+    family: arau1255
+    language: mapu1245
+    self: pehu1241
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Mapudungun (Pehuenche dialect)
+- id: tong1333
+  props:
+    family: atha1245
+    language: tlin1245
+    self: tong1333
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Tlingit (Tongass dialect)
+- id: hali1244
+  props:
+    family: aust1307
+    language: hali1244
+    self: hali1244
+    subfamily: ocea1241
+    subsubfamily: ''
+  title:
+    en: Halia
+- id: skir1238
+  props:
+    family: cadd1255
+    language: pawn1254
+    self: skir1238
+    subfamily: ''
+    subsubfamily: pawn1252
+  title:
+    en: Pawnee (Skiri dialect)
+- id: east2533
+  props:
+    family: eski1264
+    language: aleu1260
+    self: east2533
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Aleut (Eastern Aleut dialect)
+- id: west2616
+  props:
+    family: eski1264
+    language: aleu1260
+    self: west2616
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Aleut (Western Aleut dialect)
+- id: tunu1235
+  props:
+    family: eski1264
+    language: east2534
+    self: tunu1235
+    subfamily: eski1265
+    subsubfamily: inui1246
+  title:
+    en: Eastern Canadian Inuktitut (Tununitmiut dialect)
+- id: nort2944
+  props:
+    family: eski1264
+    language: nort2943
+    self: nort2944
+    subfamily: eski1265
+    subsubfamily: inui1246
+  title:
+    en: North Alaskan Inupiatun (North Slope Inupiatun dialect)
+- id: alse1252
+  props:
+    family: ''
+    language: alse1251
+    self: alse1252
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Alsea-Yaquina (Alsea dialect)
+- id: lagu1250
+  props:
+    family: kere1287
+    language: west2632
+    self: lagu1250
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Western Keres (Laguna dialect)
+- id: hitc1239
+  props:
+    family: musk1252
+    language: mika1239
+    self: hitc1239
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Mikasuki (Hitchiti dialect)
+- id: west2369
+  props:
+    family: ''
+    language: west2369
+    self: west2369
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Western Farsi
+- id: afar1241
+  props:
+    family: afro1255
+    language: afar1241
+    self: afar1241
+    subfamily: cush1243
+    subsubfamily: ''
+  title:
+    en: Afar
+- id: amha1245
+  props:
+    family: afro1255
+    language: amha1245
+    self: amha1245
+    subfamily: semi1276
+    subsubfamily: ''
+  title:
+    en: Amharic
+- id: arbo1245
+  props:
+    family: afro1255
+    language: arbo1245
+    self: arbo1245
+    subfamily: cush1243
+    subsubfamily: ''
+  title:
+    en: Arbore
+- id: benc1235
+  props:
+    family: afro1255
+    language: benc1235
+    self: benc1235
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Bench
+- id: bili1260
+  props:
+    family: afro1255
+    language: bili1260
+    self: bili1260
+    subfamily: cush1243
+    subsubfamily: cent2193
+  title:
+    en: Bilin
+- id: cent2194
+  props:
+    family: afro1255
+    language: cent2194
+    self: cent2194
+    subfamily: berb1260
+    subsubfamily: ''
+  title:
+    en: Central Moroccan Berber
+- id: chah1248
+  props:
+    family: afro1255
+    language: chah1248
+    self: chah1248
+    subfamily: semi1276
+    subsubfamily: ''
+  title:
+    en: Chaha
+- id: daas1238
+  props:
+    family: afro1255
+    language: daas1238
+    self: daas1238
+    subfamily: cush1243
+    subsubfamily: ''
+  title:
+    en: Daasanach
+- id: nucl1683
+  props:
+    family: afro1255
+    language: nucl1683
+    self: nucl1683
+    subfamily: chad1250
+    subsubfamily: bium1280
+  title:
+    en: Daba
+- id: daha1245
+  props:
+    family: afro1255
+    language: daha1245
+    self: daha1245
+    subfamily: cush1243
+    subsubfamily: ''
+  title:
+    en: Dahalo
+- id: elmo1238
+  props:
+    family: afro1255
+    language: elmo1238
+    self: elmo1238
+    subfamily: cush1243
+    subsubfamily: ''
+  title:
+    en: El Molo
+- id: haus1257
+  props:
+    family: afro1255
+    language: haus1257
+    self: haus1257
+    subfamily: chad1250
+    subsubfamily: ''
+  title:
+    en: Hausa
+- id: kamb1316
+  props:
+    family: afro1255
+    language: kamb1316
+    self: kamb1316
+    subfamily: cush1243
+    subsubfamily: ''
+  title:
+    en: Kambaata
+- id: kera1255
+  props:
+    family: afro1255
+    language: kera1255
+    self: kera1255
+    subfamily: chad1250
+    subsubfamily: ''
+  title:
+    en: Kera
+- id: ngiz1242
+  props:
+    family: afro1255
+    language: ngiz1242
+    self: ngiz1242
+    subfamily: chad1250
+    subsubfamily: ''
+  title:
+    en: Ngizim
+- id: nubi1253
+  props:
+    family: afro1255
+    language: nubi1253
+    self: nubi1253
+    subfamily: semi1276
+    subsubfamily: ''
+  title:
+    en: Nubi
+- id: saho1246
+  props:
+    family: afro1255
+    language: saho1246
+    self: saho1246
+    subfamily: cush1243
+    subsubfamily: ''
+  title:
+    en: Saho
+- id: sida1246
+  props:
+    family: afro1255
+    language: sida1246
+    self: sida1246
+    subfamily: cush1243
+    subsubfamily: ''
+  title:
+    en: Sidamo
+- id: soma1255
+  props:
+    family: afro1255
+    language: soma1255
+    self: soma1255
+    subfamily: cush1243
+    subsubfamily: ''
+  title:
+    en: Somali
+- id: tach1250
+  props:
+    family: afro1255
+    language: tach1250
+    self: tach1250
+    subfamily: berb1260
+    subsubfamily: ''
+  title:
+    en: Tachelhit
+- id: tigr1271
+  props:
+    family: afro1255
+    language: tigr1271
+    self: tigr1271
+    subfamily: semi1276
+    subsubfamily: ''
+  title:
+    en: Tigrinya
+- id: wand1278
+  props:
+    family: afro1255
+    language: wand1278
+    self: wand1278
+    subfamily: chad1250
+    subsubfamily: bium1280
+  title:
+    en: Wandala
+- id: xamt1239
+  props:
+    family: afro1255
+    language: xamt1239
+    self: xamt1239
+    subfamily: cush1243
+    subsubfamily: cent2193
+  title:
+    en: Xamtanga
+- id: yems1235
+  props:
+    family: afro1255
+    language: yems1235
+    self: yems1235
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Yemsa
+- id: avok1242
+  props:
+    family: cent2225
+    language: avok1242
+    self: avok1242
+    subfamily: ''
+    subsubfamily: moru1252
+  title:
+    en: Avokaya
+- id: efee1239
+  props:
+    family: cent2225
+    language: efee1239
+    self: efee1239
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Efe
+- id: keli1248
+  props:
+    family: cent2225
+    language: keli1248
+    self: keli1248
+    subfamily: ''
+    subsubfamily: moru1252
+  title:
+    en: Keliko
+- id: lend1245
+  props:
+    family: cent2225
+    language: lend1245
+    self: lend1245
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Lendu
+- id: lese1243
+  props:
+    family: cent2225
+    language: lese1243
+    self: lese1243
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Lese
+- id: lomb1254
+  props:
+    family: cent2225
+    language: lomb1254
+    self: lomb1254
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Lombi
+- id: lugb1240
+  props:
+    family: cent2225
+    language: lugb1240
+    self: lugb1240
+    subfamily: ''
+    subsubfamily: moru1252
+  title:
+    en: Lugbara
+- id: madi1260
+  props:
+    family: cent2225
+    language: madi1260
+    self: madi1260
+    subfamily: ''
+    subsubfamily: moru1252
+  title:
+    en: Ma'di
+- id: mamv1243
+  props:
+    family: cent2225
+    language: mamv1243
+    self: mamv1243
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Mamvu
+- id: mang1394
+  props:
+    family: cent2225
+    language: mang1394
+    self: mang1394
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Mangbetu
+- id: mang1396
+  props:
+    family: cent2225
+    language: mang1396
+    self: mang1396
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Mangbutu
+- id: moru1253
+  props:
+    family: cent2225
+    language: moru1253
+    self: moru1253
+    subfamily: ''
+    subsubfamily: moru1252
+  title:
+    en: Moru
+- id: ndoo1242
+  props:
+    family: cent2225
+    language: ndoo1242
+    self: ndoo1242
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Ndo
+- id: olub1238
+  props:
+    family: cent2225
+    language: olub1238
+    self: olub1238
+    subfamily: ''
+    subsubfamily: moru1252
+  title:
+    en: Olu'bo
+- id: sila1247
+  props:
+    family: daju1249
+    language: sila1247
+    self: sila1247
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Sila
+- id: dizi1235
+  props:
+    family: dizo1235
+    language: dizi1235
+    self: dizi1235
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Dizin
+- id: furr1244
+  props:
+    family: fura1235
+    language: furr1244
+    self: furr1244
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Fur
+- id: hadz1240
+  props:
+    family: ''
+    language: hadz1240
+    self: hadz1240
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Hadza
+- id: kuna1268
+  props:
+    family: ''
+    language: kuna1268
+    self: kuna1268
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kunama
+- id: kunz1244
+  props:
+    family: ''
+    language: kunz1244
+    self: kunz1244
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kunza
+- id: nama1265
+  props:
+    family: khoe1241
+    language: nama1265
+    self: nama1265
+    subfamily: khoe1242
+    subsubfamily: ''
+  title:
+    en: Nama
+- id: nucl1440
+  props:
+    family: maba1274
+    language: nucl1440
+    self: nucl1440
+    subfamily: maba1275
+    subsubfamily: maba1276
+  title:
+    en: Masalit
+- id: bamb1269
+  props:
+    family: mand1469
+    language: bamb1269
+    self: bamb1269
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Bambara
+- id: camf1234
+  props:
+    family: ''
+    language: camf1234
+    self: camf1234
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Camfranglais
+- id: goon1238
+  props:
+    family: buna1274
+    language: goon1238
+    self: goon1238
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Gooniyandi
+- id: gara1269
+  props:
+    family: garr1260
+    language: gara1269
+    self: gara1269
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Garrwa
+- id: anin1240
+  props:
+    family: gunw1250
+    language: anin1240
+    self: anin1240
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Anindilyakwa
+- id: kunb1251
+  props:
+    family: gunw1250
+    language: kunb1251
+    self: kunb1251
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kunbarlang
+- id: ngal1293
+  props:
+    family: gunw1250
+    language: ngal1293
+    self: ngal1293
+    subfamily: jala1236
+    subsubfamily: ''
+  title:
+    en: Ngalakgan
+- id: ngan1295
+  props:
+    family: gunw1250
+    language: ngan1295
+    self: ngan1295
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Ngandi
+- id: remb1249
+  props:
+    family: gunw1250
+    language: remb1249
+    self: remb1249
+    subfamily: jala1236
+    subsubfamily: ''
+  title:
+    en: Rembarrnga
+- id: wara1290
+  props:
+    family: gunw1250
+    language: wara1290
+    self: wara1290
+    subfamily: warr1259
+    subsubfamily: ''
+  title:
+    en: Warray
+- id: gaga1251
+  props:
+    family: ''
+    language: gaga1251
+    self: gaga1251
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Gaagudju
+- id: iwai1244
+  props:
+    family: ''
+    language: iwai1244
+    self: iwai1244
+    subfamily: cent2228
+    subsubfamily: ''
+  title:
+    en: Iwaidja
+- id: maun1240
+  props:
+    family: ''
+    language: maun1240
+    self: maun1240
+    subfamily: cent2228
+    subsubfamily: ''
+  title:
+    en: Mawng
+- id: miri1266
+  props:
+    family: jarr1235
+    language: miri1266
+    self: miri1266
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Miriwung
+- id: nucl1327
+  props:
+    family: limi1242
+    language: nucl1327
+    self: nucl1327
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Limilngan
+- id: wuln1239
+  props:
+    family: limi1242
+    language: wuln1239
+    self: wuln1239
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Wulna
+- id: bura1267
+  props:
+    family: mani1293
+    language: bura1267
+    self: bura1267
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Burarra
+- id: alaw1244
+  props:
+    family: ''
+    language: alaw1244
+    self: alaw1244
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Alawa
+- id: mara1385
+  props:
+    family: ''
+    language: mara1385
+    self: mara1385
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Marra
+- id: djin1251
+  props:
+    family: mirn1241
+    language: djin1251
+    self: djin1251
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Jingulu
+- id: ngar1283
+  props:
+    family: mirn1241
+    language: ngar1283
+    self: ngar1283
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Ngarnka
+- id: nung1291
+  props:
+    family: mirn1241
+    language: nung1291
+    self: nung1291
+    subfamily: djam1254
+    subsubfamily: ''
+  title:
+    en: Nungali
+- id: nucl1328
+  props:
+    family: mirn1241
+    language: nucl1328
+    self: nucl1328
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Wambaya
+- id: abaz1241
+  props:
+    family: ''
+    language: abaz1241
+    self: abaz1241
+    subfamily: abkh1243
+    subsubfamily: ''
+  title:
+    en: Abaza
+- id: abkh1244
+  props:
+    family: ''
+    language: abkh1244
+    self: abkh1244
+    subfamily: abkh1243
+    subsubfamily: ''
+  title:
+    en: Abkhaz
+- id: adyg1241
+  props:
+    family: ''
+    language: adyg1241
+    self: adyg1241
+    subfamily: circ1239
+    subsubfamily: ''
+  title:
+    en: Adyghe
+- id: lazz1240
+  props:
+    family: kart1248
+    language: lazz1240
+    self: lazz1240
+    subfamily: geor1252
+    subsubfamily: zann1245
+  title:
+    en: Laz
+- id: ming1252
+  props:
+    family: kart1248
+    language: ming1252
+    self: ming1252
+    subfamily: geor1252
+    subsubfamily: zann1245
+  title:
+    en: Mingrelian
+- id: oldg1234
+  props:
+    family: kart1248
+    language: oldg1234
+    self: oldg1234
+    subfamily: geor1252
+    subsubfamily: ''
+  title:
+    en: Old Georgian
+- id: svan1243
+  props:
+    family: kart1248
+    language: svan1243
+    self: svan1243
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Svan
+- id: andi1255
+  props:
+    family: nakh1245
+    language: andi1255
+    self: andi1255
+    subfamily: dagh1238
+    subsubfamily: andi1254
+  title:
+    en: Andi
+- id: arch1244
+  props:
+    family: nakh1245
+    language: arch1244
+    self: arch1244
+    subfamily: dagh1238
+    subsubfamily: lezg1248
+  title:
+    en: Archi
+- id: chec1245
+  props:
+    family: nakh1245
+    language: chec1245
+    self: chec1245
+    subfamily: nakh1246
+    subsubfamily: chec1244
+  title:
+    en: Chechen
+- id: hunz1247
+  props:
+    family: nakh1245
+    language: hunz1247
+    self: hunz1247
+    subfamily: dagh1238
+    subsubfamily: tsez1239
+  title:
+    en: Hunzib
+- id: ingu1240
+  props:
+    family: nakh1245
+    language: ingu1240
+    self: ingu1240
+    subfamily: nakh1246
+    subsubfamily: chec1244
+  title:
+    en: Ingush
+- id: lakk1252
+  props:
+    family: nakh1245
+    language: lakk1252
+    self: lakk1252
+    subfamily: dagh1238
+    subsubfamily: ''
+  title:
+    en: Lak
+- id: lezg1247
+  props:
+    family: nakh1245
+    language: lezg1247
+    self: lezg1247
+    subfamily: dagh1238
+    subsubfamily: lezg1248
+  title:
+    en: Lezgian
+- id: udii1243
+  props:
+    family: nakh1245
+    language: udii1243
+    self: udii1243
+    subfamily: dagh1238
+    subsubfamily: lezg1248
+  title:
+    en: Udi
+- id: ainu1252
+  props:
+    family: ''
+    language: ainu1252
+    self: ainu1252
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Ainu
+- id: nucl1643
+  props:
+    family: japo1237
+    language: nucl1643
+    self: nucl1643
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Japanese
+- id: oldj1239
+  props:
+    family: japo1237
+    language: oldj1239
+    self: oldj1239
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Old Japanese
+- id: kore1280
+  props:
+    family: kore1284
+    language: kore1280
+    self: kore1280
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Korean
+- id: malt1254
+  props:
+    family: afro1255
+    language: malt1254
+    self: malt1254
+    subfamily: semi1276
+    subsubfamily: ''
+  title:
+    en: Maltese
+- id: basq1248
+  props:
+    family: ''
+    language: basq1248
+    self: basq1248
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Basque
+- id: nucl1302
+  props:
+    family: kart1248
+    language: nucl1302
+    self: nucl1302
+    subfamily: geor1252
+    subsubfamily: ''
+  title:
+    en: Georgian
+- id: isla1278
+  props:
+    family: araw1281
+    language: isla1278
+    self: isla1278
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Island Carib
+- id: tain1254
+  props:
+    family: araw1281
+    language: tain1254
+    self: tain1254
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Taino
+- id: boru1252
+  props:
+    family: chib1249
+    language: boru1252
+    self: boru1252
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Boruca
+- id: brib1243
+  props:
+    family: chib1249
+    language: brib1243
+    self: brib1243
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Bribri
+- id: cabe1245
+  props:
+    family: chib1249
+    language: cabe1245
+    self: cabe1245
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Cabécar
+- id: kuna1280
+  props:
+    family: chib1249
+    language: kuna1280
+    self: kuna1280
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kuna
+- id: ngab1239
+  props:
+    family: chib1249
+    language: ngab1239
+    self: ngab1239
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Ngäbere
+- id: pech1241
+  props:
+    family: chib1249
+    language: pech1241
+    self: pech1241
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Pech
+- id: rama1270
+  props:
+    family: chib1249
+    language: rama1270
+    self: rama1270
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Rama
+- id: teri1250
+  props:
+    family: chib1249
+    language: teri1250
+    self: teri1250
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Teribe
+- id: come1253
+  props:
+    family: ''
+    language: come1253
+    self: come1253
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Comecrudo
+- id: coto1248
+  props:
+    family: ''
+    language: coto1248
+    self: coto1248
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Cotoname
+- id: cuit1236
+  props:
+    family: ''
+    language: cuit1236
+    self: cuit1236
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Cuitlatec
+- id: seri1257
+  props:
+    family: ''
+    language: seri1257
+    self: seri1257
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Seri
+- id: toll1241
+  props:
+    family: jica1245
+    language: toll1241
+    self: toll1241
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Tol
+- id: chic1271
+  props:
+    family: maya1287
+    language: chic1271
+    self: chic1271
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Chicomuceltec
+- id: chuj1250
+  props:
+    family: maya1287
+    language: chuj1250
+    self: chuj1250
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Chuj
+- id: huas1242
+  props:
+    family: maya1287
+    language: huas1242
+    self: huas1242
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Huastec
+- id: ixil1251
+  props:
+    family: maya1287
+    language: ixil1251
+    self: ixil1251
+    subfamily: ''
+    subsubfamily: mame1240
+  title:
+    en: Ixil
+- id: kaqc1270
+  props:
+    family: maya1287
+    language: kaqc1270
+    self: kaqc1270
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kaqchikel
+- id: mamm1241
+  props:
+    family: maya1287
+    language: mamm1241
+    self: mamm1241
+    subfamily: ''
+    subsubfamily: mame1240
+  title:
+    en: Mam
+- id: popt1235
+  props:
+    family: maya1287
+    language: popt1235
+    self: popt1235
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Popti'
+- id: poqo1253
+  props:
+    family: maya1287
+    language: poqo1253
+    self: poqo1253
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Poqomam
+- id: poqo1254
+  props:
+    family: maya1287
+    language: poqo1254
+    self: poqo1254
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Poqomchi'
+- id: qanj1241
+  props:
+    family: maya1287
+    language: qanj1241
+    self: qanj1241
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Q'anjob'al
+- id: tojo1241
+  props:
+    family: maya1287
+    language: tojo1241
+    self: tojo1241
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Tojolabal
+- id: tzut1248
+  props:
+    family: maya1287
+    language: tzut1248
+    self: tzut1248
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Tz'utujil
+- id: misk1235
+  props:
+    family: misu1242
+    language: misk1235
+    self: misk1235
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Mískito
+- id: ulwa1239
+  props:
+    family: misu1242
+    language: ulwa1239
+    self: ulwa1239
+    subfamily: suma1272
+    subsubfamily: sumu1234
+  title:
+    en: Ulwa
+- id: copa1236
+  props:
+    family: ''
+    language: copa1236
+    self: copa1236
+    subfamily: zoqu1261
+    subsubfamily: ''
+  title:
+    en: Copainalá Zoque
+- id: sayu1241
+  props:
+    family: ''
+    language: sayu1241
+    self: sayu1241
+    subfamily: mixe1286
+    subsubfamily: ''
+  title:
+    en: Sayula Popoluca
+- id: texi1237
+  props:
+    family: ''
+    language: texi1237
+    self: texi1237
+    subfamily: zoqu1261
+    subsubfamily: ''
+  title:
+    en: Texistepec Popoluca
+- id: tlah1239
+  props:
+    family: ''
+    language: tlah1239
+    self: tlah1239
+    subfamily: mixe1286
+    subsubfamily: ''
+  title:
+    en: Tlahuitoltepec Mixe
+- id: akka1240
+  props:
+    family: afro1255
+    language: akka1240
+    self: akka1240
+    subfamily: semi1276
+    subsubfamily: ''
+  title:
+    en: Akkadian
+- id: anci1244
+  props:
+    family: afro1255
+    language: anci1244
+    self: anci1244
+    subfamily: semi1276
+    subsubfamily: ''
+  title:
+    en: Ancient Hebrew
+- id: arab1395
+  props:
+    family: afro1255
+    language: arab1395
+    self: arab1395
+    subfamily: semi1276
+    subsubfamily: ''
+  title:
+    en: Arabic
+- id: assy1241
+  props:
+    family: afro1255
+    language: assy1241
+    self: assy1241
+    subfamily: semi1276
+    subsubfamily: ''
+  title:
+    en: Assyrian Neo-Aramaic
+- id: copt1239
+  props:
+    family: afro1255
+    language: copt1239
+    self: copt1239
+    subfamily: egyp1245
+    subsubfamily: ''
+  title:
+    en: Coptic
+- id: hija1235
+  props:
+    family: afro1255
+    language: hija1235
+    self: hija1235
+    subfamily: semi1276
+    subsubfamily: ''
+  title:
+    en: Hijazi Arabic
+- id: hebr1245
+  props:
+    family: afro1255
+    language: hebr1245
+    self: hebr1245
+    subfamily: semi1276
+    subsubfamily: ''
+  title:
+    en: Modern Hebrew
+- id: brah1256
+  props:
+    family: drav1251
+    language: brah1256
+    self: brah1256
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Brahui
+- id: buru1296
+  props:
+    family: ''
+    language: buru1296
+    self: buru1296
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Burushaski
+- id: elam1244
+  props:
+    family: ''
+    language: elam1244
+    self: elam1244
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Elamite
+- id: alut1245
+  props:
+    family: chuk1271
+    language: alut1245
+    self: alut1245
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Alutor
+- id: chuk1273
+  props:
+    family: chuk1271
+    language: chuk1273
+    self: chuk1273
+    subfamily: chuk1272
+    subsubfamily: ''
+  title:
+    en: Chukchi
+- id: kere1280
+  props:
+    family: chuk1271
+    language: kere1280
+    self: kere1280
+    subfamily: chuk1272
+    subsubfamily: ''
+  title:
+    en: Kerek
+- id: kory1246
+  props:
+    family: chuk1271
+    language: kory1246
+    self: kory1246
+    subfamily: chuk1272
+    subsubfamily: ''
+  title:
+    en: Koryak
+- id: biao1254
+  props:
+    family: hmon1336
+    language: biao1254
+    self: biao1254
+    subfamily: mien1242
+    subsubfamily: ''
+  title:
+    en: Biao-Jiao Mien
+- id: nivk1234
+  props:
+    family: ''
+    language: nivk1234
+    self: nivk1234
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Nivkh
+- id: bona1250
+  props:
+    family: mong1329
+    language: bona1250
+    self: bona1250
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Bonan
+- id: ordo1245
+  props:
+    family: mong1329
+    language: ordo1245
+    self: ordo1245
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Ordos
+- id: ayiw1239
+  props:
+    family: aust1307
+    language: ayiw1239
+    self: ayiw1239
+    subfamily: ocea1241
+    subsubfamily: temo1244
+  title:
+    en: Äiwoo
+- id: ajie1238
+  props:
+    family: aust1307
+    language: ajie1238
+    self: ajie1238
+    subfamily: ocea1241
+    subsubfamily: sout3173
+  title:
+    en: Ajië
+- id: baba1268
+  props:
+    family: aust1307
+    language: baba1268
+    self: baba1268
+    subfamily: ocea1241
+    subsubfamily: ''
+  title:
+    en: Babatana
+- id: bala1310
+  props:
+    family: aust1307
+    language: bala1310
+    self: bala1310
+    subfamily: nort3238
+    subsubfamily: cent2296
+  title:
+    en: Balangao
+- id: bali1278
+  props:
+    family: aust1307
+    language: bali1278
+    self: bali1278
+    subfamily: mala1536
+    subsubfamily: bali1277
+  title:
+    en: Balinese
+- id: bara1370
+  props:
+    family: aust1307
+    language: bara1370
+    self: bara1370
+    subfamily: kaya1335
+    subsubfamily: ''
+  title:
+    en: Baram Kayan
+- id: biak1248
+  props:
+    family: aust1307
+    language: biak1248
+    self: biak1248
+    subfamily: sout3229
+    subsubfamily: cend1238
+  title:
+    en: Biak
+- id: biat1246
+  props:
+    family: aust1307
+    language: biat1246
+    self: biat1246
+    subfamily: land1261
+    subsubfamily: bida1240
+  title:
+    en: Biatah Bidayuh
+- id: brun1251
+  props:
+    family: aust1307
+    language: brun1251
+    self: brun1251
+    subfamily: saba1285
+    subsubfamily: bisa1270
+  title:
+    en: Brunei Bisaya
+- id: bugi1244
+  props:
+    family: aust1307
+    language: bugi1244
+    self: bugi1244
+    subfamily: sout2923
+    subsubfamily: bugi1245
+  title:
+    en: Buginese
+- id: buka1257
+  props:
+    family: aust1307
+    language: buka1257
+    self: buka1257
+    subfamily: land1261
+    subsubfamily: bida1240
+  title:
+    en: Bukar-Sadung Bidayuh
+- id: cebu1242
+  props:
+    family: aust1307
+    language: cebu1242
+    self: cebu1242
+    subfamily: grea1284
+    subsubfamily: cent2246
+  title:
+    en: Cebuano
+- id: cent2101
+  props:
+    family: aust1307
+    language: cent2101
+    self: cent2101
+    subfamily: sara1342
+    subsubfamily: mela1255
+  title:
+    en: Central Melanau
+- id: cham1312
+  props:
+    family: aust1307
+    language: cham1312
+    self: cham1312
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Chamorro
+- id: chuu1238
+  props:
+    family: aust1307
+    language: chuu1238
+    self: chuu1238
+    subfamily: ocea1241
+    subsubfamily: micr1243
+  title:
+    en: Chuukese
+- id: fiji1243
+  props:
+    family: aust1307
+    language: fiji1243
+    self: fiji1243
+    subfamily: ocea1241
+    subsubfamily: ''
+  title:
+    en: Fijian
+- id: hawa1245
+  props:
+    family: aust1307
+    language: hawa1245
+    self: hawa1245
+    subfamily: ocea1241
+    subsubfamily: poly1242
+  title:
+    en: Hawaiian
+- id: iban1264
+  props:
+    family: aust1307
+    language: iban1264
+    self: iban1264
+    subfamily: mala1536
+    subsubfamily: mala1538
+  title:
+    en: Iban
+- id: iban1267
+  props:
+    family: aust1307
+    language: iban1267
+    self: iban1267
+    subfamily: nort3238
+    subsubfamily: caga1241
+  title:
+    en: Ibanag
+- id: indo1317
+  props:
+    family: aust1307
+    language: indo1317
+    self: indo1317
+    subfamily: ''
+    subsubfamily: sama1302
+  title:
+    en: Indonesian Bajau
+- id: iran1262
+  props:
+    family: aust1307
+    language: iran1262
+    self: iran1262
+    subfamily: grea1284
+    subsubfamily: dana1253
+  title:
+    en: Iranun
+- id: java1254
+  props:
+    family: aust1307
+    language: java1254
+    self: java1254
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Javanese
+- id: cent2100
+  props:
+    family: aust1307
+    language: cent2100
+    self: cent2100
+    subfamily: saba1285
+    subsubfamily: dusu1277
+  title:
+    en: Kadazan Dusun
+- id: kamb1299
+  props:
+    family: aust1307
+    language: kamb1299
+    self: kamb1299
+    subfamily: ''
+    subsubfamily: sumb1243
+  title:
+    en: Kambera
+- id: kapi1249
+  props:
+    family: aust1307
+    language: kapi1249
+    self: kapi1249
+    subfamily: ocea1241
+    subsubfamily: poly1242
+  title:
+    en: Kapingamarangi
+- id: kela1258
+  props:
+    family: aust1307
+    language: kela1258
+    self: kela1258
+    subfamily: nort3171
+    subsubfamily: kela1257
+  title:
+    en: Kelabit
+- id: keni1249
+  props:
+    family: aust1307
+    language: keni1249
+    self: keni1249
+    subfamily: saba1285
+    subsubfamily: muru1275
+  title:
+    en: Keningau Murut
+- id: kosr1238
+  props:
+    family: aust1307
+    language: kosr1238
+    self: kosr1238
+    subfamily: ocea1241
+    subsubfamily: micr1243
+  title:
+    en: Kosraean
+- id: kwar1239
+  props:
+    family: aust1307
+    language: kwar1239
+    self: kwar1239
+    subfamily: ocea1241
+    subsubfamily: sout2853
+  title:
+    en: Kwara'ae
+- id: long1395
+  props:
+    family: aust1307
+    language: long1395
+    self: long1395
+    subfamily: ocea1241
+    subsubfamily: sout2853
+  title:
+    en: Longgu
+- id: lotu1250
+  props:
+    family: aust1307
+    language: lotu1250
+    self: lotu1250
+    subfamily: saba1285
+    subsubfamily: bisa1270
+  title:
+    en: Lotud
+- id: lund1271
+  props:
+    family: aust1307
+    language: lund1271
+    self: lund1271
+    subfamily: nort3171
+    subsubfamily: kela1257
+  title:
+    en: Lundayeh
+- id: nucl1460
+  props:
+    family: aust1307
+    language: nucl1460
+    self: nucl1460
+    subfamily: mala1536
+    subsubfamily: madu1247
+  title:
+    en: Madurese
+- id: mana1295
+  props:
+    family: aust1307
+    language: mana1295
+    self: mana1295
+    subfamily: ocea1241
+    subsubfamily: ''
+  title:
+    en: Manam
+- id: mang1401
+  props:
+    family: aust1307
+    language: mang1401
+    self: mang1401
+    subfamily: ocea1241
+    subsubfamily: poly1242
+  title:
+    en: Mangareva
+- id: mapo1242
+  props:
+    family: aust1307
+    language: mapo1242
+    self: mapo1242
+    subfamily: ocea1241
+    subsubfamily: ''
+  title:
+    en: Mapos Buang
+- id: mapu1244
+  props:
+    family: aust1307
+    language: mapu1244
+    self: mapu1244
+    subfamily: ''
+    subsubfamily: sama1302
+  title:
+    en: Mapun
+- id: mars1254
+  props:
+    family: aust1307
+    language: mars1254
+    self: mars1254
+    subfamily: ocea1241
+    subsubfamily: micr1243
+  title:
+    en: Marshallese
+- id: moki1238
+  props:
+    family: aust1307
+    language: moki1238
+    self: moki1238
+    subfamily: ocea1241
+    subsubfamily: micr1243
+  title:
+    en: Mokilese
+- id: mono1273
+  props:
+    family: aust1307
+    language: mono1273
+    self: mono1273
+    subfamily: ocea1241
+    subsubfamily: ''
+  title:
+    en: Mono-Alu
+- id: motu1246
+  props:
+    family: aust1307
+    language: motu1246
+    self: motu1246
+    subfamily: ocea1241
+    subsubfamily: ''
+  title:
+    en: Motu
+- id: nage1237
+  props:
+    family: aust1307
+    language: nage1237
+    self: nage1237
+    subfamily: ''
+    subsubfamily: ngad1266
+  title:
+    en: Nage
+- id: naka1262
+  props:
+    family: aust1307
+    language: naka1262
+    self: naka1262
+    subfamily: ocea1241
+    subsubfamily: ''
+  title:
+    en: Nakanai
+- id: nalo1235
+  props:
+    family: aust1307
+    language: nalo1235
+    self: nalo1235
+    subfamily: ocea1241
+    subsubfamily: temo1244
+  title:
+    en: Nalögo
+- id: nang1262
+  props:
+    family: aust1307
+    language: nang1262
+    self: nang1262
+    subfamily: ocea1241
+    subsubfamily: temo1244
+  title:
+    en: Nanggu
+- id: naro1251
+  props:
+    family: aust1307
+    language: naro1251
+    self: naro1251
+    subfamily: nort3171
+    subsubfamily: bera1263
+  title:
+    en: Narom
+- id: natu1246
+  props:
+    family: aust1307
+    language: natu1246
+    self: natu1246
+    subfamily: ocea1241
+    subsubfamily: temo1244
+  title:
+    en: Natügu
+- id: niue1239
+  props:
+    family: aust1307
+    language: niue1239
+    self: niue1239
+    subfamily: ocea1241
+    subsubfamily: poly1242
+  title:
+    en: Niuean
+- id: paiw1248
+  props:
+    family: aust1307
+    language: paiw1248
+    self: paiw1248
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Paiwan
+- id: pala1344
+  props:
+    family: aust1307
+    language: pala1344
+    self: pala1344
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Palauan
+- id: pohn1238
+  props:
+    family: aust1307
+    language: pohn1238
+    self: pohn1238
+    subfamily: ocea1241
+    subsubfamily: micr1243
+  title:
+    en: Pohnpeian
+- id: pulu1242
+  props:
+    family: aust1307
+    language: pulu1242
+    self: pulu1242
+    subfamily: ocea1241
+    subsubfamily: micr1243
+  title:
+    en: Puluwatese
+- id: riri1237
+  props:
+    family: aust1307
+    language: riri1237
+    self: riri1237
+    subfamily: ocea1241
+    subsubfamily: ''
+  title:
+    en: Ririo
+- id: rotu1241
+  props:
+    family: aust1307
+    language: rotu1241
+    self: rotu1241
+    subfamily: ocea1241
+    subsubfamily: ''
+  title:
+    en: Rotuman
+- id: ruka1240
+  props:
+    family: aust1307
+    language: ruka1240
+    self: ruka1240
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Rukai
+- id: rung1259
+  props:
+    family: aust1307
+    language: rung1259
+    self: rung1259
+    subfamily: saba1285
+    subsubfamily: dusu1277
+  title:
+    en: Rungus
+- id: samo1305
+  props:
+    family: aust1307
+    language: samo1305
+    self: samo1305
+    subfamily: ocea1241
+    subsubfamily: poly1242
+  title:
+    en: Samoan
+- id: seim1238
+  props:
+    family: aust1307
+    language: seim1238
+    self: seim1238
+    subfamily: ocea1241
+    subsubfamily: admi1239
+  title:
+    en: Seimat
+- id: sela1260
+  props:
+    family: aust1307
+    language: sela1260
+    self: sela1260
+    subfamily: sout2923
+    subsubfamily: maka1310
+  title:
+    en: Selayar
+- id: sobe1238
+  props:
+    family: aust1307
+    language: sobe1238
+    self: sobe1238
+    subfamily: ocea1241
+    subsubfamily: ''
+  title:
+    en: Sobei
+- id: sout2866
+  props:
+    family: aust1307
+    language: sout2866
+    self: sout2866
+    subfamily: ocea1241
+    subsubfamily: poly1242
+  title:
+    en: South Marquesan
+- id: stan1306
+  props:
+    family: aust1307
+    language: stan1306
+    self: stan1306
+    subfamily: mala1536
+    subsubfamily: mala1538
+  title:
+    en: Standard Malay
+- id: sund1252
+  props:
+    family: aust1307
+    language: sund1252
+    self: sund1252
+    subfamily: mala1536
+    subsubfamily: ''
+  title:
+    en: Sundanese
+- id: taga1273
+  props:
+    family: aust1307
+    language: taga1273
+    self: taga1273
+    subfamily: saba1285
+    subsubfamily: muru1275
+  title:
+    en: Tagal Murut
+- id: taga1270
+  props:
+    family: aust1307
+    language: taga1270
+    self: taga1270
+    subfamily: grea1284
+    subsubfamily: cent2246
+  title:
+    en: Tagalog
+- id: tahi1242
+  props:
+    family: aust1307
+    language: tahi1242
+    self: tahi1242
+    subfamily: ocea1241
+    subsubfamily: poly1242
+  title:
+    en: Tahitian
+- id: taus1251
+  props:
+    family: aust1307
+    language: taus1251
+    self: taus1251
+    subfamily: grea1284
+    subsubfamily: cent2246
+  title:
+    en: Tausug
+- id: tbol1240
+  props:
+    family: aust1307
+    language: tbol1240
+    self: tbol1240
+    subfamily: bili1253
+    subsubfamily: ''
+  title:
+    en: Tboli
+- id: tiko1237
+  props:
+    family: aust1307
+    language: tiko1237
+    self: tiko1237
+    subfamily: ocea1241
+    subsubfamily: poly1242
+  title:
+    en: Tikopia
+- id: toab1237
+  props:
+    family: aust1307
+    language: toab1237
+    self: toab1237
+    subfamily: ocea1241
+    subsubfamily: sout2853
+  title:
+    en: To'abaita
+- id: tuam1242
+  props:
+    family: aust1307
+    language: tuam1242
+    self: tuam1242
+    subfamily: ocea1241
+    subsubfamily: poly1242
+  title:
+    en: Tuamotuan
+- id: uabm1237
+  props:
+    family: aust1307
+    language: uabm1237
+    self: uabm1237
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Uab Meto
+- id: umaa1242
+  props:
+    family: aust1307
+    language: umaa1242
+    self: umaa1242
+    subfamily: cele1242
+    subsubfamily: ''
+  title:
+    en: Uma
+- id: pile1238
+  props:
+    family: aust1307
+    language: pile1238
+    self: pile1238
+    subfamily: ocea1241
+    subsubfamily: poly1242
+  title:
+    en: Vaeakau-Taumako
+- id: vang1243
+  props:
+    family: aust1307
+    language: vang1243
+    self: vang1243
+    subfamily: ocea1241
+    subsubfamily: ''
+  title:
+    en: Vangunu
+- id: wame1241
+  props:
+    family: aust1307
+    language: wame1241
+    self: wame1241
+    subfamily: sout3229
+    subsubfamily: yape1249
+  title:
+    en: Wamesa
+- id: west2563
+  props:
+    family: aust1307
+    language: west2563
+    self: west2563
+    subfamily: nort3171
+    subsubfamily: ''
+  title:
+    en: Western Penan
+- id: weje1237
+  props:
+    family: aust1307
+    language: weje1237
+    self: weje1237
+    subfamily: ''
+    subsubfamily: sumb1243
+  title:
+    en: Wewewa
+- id: yape1248
+  props:
+    family: aust1307
+    language: yape1248
+    self: yape1248
+    subfamily: ocea1241
+    subsubfamily: ''
+  title:
+    en: Yapese
+- id: mali1284
+  props:
+    family: bain1263
+    language: mali1284
+    self: mali1284
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Mali
+- id: imon1245
+  props:
+    family: bord1247
+    language: imon1245
+    self: imon1245
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Imonda
+- id: wari1266
+  props:
+    family: bord1247
+    language: wari1266
+    self: wari1266
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Waris
+- id: chua1250
+  props:
+    family: cent2120
+    language: chua1250
+    self: chua1250
+    subfamily: simb1258
+    subsubfamily: ''
+  title:
+    en: Chuave
+- id: bauz1241
+  props:
+    family: ''
+    language: bauz1241
+    self: bauz1241
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Bauzi
+- id: meri1244
+  props:
+    family: east2503
+    language: meri1244
+    self: meri1244
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Meriam
+- id: kate1253
+  props:
+    family: fini1244
+    language: kate1253
+    self: kate1253
+    subfamily: huon1246
+    subsubfamily: ''
+  title:
+    en: Kâte
+- id: koro1312
+  props:
+    family: grea1275
+    language: koro1312
+    self: koro1312
+    subfamily: beck1235
+    subsubfamily: ''
+  title:
+    en: Korowai
+- id: tabo1241
+  props:
+    family: ''
+    language: tabo1241
+    self: tabo1241
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Tabo
+- id: alek1238
+  props:
+    family: kain1273
+    language: alek1238
+    self: alek1238
+    subfamily: goro1272
+    subsubfamily: gahu1246
+  title:
+    en: Alekano
+- id: bena1264
+  props:
+    family: kain1273
+    language: bena1264
+    self: bena1264
+    subfamily: goro1272
+    subsubfamily: ''
+  title:
+    en: Benabena
+- id: fore1270
+  props:
+    family: kain1273
+    language: fore1270
+    self: fore1270
+    subfamily: goro1272
+    subsubfamily: fore1273
+  title:
+    en: Fore
+- id: keya1238
+  props:
+    family: kain1273
+    language: keya1238
+    self: keya1238
+    subfamily: goro1272
+    subsubfamily: kama1374
+  title:
+    en: Keyagana
+- id: sian1257
+  props:
+    family: kain1273
+    language: sian1257
+    self: sian1257
+    subfamily: goro1272
+    subsubfamily: ''
+  title:
+    en: Siane
+- id: usar1243
+  props:
+    family: kain1273
+    language: usar1243
+    self: usar1243
+    subfamily: kain1274
+    subsubfamily: gauw1235
+  title:
+    en: Usarufa
+- id: yaga1260
+  props:
+    family: kain1273
+    language: yaga1260
+    self: yaga1260
+    subfamily: goro1272
+    subsubfamily: kama1374
+  title:
+    en: Yagaria
+- id: sout2949
+  props:
+    family: kiwa1251
+    language: sout2949
+    self: sout2949
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Southern Kiwai
+- id: nucl1630
+  props:
+    family: koia1260
+    language: nucl1630
+    self: nucl1630
+    subfamily: bara1376
+    subsubfamily: ''
+  title:
+    en: Barai
+- id: yima1243
+  props:
+    family: ''
+    language: yima1243
+    self: yima1243
+    subfamily: lowe1423
+    subsubfamily: kara1498
+  title:
+    en: Yimas
+- id: amel1241
+  props:
+    family: mada1298
+    language: amel1241
+    self: amel1241
+    subfamily: nort3379
+    subsubfamily: mabu1247
+  title:
+    en: Amele
+- id: anam1248
+  props:
+    family: mada1298
+    language: anam1248
+    self: anam1248
+    subfamily: sout3148
+    subsubfamily: pomo1272
+  title:
+    en: Anamuxra
+- id: usan1239
+  props:
+    family: mada1298
+    language: usan1239
+    self: usan1239
+    subfamily: nort3379
+    subsubfamily: numu1240
+  title:
+    en: Usan
+- id: wask1241
+  props:
+    family: mada1298
+    language: wask1241
+    self: wask1241
+    subfamily: kowa1247
+    subsubfamily: ''
+  title:
+    en: Waskia
+- id: juan1238
+  props:
+    family: aust1305
+    language: juan1238
+    self: juan1238
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Juang
+- id: khar1287
+  props:
+    family: aust1305
+    language: khar1287
+    self: khar1287
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Kharia
+- id: kork1243
+  props:
+    family: aust1305
+    language: kork1243
+    self: kork1243
+    subfamily: ''
+    subsubfamily: nort3151
+  title:
+    en: Korku
+- id: korw1242
+  props:
+    family: aust1305
+    language: korw1242
+    self: korw1242
+    subfamily: ''
+    subsubfamily: nort3151
+  title:
+    en: Korwa
+- id: mund1320
+  props:
+    family: aust1305
+    language: mund1320
+    self: mund1320
+    subfamily: ''
+    subsubfamily: nort3151
+  title:
+    en: Mundari
+- id: sora1254
+  props:
+    family: aust1305
+    language: sora1254
+    self: sora1254
+    subfamily: ''
+    subsubfamily: ''
+  title:
+    en: Sora
+- id: achu1248
+  props:
+    family: jiva1245
+    language: achu1248
+    self: achu1248
+    subfamily: shua1256
+    subsubfamily: ''
+  title:
+    en: Achuar-Shiwiar
+- id: aluk1238
+  props:
+    family: drav1251
+    language: aluk1238
+    self: aluk1238
+    subfamily: ''
+    subsubfamily: tami1291
+  title:
+    en: Alu Kurumba
+- id: bada1257
+  props:
+    family: drav1251
+    language: bada1257
+    self: bada1257
+    subfamily: ''
+    subsubfamily: tami1291
+  title:
+    en: Badaga
+- id: gond1265
+  props:
+    family: drav1251
+    language: gond1265
+    self: gond1265
+    subfamily: ''
+    subsubfamily: gond1265
+  title:
+    en: Gondi
+- id: jenn1240
+  props:
+    family: drav1251
+    language: jenn1240
+    self: jenn1240
+    subfamily: ''
+    subsubfamily: tami1291
+  title:
+    en: Jennu Kurumba
+- id: nucl1305
+  props:
+    family: drav1251
+    language: nucl1305
+    self: nucl1305
+    subfamily: ''
+    subsubfamily: tami1291
+  title:
+    en: Kannada
+- id: koda1255
+  props:
+    family: drav1251
+    language: koda1255
+    self: koda1255
+    subfamily: ''
+    subsubfamily: tami1291
+  title:
+    en: Kodava
+- id: kond1295
+  props:
+    family: drav1251
+    language: kond1295
+    self: kond1295
+    subfamily: ''
+    subsubfamily: kond1294
+  title:
+    en: Konda-Dora
+- id: kuvi1243
+  props:
+    family: drav1251
+    language: kuvi1243
+    self: kuvi1243
+    subfamily: ''
+    subsubfamily: kond1294
+  title:
+    en: Kuvi
+- id: mala1464
+  props:
+    family: drav1251
+    language: mala1464
+    self: mala1464
+    subfamily: ''
+    subsubfamily: tami1291
+  title:
+    en: Malayalam
+- id: mand1478
+  props:
+    family: drav1251
+    language: mand1478
+    self: mand1478
+    subfamily: ''
+    subsubfamily: kond1294
+  title:
+    en: Manda
+- id: peng1244
+  props:
+    family: drav1251
+    language: peng1244
+    self: peng1244
+    subfamily: ''
+    subsubfamily: kond1294
+  title:
+    en: Pengo
+- id: tami1289
+  props:
+    family: drav1251
+    language: tami1289
+    self: tami1289
+    subfamily: ''
+    subsubfamily: tami1291
+  title:
+    en: Tamil
+- id: telu1262
+  props:
+    family: drav1251
+    language: telu1262
+    self: telu1262
+    subfamily: ''
+    subsubfamily: telu1265
+  title:
+    en: Telugu
+- id: toda1252
+  props:
+    family: drav1251
+    language: toda1252
+    self: toda1252
+    subfamily: ''
+    subsubfamily: tami1291
+  title:
+    en: Toda
+- id: alak1253
+  props:
+    family: aust1305
+    language: alak1253
+    self: alak1253
+    subfamily: bahn1264
+    subsubfamily: ''
+  title:
+    en: Alak
+- id: bahn1262
+  props:
+    family: aust1305
+    language: bahn1262
+    self: bahn1262
+    subfamily: bahn1264
+    subsubfamily: ''
+  title:
+    en: Bahnar
+- id: cent1989
+  props:
+    family: aust1305
+    language: cent1989
+    self: cent1989
+    subfamily: khme1253
+    subsubfamily: ''
+  title:
+    en: Central Khmer
+- id: east1236
+  props:
+    family: aust1305
+    language: east1236
+    self: east1236
+    subfamily: katu1271
+    subsubfamily: katu1272
+  title:
+    en: Eastern Katu
+- id: hree1244
+  props:
+    family: aust1305
+    language: hree1244
+    self: hree1244
+    subfamily: bahn1264
+    subsubfamily: ''
+  title:
+    en: Hre
+- id: khas1269
+  props:
+    family: aust1305
+    language: khas1269
+    self: khas1269
+    subfamily: khas1268
+    subsubfamily: ''
+  title:
+    en: Khasi
+- id: khmu1256
+  props:
+    family: aust1305
+    language: khmu1256
+    self: khmu1256
+    subfamily: khmu1236
+    subsubfamily: ''
+  title:
+    en: Khmu
+- id: tamp1251
+  props:
+    family: aust1305
+    language: tamp1251
+    self: tamp1251
+    subfamily: bahn1264
+    subsubfamily: ''
+  title:
+    en: Tampuan
+- id: viet1252
+  props:
+    family: aust1305
+    language: viet1252
+    self: viet1252
+    subfamily: viet1250
+    subsubfamily: ''
+  title:
+    en: Vietnamese
+- id: west2396
+  props:
+    family: aust1305
+    language: west2396
+    self: west2396
+    subfamily: pala1352
+    subsubfamily: ''
+  title:
+    en: Western Lawa
+- id: chru1239
+  props:
+    family: aust1307
+    language: chru1239
+    self: chru1239
+    subfamily: mala1536
+    subsubfamily: cham1327
+  title:
+    en: Chru
+- id: east2563
+  props:
+    family: aust1307
+    language: east2563
+    self: east2563
+    subfamily: mala1536
+    subsubfamily: cham1327
+  title:
+    en: Eastern Cham
+- id: haro1237
+  props:
+    family: aust1307
+    language: haro1237
+    self: haro1237
+    subfamily: mala1536
+    subsubfamily: cham1327
+  title:
+    en: Haroi
+- id: jara1266
+  props:
+    family: aust1307
+    language: jara1266
+    self: jara1266
+    subfamily: mala1536
+    subsubfamily: cham1327
+  title:
+    en: Jarai
+- id: rade1240
+  props:
+    family: aust1307
+    language: rade1240
+    self: rade1240
+    subfamily: mala1536
+    subsubfamily: cham1327
+  title:
+    en: Rade
+- id: tsat1238
+  props:
+    family: aust1307
+    language: tsat1238
+    self: tsat1238
+    subfamily: mala1536
+    subsubfamily: cham1327
+  title:
+    en: Tsat
+- id: west2650
+  props:
+    family: aust1307
+    language: west2650
+    self: west2650
+    subfamily: mala1536
+    subsubfamily: cham1327
+  title:
+    en: Western Cham
+- id: hmon1333
+  props:
+    family: hmon1336
+    language: hmon1333
+    self: hmon1333
+    subfamily: hmon1337
+    subsubfamily: ''
+  title:
+    en: Hmong Daw
+- id: hmon1264
+  props:
+    family: hmon1336
+    language: hmon1264
+    self: hmon1264
+    subfamily: hmon1337
+    subsubfamily: ''
+  title:
+    en: Hmong Njua

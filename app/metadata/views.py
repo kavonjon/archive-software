@@ -530,6 +530,43 @@ def item_index(request):
                     zipf.write(collection_json_path, arcname=os.path.join('collections', collection_filename))
 
 
+                def parse_complex_date(date_str):
+                    if not date_str:
+                        return None
+                        
+                    # Try MM/DD/YYYY format
+                    try:
+                        return datetime.datetime.strptime(date_str, '%m/%d/%Y').strftime('%Y-%m-%d')
+                    except ValueError:
+                        pass
+                    
+                    # Try MM/DD/YYYY-MM/DD/YYYY format
+                    try:
+                        start_date, end_date = date_str.split('-')
+                        start = datetime.datetime.strptime(start_date.strip(), '%m/%d/%Y').strftime('%Y-%m-%d')
+                        end = datetime.datetime.strptime(end_date.strip(), '%m/%d/%Y').strftime('%Y-%m-%d')
+                        return f"{start}/{end}"
+                    except ValueError:
+                        pass
+                    
+                    # Try MM/YYYY format
+                    try:
+                        return datetime.datetime.strptime(date_str, '%m/%Y').strftime('%Y-%m')
+                    except ValueError:
+                        pass
+                    
+                    # Try MM/YYYY-MM/YYYY format
+                    try:
+                        start_date, end_date = date_str.split('-')
+                        start = datetime.datetime.strptime(start_date.strip(), '%m/%Y').strftime('%Y-%m')
+                        end = datetime.datetime.strptime(end_date.strip(), '%m/%Y').strftime('%Y-%m')
+                        return f"{start}/{end}"
+                    except ValueError:
+                        pass
+                    
+                    # If none of the above formats match, return the original string
+                    return date_str
+
                 for item in items_to_migrate:
                     item_dict = model_to_dict(item)
                     # item_dict['language'] = [model_to_dict(language) for language in item.language.all()]
@@ -550,14 +587,14 @@ def item_index(request):
                     # item_dict['item_geographic'] = [model_to_dict(geographic) for geographic in item.item_geographic.all()]
                     # item_dict['item_geographic__parent'] = [model_to_dict(geographic) for geographic in item.item_geographic.all()]
 
-                    # Split the date string by "/"
-                    deposit_date_parts = item.deposit_date.split("/")
-                    # Reverse the order of the elements
-                    deposit_date_parts.reverse()
-                    # Add a leading zero to elements with only one digit
-                    deposit_date_parts = [part.zfill(2) for part in deposit_date_parts]
-                    # Join the elements back together into a string
-                    item_dict['deposit_date_formatted'] = "-".join(deposit_date_parts)
+                    # # Split the date string by "/"
+                    # deposit_date_parts = item.deposit_date.split("/")
+                    # # Reverse the order of the elements
+                    # deposit_date_parts.reverse()
+                    # # Add a leading zero to elements with only one digit
+                    # deposit_date_parts = [part.zfill(2) for part in deposit_date_parts]
+                    # # Join the elements back together into a string
+                    # item_dict['deposit_date_formatted'] = "-".join(deposit_date_parts)
 
                     # construct additional titles
                     item_titles = ItemTitle.objects.filter(item=item)
@@ -596,7 +633,7 @@ def item_index(request):
                         ],
                         "title": item.english_title,
                         "additional_titles": additional_titles,
-                        "publication_date": item_dict['deposit_date_formatted'],
+                        "publication_date": parse_complex_date(item_dict['deposit_date']),
                         "description": item.description_scope_and_content
                     }
 

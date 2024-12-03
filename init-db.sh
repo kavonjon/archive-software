@@ -17,17 +17,18 @@ fi
 # Wait for PostgreSQL to be ready
 echo "Waiting for PostgreSQL to be ready on port $DB_PORT..."
 until pg_isready -U postgres -p "$DB_PORT"; do
+  echo "Waiting for PostgreSQL..."
   sleep 1
 done
 echo "PostgreSQL is ready."
 
-# Check if the database exists
+# Ensure the database exists
 echo "Checking if database $DB_NAME exists on port $DB_PORT..."
 DB_EXISTS=$(psql -U postgres -p "$DB_PORT" -tAc "SELECT 1 FROM pg_database WHERE datname = '$DB_NAME'")
-if [ "$DB_EXISTS" != "1" ]; then
+if [[ "$DB_EXISTS" != "1" ]]; then
   echo "Database $DB_NAME does not exist. Initializing..."
 
-  # Create user if not exists
+  # Create user if it doesn't exist
   echo "Creating user $DB_USER..."
   psql -U postgres -p "$DB_PORT" -tAc "DO \$\$
   BEGIN
@@ -45,7 +46,7 @@ if [ "$DB_EXISTS" != "1" ]; then
   echo "Granting privileges to user $DB_USER on database $DB_NAME..."
   psql -U postgres -p "$DB_PORT" -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
 
-  # Set role configurations
+  # Configure user role
   echo "Configuring role $DB_USER..."
   psql -U postgres -p "$DB_PORT" -c "ALTER ROLE $DB_USER SET client_encoding TO 'utf8';"
   psql -U postgres -p "$DB_PORT" -c "ALTER ROLE $DB_USER SET default_transaction_isolation TO 'read committed';"
@@ -62,9 +63,9 @@ fi
 # Restore dump if database is empty
 echo "Checking if database $DB_NAME is empty on port $DB_PORT..."
 DB_EMPTY=$(psql -U postgres -p "$DB_PORT" -d "$DB_NAME" -tAc "SELECT COUNT(*) = 0 FROM pg_tables WHERE schemaname = 'public';")
-if [ "$DB_EMPTY" = "t" ]; then
+if [[ "$DB_EMPTY" == "t" ]]; then
   echo "Database $DB_NAME is empty. Restoring from dump..."
-  if [ -f /backup/backup.dump ]; then
+  if [[ -f /backup/backup.dump ]]; then
     pg_restore -U postgres -p "$DB_PORT" -d "$DB_NAME" /backup/backup.dump
     echo "Restore completed."
   else
@@ -74,5 +75,5 @@ else
   echo "Database $DB_NAME is already populated on port $DB_PORT. Skipping restore."
 fi
 
-# Start PostgreSQL server (port is handled by Docker Compose command)
+# Start PostgreSQL server (handled by Docker entrypoint)
 exec postgres

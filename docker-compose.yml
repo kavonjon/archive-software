@@ -20,7 +20,7 @@ services:
       - "54322"
     ports:
       - "54322:54322"
-    command: -p 54322
+    command: postgres -p 54322
     volumes:
       - postgres_data:/var/lib/postgresql/data/
       - ./backup:/backup

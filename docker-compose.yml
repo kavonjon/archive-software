@@ -18,7 +18,7 @@ services:
     restart: unless-stopped
     expose:
       - "54322"
-    command: ["bash", "/docker-entrypoint-initdb.d/init-db.sh"]
+    command: ["postgres", "-p", "54322"]
     volumes:
       - postgres_data:/var/lib/postgresql/data/
       - ./backup:/backup

@@ -18,15 +18,18 @@ services:
     restart: unless-stopped
     expose:
       - "54322"
-    command: -p 54322
+    command: ["bash", "/docker-entrypoint-initdb.d/init-db.sh"]
     volumes:
       - postgres_data:/var/lib/postgresql/data/
+      - ./backup:/backup
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
     env_file:
       - .env
-    environment:
-      - POSTGRES_DB=${DBNAME}
-      - POSTGRES_USER=${DBUSER}
-      - POSTGRES_PASSWORD=${DBPASS}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${DBUSER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   nginx:
     build: ./nginx

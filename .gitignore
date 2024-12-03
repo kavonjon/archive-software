@@ -13,6 +13,7 @@ app/runserver.py
 app/media/imports
 app/static
 docs/reference
+backup/*
 
 
 # random from local machines

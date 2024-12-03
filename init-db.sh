@@ -74,6 +74,3 @@ if [[ "$DB_EMPTY" == "t" ]]; then
 else
   echo "Database $DB_NAME is already populated on port $DB_PORT. Skipping restore."
 fi
-
-# Start PostgreSQL server (handled by Docker entrypoint)
-exec postgres

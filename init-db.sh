@@ -66,7 +66,7 @@ DB_EMPTY=$(psql -U postgres -p "$DB_PORT" -d "$DB_NAME" -tAc "SELECT COUNT(*) = 
 if [[ "$DB_EMPTY" == "t" ]]; then
   echo "Database $DB_NAME is empty. Restoring from dump..."
   if [[ -f /backup/backup.sql ]]; then
-    pg_restore -U postgres -p "$DB_PORT" -d "$DB_NAME" /backup/backup.sql
+    psql -U postgres -p "$DB_PORT" -d "$DB_NAME" < /backup/backup.sql
     echo "Restore completed."
   else
     echo "No dump file found at /backup/backup.sql. Skipping restore."

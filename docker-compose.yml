@@ -16,11 +16,8 @@ services:
     image: postgres
     container_name: postgres_django
     restart: unless-stopped
-    expose:
-      - "54322"
     ports:
-      - "54322:54322"
-    command: postgres -p 54322
+      - "54322:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data/
       - ./backup:/backup
@@ -28,7 +25,7 @@ services:
     env_file:
       - .env
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -p 54322"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 10s
       retries: 6

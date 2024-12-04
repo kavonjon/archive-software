@@ -6,7 +6,7 @@ set -e
 DB_NAME=${DBNAME}
 DB_USER=${DBUSER}
 DB_PASS=${DBPASS}
-DB_PORT=${DBPORT}
+DB_PORT=5432
 
 # Ensure required variables are set
 if [[ -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASS" || -z "$DB_PORT" ]]; then

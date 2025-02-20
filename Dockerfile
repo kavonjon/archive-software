@@ -16,11 +16,7 @@ RUN python3 -m pip install -r requirements.txt
 
 COPY ./app /app
 
-RUN mkdir -p /var/log/django && chown -R django:django /var/log/django
-
 WORKDIR /app
 
 COPY ./entrypoint.sh /
 ENTRYPOINT ["sh", "/entrypoint.sh"]
-
-

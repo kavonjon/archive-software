@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     volumes:
       - static_volume:/app/static
+      - django_logs:/var/log/django
     expose:
       - 8000
     env_file:
@@ -44,7 +45,7 @@ services:
 volumes:
   postgres_data:
   static_volume:
-
+  django_logs:
 networks:
   default:
     external: true

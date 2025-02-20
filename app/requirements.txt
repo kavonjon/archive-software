@@ -8,10 +8,13 @@ decorator==5.1.1
 Django==3.2
 django-appconf==1.0.5
 django-environ==0.11.2
+django-filter==23.5
 django-multiselectfield==0.1.12
+django-oauth-toolkit==2.3.0
 django-select2==8.2.1
 django-video-encoding==1.0.0
 djangorestframework==3.14.0
+drf-spectacular==0.28.0
 et-xmlfile==1.1.0
 gunicorn==21.2.0
 h11==0.14.0

@@ -20,7 +20,7 @@ from django.views.generic.edit import FormView, DeleteView
 from rest_framework import generics
 from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin
 from .models import Item, ItemTitle, Collection, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
-from .serializers import ItemMigrateSerializer, LanguageSerializer
+from .serializers import ItemMigrateSerializer, LegacyLanguageSerializer
 from .forms import CollectionForm, LanguageForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
 from django.contrib.staticfiles import finders
 
@@ -36,7 +36,7 @@ def trigger_error(request):
 
 class LanguageListView(LoginRequiredMixin, UserPassesTestMixin, generics.ListAPIView):
     queryset = Language.objects.all()
-    serializer_class = LanguageSerializer
+    serializer_class = LegacyLanguageSerializer
 
     def test_func(self):
         return self.request.user.groups.filter(name='Archivist').exists()

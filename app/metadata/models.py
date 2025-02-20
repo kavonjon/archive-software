@@ -627,6 +627,12 @@ class ItemTitle(models.Model):
     title = models.CharField(max_length=500)
     language = models.ForeignKey(Language, related_name="title_language", on_delete=models.CASCADE)
     item = models.ForeignKey(Item, related_name='title_item', on_delete=models.CASCADE)
+    default = models.BooleanField(default=False)
+    added = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+    modified_by = models.CharField(max_length=255)
+    class Meta:
+        ordering = ['item', 'title']
     def __str__(self):
         return self.item.catalog_number + ": " + self.title
 

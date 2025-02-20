@@ -7,7 +7,7 @@ class ItemMigrateSerializer(serializers.ModelSerializer):
         model = Item
         fields = ['id', 'migrate']
 
-class LanguageSerializer(serializers.ModelSerializer):
+class LegacyLanguageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Language
         fields = '__all__'

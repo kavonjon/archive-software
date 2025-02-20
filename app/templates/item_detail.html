@@ -46,13 +46,37 @@
         <b>Additional digital file location:</b> {{ item.additional_digital_file_location }}
     </div>
 </div>
-{% for title in titles %}
 <div class="row">
     <div class="col-md-12">
-        <b>Title:</b> {{ title.title }} (Language: {{ title.language }})
+        <b>Title:</b>
     </div>
 </div>
+{% for title in titles %}
+    {% if title.default %}
+    <div class="row">
+        <div class="col-md-12 indented">
+            {{ title.title }} (Language: {{ title.language }})
+        </div>
+    </div>
+    {% endif %}
 {% endfor %}
+
+{% if titles|length > 1 %}
+<div class="row">
+    <div class="col-md-12">
+        <b>Other titles:</b>
+    </div>
+</div>
+{% for title in titles %}
+    {% if not title.default %}
+    <div class="row">
+        <div class="col-md-12 indented">
+            {{ title.title }} (Language: {{ title.language }})
+        </div>
+    </div>
+    {% endif %}
+{% endfor %}
+{% endif %}
 <div class="bg-middling">
     <div class="row">
         <div class="col-md-12">

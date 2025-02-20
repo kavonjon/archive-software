@@ -72,9 +72,13 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'multiselectfield',
     'video_encoding',
+    'django_filters',
     'rest_framework',
+    'oauth2_provider',
+    'drf_spectacular',  
     'django_select2',
     'metadata',
+    'api',
 ]
 
 MIDDLEWARE = [
@@ -83,6 +87,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'oauth2_provider.middleware.OAuth2TokenMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -200,3 +205,50 @@ else:
 #FORCE_SCRIPT_NAME = '/dj'
 #USE_X_FORWARDED_HOST = True
 #SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+    ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Archive API',
+    'DESCRIPTION': 'API for accessing the Archive collection database...',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SECURITY': [
+        {'SessionAuth': []},
+        {'Bearer': []}
+    ],
+    'AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+    ],
+    'TAGS': [
+        {'name': 'items', 'description': 'Operations with archive items'},
+        {'name': 'collections', 'description': 'Operations with collections'},
+        {'name': 'languages', 'description': 'Operations with languages'},
+        {'name': 'collaborators', 'description': 'Operations with collaborators'},
+    ],
+}
+
+# OAuth2 Configuration
+OAUTH2_PROVIDER = {
+    'SCOPES': {
+        'read': 'Read access to public items',
+        'write': 'Write access',
+    },
+    'DEFAULT_SCOPES': ['read'],
+    'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,
+    'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
+    'REFRESH_TOKEN_EXPIRE_SECONDS': 36000,
+}

@@ -21,6 +21,11 @@ from django.conf.urls.static import static
 from django.urls import path, include
 from django.views.generic import TemplateView
 from metadata.views import collection_index, collection_detail, collection_add, collection_edit, collection_delete, item_index, item_migrate_list, item_detail, item_edit, item_add, item_delete,language_index, language_detail, language_edit, language_add, language_delete, language_stats, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView, LanguageListView, custom_error_500, trigger_error
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularSwaggerView,
+    SpectacularRedocView,
+)
 
 handler500 = custom_error_500
 
@@ -81,6 +86,14 @@ urlpatterns = [
     path('documents/import/', document_upload.as_view(), name='document_upload'),
     path('collaborators/import/', ImportView, name='import_collaborator'),
     path('languages/import/', ImportView, name='import_language'),
+
+    # API Schema and Documentation
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+
+    # API URLs - Change this line
+    path('api/', include('api.urls')),  # Now includes under /api prefix
 ]
 
 #urlpatterns = path(r'dj/', include(urlpatterns)),  # prepend 'django/' to all URLs

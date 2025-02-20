@@ -10,8 +10,16 @@ admin.site.register(Collaborator)
 admin.site.register(CollaboratorRole)
 admin.site.register(CollaboratorName)
 admin.site.register(Geographic)
-admin.site.register(Item)
-admin.site.register(ItemTitle)
+
+class ItemTitleInline(admin.TabularInline):
+    model = ItemTitle
+    extra = 1
+    fields = ['title', 'language', 'default']
+
+@admin.register(Item)
+class ItemAdmin(admin.ModelAdmin):
+    inlines = [ItemTitleInline]
+
 admin.site.register(Columns_export)
 admin.site.register(Document)
 admin.site.register(Collection)

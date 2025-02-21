@@ -63,7 +63,7 @@ def item_index(request):
     indigenous_title_contains_query = request.GET.get('indigenous_title_contains')
     english_title_contains_query = request.GET.get('english_title_contains')
     titles_contains_query = request.GET.get('titles_contains')
-    general_content_contains_query = request.GET.get('general_content_contains')
+    resource_type_contains_query = request.GET.get('resource_type_contains')
     language_contains_query = request.GET.get('language_contains')
     creation_date_min_query = request.GET.get('creation_date_min')
     creation_date_max_query = request.GET.get('creation_date_max')
@@ -83,7 +83,7 @@ def item_index(request):
     indigenous_title_contains_query_last = ''
     english_title_contains_query_last = ''
     titles_contains_query_last = ''
-    general_content_contains_query_last = ''
+    resource_type_contains_query_last = ''
     language_contains_query_last = ''
     creation_date_min_query_last = ''
     creation_date_max_query_last = ''
@@ -123,9 +123,9 @@ def item_index(request):
         qs = qs.filter(english_title__icontains = english_title_contains_query)
         english_title_contains_query_last = english_title_contains_query
 
-    if is_valid_param(general_content_contains_query):
-        qs = qs.filter(general_content__icontains = general_content_contains_query)
-        general_content_contains_query_last = general_content_contains_query
+    if is_valid_param(resource_type_contains_query):
+        qs = qs.filter(resource_type__icontains = resource_type_contains_query)
+        resource_type_contains_query_last = resource_type_contains_query
 
     if is_valid_param(language_contains_query):
         qs = qs.filter(language__name__icontains = language_contains_query)
@@ -258,7 +258,7 @@ def item_index(request):
         partial_qs_english_title = qs_simple.filter(english_title__icontains = keyword_contains_query)
         partial_qs_equipment_used = qs_simple.filter(equipment_used__icontains = keyword_contains_query)
         partial_qs_filemaker_legacy_pk_id = qs_simple.filter(filemaker_legacy_pk_id__icontains = keyword_contains_query)
-        partial_qs_general_content = qs_simple.filter(general_content__icontains = keyword_contains_query)
+        partial_qs_resource_type = qs_simple.filter(resource_type__icontains = keyword_contains_query)
         partial_qs_genre = qs_simple.filter(genre__icontains = keyword_contains_query)
         partial_qs_global_region = qs_simple.filter(global_region__icontains = keyword_contains_query)
         partial_qs_indigenous_title = qs_simple.filter(indigenous_title__icontains = keyword_contains_query)
@@ -347,7 +347,7 @@ def item_index(request):
                                     partial_qs_english_title,
                                     partial_qs_equipment_used,
                                     partial_qs_filemaker_legacy_pk_id,
-                                    partial_qs_general_content,
+                                    partial_qs_resource_type,
                                     partial_qs_genre,
                                     partial_qs_global_region,
                                     partial_qs_indigenous_title,
@@ -610,7 +610,7 @@ def item_index(request):
                     # Construct metadata
                     metadata = {
                         "resource_type": {
-                            "id": item_dict['general_content'].replace('_', '-').replace('audio-video', 'video'),
+                            "id": item_dict['resource_type'].replace('_', '-').replace('audio-video', 'video'),
                         },
                         "creators": [
                             {
@@ -896,7 +896,7 @@ def item_index(request):
                     header_cell.fill = style_general
                     sheet_column_counter += 1
                     header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                if column_choice.item_general_content:
+                if column_choice.item_resource_type:
                     header_cell.value = 'General content'
                     header_cell.fill = style_general
                     sheet_column_counter += 1
@@ -1370,8 +1370,8 @@ def item_index(request):
                         xl_row.append(item.indigenous_title)
                     if column_choice.item_english_title:
                         xl_row.append(item.english_title)
-                    if column_choice.item_general_content:
-                        xl_row.append(item.get_general_content_display())
+                    if column_choice.item_resource_type:
+                        xl_row.append(item.get_resource_type_display())
                     if column_choice.item_language:
                         language_rows = []
                         language_rows.extend( item.language.all().values_list('name', flat=True).order_by('name') )
@@ -1726,7 +1726,7 @@ def item_index(request):
         'indigenous_title_contains_query_last' : indigenous_title_contains_query_last,
         'english_title_contains_query_last' : english_title_contains_query_last,
         'titles_contains_query_last' : titles_contains_query_last,
-        'general_content_contains_query_last' : general_content_contains_query_last,
+        'resource_type_contains_query_last' : resource_type_contains_query_last,
         'language_contains_query_last' : language_contains_query_last,
         'creation_date_min_query_last' : creation_date_min_query_last,
         'creation_date_max_query_last' : creation_date_max_query_last,
@@ -3999,7 +3999,7 @@ def ImportView(request):
                 import_field(request, 'equipment_used', ('^Equipment Used$',), headers, row, item, model = 'Item')
                 import_field(request, 'filemaker_legacy_pk_id', ('PK_ID',), headers, row, item, model = 'Item')
                 import_field(request, 'filemaker_legacy_pk_id', ('Filemaker Legacy PK ID',), headers, row, item, model = 'Item')
-                general_content_success = import_field(request, 'general_content', ('^General Content$',), headers, row, item, model = 'Item', choices=CONTENT_CHOICES)
+                resource_type_success = import_field(request, 'resource_type', ('^General Content$',), headers, row, item, model = 'Item', choices=CONTENT_CHOICES)
                 genre_success = import_field(request, 'genre', ('^Genre$',), headers, row, item, model = 'Item', choices=STRICT_GENRE_CHOICES, multiselect=True)
                 import_field(request, 'global_region', ('^Global Region$',), headers, row, item, model = 'Item')
                 import_field(request, 'indigenous_title', ('^Indigenous Title$',), headers, row, item, model = 'Item')
@@ -4044,7 +4044,7 @@ def ImportView(request):
                                    collection_date_success and
                                    creation_date_success and
                                    deposit_date_1part_success and
-                                   general_content_success and
+                                   resource_type_success and
                                    genre_success and
                                    access_level_success and
                                    original_format_medium_success and

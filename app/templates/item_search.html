@@ -85,8 +85,8 @@
   <div class="row mb-2">
     <div class="col-12">
       <div class="input-group">
-        <input class="form-control py-2 border-right-0 border" type="search" name="general_content_contains"
-            placeholder="General content contains..." value="{{ general_content_contains_query_last }}" />
+        <input class="form-control py-2 border-right-0 border" type="search" name="resource_type_contains"
+            placeholder="General content contains..." value="{{ resource_type_contains_query_last }}" />
         <span class="input-group-text bg-transparent">
           <i class="bi bi-search"></i>
         </span>
@@ -217,7 +217,7 @@
             {% anonymize_collaborators item.collaborator.all request.user 'all_names' as all_collaborators %}{{all_collaborators|join:"; " }}
         </div>
         <div class="col-md-2">
-            {{item.get_general_content_display }}
+            {{item.get_resource_type_display }}
         </div>
         <div class="col-md-2">
             {{ item.creation_date }}

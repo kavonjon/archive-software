@@ -252,6 +252,11 @@ OAUTH2_PROVIDER = {
     'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,
     'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
     'REFRESH_TOKEN_EXPIRE_SECONDS': 36000,
+    'GRANT_TYPES': [
+        'client_credentials',
+        'password',
+        'refresh_token',
+    ],
 }
 
 LOGGING = {

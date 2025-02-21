@@ -574,7 +574,7 @@ class Item(models.Model):
     english_title = models.TextField(blank=True)
     equipment_used = models.CharField(max_length=255, blank=True)
     filemaker_legacy_pk_id = models.IntegerField(null=True, blank=True)
-    general_content = models.CharField(max_length=30, choices=CONTENT_CHOICES, blank=True) # to be partially automated based on filetype of documents
+    resource_type = models.CharField(max_length=30, choices=CONTENT_CHOICES, blank=True) # to be partially automated based on filetype of documents
     genre = MultiSelectField(choices=GENRE_CHOICES, blank=True)
     global_region = models.CharField(max_length=255, blank=True) # automate across deposit
     indigenous_title = models.TextField(blank=True)
@@ -741,7 +741,7 @@ class Columns_export(models.Model):
     item_english_title = models.BooleanField(default=True)
     item_equipment_used = models.BooleanField(default=True)
     item_filemaker_legacy_pk_id = models.BooleanField(default=True)
-    item_general_content = models.BooleanField(default=True)
+    item_resource_type = models.BooleanField(default=True)
     item_genre = models.BooleanField(default=True)
     item_geographic_lat_long = models.BooleanField(default=True)
     item_global_region = models.BooleanField(default=True)

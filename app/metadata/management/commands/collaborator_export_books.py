@@ -7,7 +7,7 @@ class Command(BaseCommand):
     def handle(self, **options):
         # now do the things that you want with your models here
 
-        collab_role_filter = CollaboratorRole.objects.filter(item__general_content='book')
+        collab_role_filter = CollaboratorRole.objects.filter(item__resource_type='book')
 
         collab_role_all_filters = collab_role_filter.filter(role__icontains='author').union(
                                   collab_role_filter.filter(role__icontains='editor'),
@@ -36,7 +36,7 @@ class Command(BaseCommand):
             xl_row.append(collaborator.tribal_affiliations)
 
 
-            current_collaborator_role_filter = CollaboratorRole.objects.filter(collaborator=collaborator).filter(item__general_content='book')
+            current_collaborator_role_filter = CollaboratorRole.objects.filter(collaborator=collaborator).filter(item__resource_type='book')
 
             current_collaborator_role_all_filters = current_collaborator_role_filter.filter(role__icontains='author').union(
                                                     current_collaborator_role_filter.filter(role__icontains='editor'),

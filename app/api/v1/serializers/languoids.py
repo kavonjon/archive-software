@@ -26,7 +26,7 @@ class LanguageDetailMetadataSerializer(serializers.Serializer):
     sec_subgroup = serializers.CharField(allow_blank=True)
     sec_subgroup_id = serializers.CharField(allow_blank=True)
 
-class LanguageListSerializer(serializers.ModelSerializer):
+class LanguoidListSerializer(serializers.ModelSerializer):
     """List serializer with basic metadata"""
     metadata = LanguageListMetadataSerializer(source='*')
 
@@ -39,7 +39,7 @@ class LanguageListSerializer(serializers.ModelSerializer):
             'metadata',
         ]
 
-class LanguageDetailSerializer(serializers.ModelSerializer):
+class LanguoidDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer with full metadata"""
     metadata = LanguageDetailMetadataSerializer(source='*')
 

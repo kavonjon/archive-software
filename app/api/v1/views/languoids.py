@@ -2,23 +2,23 @@ from rest_framework import viewsets
 from oauth2_provider.contrib.rest_framework import TokenHasScope
 from drf_spectacular.utils import extend_schema, OpenApiParameter, extend_schema_view
 from metadata.models import Language
-from ..serializers.languages import LanguageListSerializer, LanguageDetailSerializer
+from ..serializers.languoids import LanguoidListSerializer, LanguoidDetailSerializer
 from ...versioning import ArchiveAPIVersioning
 from .items import IsAdminOrHasToken
 
 @extend_schema_view(
     list=extend_schema(
-        summary="List languages",
-        description="Returns a list of all languages in the archive."
+        summary="List languoids",
+        description="Returns a list of all languoids in the archive."
     ),
     retrieve=extend_schema(
-        summary="Retrieve language",
-        description="Returns detailed information about a specific language."
+        summary="Retrieve languoid",
+        description="Returns detailed information about a specific languoid."
     )
 )
-class LanguageViewSet(viewsets.ReadOnlyModelViewSet):
+class LanguoidViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    API endpoint for accessing Archive Languages
+    API endpoint for accessing Archive Languoids
     """
     permission_classes = [IsAdminOrHasToken]
     required_scopes = ['read']
@@ -26,8 +26,8 @@ class LanguageViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_serializer_class(self):
         if self.action == 'list':
-            return LanguageListSerializer
-        return LanguageDetailSerializer
+            return LanguoidListSerializer
+        return LanguoidDetailSerializer
 
     def get_queryset(self):
         return Language.objects.all() 

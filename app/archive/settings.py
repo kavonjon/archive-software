@@ -219,6 +219,8 @@ REST_FRAMEWORK = {
         'django_filters.rest_framework.DjangoFilterBackend',
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_PAGINATION_CLASS': 'api.pagination.CustomPageNumberPagination',
+    'PAGE_SIZE': 100
 }
 
 SPECTACULAR_SETTINGS = {
@@ -237,7 +239,7 @@ SPECTACULAR_SETTINGS = {
     'TAGS': [
         {'name': 'items', 'description': 'Operations with archive items'},
         {'name': 'collections', 'description': 'Operations with collections'},
-        {'name': 'languages', 'description': 'Operations with languages'},
+        {'name': 'languoids', 'description': 'Operations with languoids'},
         {'name': 'collaborators', 'description': 'Operations with collaborators'},
     ],
 }

@@ -16,9 +16,6 @@ stable_router.register(r'collections', collections.CollectionViewSet, basename='
 stable_router.register(r'languages', languages.LanguageViewSet, basename='language')
 
 urlpatterns = [
-    # OAuth2 provider URLs
-    path('o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
-    
     # API endpoints
     path('beta/v1/', include(beta_router.urls)),
     path('v1/', include(stable_router.urls)),

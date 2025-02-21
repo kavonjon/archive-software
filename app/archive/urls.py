@@ -92,8 +92,11 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
-    # API URLs - Change this line
-    path('api/', include('api.urls')),  # Now includes under /api prefix
+    # Add before the API URLs
+    path('o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
+
+    # Your existing API URLs
+    path('api/', include('api.urls')),
 ]
 
 #urlpatterns = path(r'dj/', include(urlpatterns)),  # prepend 'django/' to all URLs

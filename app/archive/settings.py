@@ -250,13 +250,15 @@ OAUTH2_PROVIDER = {
     },
     'DEFAULT_SCOPES': ['read'],
     'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,
-    'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
     'REFRESH_TOKEN_EXPIRE_SECONDS': 36000,
-    'GRANT_TYPES': [
-        'client-credentials',
+    'ALLOWED_GRANT_TYPES': [
+        'client_credentials',
         'password',
-        'refresh_token',
+        'authorization_code',
+        'implicit'
     ],
+    'CLIENT_ID_GENERATOR_CLASS': 'oauth2_provider.generators.ClientIdGenerator',
+    'CLIENT_SECRET_GENERATOR_CLASS': 'oauth2_provider.generators.ClientSecretGenerator',
 }
 
 LOGGING = {
@@ -276,7 +278,7 @@ LOGGING = {
     },
     'root': {
         'handlers': ['console'],
-        'level': 'INFO',
+        'level': 'DEBUG',
     },
     'loggers': {
         'django': {
@@ -284,5 +286,15 @@ LOGGING = {
             'level': 'INFO',
             'propagate': True,
         },
+        'oauth2_provider': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'oauthlib': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        }
     },
 }

@@ -39,14 +39,14 @@ CONDITION_CHOICES = (('excellent', 'Excellent'),
                      ('fair', 'Fair'),
                      ('poor', 'Poor'))
 
-# CONTENT_CHOICES = (('audio', 'Audio'),
+# RESOURCE_TYPE_CHOICES = (('audio', 'Audio'),
 #                    ('audio-video', 'Audio/Video'),
 #                    ('publication_book', 'Publication: Book'),
 #                    ('manuscript', 'Manuscript'),
 #                    ('ephemera', 'Ephemera'),
 #                    ('website', 'Website'))
 
-CONTENT_CHOICES = (('3d_object', '3D Object'),
+RESOURCE_TYPE_CHOICES = (('3d_object', '3D Object'),
                    ('audio', 'Audio'),
                    ('audio-video', 'Audio/Video'),
                 #    ('book', 'Book'),
@@ -574,7 +574,7 @@ class Item(models.Model):
     english_title = models.TextField(blank=True)
     equipment_used = models.CharField(max_length=255, blank=True)
     filemaker_legacy_pk_id = models.IntegerField(null=True, blank=True)
-    resource_type = models.CharField(max_length=30, choices=CONTENT_CHOICES, blank=True) # to be partially automated based on filetype of documents
+    resource_type = models.CharField(max_length=30, choices=RESOURCE_TYPE_CHOICES, blank=True) # to be partially automated based on filetype of documents
     genre = MultiSelectField(choices=GENRE_CHOICES, blank=True)
     global_region = models.CharField(max_length=255, blank=True) # automate across deposit
     indigenous_title = models.TextField(blank=True)

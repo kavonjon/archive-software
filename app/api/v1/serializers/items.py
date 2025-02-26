@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from metadata.models import Item, GENRE_CHOICES
+from metadata.models import Item, GENRE_CHOICES, Collection
 from drf_spectacular.utils import extend_schema_field
 from typing import Optional
 
@@ -54,20 +54,20 @@ class SimpleLanguageSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
 
-# First, let's create a simplified metadata serializer for the list view
+class CollectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Collection
+        fields = ['id', 'name', 'collection_abbr']
+
 class ItemListMetadataSerializer(serializers.Serializer):
-    """Serializer for subset of item metadata in list view"""
+    """Serializer for item metadata fields in list view"""
     catalog_number = serializers.CharField()
-    collection = serializers.SerializerMethodField()
     item_access_level = serializers.CharField()
     resource_type = serializers.CharField(allow_blank=True)
     accession_date = serializers.DateField(allow_null=True)
     all_languages = serializers.SerializerMethodField()
     genres = serializers.SerializerMethodField()
     description = serializers.CharField(source='description_scope_and_content', allow_blank=True)
-
-    def get_collection(self, obj) -> Optional[int]:
-        return obj.collection.id if obj.collection else None
 
     def get_all_languages(self, obj):
         return SimpleLanguageSerializer(obj.language.all(), many=True).data
@@ -87,26 +87,78 @@ class ItemListMetadataSerializer(serializers.Serializer):
         return genres
 
 class ItemListSerializer(serializers.ModelSerializer):
-    title = serializers.SerializerMethodField()
+    """List serializer with basic metadata"""
     metadata = ItemListMetadataSerializer(source='*')
+    collection = CollectionSerializer(read_only=True)
 
     class Meta:
         model = Item
         fields = [
             'id',
-            'title',
+            'collection',
             'metadata',
         ]
 
-    @extend_schema_field(serializers.CharField(allow_null=True))
-    def get_title(self, obj) -> Optional[str]:
-        default_title = obj.title_item.filter(default=True).first()
-        if default_title:
-            return default_title.title
-        return None
+class ItemDetailMetadataSerializer(serializers.Serializer):
+    """Serializer for item metadata fields in detail view"""
+    access_level_restrictions = serializers.CharField(allow_blank=True)
+    accession_date = serializers.DateField(allow_null=True)
+    accession_number = serializers.CharField(allow_blank=True)
+    acquisition_notes = serializers.CharField(allow_blank=True)
+    associated_ephemera = serializers.CharField(allow_blank=True)
+    availability_status = serializers.CharField(allow_blank=True)
+    availability_status_notes = serializers.CharField(allow_blank=True)
+    call_number = serializers.CharField(allow_blank=True)
+    catalog_number = serializers.CharField()
+    cataloged_date = serializers.DateField(allow_null=True)
+    collecting_notes = serializers.CharField(allow_blank=True)
+    collection_date = serializers.DateField(allow_null=True)
+    condition_notes = serializers.CharField(allow_blank=True)
+    conservation_treatments_performed = serializers.CharField(allow_blank=True)
+    copyrighted_notes = serializers.CharField(allow_blank=True)
+    creation_date = serializers.DateField(allow_null=True)
+    description = serializers.CharField(source='description_scope_and_content', allow_blank=True)
+    equipment_used = serializers.CharField(allow_blank=True)
+    genres = serializers.SerializerMethodField()
+    isbn = serializers.CharField(allow_blank=True)
+    item_access_level = serializers.CharField()
+    lender_loan_number = serializers.CharField(allow_blank=True)
+    loc_catalog_number = serializers.CharField(allow_blank=True)
+    location_of_original = serializers.CharField(allow_blank=True)
+    migration_file_format = serializers.CharField(allow_blank=True)
+    original_format_medium = serializers.CharField(allow_blank=True)
+    other_information = serializers.CharField(allow_blank=True)
+    project_grant = serializers.CharField(allow_blank=True)
+    public_event = serializers.BooleanField(allow_null=True)
+    publisher = serializers.CharField(allow_blank=True)
+    recorded_on = serializers.DateField(allow_null=True)
+    recording_context = serializers.CharField(allow_blank=True)
+    resource_type = serializers.CharField(allow_blank=True)
+    software_used = serializers.CharField(allow_blank=True)
+    total_number_of_pages_and_physical_description = serializers.CharField(allow_blank=True)
+    type_of_accession = serializers.CharField(allow_blank=True)
+
+    def get_all_languages(self, obj):
+        return SimpleLanguageSerializer(obj.language.all(), many=True).data
+
+    def get_genres(self, obj):
+        # Convert genre choices to id/title format
+        genres = []
+        for genre_value in obj.genre:
+            # Find matching choice tuple
+            for choice_value, choice_label in GENRE_CHOICES:
+                if choice_value == genre_value:
+                    genres.append({
+                        'id': choice_value,
+                        'title': choice_label
+                    })
+                    break
+        return genres
 
 class ItemDetailSerializer(serializers.ModelSerializer):
-    metadata = ItemMetadataSerializer(source='*')
+    """Detailed serializer with full metadata"""
+    metadata = ItemDetailMetadataSerializer(source='*')
+    collection = CollectionSerializer(read_only=True)
     titles = ItemTitleSerializer(source='title_item', many=True)
     title = serializers.SerializerMethodField()
 
@@ -114,9 +166,10 @@ class ItemDetailSerializer(serializers.ModelSerializer):
         model = Item
         fields = [
             'id',
-            'title',
+            'collection',
             'metadata',
             'titles',
+            'title',
         ]
 
     @extend_schema_field(serializers.CharField(allow_null=True))
@@ -128,20 +181,41 @@ class ItemDetailSerializer(serializers.ModelSerializer):
 
     def get_metadata(self, obj):
         return {
-            'catalog_number': obj.catalog_number,
-            'collection': obj.collection.id if obj.collection else None,
-            'item_access_level': obj.item_access_level,
             'access_level_restrictions': obj.access_level_restrictions,
             'accession_date': obj.accession_date,
             'accession_number': obj.accession_number,
             'acquisition_notes': obj.acquisition_notes,
+            'all_languages': SimpleLanguageSerializer(obj.language.all(), many=True).data,
             'associated_ephemera': obj.associated_ephemera,
             'availability_status': obj.availability_status,
-            'resource_type': obj.resource_type,
-            'all_languages': SimpleLanguageSerializer(obj.language.all(), many=True).data,
-            'genres': self.get_genres(obj),
+            'availability_status_notes': obj.availability_status_notes,
             'call_number': obj.call_number,
+            'catalog_number': obj.catalog_number,
+            'cataloged_date': obj.cataloged_date,
+            'collecting_notes': obj.collecting_notes,
+            'collection_date': obj.collection_date,
+            'condition_notes': obj.condition_notes,
+            'conservation_treatments_performed': obj.conservation_treatments_performed,
             'copyrighted_notes': obj.copyrighted_notes,
+            'creation_date': obj.creation_date,
             'description': obj.description_scope_and_content,
-            # ... other metadata fields
+            'equipment_used': obj.equipment_used,
+            'genres': self.get_genres(obj),
+            'isbn': obj.isbn,
+            'item_access_level': obj.item_access_level,
+            'lender_loan_number': obj.lender_loan_number,
+            'loc_catalog_number': obj.loc_catalog_number,
+            'location_of_original': obj.location_of_original,
+            'migration_file_format': obj.migration_file_format,
+            'original_format_medium': obj.original_format_medium,
+            'other_information': obj.other_information,
+            'project_grant': obj.project_grant,
+            'public_event': obj.public_event,
+            'publisher': obj.publisher,
+            'recorded_on': obj.recorded_on,
+            'recording_context': obj.recording_context,
+            'resource_type': obj.resource_type,
+            'software_used': obj.software_used,
+            'total_number_of_pages_and_physical_description': obj.total_number_of_pages_and_physical_description,
+            'type_of_accession': obj.type_of_accession,
         }

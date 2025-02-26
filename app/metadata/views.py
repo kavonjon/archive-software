@@ -19,7 +19,7 @@ from django.db.models import Count, Sum, Max, Q
 from django.views.generic.edit import FormView, DeleteView
 from rest_framework import generics
 from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin
-from .models import Item, ItemTitle, Collection, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, CONTENT_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
+from .models import Item, ItemTitle, Collection, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, RESOURCE_TYPE_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
 from .serializers import ItemMigrateSerializer, LegacyLanguageSerializer
 from .forms import CollectionForm, LanguageForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
 from django.contrib.staticfiles import finders
@@ -3999,7 +3999,7 @@ def ImportView(request):
                 import_field(request, 'equipment_used', ('^Equipment Used$',), headers, row, item, model = 'Item')
                 import_field(request, 'filemaker_legacy_pk_id', ('PK_ID',), headers, row, item, model = 'Item')
                 import_field(request, 'filemaker_legacy_pk_id', ('Filemaker Legacy PK ID',), headers, row, item, model = 'Item')
-                resource_type_success = import_field(request, 'resource_type', ('^General Content$',), headers, row, item, model = 'Item', choices=CONTENT_CHOICES)
+                resource_type_success = import_field(request, 'resource_type', ('^General Content$',), headers, row, item, model = 'Item', choices=RESOURCE_TYPE_CHOICES)
                 genre_success = import_field(request, 'genre', ('^Genre$',), headers, row, item, model = 'Item', choices=STRICT_GENRE_CHOICES, multiselect=True)
                 import_field(request, 'global_region', ('^Global Region$',), headers, row, item, model = 'Item')
                 import_field(request, 'indigenous_title', ('^Indigenous Title$',), headers, row, item, model = 'Item')

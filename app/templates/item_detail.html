@@ -102,7 +102,7 @@
 {% for language, dialect in dialect_info %}
 <div class="row">
     <div class="col-md-12 indented">
-        <b>Language:</b> <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'language_detail' language.pk %}">{{ language }}</a>, <b>Dialect(s):</b>{% if request.user|has_group:"Archivist"%} <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'dialect_instance_edit' dialect.pk %}">{% endif %} {% if dialect.name.all|join:", " %} {{ dialect.name.all|join:", "}} {% else %} (blank) {% endif %}{% if request.user|has_group:"Archivist"%} </a>{% endif %}
+        <b>Language:</b> <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'languoid_detail' language.pk %}">{{ language }}</a>, <b>Dialect(s):</b>{% if request.user|has_group:"Archivist"%} <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'dialect_instance_edit' dialect.pk %}">{% endif %} {% if dialect.name.all|join:", " %} {{ dialect.name.all|join:", "}} {% else %} (blank) {% endif %}{% if request.user|has_group:"Archivist"%} </a>{% endif %}
     </div>
 </div>
 {% endfor %}

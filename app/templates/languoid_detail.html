@@ -3,90 +3,90 @@
 {% load metadata_templatetags %}
 
 {% block page_content %}
-<h1>Language</h1>
+<h1>Languoid</h1>
 {% if request.user|has_group:"Archivist"%}
 <div class="form-row">
     <h1>
     <a class="btn btn-primary" href="edit/" role="button">Edit</a>
-    <a href="{% url "language_delete" language.id %}"><i class="fas fa-times"></i></a>
+    <a href="{% url "languoid_delete" languoid.id %}"><i class="fas fa-times"></i></a>
     </h1>
 </div>
 {% endif %}
 <div class="row">
     <div class="col-md-4">
-        <b>Language name:</b> {{ language.name }}
+        <b>Languoid name:</b> {{ languoid.name }}
     </div>
 </div>
 <div class="container">
     <div class="row mt-2">
         <div class="col-auto">
-            <b>Alternative names:</b> {{ language.alt_name }}
+            <b>Alternative names:</b> {{ languoid.alt_name }}
         </div>
     </div>
     <div class="row mt-2">
         <div class="col-auto d-inline-block">
-            <b>ISO:</b> {{ language.iso }}
+            <b>ISO:</b> {{ languoid.iso }}
         </div>
         <div class="col-auto d-inline-block">
-            <b>Glottocode:</b> {{ language.glottocode }}
+            <b>Glottocode:</b> {{ languoid.glottocode }}
         </div>
         <div class="col-auto d-inline-block">
-            <b>Level:</b> {{ language.level }}
+            <b>Level:</b> {{ languoid.level }}
         </div>
     </div>
     <div class="row mt-2">
         <div class="col-auto d-inline-block">
-            <b>Family:</b> {{ language.family }} {% if language.family_abbrev == language.family %}{% else %}(Abbreviation: {{ language.family_abbrev }}){% endif %}
+            <b>Family:</b> {{ languoid.family }} {% if languoid.family_abbrev == languoid.family %}{% else %}(Abbreviation: {{ languoid.family_abbrev }}){% endif %}
         </div>
         <div class="col-auto d-inline-block">
-            <b>Family glottocode:</b> {{ language.family_id }}
+            <b>Family glottocode:</b> {{ languoid.family_id }}
         </div>
     </div>
     <div class="row">
         <div class="col-auto d-inline-block">
-            <b>Primary subgroup:</b> {{ language.pri_subgroup }} {% if language.pri_subgroup_abbrev == language.pri_subgroup %}{% else %}(Abbreviation: {{ language.pri_subgroup_abbrev }}){% endif %}
+            <b>Primary subgroup:</b> {{ languoid.pri_subgroup }} {% if languoid.pri_subgroup_abbrev == languoid.pri_subgroup %}{% else %}(Abbreviation: {{ languoid.pri_subgroup_abbrev }}){% endif %}
         </div>
         <div class="col-auto d-inline-block">
-            <b>Primary subgroup glottocode:</b> {{ language.pri_subgroup_id }}
+            <b>Primary subgroup glottocode:</b> {{ languoid.pri_subgroup_id }}
         </div>
     </div>
     <div class="row">
         <div class="col-auto d-inline-block">
-            <b>Secondary subgroup:</b> {{ language.sec_subgroup }} {% if language.sec_subgroup_abbrev == language.sec_subgroup %}{% else %}(Abbreviation: {{ language.sec_subgroup_abbrev }}){% endif %}
+            <b>Secondary subgroup:</b> {{ languoid.sec_subgroup }} {% if languoid.sec_subgroup_abbrev == languoid.sec_subgroup %}{% else %}(Abbreviation: {{ languoid.sec_subgroup_abbrev }}){% endif %}
         </div>
         <div class="col-auto d-inline-block">
-            <b>Secondary subgroup glottocode:</b> {{ language.sec_subgroup_id }}
-        </div>
-    </div>
-    <div class="row mt-2">
-        <div class="col-auto d-inline-block">
-            <b>Dialects</b> (comma separated list): {{ language.dialects }}
-        </div>
-        <div class="col-auto d-inline-block">
-            <b>Dialect glottocodes</b> (comma separated list): {{ language.dialects_ids }}
+            <b>Secondary subgroup glottocode:</b> {{ languoid.sec_subgroup_id }}
         </div>
     </div>
     <div class="row mt-2">
         <div class="col-auto d-inline-block">
-            <b>Region:</b> {{ language.region }}
+            <b>Dialects</b> (comma separated list): {{ languoid.dialects }}
+        </div>
+        <div class="col-auto d-inline-block">
+            <b>Dialect glottocodes</b> (comma separated list): {{ languoid.dialects_ids }}
         </div>
     </div>
     <div class="row mt-2">
         <div class="col-auto d-inline-block">
-            <b>Latitude:</b> {{ language.latitude }}
-        </div>
-        <div class="col-auto d-inline-block">
-            <b>Longitude:</b> {{ language.longitude }}
+            <b>Region:</b> {{ languoid.region }}
         </div>
     </div>
     <div class="row mt-2">
         <div class="col-auto d-inline-block">
-            <b>Tribes:</b> {{ language.tribes }}
+            <b>Latitude:</b> {{ languoid.latitude }}
+        </div>
+        <div class="col-auto d-inline-block">
+            <b>Longitude:</b> {{ languoid.longitude }}
         </div>
     </div>
     <div class="row mt-2">
         <div class="col-auto d-inline-block">
-            <b>Notes:</b> {{ language.notes }}
+            <b>Tribes:</b> {{ languoid.tribes }}
+        </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col-auto d-inline-block">
+            <b>Notes:</b> {{ languoid.notes }}
         </div>
     </div>
 </div>
@@ -106,37 +106,37 @@
 {% endfor %}
 <div class="row">
     <div class="col-md-4">
-        <b>Last updated:</b> {{ language.updated }}
+        <b>Last updated:</b> {{ languoid.updated }}
     </div>
 </div>
 <div class="row">
     <div class="col-md-4">
-        <b>By:</b> {{ language.modified_by }}
+        <b>By:</b> {{ languoid.modified_by }}
     </div>
 </div>
 <hr />
 <div class="form-row">
   <h4>
-    Collaborators with this language
+    Collaborators with this languoid
   </h4>
 </div>
-{% for collaborator_with_language in collaborators_with_language %}
+{% for collaborator_with_languoid in collaborators_with_languoid %}
 <div class="row">
   <div class="col-md-12">
-      <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'collaborator_detail' collaborator_with_language.pk %}">{% anonymize_collaborators collaborator_with_language request.user 'name' %}</a>
+      <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'collaborator_detail' collaborator_with_languoid.pk %}">{% anonymize_collaborators collaborator_with_languoid request.user 'name' %}</a>
   </div>
 </div>
 {% endfor %}
 <hr />
 <div class="form-row">
   <h4>
-    Items with this language
+    Items with this languoid
   </h4>
 </div>
-{% for item_with_language in items_with_language %}
+{% for item_with_languoid in items_with_languoid %}
 <div class="row">
   <div class="col-md-12">
-      <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'item_detail' item_with_language.pk %}">{{ item_with_language }}</a>
+      <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'item_detail' item_with_languoid.pk %}">{{ item_with_languoid }}</a>
   </div>
 </div>
 {% endfor %}

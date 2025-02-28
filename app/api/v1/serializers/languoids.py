@@ -1,8 +1,8 @@
 from rest_framework import serializers
-from metadata.models import Language
+from metadata.models import Languoid
 
-class LanguageListMetadataSerializer(serializers.Serializer):
-    """Serializer for language metadata fields in list view"""
+class LanguoidListMetadataSerializer(serializers.Serializer):
+    """Serializer for languoid metadata fields in list view"""
     family_id = serializers.CharField(allow_blank=True)
     family_abbrev = serializers.CharField(allow_blank=True)
     family_languoid = serializers.CharField(allow_blank=True)
@@ -13,8 +13,8 @@ class LanguageListMetadataSerializer(serializers.Serializer):
     sec_subgroup_abbrev = serializers.CharField(allow_blank=True)
     sec_subgroup_languoid = serializers.CharField(allow_blank=True)
 
-class LanguageDetailMetadataSerializer(serializers.Serializer):
-    """Serializer for language metadata fields in detail view"""
+class LanguoidDetailMetadataSerializer(serializers.Serializer):
+    """Serializer for languoid metadata fields in detail view"""
     glottocode = serializers.CharField(allow_blank=True)
     iso = serializers.CharField(allow_blank=True)
     level = serializers.CharField(allow_blank=True)
@@ -35,12 +35,12 @@ class LanguageDetailMetadataSerializer(serializers.Serializer):
 
 class LanguoidListSerializer(serializers.ModelSerializer):
     """List serializer with basic metadata"""
-    metadata = LanguageListMetadataSerializer(source='*')
+    metadata = LanguoidListMetadataSerializer(source='*')
     id = serializers.CharField(source='glottocode')
     title = serializers.CharField(source='name')
 
     class Meta:
-        model = Language
+        model = Languoid
         fields = [
             'id',
             'title',
@@ -49,12 +49,12 @@ class LanguoidListSerializer(serializers.ModelSerializer):
 
 class LanguoidDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer with full metadata"""
-    metadata = LanguageDetailMetadataSerializer(source='*')
+    metadata = LanguoidDetailMetadataSerializer(source='*')
     id = serializers.CharField(source='glottocode')
     title = serializers.CharField(source='name')
 
     class Meta:
-        model = Language
+        model = Languoid
         fields = [
             'id',
             'title',

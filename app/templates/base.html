@@ -91,12 +91,12 @@
             </div>
           </li>
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="/languages/" id="dropdown-languages" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Languages</a>
-            <div class="dropdown-menu" aria-labelledby="dropdown-languages">
-              <a class="dropdown-item" href="/languages/">Languages</a>
-              <a class="dropdown-item" href="/languages/stats">Stats</a>
-              {% if request.user|has_group:"Archivist"%}<a class="dropdown-item disabled" href="/languages/import/">Import</a>
-              {% else %}<a class="dropdown-item disabled" href="/languages/import/" aria-disabled="true">Import</a>
+            <a class="nav-link dropdown-toggle" href="/languoids/" id="dropdown-languoids" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Languoids</a>
+            <div class="dropdown-menu" aria-labelledby="dropdown-languoids">
+              <a class="dropdown-item" href="/languoids/">Languoids</a>
+              <a class="dropdown-item" href="/languoids/stats">Stats</a>
+              {% if request.user|has_group:"Archivist"%}<a class="dropdown-item disabled" href="/languoids/import/">Import</a>
+              {% else %}<a class="dropdown-item disabled" href="/languoids/import/" aria-disabled="true">Import</a>
               {% endif %}
             </div>
           </li>

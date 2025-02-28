@@ -1,9 +1,9 @@
 from django.contrib import admin
 from video_encoding.admin import FormatInline
 
-from .models import Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, CollaboratorName, Geographic, Item, ItemTitle, Columns_export, Document, Collection, Video
+from .models import Languoid, Dialect, DialectInstance, Collaborator, CollaboratorRole, CollaboratorName, Geographic, Item, ItemTitle, Columns_export, Document, Collection, Video
 
-admin.site.register(Language)
+admin.site.register(Languoid)
 admin.site.register(Dialect)
 admin.site.register(DialectInstance)
 admin.site.register(Collaborator)

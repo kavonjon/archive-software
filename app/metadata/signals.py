@@ -1,9 +1,9 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .models import Language
+from .models import Languoid
 
-@receiver(post_save, sender=Language)
-def post_save_language(sender, instance, **kwargs):
+@receiver(post_save, sender=Languoid)
+def post_save_languoid(sender, instance, **kwargs):
     updates = {}
     if not instance.family_abbrev:
         updates['family_abbrev'] = instance.family
@@ -12,4 +12,4 @@ def post_save_language(sender, instance, **kwargs):
     if not instance.sec_subgroup_abbrev:
         updates['sec_subgroup_abbrev'] = instance.sec_subgroup
     if updates:
-        Language.objects.filter(pk=instance.pk).update(**updates)
+        Languoid.objects.filter(pk=instance.pk).update(**updates)

@@ -20,7 +20,7 @@ from django.conf.urls import handler500
 from django.conf.urls.static import static
 from django.urls import path, include
 from django.views.generic import TemplateView
-from metadata.views import collection_index, collection_detail, collection_add, collection_edit, collection_delete, item_index, item_migrate_list, item_detail, item_edit, item_add, item_delete,language_index, language_detail, language_edit, language_add, language_delete, language_stats, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView, LanguageListView, custom_error_500, trigger_error
+from metadata.views import collection_index, collection_detail, collection_add, collection_edit, collection_delete, item_index, item_migrate_list, item_detail, item_edit, item_add, item_delete,languoid_index, languoid_detail, languoid_edit, languoid_add, languoid_delete, languoid_stats, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView, LanguoidListView, custom_error_500, trigger_error
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
@@ -45,7 +45,7 @@ urlpatterns = [
     path("migrate/", item_index, name="migrate"),
     path("migrate/list/", item_migrate_list, name="migrate_list"),
     path("api/item-update-migrate/<int:pk>/", ItemUpdateMigrateView.as_view(), name="item_update_migrate"),
-    path("api/languages/", LanguageListView.as_view(), name="languages_list"),
+    path("api/languoids/", LanguoidListView.as_view(), name="languoids_list"),
     path("collections/", collection_index, name="collection_index"),
     path("collections/<int:pk>/", collection_detail, name="collection_detail"),
     path("collections/<int:pk>/edit/", collection_edit, name="collection_edit"),
@@ -57,15 +57,15 @@ urlpatterns = [
     path("documents/add/", document_add.as_view(), name="document_add"),
     path('documents/<int:pk>/delete/', document_delete.as_view(), name='document_delete'),
     path("documents/<int:parent_pk>/geographic/add/", geographic_add.as_view(), name="geographic_add"),
-    path("languages/", language_index, name="language_index"),
-    path("languages/<int:pk>/", language_detail, name="language_detail"),
-    path("languages/<int:pk>/edit/", language_edit, name="language_edit"),
-    path("languages/add/", language_add.as_view(), name="languages_add"),
-    path('languages/<int:pk>/delete/', language_delete.as_view(), name='language_delete'),
-    path('languages/stats/', language_stats, name='language_stats'),
+    path("languoids/", languoid_index, name="languoid_index"),
+    path("languoids/<int:pk>/", languoid_detail, name="languoid_detail"),
+    path("languoids/<int:pk>/edit/", languoid_edit, name="languoid_edit"),
+    path("languoids/add/", languoid_add.as_view(), name="languoids_add"),
+    path('languoids/<int:pk>/delete/', languoid_delete.as_view(), name='languoid_delete'),
+    path('languoids/stats/', languoid_stats, name='languoid_stats'),
     path("dialect-instances/<int:pk>/edit/", dialect_instance_edit, name="dialect_instance_edit"),
     path("dialects/<int:pk>/edit/", dialect_edit, name="dialect_edit"),
-    path("languages/<int:lang_pk>/dialects/add/", dialect_add.as_view(), name="dialect_add"),
+    path("languoids/<int:lang_pk>/dialects/add/", dialect_add.as_view(), name="dialect_add"),
     path('dialects/<int:pk>/delete/', dialect_delete.as_view(), name='dialect_delete'),
     path("collaborators/", collaborator_index, name="collaborator_index"),
     path("collaborators/<int:pk>/", collaborator_detail, name="collaborator_detail"),

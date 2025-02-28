@@ -3,7 +3,7 @@
 {% load metadata_templatetags %}
 
 {% block page_content %}
-<div class="page-title" style="display: inline">Language stats</div>
+<div class="page-title" style="display: inline">Languoid stats</div>
 
 <div class="table-responsive">
   <table class="table">
@@ -17,13 +17,13 @@
       </tr>
     </thead>
     <tbody>
-      {% for language in languages %}
+      {% for languoid in languoids %}
         <tr>
           <th scope="row">{{ forloop.counter }}</th>
-          <td>{{ language.name }}</td>
-          <td>{{ language.iso }}</td>
-          <td>{{ language.glottocode }}</td>
-          <td>{{ language.num_items }}</td>
+          <td>{{ languoid.name }}</td>
+          <td>{{ languoid.iso }}</td>
+          <td>{{ languoid.glottocode }}</td>
+          <td>{{ languoid.num_items }}</td>
         </tr>
       {% endfor %}
     </tbody>

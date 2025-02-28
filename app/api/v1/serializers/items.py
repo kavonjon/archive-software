@@ -50,7 +50,7 @@ class ItemMetadataSerializer(serializers.Serializer):
         return genres
 
 class SimpleLanguageSerializer(serializers.Serializer):
-    """Simple serializer for language information"""
+    """Simple serializer for languoid information"""
     id = serializers.IntegerField()
     name = serializers.CharField()
 

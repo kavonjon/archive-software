@@ -19,9 +19,9 @@ from django.db.models import Count, Sum, Max, Q
 from django.views.generic.edit import FormView, DeleteView
 from rest_framework import generics
 from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin
-from .models import Item, ItemTitle, Collection, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, RESOURCE_TYPE_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
-from .serializers import ItemMigrateSerializer, LegacyLanguageSerializer
-from .forms import CollectionForm, LanguageForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
+from .models import Item, ItemTitle, Collection, Languoid, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, RESOURCE_TYPE_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
+from .serializers import ItemMigrateSerializer, LegacyLanguoidSerializer
+from .forms import CollectionForm, LanguoidForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
 from django.contrib.staticfiles import finders
 
 def is_member_of_archivist(user):
@@ -34,9 +34,9 @@ def trigger_error(request):
     division_by_zero = 1 / 0
 
 
-class LanguageListView(LoginRequiredMixin, UserPassesTestMixin, generics.ListAPIView):
-    queryset = Language.objects.all()
-    serializer_class = LegacyLanguageSerializer
+class LanguoidListView(LoginRequiredMixin, UserPassesTestMixin, generics.ListAPIView):
+    queryset = Languoid.objects.all()
+    serializer_class = LegacyLanguoidSerializer
 
     def test_func(self):
         return self.request.user.groups.filter(name='Archivist').exists()
@@ -2106,8 +2106,8 @@ class document_delete(UserPassesTestMixin, DeleteView):
 
 
 @login_required
-def language_index(request):
-    qs = Language.objects.all()
+def languoid_index(request):
+    qs = Languoid.objects.all()
     order_choice = request.GET.get("form_control_sort")
     iso_contains_query = request.GET.get('iso_contains')
     glottocode_contains_query = request.GET.get('glottocode_contains')
@@ -2196,7 +2196,7 @@ def language_index(request):
     # ported this over from item index view
 
 
-        items_in_qs = Language.objects.filter(name__in=list(qs.values_list('name', flat=True)))
+        items_in_qs = Languoid.objects.filter(name__in=list(qs.values_list('name', flat=True)))
 
         new_workbook = Workbook()
         sheet = new_workbook.active
@@ -2281,36 +2281,36 @@ def language_index(request):
         header_cell = sheet.cell(row=1, column=sheet_column_counter )
 
 
-        for language in qs:
+        for languoid in qs:
             xl_row = []
-            xl_row.append(language.iso)
-            xl_row.append(language.glottocode)
-            xl_row.append(language.name)
-            xl_row.append(language.alt_name)
-            xl_row.append(language.family)
-            xl_row.append(language.family_abbrev)
-            xl_row.append(language.family_id)
-            xl_row.append(language.pri_subgroup)
-            xl_row.append(language.pri_subgroup_abbrev)
-            xl_row.append(language.pri_subgroup_id)
-            xl_row.append(language.sec_subgroup)
-            xl_row.append(language.sec_subgroup_abbrev)
-            xl_row.append(language.sec_subgroup_id)
+            xl_row.append(languoid.iso)
+            xl_row.append(languoid.glottocode)
+            xl_row.append(languoid.name)
+            xl_row.append(languoid.alt_name)
+            xl_row.append(languoid.family)
+            xl_row.append(languoid.family_abbrev)
+            xl_row.append(languoid.family_id)
+            xl_row.append(languoid.pri_subgroup)
+            xl_row.append(languoid.pri_subgroup_abbrev)
+            xl_row.append(languoid.pri_subgroup_id)
+            xl_row.append(languoid.sec_subgroup)
+            xl_row.append(languoid.sec_subgroup_abbrev)
+            xl_row.append(languoid.sec_subgroup_id)
 
-            dialects_in_language = Dialect.objects.filter(language=language).values_list('name', flat=True).order_by('name')
+            dialects_in_languoid = Dialect.objects.filter(language=languoid).values_list('name', flat=True).order_by('name')
 
-            xl_row.append(", ".join( dialects_in_language ))
-            xl_row.append(language.region)
-            xl_row.append(language.latitude)
-            xl_row.append(language.longitude)
-            xl_row.append(language.tribes)
-            xl_row.append(language.notes)
+            xl_row.append(", ".join( dialects_in_languoid ))
+            xl_row.append(languoid.region)
+            xl_row.append(languoid.latitude)
+            xl_row.append(languoid.longitude)
+            xl_row.append(languoid.tribes)
+            xl_row.append(languoid.notes)
 
             sheet.append(xl_row)
 
 
         response = HttpResponse(content=save_virtual_workbook(new_workbook), content_type='application/vnd.ms-excel')
-        response['Content-Disposition'] = 'attachment; filename=languages-export.xlsx'
+        response['Content-Disposition'] = 'attachment; filename=languoids-export.xlsx'
 
         return response
 
@@ -2331,34 +2331,34 @@ def language_index(request):
         'has_items_query_last' : has_items_query_last
     }
 
-    return render(request, 'language_index.html', context)
+    return render(request, 'languoid_index.html', context)
 
 @login_required
-def language_detail(request, pk):
-    qs = Language.objects.get(pk=pk)
+def languoid_detail(request, pk):
+    qs = Languoid.objects.get(pk=pk)
 
     dialect_info = Dialect.objects.filter(language=qs).order_by('name')
 
-    collaborators_with_language = Collaborator.objects.filter(native_languages=qs).union(Collaborator.objects.filter(other_languages=qs))
-    items_with_language = Item.objects.filter(language=qs)
+    collaborators_with_languoid = Collaborator.objects.filter(native_languages=qs).union(Collaborator.objects.filter(other_languages=qs))
+    items_with_languoid = Item.objects.filter(language=qs)
 
     context = {
-        'language': qs,
+        'languoid': qs,
         'dialect_info' : dialect_info,
-        'collaborators_with_language': collaborators_with_language,
-        'items_with_language': items_with_language
+        'collaborators_with_languoid': collaborators_with_languoid,
+        'items_with_languoid': items_with_languoid
     }
 
-    return render(request, 'language_detail.html', context)
+    return render(request, 'languoid_detail.html', context)
 
 @login_required
 @user_passes_test(is_member_of_archivist, login_url='/no-permission', redirect_field_name=None)
-def language_edit(request, pk):
-    qs = get_object_or_404(Language, id=pk)
+def languoid_edit(request, pk):
+    qs = get_object_or_404(Languoid, id=pk)
     glcodes = []
     languoids = []
     if request.method == "POST":
-        form = LanguageForm(request.POST, instance=qs)
+        form = LanguoidForm(request.POST, instance=qs)
         if form.is_valid():
             form.save(modified_by=request.user.get_username())
             return redirect("../")
@@ -2371,23 +2371,23 @@ def language_edit(request, pk):
             for row in reader:
                 glcodes.append(dict(row)['glottocode'])
                 languoids.append(dict(row))
-        form = LanguageForm(instance=qs)
+        form = LanguoidForm(instance=qs)
     context = {
 
         'form': form,
         'glcodes': json.dumps(glcodes),
         'languoids': json.dumps(languoids),
-        'title': 'Edit language'
+        'title': 'Edit languoid'
     }
-    return render(request, 'language_edit.html', context)
+    return render(request, 'languoid_edit.html', context)
 
-class language_add(UserPassesTestMixin, FormView):
+class languoid_add(UserPassesTestMixin, FormView):
     def test_func(self):
         return self.request.user.groups.filter(name="Archivist").exists()
     def handle_no_permission(self):
         return redirect('/no-permission')
-    form_class = LanguageForm
-    template_name = "language_edit.html"
+    form_class = LanguoidForm
+    template_name = "languoid_edit.html"
     def form_valid(self, form):
         self.object = form.save(modified_by=self.request.user.get_username())
         pk = self.object.pk
@@ -2404,29 +2404,29 @@ class language_add(UserPassesTestMixin, FormView):
                 languoids.append(dict(row))
         context['glcodes'] = json.dumps(glcodes)
         context['languoids'] = json.dumps(languoids)
-        context['title'] = 'Add a new language'
+        context['title'] = 'Add a new languoid'
         return context
 
-class language_delete(UserPassesTestMixin, DeleteView):
+class languoid_delete(UserPassesTestMixin, DeleteView):
     def test_func(self):
         return self.request.user.groups.filter(name="Archivist").exists()
     def handle_no_permission(self):
         return redirect('/no-permission')
-    model = Language
-    success_url = '/languages/'
+    model = Languoid
+    success_url = '/languoids/'
 
 @login_required
 @user_passes_test(is_member_of_archivist, login_url='/no-permission', redirect_field_name=None)
-def language_stats(request):
+def languoid_stats(request):
 
-    # Get a list of languages and the number of items associated with each language
-    languages = Language.objects.annotate(num_items=Count('item_languages')).order_by('-num_items')
+    # Get a list of languoids and the number of items associated with each languoid
+    languoids = Languoid.objects.annotate(num_items=Count('item_languages')).order_by('-num_items')
 
     context = {
-        'languages' : languages
+        'languoids' : languoids
     }
 
-    return render(request, 'language_stats.html', context)
+    return render(request, 'languoid_stats.html', context)
 
 @login_required
 @user_passes_test(is_member_of_archivist, login_url='/no-permission', redirect_field_name=None)
@@ -2438,7 +2438,7 @@ def dialect_edit(request, pk):
             qs.modified_by = request.user.get_username()
             qs.save()
             form.save()
-            url = "../../../languages/%s/" %qs.language.pk
+            url = "../../../languoids/%s/" %qs.languoid.pk
             return redirect(url)
     else:
         form = DialectForm(instance=qs)
@@ -2468,7 +2468,7 @@ class dialect_delete(UserPassesTestMixin, DeleteView):
     def handle_no_permission(self):
         return redirect('/no-permission')
     model = Dialect
-    success_url = '/languages/'
+    success_url = '/languoids/'
 
 @login_required
 @user_passes_test(is_member_of_archivist, login_url='/no-permission', redirect_field_name=None)
@@ -2796,8 +2796,8 @@ def import_field(request, model_field, human_fields, headers, row, object_instan
             object_instance_name = 'Document with unique ID: ' + str(object_instance.id)
     elif ( model == "Collaborator native" ) or ( model == "Collaborator other" ) or ( model == "Collaborator" ):
         object_instance_name = 'Collaborator: ' + str(object_instance.name) + ' (' + str(object_instance.collaborator_id) + ')'
-    elif ( model == "Language" ):
-        object_instance_name = 'Language: ' + str(object_instance.name)
+    elif ( model == "Languoid" ):
+        object_instance_name = 'Languoid: ' + str(object_instance.name)
 
     for human_field in human_fields:
         human_field_indeces = list_string_find_indices(headers, human_field)
@@ -2968,7 +2968,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
         if not is_valid_param(iso_indexes):
             iso_indexes = list_string_find_indices(headers,'^ISO Indicator(\s)?([0-9])*$')
 
-    if ( model == "Item" ) or ( model == "Language") or ( model == "Document"):
+    if ( model == "Item" ) or ( model == "Languoid") or ( model == "Document"):
         language_indexes = list_string_find_indices(headers,'^Language Name(\s)?([0-9])*$')
     elif model == "Item document":
         language_indexes = list_string_find_indices(headers, document_prefix + ' Language Name(\s)?([0-9])*$')
@@ -2993,7 +2993,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
             dialect_indexes = list_string_find_indices(headers,'^Native/First Languages? Dialect(\s)?([0-9])*$')
         elif model == "Collaborator other":
             dialect_indexes = list_string_find_indices(headers,'^Other Languages?( Spoken)? Dialect(\s)?([0-9])*$')
-        elif model == "Language":
+        elif model == "Languoid":
             dialect_indexes = list_string_find_indices(headers,'^Dialects(\s)?([0-9])*$')
 
         if is_valid_param(dialect_indexes):
@@ -3005,7 +3005,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
             object_instance.native_languages.clear()
         elif ( model == "Collaborator other" ):
             object_instance.other_languages.clear()
-        elif model != "Language":
+        elif model != "Languoid":
             object_instance.language.clear()
 
         indexes = zip(iso_indexes, language_indexes, dialect_indexes)
@@ -3019,7 +3019,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                 iso_value = row[iso_index]
                 if is_valid_param(iso_value):
                     try:
-                        language_object_with_iso_value = Language.objects.get(iso=iso_value)
+                        language_object_with_iso_value = Languoid.objects.get(iso=iso_value)
                     except:
                         pass
                 else:
@@ -3029,14 +3029,14 @@ def import_language_field(request, headers, row, object_instance, model, documen
                 language_value = row[language_index]
                 if is_valid_param(language_value):
                     try:
-                        language_object_with_language_value = Language.objects.get(name=language_value)
+                        language_object_with_language_value = Languoid.objects.get(name=language_value)
                     except:
                         pass
                 else:
                     language_value = '' # reset this value to '' to help create object_instance_name for the case of language_import
 
-            if model == "Language":
-                object_instance_name = 'Language ' + language_value + ' (ISO Indicator: ' + iso_value + ')'
+            if model == "Languoid":
+                object_instance_name = 'Languoid ' + language_value + ' (ISO Indicator: ' + iso_value + ')'
 
 
             if is_valid_param(iso_value):
@@ -3048,7 +3048,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
 #                            print(language_object_with_language_value)
                             if language_object_with_iso_value.pk == language_object_with_language_value.pk:
                                 # 1) ISO and Language name refer to the same entry in the database, so all good
-                                if model == "Language":
+                                if model == "Languoid":
                                     #language_object_with_iso_value.language_dialects.delete()
                                     Dialect.objects.filter(language=language_object_with_iso_value).delete()
                                     return_object = language_object_with_iso_value
@@ -3076,7 +3076,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                                         dialect_value = re.sub(r"[,\s]*$", r"", dialect_value)
                                         dialect_values = dialect_value.strip().split(',')
                                         dialect_values = [i.strip() for i in dialect_values]
-                                        if model == "Language":
+                                        if model == "Languoid":
                                             for each_dialect in dialect_values:
                                                 dialect_object_with_dialect_value, created = Dialect.objects.get_or_create(name=each_dialect, language=language_object_with_iso_value)
                                                 #language_object_with_iso_value.language_dialects.add(dialect_object_with_dialect_value)
@@ -3101,7 +3101,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                             return False, return_object
 
                     else: # 4) thus Language Name is not defined
-                        if model == "Language":
+                        if model == "Languoid":
                             #language_object_with_iso_value.language_dialects.clear()
                             Dialect.objects.filter(language=language_object_with_iso_value).delete()
                             return_object = language_object_with_iso_value
@@ -3128,7 +3128,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                                 dialect_value = re.sub(r"[,\s]*$", r"", dialect_value)
                                 dialect_values = dialect_value.strip().split(',')
                                 dialect_values = [i.strip() for i in dialect_values]
-                                if model == "Language":
+                                if model == "Languoid":
                                     for each_dialect in dialect_values:
                                         dialect_object_with_dialect_value, created = Dialect.objects.get_or_create(name=each_dialect, language=language_object_with_iso_value)
                                         #language_object_with_iso_value.language_dialects.add(dialect_object_with_dialect_value)
@@ -3146,14 +3146,14 @@ def import_language_field(request, headers, row, object_instance, model, documen
                 else: # thus ISO is defined but does not exist in database
                     if is_valid_param(language_value):
                         if is_valid_param(language_object_with_language_value):
-                            # 5) thus Language Name is defined and exists in database
+                            # 5) thus Languoid Name is defined and exists in database
                             messages.warning(request, object_instance_name + " was not added/updated (all changes were reverted): Language Name is associated with a language in the database but ISO Indicator is not")
                             return False, return_object
 
                         else: # 6) thus Language Name is defined but does not exist in database
-                            language, created = Language.objects.get_or_create(iso=iso_value,
+                            language, created = Languoid.objects.get_or_create(iso=iso_value,
                                 defaults={'name': language_value},)
-                            if model == "Language":
+                            if model == "Languoid":
                                 messages.info(request, 'A new language entry was created (ISO indicator: ' + language.iso + ', Name: ' + language.name + ')')
                                 return_object = language
                             elif ( model == "Collaborator native" ):
@@ -3181,7 +3181,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                                     dialect_value = re.sub(r"[,\s]*$", r"", dialect_value)
                                     dialect_values = dialect_value.strip().split(',')
                                     dialect_values = [i.strip() for i in dialect_values]
-                                    if model == "Language":
+                                    if model == "Languoid":
                                         for each_dialect in dialect_values:
                                             dialect_object_with_dialect_value, created = Dialect.objects.get_or_create(name=each_dialect, language=language)
                                             #language.language_dialects.add(dialect_object_with_dialect_value)
@@ -3200,7 +3200,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                 if is_valid_param(language_value):
                     if is_valid_param(language_object_with_language_value):
                         # 8) thus Language Name is defined and exists in database
-                        if model == "Language":
+                        if model == "Languoid":
                             #language_object_with_language_value.language_dialects.clear()
                             Dialect.objects.filter(language=language_object_with_language_value).delete()
                             return_object = language_object_with_language_value
@@ -3226,7 +3226,7 @@ def import_language_field(request, headers, row, object_instance, model, documen
                                 dialect_value = re.sub(r"[,\s]*$", r"", dialect_value)
                                 dialect_values = dialect_value.strip().split(',')
                                 dialect_values = [i.strip() for i in dialect_values]
-                                if model == "Language":
+                                if model == "Languoid":
                                     for each_dialect in dialect_values:
                                         dialect_object_with_dialect_value, created = Dialect.objects.get_or_create(name=each_dialect, language=language_object_with_language_value)
                                         #language_object_with_language_value.language_dialects.add(dialect_object_with_dialect_value)
@@ -3842,7 +3842,7 @@ def ImportView(request):
 #                             defaults={'collaborator_id': collaborator_next_id},)
 #                     if document_language_value:
 # ##################### needs to get converted to special language treatment
-#                         get_language_by_value, created = Language.objects.get_or_create(name=document_language_value)
+#                         get_language_by_value, created = Languoid.objects.get_or_create(name=document_language_value)
 #                     if is_valid_param(document_title_value):
 #                         document, created = Document.objects.get_or_create(title=document_title_value, item=item,
 #                             defaults={'filename': 'no filename'},)
@@ -4198,32 +4198,32 @@ def ImportView(request):
 
 
 
-            import_language_field_success, return_object = import_language_field(request, headers, row, None, model = 'Language')
+            import_language_field_success, return_object = import_language_field(request, headers, row, None, model = 'Languoid')
             if not import_language_field_success:
                 continue
             if not return_object:
                 continue
 
-            glottocode_success = import_field(request, 'glottocode', ('^Glottocode$',), headers, row, return_object, model = 'Language', validate_glottocode="single")
-            import_field(request, 'family', ('^Family$',), headers, row, return_object, model = "Language")
-            import_field(request, 'family', ('^Language family$',), headers, row, return_object, model = "Language")
-            import_field(request, 'family_abbrev', ('^Family abbreviation$',), headers, row, return_object, model = "Language")
-            family_glottocode_success = import_field(request, 'family_id', ('^Family glottocode$',), headers, row, return_object, model = "Language", validate_glottocode="single")
-            import_field(request, 'pri_subgroup', ('^Primary subgroup$',), headers, row, return_object, model = "Language")
-            import_field(request, 'pri_subgroup_abbrev', ('^Primary subgroup abbreviation$',), headers, row, return_object, model = "Language")
-            pri_subgroup_glottocode_success = import_field(request, 'pri_subgroup_id', ('^Primary subgroup glottocode$',), headers, row, return_object, model = "Language", validate_glottocode="single")
-            import_field(request, 'sec_subgroup_abbrev', ('^Secondary subgroup abbreviation$',), headers, row, return_object, model = "Language")
-            import_field(request, 'sec_subgroup', ('^Secondary subgroup$',), headers, row, return_object, model = "Language")
-            sec_subgroup_glottocode_success = import_field(request, 'sec_subgroup_id', ('^Secondary subgroup glottocode$',), headers, row, return_object, model = "Language", validate_glottocode="single")
-            import_field(request, 'alt_name', ('^Alternate name\(s\)$',), headers, row, return_object, model = "Language")
-            import_field(request, 'alt_name', ('^Alternative name\(s\)$',), headers, row, return_object, model = "Language")
-            import_field(request, 'dialects', ('^Dialects$',), headers, row, return_object, model = "Language")
-            dialect_ids_success = import_field(request, 'dialects_ids', ('^Dialect glottocodes$',), headers, row, return_object, model = "Language", validate_glottocode="multiple")
-            import_field(request, 'region', ('^Region$',), headers, row, return_object, model = "Language")
-            latitude_success = import_field(request, 'latitude', ('^Latitude$',), headers, row, return_object, model = "Language", validate_coord=True)
-            longitude_success = import_field(request, 'longitude', ('^Longitude$',), headers, row, return_object, model = "Language", validate_coord=True)
-            import_field(request, 'tribes', ('^Tribes$',), headers, row, return_object, model = "Language")
-            import_field(request, 'notes', ('^Notes$',), headers, row, return_object, model = "Language")
+            glottocode_success = import_field(request, 'glottocode', ('^Glottocode$',), headers, row, return_object, model = 'Languoid', validate_glottocode="single")
+            import_field(request, 'family', ('^Family$',), headers, row, return_object, model = "Languoid")
+            import_field(request, 'family', ('^Language family$',), headers, row, return_object, model = "Languoid")
+            import_field(request, 'family_abbrev', ('^Family abbreviation$',), headers, row, return_object, model = "Languoid")
+            family_glottocode_success = import_field(request, 'family_id', ('^Family glottocode$',), headers, row, return_object, model = "Languoid", validate_glottocode="single")
+            import_field(request, 'pri_subgroup', ('^Primary subgroup$',), headers, row, return_object, model = "Languoid")
+            import_field(request, 'pri_subgroup_abbrev', ('^Primary subgroup abbreviation$',), headers, row, return_object, model = "Languoid")
+            pri_subgroup_glottocode_success = import_field(request, 'pri_subgroup_id', ('^Primary subgroup glottocode$',), headers, row, return_object, model = "Languoid", validate_glottocode="single")
+            import_field(request, 'sec_subgroup_abbrev', ('^Secondary subgroup abbreviation$',), headers, row, return_object, model = "Languoid")
+            import_field(request, 'sec_subgroup', ('^Secondary subgroup$',), headers, row, return_object, model = "Languoid")
+            sec_subgroup_glottocode_success = import_field(request, 'sec_subgroup_id', ('^Secondary subgroup glottocode$',), headers, row, return_object, model = "Languoid", validate_glottocode="single")
+            import_field(request, 'alt_name', ('^Alternate name\(s\)$',), headers, row, return_object, model = "Languoid")
+            import_field(request, 'alt_name', ('^Alternative name\(s\)$',), headers, row, return_object, model = "Languoid")
+            import_field(request, 'dialects', ('^Dialects$',), headers, row, return_object, model = "Languoid")
+            dialect_ids_success = import_field(request, 'dialects_ids', ('^Dialect glottocodes$',), headers, row, return_object, model = "Languoid", validate_glottocode="multiple")
+            import_field(request, 'region', ('^Region$',), headers, row, return_object, model = "Languoid")
+            latitude_success = import_field(request, 'latitude', ('^Latitude$',), headers, row, return_object, model = "Languoid", validate_coord=True)
+            longitude_success = import_field(request, 'longitude', ('^Longitude$',), headers, row, return_object, model = "Languoid", validate_coord=True)
+            import_field(request, 'tribes', ('^Tribes$',), headers, row, return_object, model = "Languoid")
+            import_field(request, 'notes', ('^Notes$',), headers, row, return_object, model = "Languoid")
 
             import_success = ( glottocode_success and
                                 family_glottocode_success and
@@ -4239,7 +4239,7 @@ def ImportView(request):
             return_object.level = 'Language'
             return_object.modified_by = request.user.get_username()
             return_object.save()
-            messages.success(request, 'Language ' + return_object.name + ' (ISO Indicator: ' + return_object.iso + ')' + ' was updated')
+            messages.success(request, 'Languoid ' + return_object.name + ' (ISO Indicator: ' + return_object.iso + ')' + ' was updated')
 
     context = {
         'prompt': prompt_message,

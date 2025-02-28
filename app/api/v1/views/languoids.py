@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from oauth2_provider.contrib.rest_framework import TokenHasScope
 from drf_spectacular.utils import extend_schema, OpenApiParameter, extend_schema_view
-from metadata.models import Language
+from metadata.models import Languoid
 from ..serializers.languoids import LanguoidListSerializer, LanguoidDetailSerializer
 from ...versioning import ArchiveAPIVersioning
 from .items import IsAdminOrHasToken
@@ -30,4 +30,4 @@ class LanguoidViewSet(viewsets.ReadOnlyModelViewSet):
         return LanguoidDetailSerializer
 
     def get_queryset(self):
-        return Language.objects.all() 
+        return Languoid.objects.all() 

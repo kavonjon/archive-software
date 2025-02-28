@@ -5,7 +5,7 @@ from django.forms import ModelForm
 from django.forms.widgets import CheckboxSelectMultiple
 from django.db.models import Max
 from django_select2.forms import Select2MultipleWidget
-from .models import Collection, Item, ItemTitle, Language, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video
+from .models import Collection, Item, ItemTitle, Languoid, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video
 
 class CollectionForm(ModelForm):
     class Meta:
@@ -15,9 +15,9 @@ class CollectionForm(ModelForm):
             'languages': Select2MultipleWidget,  # Apply Select2 to the M2M field
         }
 
-class LanguageForm(ModelForm):
+class LanguoidForm(ModelForm):
     class Meta:
-        model = Language
+        model = Languoid
         fields = ['name',
                   'alt_name',
                   'glottocode',

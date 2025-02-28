@@ -376,7 +376,7 @@ def validate_date_text(value):
     raise ValidationError(_('Invalid format for date entry'), code='invalid')
 
 
-class Language(models.Model):
+class Languoid(models.Model):
     LEVELS = (('family', 'Family'),
             ('language', 'Language'),
             ('dialect', 'dialect'))
@@ -418,7 +418,7 @@ class Language(models.Model):
         return self.name
 
 class Dialect(models.Model):
-    language = models.ForeignKey('Language', related_name='language_dialects', on_delete=models.CASCADE)
+    language = models.ForeignKey('Languoid', related_name='language_dialects', on_delete=models.CASCADE)
     name = models.CharField(max_length=255, verbose_name='Dialect name')
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -434,7 +434,7 @@ class DialectInstance(models.Model):
     item = models.ForeignKey('Item', related_name='item_dialectinstances', on_delete=models.CASCADE, null=True, blank=True)
     collaborator_native = models.ForeignKey('Collaborator', related_name='collaborator_native_languages_dialectinstances', on_delete=models.CASCADE, null=True, blank=True)
     collaborator_other = models.ForeignKey('Collaborator', related_name='collaborator_other_languages_dialectinstances', on_delete=models.CASCADE, null=True, blank=True)
-    language = models.ForeignKey('Language', related_name='language_dialectinstances', on_delete=models.CASCADE)
+    language = models.ForeignKey('Languoid', related_name='language_dialectinstances', on_delete=models.CASCADE)
     name = models.ManyToManyField(Dialect, verbose_name="dialect for this language", related_name='dialectinstance_dialects', blank=True)
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -460,11 +460,11 @@ class Collaborator(models.Model):
     name = models.CharField(max_length=255, blank=True)
     firstname = models.CharField(max_length=255, blank=True)
     lastname = models.CharField(max_length=255, blank=True)
-    native_languages = models.ManyToManyField(Language, through='DialectInstance', through_fields=('collaborator_native', 'language'), verbose_name="Native/First languages", related_name='collaborator_native_languages', blank=True)
+    native_languages = models.ManyToManyField(Languoid, through='DialectInstance', through_fields=('collaborator_native', 'language'), verbose_name="Native/First languages", related_name='collaborator_native_languages', blank=True)
     nickname = models.CharField(max_length=255, blank=True)
     origin = models.CharField(max_length=255, blank=True)
     other_info = models.TextField(blank=True)
-    other_languages = models.ManyToManyField(Language, through='DialectInstance', through_fields=('collaborator_other', 'language'), verbose_name="Other languages", related_name='collaborator_other_languages', blank=True)
+    other_languages = models.ManyToManyField(Languoid, through='DialectInstance', through_fields=('collaborator_other', 'language'), verbose_name="Other languages", related_name='collaborator_other_languages', blank=True)
     other_names = models.CharField(max_length=255, blank=True)
     tribal_affiliations = models.CharField(max_length=255, blank=True)
     added = models.DateTimeField(auto_now_add=True)
@@ -511,7 +511,7 @@ class Collection(models.Model):
     slug = models.CharField(max_length=20, unique=True, blank=True)
     collection_abbr = models.CharField(max_length=10)
     name = models.CharField(max_length=255)
-    languages = models.ManyToManyField(Language, verbose_name="list of languages", related_name='collection_languages', blank=True)
+    languages = models.ManyToManyField(Languoid, verbose_name="list of languages", related_name='collection_languages', blank=True)
     extent = models.CharField(max_length=255, blank=True)
     abstract = models.TextField(blank=True)
     date_range = models.CharField(max_length=255, blank=True)
@@ -594,7 +594,7 @@ class Item(models.Model):
     ipm_issues = models.CharField(max_length=255, blank=True)
     isbn = models.CharField(max_length=255, blank=True)
     item_access_level = models.CharField(max_length=1, choices=ACCESS_CHOICES, blank=True) # automate across deposit
-    language = models.ManyToManyField(Language, through='DialectInstance', through_fields=('item', 'language'), verbose_name="list of languages", related_name='item_languages', blank=True)
+    language = models.ManyToManyField(Languoid, through='DialectInstance', through_fields=('item', 'language'), verbose_name="list of languages", related_name='item_languages', blank=True)
     lender_loan_number = models.CharField(max_length=255, blank=True)
     loc_catalog_number = models.CharField(max_length=255, blank=True)
     location_of_original = models.TextField(blank=True)
@@ -644,7 +644,7 @@ class Item(models.Model):
 
 class ItemTitle(models.Model):
     title = models.CharField(max_length=500)
-    language = models.ForeignKey(Language, related_name="title_language", on_delete=models.CASCADE)
+    language = models.ForeignKey(Languoid, related_name="title_language", on_delete=models.CASCADE)
     item = models.ForeignKey(Item, related_name='title_item', on_delete=models.CASCADE)
     default = models.BooleanField(default=False)
     added = models.DateTimeField(auto_now_add=True)
@@ -667,7 +667,7 @@ class Document(models.Model):
     creation_date = models.CharField(max_length=255, blank=True, validators =[validate_date_text])
     creation_date_min = models.DateField(null=True, blank=True)
     creation_date_max = models.DateField(null=True, blank=True)
-    language = models.ManyToManyField(Language, through='DialectInstance', through_fields=('document', 'language'), verbose_name="list of languages", related_name='document_languages', blank=True)
+    language = models.ManyToManyField(Languoid, through='DialectInstance', through_fields=('document', 'language'), verbose_name="list of languages", related_name='document_languages', blank=True)
     collaborator = models.ManyToManyField(Collaborator, verbose_name="list of collaborators", related_name='document_collaborators', blank=True)
     item = models.ForeignKey('Item', related_name='item_documents', on_delete=models.CASCADE, null=True, blank=True)
     added = models.DateTimeField(auto_now_add=True)

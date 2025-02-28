@@ -1,4 +1,6 @@
 import re
+import uuid
+import base58
 from django.db import models
 from django.urls import reverse
 from django.core.exceptions import ValidationError
@@ -505,6 +507,8 @@ class Geographic(models.Model):
 
 
 class Collection(models.Model):
+    uuid = models.UUIDField(unique=True, default=uuid.uuid4)
+    slug = models.CharField(max_length=20, unique=True, blank=True)
     collection_abbr = models.CharField(max_length=10)
     name = models.CharField(max_length=255)
     languages = models.ManyToManyField(Language, verbose_name="list of languages", related_name='collection_languages', blank=True)
@@ -527,7 +531,16 @@ class Collection(models.Model):
     def __str__(self):
         return self.collection_abbr
 
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            encoded = base58.b58encode(self.uuid.bytes).decode()[:10]
+            self.slug = f"{encoded[:5]}-{encoded[5:10]}"
+        super().save(*args, **kwargs)
+
+
 class Item(models.Model):
+    uuid = models.UUIDField(unique=True, default=uuid.uuid4)
+    slug = models.CharField(max_length=20, unique=True, blank=True)
     collection = models.ForeignKey(Collection, related_name='collection_items', on_delete=models.SET_NULL, null=True, blank=True)
     access_level_restrictions = models.TextField(blank=True)
     accession_date = models.CharField(max_length=255, blank=True, validators =[validate_date_text])
@@ -622,6 +635,12 @@ class Item(models.Model):
         self.collection_date = validate_date_text(self.collection_date)
         self.creation_date = validate_date_text(self.creation_date)
         self.deposit_date = validate_date_text(self.deposit_date)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            encoded = base58.b58encode(self.uuid.bytes).decode()[:10]
+            self.slug = f"{encoded[:5]}-{encoded[5:10]}"
+        super().save(*args, **kwargs)
 
 class ItemTitle(models.Model):
     title = models.CharField(max_length=500)

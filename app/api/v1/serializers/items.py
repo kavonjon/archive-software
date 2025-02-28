@@ -90,6 +90,7 @@ class ItemListSerializer(serializers.ModelSerializer):
     """List serializer with basic metadata"""
     metadata = ItemListMetadataSerializer(source='*')
     collection = CollectionSerializer(read_only=True)
+    id = serializers.CharField(source='slug')
 
     class Meta:
         model = Item
@@ -161,6 +162,7 @@ class ItemDetailSerializer(serializers.ModelSerializer):
     collection = CollectionSerializer(read_only=True)
     titles = ItemTitleSerializer(source='title_item', many=True)
     title = serializers.SerializerMethodField()
+    id = serializers.CharField(source='slug')
 
     class Meta:
         model = Item

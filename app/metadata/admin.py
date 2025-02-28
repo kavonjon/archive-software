@@ -19,6 +19,7 @@ class ItemTitleInline(admin.TabularInline):
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
     inlines = [ItemTitleInline]
+    # readonly_fields = ['uuid']
 
 admin.site.register(Columns_export)
 admin.site.register(Document)

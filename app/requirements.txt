@@ -1,5 +1,6 @@
 asgiref==3.7.2
 audioread==3.0.1
+base58==2.1.1
 certifi==2023.7.22
 cffi==1.16.0
 charset-normalizer==3.3.0

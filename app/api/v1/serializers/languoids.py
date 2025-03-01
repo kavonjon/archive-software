@@ -30,8 +30,13 @@ class LanguoidDetailMetadataSerializer(serializers.Serializer):
     sec_subgroup_id = serializers.CharField(allow_blank=True)
     sec_subgroup_abbrev = serializers.CharField(allow_blank=True)
     sec_subgroup_languoid = serializers.CharField(allow_blank=True)
-    # alt_name = serializers.CharField(allow_blank=True)
+    alternative_names = serializers.SerializerMethodField()
     region = serializers.CharField(allow_blank=True)
+
+    def get_alternative_names(self, obj):
+        if obj.alt_name:
+            return [name.strip() for name in obj.alt_name.split(',')]
+        return []
 
 class LanguoidListSerializer(serializers.ModelSerializer):
     """List serializer with basic metadata"""

@@ -398,6 +398,7 @@ class Languoid(models.Model):
     sec_subgroup_languoid = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='descendant_languoids_of_secondary_subgroup')
     parent_languoid = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_languoids')
     alt_name = models.CharField(max_length=255, blank=True, verbose_name='Alternate names')
+    alt_names = models.JSONField(default=list, blank=True, null=True, verbose_name='Alternative names')
     region = models.CharField(max_length=255, blank=True)
     longitude = models.DecimalField(max_digits=22, decimal_places=16, blank=True, null=True)
     latitude = models.DecimalField(max_digits=22, decimal_places=16, blank=True, null=True)

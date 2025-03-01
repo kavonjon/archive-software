@@ -20,6 +20,7 @@ class LanguoidForm(ModelForm):
         model = Languoid
         fields = ['name',
                   'alt_name',
+                  'alt_names',
                   'glottocode',
                   'iso',
                   'level',

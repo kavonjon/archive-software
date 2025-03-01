@@ -1,9 +1,12 @@
 const path = require('path');
 
 module.exports = {
-  entry: './src/index.js',
+  entry: {
+    batch: './src/batch/index.js',
+    deposits: './src/deposits/index.js'
+  },
   output: {
-    filename: 'react-bundle.js',
+    filename: '[name]-bundle.js',
     path: path.resolve(__dirname, '../static-files/js'),
     libraryTarget: 'umd',
     globalObject: 'this'

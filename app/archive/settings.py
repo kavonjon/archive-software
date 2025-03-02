@@ -80,6 +80,7 @@ INSTALLED_APPS = [
     'django_select2',
     'metadata',
     'api',
+    'deposits',
 ]
 
 MIDDLEWARE = [
@@ -300,3 +301,7 @@ LOGGING = {
         }
     },
 }
+
+# File storage settings
+REPOSITORY_VOLUME = os.environ.get('REPOSITORY_VOLUME', os.path.join(MEDIA_ROOT, 'repository'))
+DEPOSIT_VOLUME = os.environ.get('DEPOSIT_VOLUME', os.path.join(MEDIA_ROOT, 'deposits'))

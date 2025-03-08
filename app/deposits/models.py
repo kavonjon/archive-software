@@ -89,6 +89,31 @@ class Deposit(models.Model):
         """Transition deposit to the given state"""
         return self.get_workflow().transition_to(state, user, comment)
 
+    def can_edit(self, user):
+        """Check if user can edit this deposit"""
+        # Allow users with manage_deposits permission
+        if user.has_perm('deposits.can_manage_deposits'):
+            return True
+        
+        # Allow archivists (users in the 'archivist' group)
+        if user.groups.filter(name='archivist').exists():
+            return True
+        
+        # Allow deposit owner and involved users
+        return (user == self.draft_user or user in self.involved_users.all())
+
+def deposit_file_path(instance, filename):
+    """
+    Generate file path for deposit files:
+    deposits/YEAR/MONTH/deposit_ID/filename
+    """
+    return os.path.join(
+        str(instance.deposit.created_at.year),
+        str(instance.deposit.created_at.month).zfill(2),
+        f"deposit_{instance.deposit.id}",
+        filename
+    )
+
 class DepositFile(models.Model):
     """
     A file associated with a deposit.
@@ -99,8 +124,8 @@ class DepositFile(models.Model):
         related_name='files'
     )
     file = models.FileField(
-        upload_to='%Y/%m/%d',
-        storage=DepositStorage()
+        storage=DepositStorage(),
+        upload_to=deposit_file_path  # Use the callable for path generation
     )
     filename = models.CharField(max_length=255)
     filetype = models.CharField(max_length=100, blank=True)
@@ -139,3 +164,38 @@ class DepositFile(models.Model):
         
         processor = MetadataProcessor(self.deposit)
         return processor.process_metadata_file(self)
+
+class Notification(models.Model):
+    """
+    Notification for deposit-related events.
+    """
+    NOTIFICATION_TYPES = [
+        ('STATE_CHANGE', 'State Change'),
+        ('COMMENT', 'Comment Added'),
+        ('ASSIGNED', 'Assigned to Review'),
+        ('SYSTEM', 'System Notification'),
+    ]
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='deposit_notifications'
+    )
+    deposit = models.ForeignKey(
+        Deposit,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    notification_type = models.CharField(
+        max_length=20,
+        choices=NOTIFICATION_TYPES
+    )
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    read = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-created_at']
+        
+    def __str__(self):
+        return f"{self.notification_type} for {self.user.username}: {self.message[:30]}"

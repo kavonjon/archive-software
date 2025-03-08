@@ -27,15 +27,18 @@ class DepositStorage(FileSystemStorage):
         For deposits, we want to keep the original filename if possible,
         but add a suffix if needed to avoid collisions.
         """
-        # Get directory name and filename
         dir_name, file_name = os.path.split(name)
         file_root, file_ext = os.path.splitext(file_name)
         
-        # Try original name first
         count = 0
         while self.exists(name):
-            # If file exists, add a counter suffix
             count += 1
             name = os.path.join(dir_name, f"{file_root}_{count}{file_ext}")
             
         return name 
+
+    def get_valid_name(self, name):
+        """
+        Return a filename suitable for use with the underlying storage system.
+        """
+        return name

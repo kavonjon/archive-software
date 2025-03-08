@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Deposit Portal{% endblock %}
+
+{% block content %}
+<div id="deposits-root"></div>
+{% csrf_token %}
+
+<script>
+  // Initialize without a specific deposit ID for the listing page
+  window.DEPOSIT_ID = null;
+</script>
+
+<script src="{% static 'js/deposits/main.js' %}"></script>
+{% endblock %} 

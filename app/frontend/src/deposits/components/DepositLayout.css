@@ -1,0 +1,246 @@
+.deposit-layout {
+  display: flex;
+  height: calc(100vh - 64px); /* Adjust based on your header height */
+  overflow: hidden;
+  width: 100%; /* Ensure full width */
+  max-width: 100%; /* Override any max-width constraints */
+  margin: 0; /* Remove any margin */
+  padding: 0; /* Remove any padding */
+}
+
+.left-pane {
+  width: 280px;
+  border-right: 1px solid #e0e0e0;
+  overflow-y: auto;
+  background-color: #f9f9f9;
+}
+
+.center-pane {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.right-pane {
+  width: 300px;
+  border-left: 1px solid #e0e0e0;
+  overflow-y: auto;
+  background-color: #f9f9f9;
+}
+
+.deposit-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: white;
+}
+
+.deposit-title {
+  font-size: 20px;
+  font-weight: 500;
+  margin: 0;
+  color: #212121;
+}
+
+.deposit-status {
+  font-size: 14px;
+  color: #757575;
+  margin-top: 4px;
+}
+
+.tab-navigation {
+  display: flex;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 20px;
+}
+
+.tab {
+  padding: 12px 20px;
+  cursor: pointer;
+  color: #757575;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  color: #2196f3;
+}
+
+.tab.active {
+  color: #2196f3;
+  border-bottom: 2px solid #2196f3;
+}
+
+/* Make sure content area takes remaining height */
+.content-area {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.deposit-layout-header {
+  padding: 15px 20px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.deposit-layout-header h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.status-badge {
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: white;
+}
+
+.status-draft {
+  background-color: #6c757d;
+}
+
+.status-review {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.status-needs_revision {
+  background-color: #fd7e14;
+}
+
+.status-accepted {
+  background-color: #28a745;
+}
+
+.status-rejected {
+  background-color: #dc3545;
+}
+
+.deposit-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  color: white;
+}
+
+.submit-button {
+  background-color: #007bff;
+}
+
+.approve-button {
+  background-color: #28a745;
+}
+
+.revision-button {
+  background-color: #fd7e14;
+}
+
+.reject-button {
+  background-color: #dc3545;
+}
+
+.view-tabs {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.view-tabs ul {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.view-tabs li {
+  padding: 12px 20px;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+}
+
+.view-tabs li.active {
+  border-bottom-color: #007bff;
+  font-weight: 500;
+}
+
+.view-content {
+  flex: 1;
+  overflow: auto;
+}
+
+.loading {
+  padding: 2rem;
+  text-align: center;
+  color: #666;
+}
+
+.error {
+  padding: 1rem;
+  margin: 1rem 0;
+  background-color: #ffebee;
+  color: #d32f2f;
+  border-radius: 4px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .three-pane-layout {
+    grid-template-columns: 200px 1fr 250px;
+  }
+}
+
+@media (max-width: 992px) {
+  .three-pane-layout {
+    grid-template-columns: 180px 1fr;
+  }
+  
+  .right-pane {
+    display: none; /* Hide version history on smaller screens */
+  }
+}
+
+@media (max-width: 768px) {
+  .three-pane-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .left-pane {
+    display: none; /* Hide navigation tree on mobile */
+  }
+}
+
+/* Debug styles */
+.three-pane-layout {
+  border: 2px solid red !important;
+}
+
+.left-pane {
+  border: 2px solid blue !important;
+}
+
+.center-pane {
+  border: 2px solid green !important;
+}
+
+.right-pane {
+  border: 2px solid purple !important;
+}
+
+/* Remove any container constraints from parent elements */
+.container, .container-fluid {
+  max-width: 100% !important;
+  padding: 0 !important;
+} 

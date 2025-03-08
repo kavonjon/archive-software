@@ -65,4 +65,27 @@ class DepositFileViewSet(viewsets.ModelViewSet):
                     'errors': processor.validation_errors
                 },
                 status=status.HTTP_400_BAD_REQUEST
-            ) 
+            )
+    
+    @action(detail=True, methods=['post'])
+    def associate(self, request, pk=None):
+        """Associate a file with an item"""
+        file = self.get_object()
+        item_uuid = request.data.get('item_uuid')
+        
+        if not item_uuid:
+            return Response(
+                {'error': 'Item UUID is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update the file's metadata to associate it with the item
+        file.item_uuid = item_uuid
+        file.save()
+        
+        return Response(self.get_serializer(file).data)
+    
+    @action(detail=True, methods=['post'])
+    def mark_as_metadata(self, request, pk=None):
+        """Alias for set_as_metadata for backward compatibility"""
+        return self.set_as_metadata(request, pk) 

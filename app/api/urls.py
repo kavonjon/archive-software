@@ -15,8 +15,9 @@ stable_router.register(r'items', items.ItemViewSet, basename='item')
 stable_router.register(r'collections', collections.CollectionViewSet, basename='collection')
 stable_router.register(r'languoids', languoids.LanguoidViewSet, basename='languoid')
 
+app_name = 'api'
+
 urlpatterns = [
-    # API endpoints
     path('beta/v1/', include(beta_router.urls)),
-    path('v1/', include(stable_router.urls)),
+    path('v1/', include(('api.v1.urls', 'v1'), namespace='v1')),
 ]

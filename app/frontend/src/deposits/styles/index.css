@@ -1,0 +1,82 @@
+/* Import global styles */
+@import './global.css';
+
+/* Import component styles */
+@import '../components/DepositLayout.css';
+@import '../components/NavigationTree.css';
+@import '../components/ContentView.css';
+@import '../components/VersionHistory.css';
+@import '../components/FileList.css';
+
+/* Add these styles to your existing CSS */
+.navigation-tree {
+  padding: 10px;
+  overflow: auto;
+}
+
+.tree-container {
+  margin-top: 10px;
+}
+
+.tree-node {
+  margin: 2px 0;
+}
+
+.tree-node-header {
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.tree-node-header:hover {
+  background-color: #f0f0f0;
+}
+
+.tree-node-header.selected {
+  background-color: #e0e0ff;
+}
+
+.tree-node-icon {
+  margin-right: 5px;
+  width: 16px;
+  text-align: center;
+}
+
+.tree-node-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-node-children {
+  margin-left: 20px;
+}
+
+.empty-message {
+  color: #888;
+  font-style: italic;
+  padding: 10px;
+}
+
+/* Add these styles for validation errors */
+.validation-errors {
+  margin: 10px 0;
+  padding: 10px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  border-radius: 4px;
+  color: #856404;
+}
+
+.validation-errors h4 {
+  margin-top: 0;
+  margin-bottom: 5px;
+}
+
+.validation-errors ul {
+  margin: 0;
+  padding-left: 20px;
+} 

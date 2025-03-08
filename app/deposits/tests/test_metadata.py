@@ -237,7 +237,7 @@ class MetadataProcessorTests(TestCase):
         result = processor.process_metadata_file(file)
         
         # Assertions
-        self.assertFalse(result)
+        self.assertFalse(result)  # Should fail validation
         self.assertTrue(any('Schema validation error' in error for error in processor.validation_errors))
         
         # Now create valid metadata
@@ -249,7 +249,13 @@ class MetadataProcessorTests(TestCase):
                     'timestamp': timezone.now().isoformat(),
                     'data': {
                         'title': 'Valid Title',
-                        'description': 'Test Description'
+                        'description': 'Test Description',
+                        'language': [
+                            {
+                                'id': 'eng',
+                                'name': 'English'  # Add required name field
+                            }
+                        ]
                     }
                 }
             ]
@@ -260,7 +266,6 @@ class MetadataProcessorTests(TestCase):
         valid_file = self.create_metadata_file(valid_metadata)
         
         # Process valid file
-        processor = MetadataProcessor(self.deposit)
         result = processor.process_metadata_file(valid_file)
         
         # Assertions

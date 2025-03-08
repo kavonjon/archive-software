@@ -97,6 +97,13 @@ urlpatterns = [
 
     # Your existing API URLs
     path('api/', include('api.urls')),
+
+    # Include traditional Django views from deposits app
+    path('', include('deposits.urls')),
+
+    # Add this instead
+    path('deposits/', TemplateView.as_view(template_name='deposits/deposit_detail.html', extra_context={'deposit_id': None}), name='deposits_index'),
+    path('deposits/<path:path>', TemplateView.as_view(template_name='deposits/deposit_detail.html', extra_context={'deposit_id': None}), name='deposits_path'),
 ]
 
 #urlpatterns = path(r'dj/', include(urlpatterns)),  # prepend 'django/' to all URLs

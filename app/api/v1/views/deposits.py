@@ -2,13 +2,16 @@ from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Q
-from deposits.models import Deposit
+from deposits.models import Deposit, DepositFile
 from ..serializers.deposits import (
     DepositListSerializer,
     DepositDetailSerializer,
+    DepositFileSerializer
 )
 from rest_framework import status
 from django.core.exceptions import PermissionDenied
+from rest_framework.parsers import MultiPartParser, FormParser
+from api.v1.serializers.files import FileSerializer
 
 class DepositViewSet(viewsets.ModelViewSet):
     """
@@ -16,6 +19,7 @@ class DepositViewSet(viewsets.ModelViewSet):
     """
     queryset = Deposit.objects.all()
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
     
     def get_serializer_class(self):
         if self.action == 'list':
@@ -128,4 +132,76 @@ class DepositViewSet(viewsets.ModelViewSet):
         return Response({
             'current_state': current_state,
             'possible_actions': actions
-        }) 
+        })
+
+    @action(detail=True, methods=['post'], url_path='transition')
+    def transition(self, request, pk=None):
+        """Transition a deposit to a new state with a comment"""
+        deposit = self.get_object()
+        new_state = request.data.get('state')
+        comment = request.data.get('comment', '')
+        
+        if not new_state:
+            return Response(
+                {'error': 'New state is required'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            success = deposit.transition_to(new_state, request.user, comment)
+            if success:
+                return Response(self.get_serializer(deposit).data)
+            else:
+                return Response(
+                    {'error': 'Failed to transition state', 'reason': 'validation failed'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except Exception as e:
+            return Response(
+                {'error': 'Failed to transition state', 'reason': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(detail=True, methods=['get', 'post'])
+    def files(self, request, pk=None):
+        """List or upload files in a deposit"""
+        deposit = self.get_object()
+        
+        if request.method == 'GET':
+            files = deposit.files.all()
+            print(f"Found {files.count()} files")
+            serializer = DepositFileSerializer(files, many=True)
+            return Response({
+                'results': serializer.data
+            })
+        
+        elif request.method == 'POST':
+            file = request.FILES.get('file')
+            print(f"Received file: {file}")
+            
+            if not file:
+                return Response(
+                    {'error': 'No file provided'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Create instance first without file
+            deposit_file = DepositFile(
+                deposit=deposit,
+                filename=file.name,
+                filetype=file.content_type,
+                filesize=file.size,
+                uploaded_by=request.user
+            )
+            deposit_file.save()  # Save to get ID and create relationships
+            
+            # Now save the file
+            deposit_file.file = file
+            deposit_file.save()
+            
+            print(f"Created DepositFile {deposit_file.id}")
+            
+            serializer = DepositFileSerializer(deposit_file)
+            data = serializer.data
+            print(f"Serialized response: {data}")
+            return Response(data, status=status.HTTP_201_CREATED) 

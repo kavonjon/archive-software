@@ -81,9 +81,11 @@ INSTALLED_APPS = [
     'metadata',
     'api',
     'deposits',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -92,6 +94,7 @@ MIDDLEWARE = [
     'oauth2_provider.middleware.OAuth2TokenMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'archive.middleware.RequestLoggerMiddleware',
 ]
 
 ROOT_URLCONF = 'archive.urls'
@@ -180,7 +183,10 @@ STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
 #STATIC_URL = '/dj/static/'
 #MEDIA_URL = '/dj/media/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static-files')]
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static-files'),
+    # If you have additional directories, they should be listed here
+]
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -305,3 +311,12 @@ LOGGING = {
 # File storage settings
 REPOSITORY_VOLUME = os.environ.get('REPOSITORY_VOLUME', os.path.join(MEDIA_ROOT, 'repository'))
 DEPOSIT_VOLUME = os.environ.get('DEPOSIT_VOLUME', os.path.join(MEDIA_ROOT, 'deposits'))
+
+# Add this line
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+
+# Allow requests from your frontend origin
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:8000",
+]

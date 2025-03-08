@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Deposit Portal{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/deposits/deposits.css' %}">
+{% endblock %}
+
+{% block page_content %}
+<div class="container-fluid p-0">
+  <div id="deposits-root"></div>
+</div>
+{% csrf_token %}
+
+<script>
+  // Pass deposit ID to the React app
+  window.DEPOSIT_ID = "{{ deposit.id }}";
+</script>
+
+<script src="{% static 'js/deposits/main.js' %}"></script>
+{% endblock %} 

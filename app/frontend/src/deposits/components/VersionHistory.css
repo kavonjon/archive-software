@@ -1,0 +1,338 @@
+.version-history {
+  padding: 16px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.version-history-title {
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
+  color: #424242;
+}
+
+.versions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.version-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.version-header {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.version-number {
+  font-weight: 500;
+  color: #424242;
+  margin-bottom: 4px;
+}
+
+.version-state {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  align-self: flex-start;
+}
+
+.state-draft {
+  background-color: #e0e0e0;
+  color: #616161;
+}
+
+.state-review {
+  background-color: #fff8e1;
+  color: #f57f17;
+}
+
+.state-needs_revision {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.state-accepted {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.state-rejected {
+  background-color: #ffebee;
+  color: #b71c1c;
+}
+
+.state-incomplete {
+  background-color: #e0e0e0;
+  color: #616161;
+}
+
+.version-details {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.version-timestamp,
+.version-user {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: #757575;
+  margin-bottom: 2px;
+}
+
+.detail-value {
+  color: #424242;
+}
+
+.version-comment {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.comment-text {
+  background-color: #f5f5f5;
+  padding: 8px;
+  border-radius: 4px;
+  margin-top: 4px;
+  color: #424242;
+  word-break: break-word;
+}
+
+.version-actions {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px 12px;
+}
+
+.view-button,
+.diff-button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.view-button {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.diff-button {
+  background-color: #f5f5f5;
+  color: #616161;
+}
+
+.view-button:hover {
+  background-color: #bbdefb;
+}
+
+.diff-button:hover {
+  background-color: #e0e0e0;
+}
+
+.empty-message {
+  color: #6c757d;
+  font-style: italic;
+}
+
+.version-changes h4 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.version-changes ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.version-changes li {
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.current-state {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.state-badge {
+  padding: 0.5rem 1rem;
+  background-color: #2196f3;
+  color: white;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.draft-badge {
+  padding: 0.5rem 1rem;
+  background-color: #ff9800;
+  color: white;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.version-list {
+  list-style: none;
+  padding: 0;
+}
+
+.version-item.current {
+  border-color: #2196f3;
+  background-color: #e3f2fd;
+}
+
+.version-timestamp {
+  font-size: 0.9rem;
+  color: #777;
+}
+
+.version-user {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.version-changes {
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #eee;
+}
+
+.change-item {
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.change-field {
+  font-weight: 500;
+}
+
+.change-old {
+  color: #f44336;
+  text-decoration: line-through;
+  margin: 0 0.25rem;
+}
+
+.change-new {
+  color: #4caf50;
+}
+
+.version-list {
+  margin-top: 10px;
+}
+
+.version-item {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  padding: 10px;
+  background-color: #f9f9f9;
+}
+
+.version-item.draft-version {
+  border-left: 4px solid #17a2b8;
+  background-color: #f0f9fa;
+}
+
+.version-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.version-number {
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.version-state {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+  color: white;
+}
+
+.state-draft {
+  background-color: #6c757d;
+}
+
+.state-review {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.state-needs_revision {
+  background-color: #fd7e14;
+}
+
+.state-accepted {
+  background-color: #28a745;
+}
+
+.state-rejected {
+  background-color: #dc3545;
+}
+
+.draft-badge {
+  margin-left: 10px;
+  background-color: #17a2b8;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.version-details {
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+.version-timestamp {
+  color: #666;
+}
+
+.version-user {
+  margin-top: 2px;
+}
+
+.version-comment {
+  margin-top: 5px;
+  font-style: italic;
+  color: #555;
+}
+
+.version-history-loading,
+.version-history-error,
+.version-history-empty {
+  padding: 15px;
+  text-align: center;
+  color: #666;
+}
+
+.version-history-error {
+  color: #dc3545;
+} 

@@ -2,6 +2,7 @@ import logging
 from django.utils import timezone
 from django.db import transaction
 from django.core.exceptions import PermissionDenied
+from .models import Notification
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +125,9 @@ class DepositWorkflow:
         # Add state change to metadata
         self._record_state_change(previous_state, target_state, user, comment)
         
+        # Create notifications
+        self._create_notifications(previous_state, target_state, user, comment)
+        
         return True
         
     def _validate_transition(self, target_state):
@@ -180,4 +184,58 @@ class DepositWorkflow:
         
         # Update deposit metadata
         self.deposit.metadata = metadata
-        self.deposit.save(update_fields=['metadata']) 
+        self.deposit.save(update_fields=['metadata'])
+        
+    def _create_notifications(self, previous_state, new_state, user, comment=None):
+        """
+        Create notifications for relevant users based on state change.
+        
+        Args:
+            previous_state: The previous state
+            new_state: The new state
+            user: The user who made the change
+            comment: Optional comment about the change
+        """
+        # Get all users involved with this deposit
+        involved_users = set(self.deposit.involved_users.all())
+        
+        # Always include the draft user
+        if self.deposit.draft_user:
+            involved_users.add(self.deposit.draft_user)
+        
+        # Create notification message
+        message = f"Deposit '{self.deposit.title}' changed from {previous_state} to {new_state}"
+        if comment:
+            message += f" with comment: {comment}"
+        
+        # Create notifications for all involved users except the one making the change
+        for recipient in involved_users:
+            if recipient != user:  # Don't notify the user who made the change
+                Notification.objects.create(
+                    user=recipient,
+                    deposit=self.deposit,
+                    notification_type='STATE_CHANGE',
+                    message=message
+                )
+        
+        # For specific state transitions, create additional notifications
+        if new_state == 'NEEDS_REVISION':
+            # Notify draft user specifically about revision needed
+            if self.deposit.draft_user and self.deposit.draft_user != user:
+                Notification.objects.create(
+                    user=self.deposit.draft_user,
+                    deposit=self.deposit,
+                    notification_type='SYSTEM',
+                    message=f"Your deposit '{self.deposit.title}' needs revision."
+                )
+        
+        elif new_state == 'ACCEPTED':
+            # Notify all involved users about acceptance
+            for recipient in involved_users:
+                if recipient != user:
+                    Notification.objects.create(
+                        user=recipient,
+                        deposit=self.deposit,
+                        notification_type='SYSTEM',
+                        message=f"Deposit '{self.deposit.title}' has been accepted!"
+                    ) 

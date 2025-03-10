@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import FileList from './FileList';
 import './ContentView.css';
+import CollaboratorsTable from './CollaboratorsTable';
 
 const ContentView = ({ type, depositId, deposit }) => {
   const [selectedItem, setSelectedItem] = useState(null);
@@ -121,6 +122,17 @@ const ContentView = ({ type, depositId, deposit }) => {
     );
   };
   
+  const renderCollaboratorsView = () => {
+    const latestVersion = deposit.metadata?.versions?.[0] || { data: {} };
+    const collaborators = latestVersion.data?.collaborators || [];
+    
+    return (
+      <div className="collaborators-view">
+        <CollaboratorsTable collaborators={collaborators} />
+      </div>
+    );
+  };
+  
   // Determine which view to render based on type
   const renderContent = () => {
     switch(type) {
@@ -132,6 +144,8 @@ const ContentView = ({ type, depositId, deposit }) => {
         return renderCollectionsView();
       case 'items':
         return renderItemsView();
+      case 'collaborators':
+        return renderCollaboratorsView();
       default:
         return <div>Select an item from the navigation tree</div>;
     }

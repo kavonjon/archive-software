@@ -88,19 +88,22 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  padding-right: 15px;
 }
 
 .filetype-col {
   flex: 1;
   color: #757575;
+  min-width: 100px;
+  padding-right: 10px;
 }
 
 .filesize-col {
   flex: 1;
   color: #757575;
+  min-width: 80px;
+  padding-right: 10px;
 }
 
 .status-col {
@@ -118,8 +121,15 @@
 .file-icon {
   color: #757575;
   font-size: 18px;
-  width: 24px;
+  min-width: 24px;
   text-align: center;
+  flex-shrink: 0;
+}
+
+.file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Progress bar */

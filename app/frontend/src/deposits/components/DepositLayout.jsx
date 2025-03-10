@@ -6,6 +6,7 @@ import NavigationTree from './NavigationTree';
 import ContentView from './ContentView';
 import VersionHistory from './VersionHistory';
 import FileList from './FileList';
+import CollaboratorsTable from './CollaboratorsTable';
 import './DepositLayout.css';
 
 const DepositLayout = () => {
@@ -15,7 +16,7 @@ const DepositLayout = () => {
   const [deposit, setDeposit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeView, setActiveView] = useState('files'); // 'files', 'metadata', 'collections', 'items'
+  const [activeView, setActiveView] = useState('files'); // 'files', 'metadata', 'collections', 'collaborators'
   const [discardingDraft, setDiscardingDraft] = useState(false);
 
   useEffect(() => {
@@ -115,41 +116,51 @@ const DepositLayout = () => {
     <DepositProvider depositId={depositId}>
       <div className="deposit-layout" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
         <div className="deposit-layout-header" style={{ padding: '15px', borderBottom: '1px solid #ccc' }}>
-          <h1>{deposit.title || `Deposit #${deposit.id}`}</h1>
-          <div className="deposit-status">
-            <span 
-              className={`status-badge status-${deposit.state.toLowerCase()}`}
-              style={{
-                padding: '5px 10px',
-                borderRadius: '4px',
-                fontSize: '14px',
-                fontWeight: '500',
-                color: 'white',
-                backgroundColor: getStatusColor(deposit.state)
-              }}
-            >
-              {deposit.state}
-            </span>
-            {hasDraftVersion && (
+          <div className="title-status-container" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <h1 style={{ margin: 0 }}>{deposit.title || `Deposit #${deposit.id}`}</h1>
+            <div className="deposit-status" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span 
-                className="draft-indicator"
+                className={`status-badge status-${deposit.state.toLowerCase()}`}
                 style={{
-                  marginLeft: '10px',
                   padding: '5px 10px',
                   borderRadius: '4px',
                   fontSize: '14px',
                   fontWeight: '500',
                   color: 'white',
-                  backgroundColor: '#17a2b8'
+                  backgroundColor: getStatusColor(deposit.state)
                 }}
               >
-                DRAFT CHANGES
+                {deposit.state}
               </span>
-            )}
+              {hasDraftVersion && (
+                <span 
+                  className="draft-indicator"
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: 'white',
+                    backgroundColor: '#17a2b8'
+                  }}
+                >
+                  DRAFT CHANGES
+                </span>
+              )}
+            </div>
           </div>
-          <div className="deposit-actions">
+          
+          <div className="deposit-actions" style={{ display: 'flex', gap: '10px' }}>
             {deposit.state === 'DRAFT' && (
-              <button className="action-button submit-button" onClick={() => navigate(`/deposits/${depositId}/submit`)}>
+              <button 
+                className="action-button submit-button" 
+                onClick={() => navigate(`/deposits/${depositId}/submit`)}
+                style={{
+                  padding: '8px 16px',
+                  whiteSpace: 'nowrap',
+                  minWidth: 'fit-content'
+                }}
+              >
                 Submit for Review
               </button>
             )}
@@ -161,7 +172,10 @@ const DepositLayout = () => {
                 style={{
                   backgroundColor: '#dc3545',
                   color: 'white',
-                  marginRight: '10px'
+                  marginRight: '10px',
+                  padding: '8px 16px',
+                  whiteSpace: 'nowrap',
+                  minWidth: 'fit-content'
                 }}
               >
                 {discardingDraft ? 'Discarding...' : 'Discard Draft Changes'}
@@ -169,13 +183,37 @@ const DepositLayout = () => {
             )}
             {deposit.state === 'REVIEW' && deposit.is_reviewer && (
               <>
-                <button className="action-button approve-button" onClick={() => navigate(`/deposits/${depositId}/approve`)}>
+                <button 
+                  className="action-button approve-button" 
+                  onClick={() => navigate(`/deposits/${depositId}/approve`)}
+                  style={{
+                    padding: '8px 16px',
+                    whiteSpace: 'nowrap',
+                    minWidth: 'fit-content'
+                  }}
+                >
                   Approve
                 </button>
-                <button className="action-button revision-button" onClick={() => navigate(`/deposits/${depositId}/revision`)}>
+                <button 
+                  className="action-button revision-button" 
+                  onClick={() => navigate(`/deposits/${depositId}/revision`)}
+                  style={{
+                    padding: '8px 16px',
+                    whiteSpace: 'nowrap',
+                    minWidth: 'fit-content'
+                  }}
+                >
                   Request Revision
                 </button>
-                <button className="action-button reject-button" onClick={() => navigate(`/deposits/${depositId}/reject`)}>
+                <button 
+                  className="action-button reject-button" 
+                  onClick={() => navigate(`/deposits/${depositId}/reject`)}
+                  style={{
+                    padding: '8px 16px',
+                    whiteSpace: 'nowrap',
+                    minWidth: 'fit-content'
+                  }}
+                >
                   Reject
                 </button>
               </>
@@ -228,16 +266,16 @@ const DepositLayout = () => {
                   Collections
                 </li>
                 <li 
-                  className={activeView === 'items' ? 'active' : ''} 
-                  onClick={() => setActiveView('items')}
+                  className={activeView === 'collaborators' ? 'active' : ''} 
+                  onClick={() => setActiveView('collaborators')}
                   style={{ 
                     padding: '12px 20px', 
                     cursor: 'pointer', 
-                    borderBottom: activeView === 'items' ? '3px solid #007bff' : '3px solid transparent',
-                    fontWeight: activeView === 'items' ? '500' : 'normal'
+                    borderBottom: activeView === 'collaborators' ? '3px solid #007bff' : '3px solid transparent',
+                    fontWeight: activeView === 'collaborators' ? '500' : 'normal'
                   }}
                 >
-                  Items
+                  Collaborators
                 </li>
               </ul>
             </div>

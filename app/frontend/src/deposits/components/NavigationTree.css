@@ -115,7 +115,6 @@
   font-size: 12px;
   padding: 2px 6px;
   border-radius: 10px;
-  margin-left: 8px;
 }
 
 .nested {
@@ -273,4 +272,22 @@
 .tree-unassociated h4 {
   margin-bottom: 0.5rem;
   color: #555;
+}
+
+.node-indicators {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.warning-indicator {
+  color: #f57c00;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.warning-indicator i {
+  color: #f57c00;
 } 

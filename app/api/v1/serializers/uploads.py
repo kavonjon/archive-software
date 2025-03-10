@@ -22,7 +22,6 @@ class DepositFileSerializer(serializers.ModelSerializer):
             'uploaded_at',
             'uploaded_by',
             'is_metadata_file',
-            'item_uuid',
         ]
         read_only_fields = ['filename', 'filetype', 'filesize', 'uploaded_at', 'uploaded_by']
     

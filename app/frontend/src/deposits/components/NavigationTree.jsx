@@ -19,52 +19,8 @@ const NavigationTree = ({ deposit, onSelectItem }) => {
           is_draft: true,
           data: {
             collections: [
-              {
-                uuid: 'col1',
-                collection_abbr: 'LING',
-                name: 'Linguistics Fieldwork Collection',
-                items: [
-                  {
-                    uuid: 'item1',
-                    catalog_number: 'LING-001',
-                    resource_type: 'Audio Recording',
-                    item_access_level: '1',
-                    files: [
-                      { uuid: 'file1', filename: 'interview1.wav', filesize: 12345678 },
-                      { uuid: 'file2', filename: 'notes.pdf', filesize: 987654 }
-                    ]
-                  },
-                  {
-                    uuid: 'item2',
-                    catalog_number: 'LING-002',
-                    resource_type: 'Transcription',
-                    item_access_level: '1',
-                    files: [
-                      { uuid: 'file3', filename: 'transcription.txt', filesize: 45678 }
-                    ]
-                  }
-                ]
-              },
-              {
-                uuid: 'col2',
-                collection_abbr: 'HIST',
-                name: 'Historical Documents Collection',
-                items: [
-                  {
-                    uuid: 'item3',
-                    catalog_number: 'HIST-001',
-                    resource_type: 'Manuscript',
-                    item_access_level: '2',
-                    files: [
-                      { uuid: 'file4', filename: 'manuscript.pdf', filesize: 3456789 }
-                    ]
-                  }
-                ]
-              }
-            ],
-            unassociated_files: [
-              { uuid: 'file5', filename: 'unassociated1.txt', filesize: 12345 },
-              { uuid: 'file6', filename: 'unassociated2.jpg', filesize: 678901 }
+              {}
+               
             ]
           }
         }
@@ -171,7 +127,14 @@ const NavigationTree = ({ deposit, onSelectItem }) => {
                     <span className="node-label" title={collection.name}>
                       {collection.name || collection.collection_abbr || `Collection ${collection.uuid}`}
                     </span>
-                    <span className="node-count">{collection.items?.length || 0}</span>
+                    <div className="node-indicators">
+                      {collection.warn && (
+                        <span className="warning-indicator" title="This collection has warnings">
+                          <i className="fas fa-exclamation-triangle"></i>
+                        </span>
+                      )}
+                      <span className="node-count">{collection.items?.length || 0}</span>
+                    </div>
                   </div>
                   
                   {expandedCollections[collection.uuid] && collection.items && (
@@ -194,7 +157,14 @@ const NavigationTree = ({ deposit, onSelectItem }) => {
                             <span className="node-label" title={`${item.catalog_number} - ${item.resource_type}`}>
                               {item.catalog_number || `Item ${item.uuid}`}
                             </span>
-                            <span className="node-count">{item.files?.length || 0}</span>
+                            <div className="node-indicators">
+                              {item.warn && (
+                                <span className="warning-indicator" title="This item has warnings">
+                                  <i className="fas fa-exclamation-triangle"></i>
+                                </span>
+                              )}
+                              <span className="node-count">{item.files?.length || 0}</span>
+                            </div>
                           </div>
                           
                           {expandedItems[item.uuid] && item.files && (
@@ -212,6 +182,11 @@ const NavigationTree = ({ deposit, onSelectItem }) => {
                                     <span className="node-label" title={`${file.filename} (${formatFileSize(file.filesize)})`}>
                                       {file.filename}
                                     </span>
+                                    {file.warn && (
+                                      <span className="warning-indicator" title="This file has warnings">
+                                        <i className="fas fa-exclamation-triangle"></i>
+                                      </span>
+                                    )}
                                   </div>
                                 </li>
                               ))}
@@ -251,6 +226,11 @@ const NavigationTree = ({ deposit, onSelectItem }) => {
                     <span className="node-label" title={`${file.filename} (${formatFileSize(file.filesize)})`}>
                       {file.filename}
                     </span>
+                    {file.warn && (
+                      <span className="warning-indicator" title="This file has warnings">
+                        <i className="fas fa-exclamation-triangle"></i>
+                      </span>
+                    )}
                   </div>
                 </li>
               ))}

@@ -208,10 +208,22 @@ const FileList = ({ depositId, deposit }) => {
             {files.map(file => (
               <div key={file.id} className="file-row">
                 <div className="filename-col">
-                  <span className="file-icon">
+                  <span className="file-icon" style={{ 
+                    minWidth: '24px', 
+                    display: 'flex', 
+                    justifyContent: 'center' 
+                  }}>
                     {getFileIcon(file.filename)}
                   </span>
-                  <span className="file-name">{file.filename}</span>
+                  <span className="file-name" style={{ 
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    maxWidth: 'calc(100% - 30px)',
+                    paddingRight: '15px'
+                  }}>
+                    {file.filename}
+                  </span>
                 </div>
                 <div className="filetype-col">{getFileType(file.filename)}</div>
                 <div className="filesize-col">{formatFileSize(file.filesize)}</div>

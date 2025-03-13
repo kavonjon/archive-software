@@ -15,6 +15,7 @@ import ast
 import environ
 from .deploychoice import *
 import logging.config
+from celery.schedules import crontab
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 
@@ -298,5 +299,56 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': True,
         }
+    },
+}
+
+# Add this near the top of your settings.py file
+SERVER_ROLE = os.environ.get('SERVER_ROLE', 'public')
+PUBLIC_SERVER_URL = os.environ.get('PUBLIC_SERVER_URL', '')
+REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
+
+# Add password to Redis URL if it exists
+if REDIS_PASSWORD and '://' in REDIS_URL:
+    protocol, rest = REDIS_URL.split('://', 1)
+    if '@' not in rest:
+        host_part = rest
+        REDIS_URL = f"{protocol}://:{REDIS_PASSWORD}@{host_part}"
+
+# Configure Celery based on server role
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+
+# For private server, also keep track of public Redis for communication
+if SERVER_ROLE == 'private':
+    PUBLIC_REDIS_URL = os.environ.get('PUBLIC_REDIS_URL', '')
+
+# File storage paths based on server role
+if SERVER_ROLE == 'public':
+    CELERY_TASK_ROUTES = {
+        'metadata.tasks.*': {'queue': 'public'},
+        'common.tasks.*': {'queue': 'common'},
+    }
+    PUBLIC_STORAGE_PATH = os.path.join(BASE_DIR, 'public_storage')
+    TEMP_STORAGE_PATH = os.path.join(BASE_DIR, 'temp_storage')
+    SEQUESTERED_INCOMING_PATH = os.path.join(BASE_DIR, 'sequestered_incoming')
+    SEQUESTERED_OUTGOING_PATH = os.path.join(BASE_DIR, 'sequestered_outgoing')
+    
+else:  # private
+    CELERY_TASK_ROUTES = {
+        'metadata.tasks.*': {'queue': 'private'},
+        'common.tasks.*': {'queue': 'common'},
+    }
+    MAIN_STORAGE_PATH = os.path.join(BASE_DIR, 'main_storage')
+    SEQUESTERED_INCOMING_PATH = os.path.join(BASE_DIR, 'sequestered_incoming')
+
+CELERY_BEAT_SCHEDULE = {
+    'update-collection-item-counts': {
+        'task': 'metadata.tasks.update_collection_item_counts',
+        'schedule': crontab(hour=2, minute=0),  # Run at 2 AM every day
+    },
+    'cleanup-temp-files': {
+        'task': 'metadata.tasks.cleanup_temp_files',
+        'schedule': crontab(hour='*/6', minute=0),  # Run every 6 hours
     },
 }

@@ -2,7 +2,7 @@ from rest_framework import viewsets
 from oauth2_provider.contrib.rest_framework import TokenHasScope
 from drf_spectacular.utils import extend_schema, OpenApiParameter, extend_schema_view
 from metadata.models import Collection
-from ..serializers.collections import CollectionSerializer
+from ..serializers.collections import CollectionListSerializer, CollectionDetailSerializer
 from ...versioning import ArchiveAPIVersioning
 from django_filters import rest_framework as filters
 from .items import IsAdminOrHasToken
@@ -45,9 +45,13 @@ class CollectionViewSet(viewsets.ReadOnlyModelViewSet):
     """
     permission_classes = [IsAdminOrHasToken]
     required_scopes = ['read']
-    serializer_class = CollectionSerializer
     versioning_class = ArchiveAPIVersioning
     filterset_class = CollectionFilter
 
     def get_queryset(self):
-        return Collection.objects.all() 
+        return Collection.objects.all()
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return CollectionListSerializer
+        return CollectionDetailSerializer 

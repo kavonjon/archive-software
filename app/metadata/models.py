@@ -524,6 +524,7 @@ class Collection(models.Model):
     citation_authors = models.TextField(blank=True, verbose_name="citation authors")
     access_levels = MultiSelectField(choices=ACCESS_CHOICES, blank=True)
     genres = MultiSelectField(choices=GENRE_CHOICES, blank=True)
+    item_count = models.IntegerField(default=0, help_text="Number of items in this collection")
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     modified_by = models.CharField(max_length=255)

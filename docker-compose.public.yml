@@ -1,0 +1,120 @@
+version: '3'
+
+services:
+  web:
+    build: .
+    container_name: django_gunicorn_public
+    restart: unless-stopped
+    volumes:
+      - static_volume:/app/static
+      - public_storage:/app/public_storage
+      - sequestered_incoming:/app/sequestered_incoming
+      - sequestered_outgoing:/app/sequestered_outgoing
+      - temp_storage:/app/temp_storage
+    expose:
+      - 8000
+    env_file:
+      - .env
+    environment:
+      - SERVER_ROLE=public
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres
+    container_name: postgres_django_public
+    restart: unless-stopped
+    ports:
+      - "54322:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+      - ./backup:/backup
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+
+  redis:
+    image: redis:7
+    container_name: redis_public
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+
+  celery-worker:
+    build: .
+    container_name: celery_worker_public
+    restart: unless-stopped
+    command: celery -A archive worker -Q public,common
+    volumes:
+      - public_storage:/app/public_storage
+      - sequestered_incoming:/app/sequestered_incoming
+      - sequestered_outgoing:/app/sequestered_outgoing
+      - temp_storage:/app/temp_storage
+    env_file:
+      - .env
+    environment:
+      - SERVER_ROLE=public
+    depends_on:
+      - redis
+      - db
+
+  celery-beat:
+    build: .
+    container_name: celery_beat_public
+    restart: unless-stopped
+    command: celery -A archive beat
+    env_file:
+      - .env
+    environment:
+      - SERVER_ROLE=public
+    depends_on:
+      - redis
+      - db
+
+  virus-scanner:
+    build: ./virus-scanner
+    container_name: virus_scanner_public
+    restart: unless-stopped
+    volumes:
+      - sequestered_incoming:/scan/incoming:ro
+      - sequestered_outgoing:/scan/outgoing:rw
+      - public_storage:/scan/public:rw
+    environment:
+      - SERVER_ROLE=public
+      - SCAN_INTERVAL=300  # Scan every 5 minutes
+
+  nginx:
+    build: ./nginx
+    container_name: nginx_public
+    restart: unless-stopped
+    volumes:
+      - static_volume:/app/static/
+      - public_storage:/app/public_storage:ro
+      - temp_storage:/app/temp_storage:ro
+    expose:
+      - 8081
+    depends_on:
+      - web
+
+volumes:
+  postgres_data:
+  static_volume:
+  redis_data:
+  public_storage:       # Main public storage
+  sequestered_incoming: # Quarantine for uploaded files
+  sequestered_outgoing: # Files ready to be transferred to private
+  temp_storage:         # Temporary storage for private files
+
+networks:
+  default:
+    external: true
+    name: nginxproxymanager_default 

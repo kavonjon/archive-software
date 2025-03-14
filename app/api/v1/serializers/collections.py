@@ -24,7 +24,7 @@ class CollectionDetailMetadataSerializer(serializers.Serializer):
     description = serializers.CharField(allow_blank=True)
     extent = serializers.CharField(allow_blank=True)
     genres = serializers.SerializerMethodField()
-    item_count = serializers.IntegerField(source='item_count', read_only=True)
+    item_count = serializers.IntegerField(read_only=True)
     
     def get_access_levels(self, obj):
         if not obj.access_levels:

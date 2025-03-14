@@ -29,13 +29,13 @@ if [ "$SERVER_ROLE" = "private" ]; then
     fi
 fi
 
-# Deploy the appropriate configuration
+# Deploy the appropriate configuration with build flag
 if [ "$SERVER_ROLE" = "public" ]; then
     echo "Deploying public server configuration..."
-    docker-compose -f docker-compose.public.yml up -d
+    docker-compose -f docker-compose.public.yml up -d --build
 else
     echo "Deploying private server configuration..."
-    docker-compose -f docker-compose.private.yml up -d
+    docker-compose -f docker-compose.private.yml up -d --build
 fi
 
 echo "Deployment complete for $SERVER_ROLE server." 

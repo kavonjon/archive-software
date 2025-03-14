@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# Check if SERVER_ROLE is set in .env file
+if [ -f .env ]; then
+    # Only export simple variables, not complex ones like ADMINS
+    export $(grep -v '^#' .env | grep -v "ADMINS" | xargs)
+    # Manually set SERVER_ROLE if it exists in .env
+    SERVER_ROLE=$(grep "SERVER_ROLE" .env | cut -d= -f2 | tr -d '"')
+fi
+
 # Check if SERVER_ROLE is set
 if [ -z "$SERVER_ROLE" ]; then
     echo "Error: SERVER_ROLE environment variable is not set."

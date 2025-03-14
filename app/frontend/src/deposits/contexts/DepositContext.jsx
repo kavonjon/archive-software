@@ -1,12 +1,14 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import api from '../services/api';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 
+// Create context
 const DepositContext = createContext();
 
+// Custom hook for using the context
 export const useDeposit = () => useContext(DepositContext);
 
 export const DepositProvider = ({ children, depositId }) => {
+  // State management
   const [deposit, setDeposit] = useState(null);
   const [files, setFiles] = useState([]);
   const [collections, setCollections] = useState([]);
@@ -16,216 +18,203 @@ export const DepositProvider = ({ children, depositId }) => {
   const [currentVersion, setCurrentVersion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState({});
+  const [isUploading, setIsUploading] = useState(false);
+  
+  // Use a ref to track if initial data has been loaded
+  const dataLoaded = useRef(false);
 
   // Fetch deposit data
-  useEffect(() => {
+  const fetchDeposit = useCallback(async () => {
     if (!depositId) return;
 
-    const fetchDeposit = async () => {
-      try {
-        setLoading(true);
-        const response = await api.getDeposit(depositId);
-        setDeposit(response.data);
-        
-        // Extract collections from metadata
-        if (response.data.metadata?.data?.collections) {
-          setCollections(response.data.metadata.data.collections);
+    try {
+      setLoading(true);
+      const response = await axios.get(`/api/v1/deposits/${depositId}/`);
+      console.log("Deposit data from API:", response.data);
+      
+      // Parse metadata if it's a string
+      let metadata = response.data.metadata;
+      if (typeof metadata === 'string') {
+        try {
+          metadata = JSON.parse(metadata);
+          console.log("Parsed metadata:", metadata);
+        } catch (parseError) {
+          console.error("Error parsing metadata:", parseError);
+          metadata = {};
         }
-        
-        // Extract versions
-        if (response.data.metadata?.versions) {
-          setVersions(response.data.metadata.versions);
-          setCurrentVersion(0); // Latest version
-        }
-        
-        setLoading(false);
-      } catch (err) {
-        setError('Failed to load deposit');
-        setLoading(false);
-        console.error(err);
       }
-    };
-
-    fetchDeposit();
+      
+      // Update the deposit with parsed metadata
+      const depositData = {
+        ...response.data,
+        metadata: metadata || {}
+      };
+      
+      setDeposit(depositData);
+      
+      // Extract collections from metadata
+      if (metadata?.versions?.[0]?.data?.collections) {
+        setCollections(metadata.versions[0].data.collections);
+      }
+      
+      // Extract unassociated files
+      if (metadata?.versions?.[0]?.data?.unassociated_files) {
+        setUnassociatedFiles(metadata.versions[0].data.unassociated_files);
+      }
+      
+      // Extract versions
+      if (metadata?.versions) {
+        setVersions(metadata.versions);
+        
+        // Find the current version (first non-draft or first version)
+        const nonDraftVersion = metadata.versions.findIndex(v => !v.is_draft);
+        setCurrentVersion(nonDraftVersion >= 0 ? nonDraftVersion : 0);
+      }
+      
+      setError(null);
+    } catch (err) {
+      console.error('Failed to fetch deposit:', err);
+      setError('Failed to load deposit data. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
   }, [depositId]);
 
   // Fetch files
-  useEffect(() => {
+  const fetchFiles = useCallback(async () => {
     if (!depositId) return;
-
-    const fetchFiles = async () => {
-      try {
-        const response = await api.getFiles(depositId);
-        setFiles(response.data.results);
-        
-        // Determine unassociated files
-        const associatedFilenames = new Set();
-        collections.forEach(collection => {
-          collection.items?.forEach(item => {
-            item.files?.forEach(file => {
-              associatedFilenames.add(file.filename);
-            });
-          });
-        });
-        
-        const unassociated = response.data.results.filter(
-          file => !file.is_metadata_file && !associatedFilenames.has(file.filename)
-        );
-        
-        setUnassociatedFiles(unassociated);
-      } catch (err) {
-        console.error('Failed to load files:', err);
-      }
-    };
-
-    fetchFiles();
-  }, [depositId, collections]);
-
-  // Select an item for viewing/editing
-  const selectItem = (item) => {
-    setSelectedItem(item);
-  };
-
-  // View a specific version
-  const viewVersion = (versionIndex) => {
-    if (versionIndex >= 0 && versionIndex < versions.length) {
-      setCurrentVersion(versionIndex);
-    }
-  };
-
-  // Function to prepare for editing by creating a draft version if needed
-  const prepareForEditing = async () => {
-    // Check if there's already a draft version
-    const hasDraftVersion = deposit.metadata?.versions?.some(v => v.is_draft === true);
     
-    if (!hasDraftVersion && deposit.state !== 'DRAFT') {
-      try {
-        // Clone the metadata
-        const metadata = {...deposit.metadata};
-        
-        // Get the latest version or create initial data
-        let latestVersion;
-        let versionNumber = 1;
-        
-        if (metadata.versions && metadata.versions.length > 0) {
-          latestVersion = metadata.versions[0];
-          versionNumber = latestVersion.version + 1;
-        } else {
-          latestVersion = { data: {} };
-        }
-        
-        // Create a new draft version
-        const newVersion = {
-          version: versionNumber,
-          state: deposit.state,
-          timestamp: new Date().toISOString(),
-          modified_by: deposit.draft_user?.username || 'user',
-          is_draft: true,
-          comment: 'User initiated changes',
-          data: JSON.parse(JSON.stringify(latestVersion.data || {}))
-        };
-        
-        // Add to versions list (at the beginning)
-        metadata.versions.unshift(newVersion);
-        
-        // Update the deposit with the modified metadata
-        const response = await axios.patch(`/api/v1/deposits/${depositId}/`, {
-          metadata: metadata
-        });
-        
-        setDeposit(response.data);
-        return true;
-      } catch (error) {
-        console.error('Error creating draft version:', error);
-        return false;
-      }
-    }
-    
-    // Already has a draft or is in DRAFT state
-    return true;
-  };
-
-  // Function to update metadata (will be called after prepareForEditing)
-  const updateMetadata = async (updatedData, path) => {
     try {
-      // First ensure we have a draft version
-      const readyForEdit = await prepareForEditing();
-      if (!readyForEdit) {
-        throw new Error('Failed to prepare for editing');
+      const response = await axios.get(`/api/v1/deposits/${depositId}/files/`);
+      console.log('Files API response:', response.data);
+      console.log('Files API response type:', typeof response.data);
+      console.log('Is array?', Array.isArray(response.data));
+      
+      // Handle different response formats
+      if (Array.isArray(response.data)) {
+        setFiles(response.data);
+      } else if (response.data && typeof response.data === 'object') {
+        // Check if it has a results property (common in paginated APIs)
+        if (Array.isArray(response.data.results)) {
+          setFiles(response.data.results);
+        } else {
+          // If it's an object but not what we expect, set empty array
+          console.warn('Unexpected API response format for files:', response.data);
+          setFiles([]);
+        }
+      } else {
+        // Fallback to empty array
+        console.warn('Unexpected API response format for files:', response.data);
+        setFiles([]);
       }
       
-      // Clone the metadata
-      const metadata = {...deposit.metadata};
+      setError(null);
+    } catch (err) {
+      console.error('Failed to fetch files:', err);
+      setError('Failed to load files. Please try again later.');
+      // Ensure files is always an array even on error
+      setFiles([]);
+    }
+  }, [depositId]);
+
+  // Load data when depositId changes or on initial mount
+  useEffect(() => {
+    if (depositId && !dataLoaded.current) {
+      fetchDeposit();
+      fetchFiles();
+      dataLoaded.current = true;
+    }
+  }, [depositId, fetchDeposit, fetchFiles]);
+
+  // Provide a manual refresh method that can be called when needed
+  const refreshData = useCallback(() => {
+    dataLoaded.current = false; // Reset the flag to allow fetching again
+    fetchDeposit();
+    fetchFiles();
+  }, [fetchDeposit, fetchFiles]);
+
+  // Upload file
+  const uploadFile = async (file, onProgress) => {
+    try {
+      setIsUploading(true);
+      console.log("Starting file upload:", file.name);
       
-      // Find the draft version (should be the first one)
-      const draftVersion = metadata.versions.find(v => v.is_draft === true);
+      const formData = new FormData();
+      formData.append('file', file);
       
-      if (!draftVersion) {
-        throw new Error('No draft version found');
-      }
+      // Get CSRF token
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+      console.log("CSRF Token:", csrfToken ? "Present" : "Missing");
       
-      // Update the specified path in the data
-      // This uses a helper function to update nested properties
-      const updatedMetadata = updateNestedProperty(metadata, ['versions', 0, 'data', ...path], updatedData);
+      // Track upload progress
+      const config = {
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(prev => ({
+            ...prev,
+            [file.name]: percentCompleted
+          }));
+          
+          if (onProgress) {
+            onProgress(percentCompleted);
+          }
+        },
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      };
       
-      // Send the update to the API
-      const response = await axios.patch(`/api/v1/deposits/${depositId}/`, {
-        metadata: updatedMetadata
+      // Make the request
+      const response = await axios.post(
+        `/api/v1/deposits/${depositId}/files/upload/`, 
+        formData, 
+        config
+      );
+      
+      console.log("Upload response:", response);
+      
+      // Refresh files
+      await fetchFiles();
+      
+      // Clear progress for this file
+      setUploadProgress(prev => {
+        const newProgress = {...prev};
+        delete newProgress[file.name];
+        return newProgress;
       });
       
-      setDeposit(response.data);
+      setIsUploading(false);
       return true;
-    } catch (error) {
-      console.error('Error updating metadata:', error);
+    } catch (err) {
+      console.error('Failed to upload file:', err);
+      console.error('Error details:', err.response?.data || err.message);
+      
+      // Clear progress for this file
+      setUploadProgress(prev => {
+        const newProgress = {...prev};
+        delete newProgress[file.name];
+        return newProgress;
+      });
+      
+      setIsUploading(false);
       return false;
     }
   };
-  
-  // Helper function to update a nested property in an object
-  const updateNestedProperty = (obj, path, value) => {
-    // Clone the object to avoid mutations
-    const result = {...obj};
-    
-    // Navigate to the nested property
-    let current = result;
-    for (let i = 0; i < path.length - 1; i++) {
-      const key = path[i];
-      if (current[key] === undefined) {
-        current[key] = typeof path[i + 1] === 'number' ? [] : {};
-      }
-      current = current[key];
-    }
-    
-    // Set the value
-    current[path[path.length - 1]] = value;
-    
-    return result;
-  };
 
-  // Associate a file with an item
+  // Associate file with item
   const associateFile = async (fileId, itemUuid) => {
     try {
-      await api.associateFile(fileId, itemUuid);
-      
-      // Refresh files to update associations
-      const response = await api.getFiles(depositId);
-      setFiles(response.data.results);
-      
-      // Recalculate unassociated files
-      const associatedFilenames = new Set();
-      collections.forEach(collection => {
-        collection.items?.forEach(item => {
-          item.files?.forEach(file => {
-            associatedFilenames.add(file.filename);
-          });
-        });
+      const response = await axios.post(`/api/v1/files/${fileId}/associate/`, {
+        item_uuid: itemUuid
       });
       
-      const unassociated = response.data.results.filter(
-        file => !file.is_metadata_file && !associatedFilenames.has(file.filename)
-      );
+      // Refresh files after association
+      await fetchFiles();
       
-      setUnassociatedFiles(unassociated);
+      // Refresh deposit to get updated metadata
+      await fetchDeposit();
+      
       return true;
     } catch (err) {
       console.error('Failed to associate file:', err);
@@ -233,23 +222,16 @@ export const DepositProvider = ({ children, depositId }) => {
     }
   };
 
-  // Mark a file as metadata
+  // Mark file as metadata
   const markAsMetadata = async (fileId) => {
     try {
-      await api.markAsMetadata(fileId);
+      const response = await axios.post(`/api/v1/files/${fileId}/mark_as_metadata/`);
       
       // Refresh files
-      const response = await api.getFiles(depositId);
-      setFiles(response.data.results);
+      await fetchFiles();
       
       // Refresh deposit to get updated metadata
-      const depositResponse = await api.getDeposit(depositId);
-      setDeposit(depositResponse.data);
-      
-      // Extract collections from metadata
-      if (depositResponse.data.metadata?.data?.collections) {
-        setCollections(depositResponse.data.metadata.data.collections);
-      }
+      await fetchDeposit();
       
       return true;
     } catch (err) {
@@ -258,57 +240,20 @@ export const DepositProvider = ({ children, depositId }) => {
     }
   };
 
-  // Upload a file
-  const uploadFile = async (file, onProgress) => {
-    try {
-      console.log("Starting file upload:", file.name);
-      
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      // Log the CSRF token
-      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-      console.log("CSRF Token:", csrfToken ? "Present" : "Missing");
-      
-      // Make the request
-      const response = await api.uploadFile(depositId, formData, {
-        onUploadProgress: onProgress
-      });
-      
-      console.log("Upload response:", response);
-      
-      // Refresh files
-      const updatedResponse = await api.getFiles(depositId);
-      setFiles(updatedResponse.data.results);
-      
-      // Recalculate unassociated files
-      const associatedFilenames = new Set();
-      collections.forEach(collection => {
-        collection.items?.forEach(item => {
-          item.files?.forEach(file => {
-            associatedFilenames.add(file.filename);
-          });
-        });
-      });
-      
-      const unassociated = updatedResponse.data.results.filter(
-        file => !file.is_metadata_file && !associatedFilenames.has(file.filename)
-      );
-      
-      setUnassociatedFiles(unassociated);
-      return true;
-    } catch (err) {
-      console.error('Failed to upload file:', err);
-      console.error('Error details:', err.response?.data || err.message);
-      return false;
-    }
-  };
-
   // Transition deposit state
   const transitionState = async (newState, comment) => {
     try {
-      const response = await api.transitionState(depositId, newState, comment);
+      const response = await axios.post(`/api/v1/deposits/${depositId}/transition/`, {
+        state: newState,
+        comment: comment
+      });
+      
+      // Update deposit with new state
       setDeposit(response.data);
+      
+      // Refresh to get updated metadata
+      await fetchDeposit();
+      
       return true;
     } catch (err) {
       console.error('Failed to transition state:', err);
@@ -316,6 +261,116 @@ export const DepositProvider = ({ children, depositId }) => {
     }
   };
 
+  // Update metadata
+  const updateMetadata = async (path, value) => {
+    try {
+      // Create a deep copy of the deposit
+      const depositCopy = JSON.parse(JSON.stringify(deposit));
+      
+      // Get the latest version
+      const latestVersion = depositCopy.metadata.versions[0];
+      
+      // Update the value at the specified path
+      // This is a simplified approach - you might need a more robust solution
+      // for deeply nested paths
+      const pathParts = path.split('.');
+      let current = latestVersion.data;
+      
+      for (let i = 0; i < pathParts.length - 1; i++) {
+        if (!current[pathParts[i]]) {
+          current[pathParts[i]] = {};
+        }
+        current = current[pathParts[i]];
+      }
+      
+      current[pathParts[pathParts.length - 1]] = value;
+      
+      // Mark as draft if not already
+      latestVersion.is_draft = true;
+      
+      // Update timestamp
+      latestVersion.timestamp = new Date().toISOString();
+      
+      // Save the updated metadata
+      const response = await axios.patch(`/api/v1/deposits/${depositId}/`, {
+        metadata: depositCopy.metadata
+      });
+      
+      // Update local state
+      setDeposit(response.data);
+      
+      // Refresh to ensure we have the latest data
+      await fetchDeposit();
+      
+      return true;
+    } catch (err) {
+      console.error('Failed to update metadata:', err);
+      return false;
+    }
+  };
+
+  // Discard draft changes
+  const discardDraft = async () => {
+    try {
+      // Find the draft version in the metadata
+      const metadata = {...deposit.metadata};
+      const draftVersionIndex = metadata.versions.findIndex(v => v.is_draft === true);
+      
+      if (draftVersionIndex !== -1) {
+        // Remove the draft version
+        metadata.versions.splice(draftVersionIndex, 1);
+        
+        // Update the deposit with the modified metadata
+        const response = await axios.patch(`/api/v1/deposits/${depositId}/`, {
+          metadata: metadata
+        });
+        
+        // Update local state
+        setDeposit(response.data);
+        
+        // Refresh to ensure we have the latest data
+        await fetchDeposit();
+        
+        return true;
+      } else {
+        // No draft version found
+        return false;
+      }
+    } catch (err) {
+      console.error('Failed to discard draft:', err);
+      return false;
+    }
+  };
+
+  // Update metadata for a specific node type
+  const updateNodeMetadata = async (nodeType, nodeId, metadata) => {
+    try {
+      const endpoint = `/api/deposits/${depositId}/${nodeType}s/${nodeId}/`;
+      
+      const response = await fetch(endpoint, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: JSON.stringify(metadata),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to update ${nodeType} metadata`);
+      }
+      
+      // Refresh data after update
+      await fetchDeposit();
+      
+      return true;
+    } catch (error) {
+      console.error(`Error updating ${nodeType} metadata:`, error);
+      return false;
+    }
+  };
+
+  // Context value
   const value = {
     deposit,
     files,
@@ -326,15 +381,19 @@ export const DepositProvider = ({ children, depositId }) => {
     currentVersion,
     loading,
     error,
-    depositId,
-    selectItem,
-    viewVersion,
-    updateMetadata,
+    uploadProgress,
+    isUploading,
+    
+    // Actions
+    setSelectedItem,
+    uploadFile,
     associateFile,
     markAsMetadata,
-    uploadFile,
     transitionState,
-    prepareForEditing
+    updateMetadata,
+    discardDraft,
+    refreshData,
+    updateNodeMetadata,
   };
 
   return (

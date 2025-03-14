@@ -7,8 +7,9 @@
 @import '../components/ContentView.css';
 @import '../components/VersionHistory.css';
 @import '../components/FileList.css';
+@import '../components/FileUpload.css';
 
-/* Add these styles to your existing CSS */
+/* Common utility styles */
 .navigation-tree {
   padding: 10px;
   overflow: auto;
@@ -61,7 +62,7 @@
   padding: 10px;
 }
 
-/* Add these styles for validation errors */
+/* Validation errors */
 .validation-errors {
   margin: 10px 0;
   padding: 10px;
@@ -79,4 +80,21 @@
 .validation-errors ul {
   margin: 0;
   padding-left: 20px;
+}
+
+/* Loading and error messages */
+.loading-message {
+  padding: 15px;
+  color: #666;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.error-message {
+  padding: 15px;
+  color: #721c24;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
 } 

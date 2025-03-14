@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import DepositLayout from './components/DepositLayout';
 import DepositList from './components/DepositList';
 import CreateDeposit from './components/CreateDeposit';
-import './index.css';
+import './styles/index.css';
 
 const DepositsApp = () => {
   // Get the deposit ID from the window global variable (could be null)

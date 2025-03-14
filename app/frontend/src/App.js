@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import DepositLayout from './deposits/components/DepositLayout';
-import './deposits/styles/index.css';
 
 function App() {
   return (

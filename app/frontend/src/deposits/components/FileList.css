@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: 20px;
+  padding: 0;
   height: 100%;
 }
 
@@ -205,9 +205,693 @@
 
 /* Error message */
 .error-message {
-  color: #f44336;
+  padding: 20px;
+  color: #c62828;
   background-color: #ffebee;
-  padding: 12px;
-  border-radius: 4px;
-  margin-top: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-left: 4px solid #ef5350;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+
+.error-message::before {
+  content: '⚠️';
+  margin-right: 10px;
+  font-size: 18px;
+}
+
+.file-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.file-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.file-list-table th,
+.file-list-table td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid #edf2f7;
+  vertical-align: middle;
+  box-sizing: border-box;
+  line-height: 1.5;
+  position: relative;
+}
+
+.file-list-table th {
+  background-color: #f8fafc;
+  font-weight: 600;
+  color: #64748b;
+  font-size: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.file-list-table th.sortable {
+  cursor: pointer;
+}
+
+.file-list-table th.sortable:hover {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.file-list-table tr:hover {
+  background-color: #f8fafc;
+}
+
+.file-list-table tr.selected {
+  background-color: #e3f2fd;
+}
+
+.filename-cell {
+  font-weight: 500;
+  color: #334155;
+  display: inline-block;
+  position: relative;
+  padding-left: 28px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filename-cell::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.filetype-col {
+  flex: 1;
+  color: #757575;
+  min-width: 100px;
+  padding-right: 10px;
+}
+
+.filesize-col {
+  flex: 1;
+  color: #757575;
+  min-width: 80px;
+  padding-right: 10px;
+}
+
+.status-col {
+  flex: 1.5;
+}
+
+.actions-col {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* File icons */
+.file-icon {
+  color: #757575;
+  font-size: 18px;
+  min-width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Progress bar */
+.progress-container {
+  width: 100%;
+  height: 6px;
+  background-color: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: #4caf50;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  position: absolute;
+  right: 0;
+  top: -18px;
+  font-size: 12px;
+  color: #757575;
+}
+
+/* Status badges */
+.metadata-badge {
+  background-color: #fff8e1;
+  color: #f57c00;
+}
+
+.metadata-badge::before {
+  background-color: #f57c00;
+}
+
+.associated-badge {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.associated-badge::before {
+  background-color: #2e7d32;
+}
+
+.unassociated-badge {
+  background-color: #f5f5f5;
+  color: #757575;
+}
+
+.unassociated-badge::before {
+  background-color: #757575;
+}
+
+.status-badge {
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.status-badge::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Empty message */
+.empty-message {
+  color: #90a4ae;
+  font-style: italic;
+  text-align: center;
+  margin-top: 20px;
+  padding: 30px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  border: 1px dashed #cfd8dc;
+}
+
+/* Add this to your CSS */
+.loading-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #64748b;
+  font-weight: 500;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e0e6ed;
+}
+
+.loading-message::before {
+  content: '';
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
+  border: 2px solid #e0e6ed;
+  border-top-color: #2196f3;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Style the checkbox cell specifically */
+.file-list-table td:first-child {
+  width: 40px; /* Fixed width for checkbox column */
+  padding: 14px 16px; /* Same padding as other cells */
+  text-align: center; /* Center the checkbox */
+}
+
+/* Style the checkbox itself */
+.file-list-table input[type="checkbox"] {
+  margin: 0;
+  padding: 0;
+  vertical-align: middle;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  position: relative;
+  top: 0;
+}
+
+/* Ensure the header checkbox is aligned with row checkboxes */
+.file-list-table th:first-child {
+  width: 40px;
+  padding: 14px 16px;
+  text-align: center;
+}
+
+/* File type icons */
+.filename-cell[data-type="pdf"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath fill='%23e53935' d='M181.9 256.1c-5-16-4.9-46.9-2-46.9 8.4 0 7.6 36.9 2 46.9zm-1.7 47.2c-7.7 20.2-17.3 43.3-28.4 62.7 18.3-7 39-17.2 62.9-21.9-12.7-9.6-24.9-23.4-34.5-40.8zM86.1 428.1c0 .8 13.2-5.4 34.9-40.2-6.7 6.3-16.8 15.8-34.9 40.2zM248 160h136v328c0 13.3-10.7 24-24 24H24c-13.3 0-24-10.7-24-24V24C0 10.7 10.7 0 24 0h200v136c0 13.2 10.8 24 24 24zm-8 171.8c-20-12.2-33.3-29-42.7-53.8 4.5-18.5 11.6-46.6 6.2-64.2-4.7-29.4-42.4-26.5-47.8-6.8-5 18.3-.4 44.1 8.1 77-11.6 27.6-28.7 64.6-40.8 85.8-.1 0-.1.1-.2.1-27.1 13.9-73.6 44.5-54.5 68 5.6 6.9 16 10 21.5 10 17.9 0 35.7-18 61.1-61.8 25.8-8.5 54.1-19.1 79-23.2 21.7 11.8 47.1 19.5 64 19.5 29.2 0 31.2-32 19.7-43.4-13.9-13.6-54.3-9.7-73.6-7.2zM377 105L279 7c-4.5-4.5-10.6-7-17-7h-6v128h128v-6.1c0-6.3-2.5-12.4-7-16.9zm-74.1 255.3c4.1-2.7-2.5-11.9-42.8-9 37.1 15.8 42.8 9 42.8 9z'/%3E%3C/svg%3E");
+}
+
+.filename-cell[data-type="doc"]::before,
+.filename-cell[data-type="docx"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath fill='%232196f3' d='M224 136V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24V160H248c-13.2 0-24-10.8-24-24zm57.1 120H208c-8.8 0-16 7.2-16 16v48c0 8.8 7.2 16 16 16h73.1c8.8 0 16-7.2 16-16v-48c0-8.8-7.2-16-16-16zm-56 304H112c-8.8 0-16-7.2-16-16v-48c0-8.8 7.2-16 16-16h113.1c8.8 0 16 7.2 16 16v48c0-8.8-7.2 16-16 16zm0-152H112c-8.8 0-16-7.2-16-16v-48c0-8.8 7.2-16 16-16h113.1c8.8 0 16 7.2 16 16v48c0-8.8-7.2 16-16 16z'/%3E%3C/svg%3E");
+}
+
+.filename-cell[data-type="xls"]::before,
+.filename-cell[data-type="xlsx"]::before,
+.filename-cell[data-type="csv"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath fill='%234caf50' d='M224 136V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24V160H248c-13.2 0-24-10.8-24-24zm60.1 106.5L224 336l60.1 93.5c5.1 8-.6 18.5-10.1 18.5h-34.9c-4.4 0-8.5-2.4-10.6-6.3C208.9 405.5 192 373 192 373c-6.4 14.8-10 20-36.6 68.8-2.1 3.9-6.1 6.3-10.5 6.3H110c-9.5 0-15.2-10.5-10.1-18.5L160 336l-60.1-93.5c-5.1-8 .6-18.5 10.1-18.5h34.9c4.4 0 8.5 2.4 10.6 6.3 21.3 38.8 35.7 65.9 36.7 68.5 12.4-26.9 34.4-68.5 34.4-68.5 2.1-3.9 6.2-6.3 10.6-6.3h34.9c9.5-.1 15.2 10.4 10.1 18.5z'/%3E%3C/svg%3E");
+}
+
+.filename-cell[data-type="jpg"]::before,
+.filename-cell[data-type="jpeg"]::before,
+.filename-cell[data-type="png"]::before,
+.filename-cell[data-type="gif"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath fill='%23ff9800' d='M384 121.941V128H256V0h6.059a24 24 0 0 1 16.97 7.029l97.941 97.941a24.002 24.002 0 0 1 7.03 16.971zM248 160c-13.2 0-24-10.8-24-24V0H24C10.745 0 0 10.745 0 24v464c0 13.255 10.745 24 24 24h336c13.255 0 24-10.745 24-24V160H248zm-135.455 16c26.51 0 48 21.49 48 48s-21.49 48-48 48-48-21.49-48-48 21.491-48 48-48zm208 240h-256l.485-48.485L104.545 328c4.686-4.686 11.799-4.686 16.485 0L160.545 368 264.06 264.485c4.686-4.686 12.284-4.686 16.971 0L320.545 304v112z'/%3E%3C/svg%3E");
+}
+
+.filename-cell[data-type="zip"]::before,
+.filename-cell[data-type="rar"]::before,
+.filename-cell[data-type="7z"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath fill='%23607d8b' d='M377 105L279.1 7c-4.5-4.5-10.6-7-17-7H256v128h128v-6.1c0-6.3-2.5-12.4-7-16.9zm-153 31V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24V160H248c-13.2 0-24-10.8-24-24zm-48 96h-96v-32h96v32zm0 32h-96v32h96v-32zm0 64h-96v32h96v-32z'/%3E%3C/svg%3E");
+}
+
+/* Action buttons */
+.associate-button, .metadata-button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+}
+
+.associate-button {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.associate-button:hover {
+  background-color: #bbdefb;
+}
+
+.metadata-button {
+  background-color: #fff8e1;
+  color: #f57c00;
+}
+
+.metadata-button:hover {
+  background-color: #ffecb3;
+}
+
+/* Enhanced file table */
+.file-list-table-container {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  border: 1px solid #e0e6ed;
+  transition: all 0.3s ease;
+}
+
+.file-list-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.file-list-table th,
+.file-list-table td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.file-list-table th {
+  background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+  font-weight: 600;
+  color: #475569;
+  font-size: 14px;
+  padding: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 2px solid #e2e8f0;
+  letter-spacing: 0.3px;
+}
+
+.file-list-table th.sortable {
+  cursor: pointer;
+}
+
+.file-list-table th.sortable:hover {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.file-list-table th.sorted-asc,
+.file-list-table th.sorted-desc {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.sort-indicator {
+  margin-left: 5px;
+  font-size: 12px;
+  display: inline-block;
+}
+
+.file-list-table tr {
+  transition: all 0.2s ease;
+}
+
+.file-list-table tr:hover {
+  background-color: #f1f5f9;
+  transform: translateY(-1px);
+}
+
+.file-list-table tr.selected {
+  background-color: #e3f2fd;
+}
+
+.file-list-table tr.selected:hover {
+  background-color: #bbdefb;
+}
+
+.filename-cell {
+  font-weight: 500;
+  color: #334155;
+  display: inline-block;
+  position: relative;
+  padding-left: 28px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filename-cell::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* File type icons */
+.filename-cell[data-type="pdf"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath fill='%23e53935' d='M181.9 256.1c-5-16-4.9-46.9-2-46.9 8.4 0 7.6 36.9 2 46.9zm-1.7 47.2c-7.7 20.2-17.3 43.3-28.4 62.7 18.3-7 39-17.2 62.9-21.9-12.7-9.6-24.9-23.4-34.5-40.8zM86.1 428.1c0 .8 13.2-5.4 34.9-40.2-6.7 6.3-16.8 15.8-34.9 40.2zM248 160h136v328c0 13.3-10.7 24-24 24H24c-13.3 0-24-10.7-24-24V24C0 10.7 10.7 0 24 0h200v136c0 13.2 10.8 24 24 24zm-8 171.8c-20-12.2-33.3-29-42.7-53.8 4.5-18.5 11.6-46.6 6.2-64.2-4.7-29.4-42.4-26.5-47.8-6.8-5 18.3-.4 44.1 8.1 77-11.6 27.6-28.7 64.6-40.8 85.8-.1 0-.1.1-.2.1-27.1 13.9-73.6 44.5-54.5 68 5.6 6.9 16 10 21.5 10 17.9 0 35.7-18 61.1-61.8 25.8-8.5 54.1-19.1 79-23.2 21.7 11.8 47.1 19.5 64 19.5 29.2 0 31.2-32 19.7-43.4-13.9-13.6-54.3-9.7-73.6-7.2zM377 105L279 7c-4.5-4.5-10.6-7-17-7h-6v128h128v-6.1c0-6.3-2.5-12.4-7-16.9zm-74.1 255.3c4.1-2.7-2.5-11.9-42.8-9 37.1 15.8 42.8 9 42.8 9z'/%3E%3C/svg%3E");
+}
+
+.filename-cell[data-type="doc"]::before,
+.filename-cell[data-type="docx"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath fill='%232196f3' d='M224 136V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24V160H248c-13.2 0-24-10.8-24-24zm57.1 120H208c-8.8 0-16 7.2-16 16v48c0 8.8 7.2 16 16 16h73.1c8.8 0 16-7.2 16-16v-48c0-8.8-7.2-16-16-16zm-56 304H112c-8.8 0-16-7.2-16-16v-48c0-8.8 7.2-16 16-16h113.1c8.8 0 16 7.2 16 16v48c0-8.8-7.2 16-16 16zm0-152H112c-8.8 0-16-7.2-16-16v-48c0-8.8 7.2-16 16-16h113.1c8.8 0 16 7.2 16 16v48c0-8.8-7.2 16-16 16z'/%3E%3C/svg%3E");
+}
+
+.filename-cell[data-type="xls"]::before,
+.filename-cell[data-type="xlsx"]::before,
+.filename-cell[data-type="csv"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath fill='%234caf50' d='M224 136V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24V160H248c-13.2 0-24-10.8-24-24zm60.1 106.5L224 336l60.1 93.5c5.1 8-.6 18.5-10.1 18.5h-34.9c-4.4 0-8.5-2.4-10.6-6.3C208.9 405.5 192 373 192 373c-6.4 14.8-10 20-36.6 68.8-2.1 3.9-6.1 6.3-10.5 6.3H110c-9.5 0-15.2-10.5-10.1-18.5L160 336l-60.1-93.5c-5.1-8 .6-18.5 10.1-18.5h34.9c4.4 0 8.5 2.4 10.6 6.3 21.3 38.8 35.7 65.9 36.7 68.5 12.4-26.9 34.4-68.5 34.4-68.5 2.1-3.9 6.2-6.3 10.6-6.3h34.9c9.5-.1 15.2 10.4 10.1 18.5z'/%3E%3C/svg%3E");
+}
+
+.filename-cell[data-type="jpg"]::before,
+.filename-cell[data-type="jpeg"]::before,
+.filename-cell[data-type="png"]::before,
+.filename-cell[data-type="gif"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath fill='%23ff9800' d='M384 121.941V128H256V0h6.059a24 24 0 0 1 16.97 7.029l97.941 97.941a24.002 24.002 0 0 1 7.03 16.971zM248 160c-13.2 0-24-10.8-24-24V0H24C10.745 0 0 10.745 0 24v464c0 13.255 10.745 24 24 24h336c13.255 0 24-10.745 24-24V160H248zm-135.455 16c26.51 0 48 21.49 48 48s-21.49 48-48 48-48-21.49-48-48 21.491-48 48-48zm208 240h-256l.485-48.485L104.545 328c4.686-4.686 11.799-4.686 16.485 0L160.545 368 264.06 264.485c4.686-4.686 12.284-4.686 16.971 0L320.545 304v112z'/%3E%3C/svg%3E");
+}
+
+.filename-cell[data-type="zip"]::before,
+.filename-cell[data-type="rar"]::before,
+.filename-cell[data-type="7z"]::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath fill='%23607d8b' d='M377 105L279.1 7c-4.5-4.5-10.6-7-17-7H256v128h128v-6.1c0-6.3-2.5-12.4-7-16.9zm-153 31V0H24C10.7 0 0 10.7 0 24v464c0 13.3 10.7 24 24 24h336c13.3 0 24-10.7 24-24V160H248c-13.2 0-24-10.8-24-24zm-48 96h-96v-32h96v32zm0 32h-96v32h96v-32zm0 64h-96v32h96v-32z'/%3E%3C/svg%3E");
+}
+
+/* Status badges */
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.status-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
+}
+
+.status-badge::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.2);
+  }
+  70% {
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  }
+}
+
+/* Enhance file actions bar */
+.file-actions {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: linear-gradient(to right, #f8fafc, #f1f5f9);
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+  margin-bottom: 20px;
+  align-items: center;
+  border: 1px solid #e0e6ed;
+  transition: all 0.3s ease;
+}
+
+.file-actions:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+/* Enhance action buttons */
+.associate-button, .metadata-button {
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.associate-button {
+  background: linear-gradient(to right, #e3f2fd, #bbdefb);
+  color: #1565c0;
+}
+
+.associate-button:hover {
+  background: linear-gradient(to right, #bbdefb, #90caf9);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(33, 150, 243, 0.2);
+}
+
+.metadata-button {
+  background: linear-gradient(to right, #fff8e1, #ffecb3);
+  color: #e65100;
+}
+
+.metadata-button:hover {
+  background: linear-gradient(to right, #ffecb3, #ffe082);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(255, 152, 0, 0.2);
+}
+
+/* Enhance empty message */
+.empty-message {
+  color: #64748b;
+  font-style: italic;
+  text-align: center;
+  margin-top: 20px;
+  padding: 40px;
+  background-color: #f8fafc;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
+}
+
+.empty-message:hover {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+/* Enhance loading animation */
+.loading-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 50px;
+  color: #475569;
+  font-weight: 500;
+  background-color: #f8fafc;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e0e6ed;
+}
+
+.loading-message::before {
+  content: '';
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  margin-right: 12px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Style the checkbox cell specifically */
+.file-list-table td:first-child {
+  width: 40px; /* Fixed width for checkbox column */
+  padding: 14px 16px; /* Same padding as other cells */
+  text-align: center; /* Center the checkbox */
+}
+
+/* Style the checkbox itself */
+.file-list-table input[type="checkbox"] {
+  margin: 0;
+  padding: 0;
+  vertical-align: middle;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  position: relative;
+  top: 0;
+}
+
+/* Ensure the header checkbox is aligned with row checkboxes */
+.file-list-table th:first-child {
+  width: 40px;
+  padding: 14px 16px;
+  text-align: center;
+}
+
+/* Adjust column widths to prioritize filename column */
+.file-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* Ensures our column width settings are respected */
+}
+
+/* Set specific widths for each column */
+.file-list-table th:first-child,
+.file-list-table td:first-child {
+  width: 40px; /* Fixed width for checkbox column */
+  padding: 14px 16px;
+  text-align: center;
+}
+
+/* Filename column - give it more space */
+.file-list-table th:nth-child(2),
+.file-list-table td:nth-child(2) {
+  width: 45%; /* Allocate 45% of the table width to the filename column */
+}
+
+/* Size column */
+.file-list-table th:nth-child(3),
+.file-list-table td:nth-child(3) {
+  width: 10%; /* Allocate 10% to the size column */
+}
+
+/* Type column */
+.file-list-table th:nth-child(4),
+.file-list-table td:nth-child(4) {
+  width: 15%; /* Allocate 15% to the type column */
+}
+
+/* Uploaded column */
+.file-list-table th:nth-child(5),
+.file-list-table td:nth-child(5) {
+  width: 15%; /* Allocate 15% to the uploaded column */
+}
+
+/* Status column */
+.file-list-table th:nth-child(6),
+.file-list-table td:nth-child(6) {
+  width: 15%; /* Allocate 15% to the status column */
+}
+
+/* Improve filename cell display */
+.filename-cell {
+  font-weight: 500;
+  color: #334155;
+  display: inline-block;
+  position: relative;
+  padding-left: 28px;
+  max-width: 100%; /* Allow it to take full width of its container */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 } 

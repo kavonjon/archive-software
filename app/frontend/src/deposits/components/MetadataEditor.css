@@ -49,14 +49,14 @@
   color: #555;
 }
 
-.form-group input, .form-group textarea {
+.form-group input, .form-group textarea, .form-group select {
   padding: 0.5rem;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 1rem;
 }
 
-.form-group input:disabled, .form-group textarea:disabled {
+.form-group input:disabled, .form-group textarea:disabled, .form-group select:disabled {
   background-color: #f9f9f9;
   color: #777;
 }
@@ -86,6 +86,25 @@
 }
 
 .metadata-form:not(.editing) input, 
-.metadata-form:not(.editing) textarea {
+.metadata-form:not(.editing) textarea,
+.metadata-form:not(.editing) select,
+.metadata-form:not(.editing) .checkbox-group {
   display: none;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: auto;
+}
+
+.no-selection {
+  color: #777;
+  font-style: italic;
+  text-align: center;
+  padding: 2rem;
 } 

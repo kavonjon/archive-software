@@ -1,38 +1,39 @@
 import React from 'react';
+import { useDeposit } from '../contexts/DepositContext';
 import './VersionHistory.css';
 
-const VersionHistory = ({ versions }) => {
-  // Sample versions data if not provided
-  const sampleVersions = versions || [
-    {
-      version: 3,
-      state: 'ACCEPTED',
-      timestamp: '2024-03-20T15:30:00Z',
-      modified_by: 'archivist@example.com',
-      comment: 'Approved deposit after review of metadata and files.'
-    },
-    {
-      version: 2,
-      state: 'REVIEW',
-      timestamp: '2024-03-19T10:45:00Z',
-      modified_by: 'depositor@example.com',
-      comment: 'Updated metadata fields as requested.'
-    },
-    {
-      version: 1,
-      state: 'NEEDS_REVISION',
-      timestamp: '2024-03-18T14:20:00Z',
-      modified_by: 'reviewer@example.com',
-      comment: 'Please update the language codes and add more specific descriptions.'
-    },
-    {
-      version: 0,
-      state: 'DRAFT',
-      timestamp: '2024-03-17T09:15:00Z',
-      modified_by: 'depositor@example.com',
-      comment: 'Initial deposit creation.'
-    }
-  ];
+const VersionHistory = () => {
+  const { versions, loading, error } = useDeposit();
+  
+  if (loading) {
+    return (
+      <div className="version-history">
+        <h2 className="version-history-title">Version History</h2>
+        <div className="loading-message">Loading versions...</div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="version-history">
+        <h2 className="version-history-title">Version History</h2>
+        <div className="error-message">{error}</div>
+      </div>
+    );
+  }
+  
+  // Use versions from context or fallback to empty array
+  const versionsList = versions || [];
+  
+  if (versionsList.length === 0) {
+    return (
+      <div className="version-history">
+        <h2 className="version-history-title">Version History</h2>
+        <div className="empty-message">No version history available</div>
+      </div>
+    );
+  }
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -60,8 +61,8 @@ const VersionHistory = ({ versions }) => {
       <h2 className="version-history-title">Version History</h2>
       
       <div className="versions-list">
-        {sampleVersions.map((version) => (
-          <div key={version.version} className="version-card">
+        {versionsList.map((version, index) => (
+          <div key={index} className="version-card">
             <div className="version-header">
               <div className="version-number">Version {version.version}</div>
               <div className={`version-state ${getStateClass(version.state)}`}>

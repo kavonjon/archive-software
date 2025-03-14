@@ -30,16 +30,16 @@ const MetadataEditor = ({ item }) => {
           description: item.description || '',
           languoid: item.languoid || '',
           date_recorded: item.date_recorded || '',
-          contributors: item.contributors || []
+          resource_type: item.resource_type || ''
         };
         break;
       case 'file':
-      case 'unassociated-file':
         initialData = {
           filename: item.filename || '',
           description: item.description || '',
           file_type: item.file_type || '',
-          mime_type: item.mime_type || ''
+          mime_type: item.mime_type || '',
+          is_metadata: item.is_metadata || false
         };
         break;
       default:
@@ -54,39 +54,37 @@ const MetadataEditor = ({ item }) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleCheckboxChange = (e) => {
+    const { name, checked } = e.target;
+    setFormData(prev => ({ ...prev, [name]: checked }));
+  };
+
   const handleSave = async () => {
+    if (!item) return;
+    
     setIsSaving(true);
     setError(null);
     
     try {
       // Different save logic based on item type
-      let success = false;
+      const endpoint = `/api/deposits/${item.deposit_id}/${item.type}s/${item.uuid}/`;
       
-      switch (item.type) {
-        case 'collection':
-        case 'item':
-          success = await updateMetadata(formData);
-          break;
-        case 'unassociated-file':
-          // For unassociated files, we might want to associate them with an item
-          if (formData.associate_with_item) {
-            success = await associateFile(item.id, formData.associate_with_item);
-          } else {
-            // Just update file metadata
-            success = await updateMetadata(formData);
-          }
-          break;
-        default:
-          success = await updateMetadata(formData);
+      const response = await fetch(endpoint, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: JSON.stringify(formData),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update metadata');
       }
       
-      if (success) {
-        setIsEditing(false);
-      } else {
-        setError('Failed to save changes');
-      }
+      setIsEditing(false);
     } catch (err) {
-      setError('An error occurred while saving');
+      setError('An error occurred while saving: ' + err.message);
       console.error(err);
     } finally {
       setIsSaving(false);
@@ -94,6 +92,14 @@ const MetadataEditor = ({ item }) => {
   };
 
   if (loading) return <div className="loading">Loading...</div>;
+  
+  if (!item) {
+    return (
+      <div className="metadata-editor">
+        <p className="no-selection">Select an item from the navigation tree to view and edit its metadata.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="metadata-editor">
@@ -210,6 +216,27 @@ const MetadataEditor = ({ item }) => {
             </div>
             
             <div className="form-group">
+              <label>Resource Type</label>
+              {isEditing ? (
+                <select
+                  name="resource_type"
+                  value={formData.resource_type || ''}
+                  onChange={handleInputChange}
+                  disabled={!isEditing}
+                >
+                  <option value="">-- Select Type --</option>
+                  <option value="audio">Audio</option>
+                  <option value="video">Video</option>
+                  <option value="image">Image</option>
+                  <option value="text">Text</option>
+                  <option value="other">Other</option>
+                </select>
+              ) : (
+                <div className="field-value">{formData.resource_type || 'Not specified'}</div>
+              )}
+            </div>
+            
+            <div className="form-group">
               <label>Language</label>
               {isEditing ? (
                 <input 
@@ -256,7 +283,7 @@ const MetadataEditor = ({ item }) => {
           </>
         )}
         
-        {(item.type === 'file' || item.type === 'unassociated-file') && (
+        {item.type === 'file' && (
           <>
             <div className="form-group">
               <label>Filename</label>
@@ -288,18 +315,24 @@ const MetadataEditor = ({ item }) => {
               )}
             </div>
             
-            {item.type === 'unassociated-file' && isEditing && (
-              <div className="form-group">
-                <label>Associate with Item (UUID)</label>
-                <input 
-                  type="text" 
-                  name="associate_with_item" 
-                  value={formData.associate_with_item || ''} 
-                  onChange={handleInputChange}
-                  placeholder="Enter item UUID to associate this file"
-                />
-              </div>
-            )}
+            <div className="form-group">
+              <label>Metadata File</label>
+              {isEditing ? (
+                <div className="checkbox-group">
+                  <input 
+                    type="checkbox" 
+                    name="is_metadata" 
+                    checked={formData.is_metadata || false} 
+                    onChange={handleCheckboxChange}
+                    disabled={!isEditing}
+                    id="is_metadata_checkbox"
+                  />
+                  <label htmlFor="is_metadata_checkbox">This is a metadata file</label>
+                </div>
+              ) : (
+                <div className="field-value">{formData.is_metadata ? 'Yes' : 'No'}</div>
+              )}
+            </div>
           </>
         )}
       </div>

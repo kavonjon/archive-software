@@ -1,122 +1,171 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useDeposit } from '../contexts/DepositContext';
 import './FileUpload.css';
 
-const FileUpload = () => {
-  const { depositId, uploadFile } = useDeposit();
+const FileUpload = ({ onUploadComplete }) => {
+  const { uploadFile, isUploading } = useDeposit();
+  const [dragActive, setDragActive] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
-  const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
-  const [uploadError, setUploadError] = useState(null);
-  const [uploadSuccess, setUploadSuccess] = useState(false);
-
-  const handleFileChange = (e) => {
-    setSelectedFiles(Array.from(e.target.files));
-    setUploadError(null);
-    setUploadSuccess(false);
-  };
-
-  const handleUpload = async () => {
-    if (selectedFiles.length === 0) {
-      setUploadError('Please select files to upload');
-      return;
+  const [error, setError] = useState(null);
+  
+  const fileInputRef = useRef(null);
+  
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
     }
-
-    setUploading(true);
-    setUploadProgress({});
-    setUploadError(null);
-    setUploadSuccess(false);
-
+  };
+  
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFiles(e.dataTransfer.files);
+    }
+  };
+  
+  const handleChange = (e) => {
+    e.preventDefault();
+    
+    if (e.target.files && e.target.files.length > 0) {
+      handleFiles(e.target.files);
+    }
+  };
+  
+  const handleFiles = (files) => {
+    setSelectedFiles(Array.from(files));
+  };
+  
+  const handleUpload = async () => {
+    if (selectedFiles.length === 0) return;
+    
+    setError(null);
+    
     try {
-      // Upload each file individually
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i];
-        
-        // Create a progress tracker for this file
-        setUploadProgress(prev => ({
-          ...prev,
-          [file.name]: 0
-        }));
-        
-        // Upload with progress tracking
-        const formData = new FormData();
-        formData.append('file', file);
-        await uploadFile(formData, (progressEvent) => {
-          const percentCompleted = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
-          );
-          
+      for (const file of selectedFiles) {
+        const onProgress = (progress) => {
           setUploadProgress(prev => ({
             ...prev,
-            [file.name]: percentCompleted
+            [file.name]: progress
           }));
-        });
+        };
+        
+        await uploadFile(file, onProgress);
       }
       
-      setUploadSuccess(true);
+      // Clear selected files after upload
       setSelectedFiles([]);
+      setUploadProgress({});
+      
+      // Call the callback if provided
+      if (onUploadComplete) {
+        onUploadComplete();
+      }
     } catch (err) {
       console.error('Upload failed:', err);
-      setUploadError('Failed to upload files. Please try again.');
-    } finally {
-      setUploading(false);
+      setError('Failed to upload files. Please try again.');
     }
   };
-
-  // Render the component UI
+  
+  const openFileSelector = () => {
+    fileInputRef.current.click();
+  };
+  
+  const handleBrowseClick = (e) => {
+    e.stopPropagation();
+    openFileSelector();
+  };
+  
   return (
-    <div className="file-upload">
-      <h3>Upload Files</h3>
-      
-      <div className="upload-form">
+    <div className="file-upload-component">
+      <div 
+        className={`file-upload-area ${dragActive ? 'drag-active' : ''}`}
+        onDragEnter={handleDrag}
+        onDragOver={handleDrag}
+        onDragLeave={handleDrag}
+        onDrop={handleDrop}
+        onClick={openFileSelector}
+      >
+        <div className="upload-icon">
+          <i className="fas fa-cloud-upload-alt"></i>
+        </div>
+        <p>
+          Drag and drop files here, or 
+          <button className="browse-button" onClick={handleBrowseClick}>Browse</button>
+          <br />
+          <span style={{ fontSize: '13px', color: '#78909c', marginTop: '5px', display: 'block' }}>
+            Supported formats: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG, ZIP
+          </span>
+        </p>
         <input 
+          ref={fileInputRef}
           type="file" 
           multiple 
-          onChange={handleFileChange} 
-          disabled={uploading}
+          onChange={handleChange}
+          style={{ display: 'none' }}
         />
-        <button 
-          onClick={handleUpload} 
-          disabled={uploading || selectedFiles.length === 0}
-        >
-          {uploading ? 'Uploading...' : 'Upload'}
-        </button>
       </div>
       
-      {/* Display selected files */}
       {selectedFiles.length > 0 && (
         <div className="selected-files">
-          <h4>Selected Files:</h4>
-          <ul>
-            {selectedFiles.map(file => (
-              <li key={file.name}>
-                {file.name} ({Math.round(file.size / 1024)} KB)
-                {uploading && uploadProgress[file.name] !== undefined && (
-                  <div className="progress-bar">
-                    <div 
-                      className="progress" 
-                      style={{ width: `${uploadProgress[file.name]}%` }}
-                    ></div>
-                    <span>{uploadProgress[file.name]}%</span>
-                  </div>
-                )}
-              </li>
-            ))}
+          <h3>Selected Files ({selectedFiles.length})</h3>
+          <ul className="file-list">
+            {selectedFiles.map((file, index) => {
+              // Determine file type icon based on extension
+              const extension = file.name.split('.').pop().toLowerCase();
+              let fileIcon = '📄'; // Default document icon
+              
+              if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg'].includes(extension)) {
+                fileIcon = '🖼️';
+              } else if (['pdf'].includes(extension)) {
+                fileIcon = '📕';
+              } else if (['doc', 'docx'].includes(extension)) {
+                fileIcon = '📝';
+              } else if (['xls', 'xlsx', 'csv'].includes(extension)) {
+                fileIcon = '📊';
+              } else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension)) {
+                fileIcon = '🗜️';
+              }
+              
+              return (
+                <li key={index} className="file-item">
+                  <span style={{ marginRight: '8px', fontSize: '18px' }}>{fileIcon}</span>
+                  <span className="file-name">{file.name}</span>
+                  <span className="file-size">({(file.size / 1024).toFixed(2)} KB)</span>
+                  {uploadProgress[file.name] !== undefined && (
+                    <div className="progress-container">
+                      <div 
+                        className="progress-bar" 
+                        style={{ width: `${uploadProgress[file.name]}%` }}
+                      ></div>
+                      <span className="progress-text">{uploadProgress[file.name]}%</span>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
+          <button 
+            className="upload-button"
+            onClick={handleUpload}
+            disabled={isUploading}
+          >
+            {isUploading ? 'Uploading...' : 'Upload Files'}
+          </button>
         </div>
       )}
       
-      {/* Display error message */}
-      {uploadError && (
+      {error && (
         <div className="error-message">
-          {uploadError}
-        </div>
-      )}
-      
-      {/* Display success message */}
-      {uploadSuccess && (
-        <div className="success-message">
-          Files uploaded successfully!
+          {error}
         </div>
       )}
     </div>

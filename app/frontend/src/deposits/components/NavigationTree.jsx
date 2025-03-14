@@ -1,37 +1,39 @@
 import React, { useState } from 'react';
+import { useDeposit } from '../contexts/DepositContext';
 import './NavigationTree.css';
 
-const NavigationTree = ({ deposit, onSelectItem }) => {
+const NavigationTree = ({ onSelectItem }) => {
+  const { deposit, collections, unassociatedFiles, loading } = useDeposit();
   const [expandedCollections, setExpandedCollections] = useState({});
   const [expandedItems, setExpandedItems] = useState({});
   
-  // Get the actual deposit data or use sample data if not provided
-  const depositData = deposit || {
-    id: '123',
-    title: 'Sample Deposit',
-    metadata: {
-      versions: [
-        {
-          version: 1,
-          state: 'DRAFT',
-          timestamp: '2024-04-01T12:00:00Z',
-          modified_by: 'user@example.com',
-          is_draft: true,
-          data: {
-            collections: [
-              {}
-               
-            ]
-          }
-        }
-      ]
-    }
-  };
+  // If still loading, show loading state
+  if (loading) {
+    return (
+      <div className="navigation-tree">
+        <div className="tree-header">
+          <h2 className="tree-title">Deposit Structure</h2>
+        </div>
+        <div className="tree-content">
+          <div className="loading-message">Loading deposit data...</div>
+        </div>
+      </div>
+    );
+  }
   
-  // Extract the latest version data from the metadata
-  const latestVersion = depositData.metadata?.versions?.[0] || { data: {} };
-  const collections = latestVersion.data?.collections || [];
-  const unassociatedFiles = latestVersion.data?.unassociated_files || [];
+  // If deposit is null or undefined, show error state
+  if (!deposit) {
+    return (
+      <div className="navigation-tree">
+        <div className="tree-header">
+          <h2 className="tree-title">Deposit Structure</h2>
+        </div>
+        <div className="tree-content">
+          <div className="error-message">No deposit data available</div>
+        </div>
+      </div>
+    );
+  }
   
   const toggleCollection = (collectionId) => {
     setExpandedCollections(prev => ({
@@ -91,6 +93,12 @@ const NavigationTree = ({ deposit, onSelectItem }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
   
+  // Add a click handler for the node text
+  const handleNodeTextClick = (node, e) => {
+    e.stopPropagation(); // Prevent triggering the expand/collapse
+    onSelectItem(node);
+  };
+  
   return (
     <div className="navigation-tree">
       <div className="tree-header">
@@ -124,7 +132,17 @@ const NavigationTree = ({ deposit, onSelectItem }) => {
                     <span className="node-icon collection-icon">
                       <i className="fas fa-folder"></i>
                     </span>
-                    <span className="node-label" title={collection.name}>
+                    <span 
+                      className="node-label" 
+                      title={collection.name}
+                      onClick={(e) => handleNodeTextClick({
+                        type: 'collection',
+                        uuid: collection.uuid,
+                        name: collection.name || collection.collection_abbr || `Collection ${collection.uuid}`,
+                        collection_abbr: collection.collection_abbr,
+                        description: collection.description
+                      }, e)}
+                    >
                       {collection.name || collection.collection_abbr || `Collection ${collection.uuid}`}
                     </span>
                     <div className="node-indicators">
@@ -154,7 +172,20 @@ const NavigationTree = ({ deposit, onSelectItem }) => {
                             <span className="node-icon item-icon">
                               <i className="fas fa-box"></i>
                             </span>
-                            <span className="node-label" title={`${item.catalog_number} - ${item.resource_type}`}>
+                            <span 
+                              className="node-label" 
+                              title={`${item.catalog_number} - ${item.resource_type}`}
+                              onClick={(e) => handleNodeTextClick({
+                                type: 'item',
+                                uuid: item.uuid,
+                                catalog_number: item.catalog_number,
+                                title: item.title,
+                                description: item.description,
+                                languoid: item.languoid,
+                                date_recorded: item.date_recorded,
+                                resource_type: item.resource_type
+                              }, e)}
+                            >
                               {item.catalog_number || `Item ${item.uuid}`}
                             </span>
                             <div className="node-indicators">
@@ -179,7 +210,20 @@ const NavigationTree = ({ deposit, onSelectItem }) => {
                                     <span className="node-icon file-icon">
                                       {getFileIcon(file.filename)}
                                     </span>
-                                    <span className="node-label" title={`${file.filename} (${formatFileSize(file.filesize)})`}>
+                                    <span 
+                                      className="node-label" 
+                                      title={`${file.filename} (${formatFileSize(file.filesize)})`}
+                                      onClick={(e) => handleNodeTextClick({
+                                        type: 'file',
+                                        uuid: file.uuid,
+                                        filename: file.filename,
+                                        filesize: file.filesize,
+                                        mime_type: file.mime_type,
+                                        file_type: file.file_type,
+                                        description: file.description,
+                                        is_metadata: file.is_metadata
+                                      }, e)}
+                                    >
                                       {file.filename}
                                     </span>
                                     {file.warn && (
@@ -223,7 +267,20 @@ const NavigationTree = ({ deposit, onSelectItem }) => {
                     <span className="node-icon file-icon">
                       {getFileIcon(file.filename)}
                     </span>
-                    <span className="node-label" title={`${file.filename} (${formatFileSize(file.filesize)})`}>
+                    <span 
+                      className="node-label" 
+                      title={`${file.filename} (${formatFileSize(file.filesize)})`}
+                      onClick={(e) => handleNodeTextClick({
+                        type: 'file',
+                        uuid: file.uuid,
+                        filename: file.filename,
+                        filesize: file.filesize,
+                        mime_type: file.mime_type,
+                        file_type: file.file_type,
+                        description: file.description,
+                        is_metadata: file.is_metadata
+                      }, e)}
+                    >
                       {file.filename}
                     </span>
                     {file.warn && (

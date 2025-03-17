@@ -515,6 +515,8 @@ class Collection(models.Model):
     languages = models.ManyToManyField(Languoid, verbose_name="list of languages", related_name='collection_languages', blank=True)
     extent = models.CharField(max_length=255, blank=True)
     abstract = models.TextField(blank=True)
+    date_range_min = models.DateField(null=True, blank=True)
+    date_range_max = models.DateField(null=True, blank=True)
     date_range = models.CharField(max_length=255, blank=True)
     description = models.TextField(blank=True, verbose_name="collection description of scope and content")
     background = models.TextField(blank=True, verbose_name="background information")

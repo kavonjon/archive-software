@@ -6,10 +6,11 @@ from ..serializers.languoids import LanguoidListSerializer
 class CollectionListSerializer(serializers.ModelSerializer):
     id = serializers.CharField(source='slug')
     abbr = serializers.CharField(source='collection_abbr')
+    item_count = serializers.IntegerField(read_only=True)
     
     class Meta:
         model = Collection
-        fields = ['id', 'abbr', 'name']
+        fields = ['id', 'abbr', 'name', 'item_count']
 
 # For metadata in detail view
 class CollectionDetailMetadataSerializer(serializers.Serializer):

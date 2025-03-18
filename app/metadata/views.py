@@ -1892,13 +1892,31 @@ def collection_index(request):
 @login_required
 def collection_detail(request, pk):
     collection = Collection.objects.get(pk=pk)
-
-    # get all the items for the collection
-    items = Item.objects.filter(collection__pk=pk).order_by('catalog_number')
-
+    items = Item.objects.filter(collection=collection).order_by('catalog_number')
+    
+    # Language distribution
+    language_stats = []
+    for language in collection.languages.all():
+        count = items.filter(language=language).count()
+        language_stats.append({
+            'language': language,
+            'count': count
+        })
+    
+    # Resource type counts using the proper resource_type field
+    audio_count = items.filter(resource_type='audio').count()
+    video_count = items.filter(resource_type='audio-video').count()
+    text_count = items.filter(resource_type__in=['publication_article', 'publication_book', 'publication_chapter', 'publication_thesis', 'manuscript']).count()
+    image_count = items.filter(resource_type='image').count()
+    
     context = {
         'collection': collection,
-        'items' : items,
+        'items': items,
+        'language_stats': language_stats,
+        'audio_count': audio_count,
+        'video_count': video_count,
+        'text_count': text_count,
+        'image_count': image_count,
     }
     return render(request, 'collection_detail.html', context)
 

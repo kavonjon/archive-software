@@ -57,4 +57,8 @@ app.conf.beat_schedule = {
         'task': 'metadata.tasks.update_collection_date_ranges',
         'schedule': crontab(hour=2, minute=30),  # Run at 2:30 AM every day
     },
+    'update-item-date-ranges': {
+        'task': 'metadata.tasks.update_item_date_ranges',
+        'schedule': crontab(hour=2, minute=15),  # Run at 2:15 AM every day
+    },
 } 

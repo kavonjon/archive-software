@@ -3,117 +3,308 @@
 {% load metadata_templatetags %}
 
 {% block page_content %}
-<h1>Collection {{collection.collection_abbr}} metadata</h1>
-{% if request.user|has_group:"Archivist"%}
-<div class="form-row">
-    <h1>
-    <a class="btn btn-primary" href="edit/" role="button">Edit</a>
-    <a href="{% url "collection_delete" collection.id %}"><i class="fas fa-times"></i></a>
-    </h1>
-</div>
-{% endif %}
-<div class="row">
-    <div class="col-md-12">
-        <h2>General</h2>
+<div class="container py-4">
+  <!-- Header Section -->
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <h1 class="display-5 fw-bold text-primary">
+        {{ collection.name }}
+        <span class="badge bg-secondary">{{ collection.collection_abbr }}</span>
+      </h1>
     </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Collection name:</b> {{ collection.name }}
+    <div class="col-md-4 text-end">
+      {% if request.user|has_group:"Archivist" %}
+        <a class="btn btn-primary me-2" href="edit/" role="button">
+          <i class="fas fa-edit"></i> Edit
+        </a>
+        <a class="btn btn-danger" href="{% url "collection_delete" collection.id %}" role="button">
+          <i class="fas fa-trash"></i> Delete
+        </a>
+      {% endif %}
     </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Collection abbreviation:</b> {{ collection.collection_abbr }}
+  </div>
+
+  <!-- Overview Card - Full Width -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+      <h3 class="card-title mb-0">Overview</h3>
     </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Item count:</b> {{ collection.item_count }}
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <div class="d-flex align-items-center">
+            <i class="fas fa-box-archive text-primary me-2 fs-4"></i>
+            <div>
+              <h6 class="text-muted mb-0">Items</h6>
+              <p class="h4 mb-0">{{ collection.item_count }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4 mb-3">
+          <div class="d-flex align-items-center">
+            <i class="fas fa-calendar text-primary me-2 fs-4"></i>
+            <div>
+              <h6 class="text-muted mb-0">Date Range</h6>
+              <p class="h4 mb-0">{{ collection.date_range|default:"Not specified" }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4 mb-3">
+          <div class="d-flex align-items-center">
+            <i class="fas fa-lock text-primary me-2 fs-4"></i>
+            <div>
+              <h6 class="text-muted mb-0">Access Levels</h6>
+              <p class="h4 mb-0">{{ collection.get_access_levels_display|default:"None" }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <hr class="my-3">
+      
+      <div class="row">
+        <div class="col-md-12 mb-3">
+          <h6 class="text-muted mb-1">Languages Represented</h6>
+          {% if collection.languages.all %}
+            {% for language in collection.languages.all %}
+              <span class="badge bg-info text-dark me-1">{{ language }}</span>
+            {% endfor %}
+          {% else %}
+            <p>None specified</p>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="col-md-12 mb-3">
+          <h6 class="text-muted mb-1">Genres</h6>
+          <p>{{ collection.get_genres_display|default:"None specified" }}</p>
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="col-md-12">
+          <h6 class="text-muted mb-1">Extent</h6>
+          <p>{{ collection.extent|default:"Not specified" }}</p>
+        </div>
+      </div>
     </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Access levels:</b> {{ collection.get_access_levels_display }}
+  </div>
+
+  <!-- Two Column Layout -->
+  <div class="row">
+    <!-- Left Column: Collection Details -->
+    <div class="col-md-7">
+      <!-- Details Card -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light">
+          <h3 class="card-title mb-0">Collection Details</h3>
+        </div>
+        <div class="card-body">
+          <!-- Abstract -->
+          {% if collection.abstract %}
+            <div class="mb-4">
+              <h5 class="border-bottom pb-2 text-primary">Abstract</h5>
+              <p class="lead">{{ collection.abstract|linebreaks }}</p>
+            </div>
+          {% endif %}
+          
+          <!-- Description -->
+          {% if collection.description %}
+            <div class="mb-4">
+              <h5 class="border-bottom pb-2 text-primary">Description</h5>
+              <div class="ps-3">{{ collection.description|linebreaks }}</div>
+            </div>
+          {% endif %}
+          
+          <!-- Background -->
+          {% if collection.background %}
+            <div class="mb-4">
+              <h5 class="border-bottom pb-2 text-primary">Background</h5>
+              <div class="ps-3">{{ collection.background|linebreaks }}</div>
+            </div>
+          {% endif %}
+          
+          <!-- Conventions -->
+          {% if collection.conventions %}
+            <div class="mb-4">
+              <h5 class="border-bottom pb-2 text-primary">Arrangement & Conventions</h5>
+              <div class="ps-3">{{ collection.conventions|linebreaks }}</div>
+            </div>
+          {% endif %}
+          
+          <!-- Acquisition -->
+          {% if collection.acquisition %}
+            <div class="mb-4">
+              <h5 class="border-bottom pb-2 text-primary">Acquisition Information</h5>
+              <div class="ps-3">{{ collection.acquisition|linebreaks }}</div>
+            </div>
+          {% endif %}
+          
+          <!-- Access Statement -->
+          {% if collection.access_statement %}
+            <div class="mb-4">
+              <h5 class="border-bottom pb-2 text-primary">Access & Use Statement</h5>
+              <div class="ps-3">{{ collection.access_statement|linebreaks }}</div>
+            </div>
+          {% endif %}
+          
+          <!-- Citation Authors -->
+          {% if collection.citation_authors %}
+            <div class="mb-4">
+              <h5 class="border-bottom pb-2 text-primary">Creators</h5>
+              <div class="ps-3">{{ collection.citation_authors|linebreaks }}</div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- Metadata Card -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light">
+          <h3 class="card-title mb-0">Metadata</h3>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <p><strong>Last Updated:</strong> {{ collection.updated }}</p>
+            </div>
+            <div class="col-md-6">
+              <p><strong>Modified By:</strong> {{ collection.modified_by }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Languages Represented:</b> {{ collection.languages.all|join:", "}}
+    
+    <!-- Right Column: Aggregations -->
+    <div class="col-md-5">
+      <!-- Items List Card -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+          <h3 class="card-title mb-0">Items in Collection</h3>
+          <span class="badge bg-primary rounded-pill">{{ items|length }}</span>
+        </div>
+        <div class="card-body p-0">
+          {% if items %}
+            <div class="list-group list-group-flush">
+              {% for item in items|slice:":50" %}
+                <a href="{% url 'item_detail' item.id %}" class="list-group-item list-group-item-action">
+                  <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1">{{ item.catalog_number }}</h5>
+                    {% if item.collection_date %}
+                      <small class="text-muted">{{ item.collection_date }}</small>
+                    {% endif %}
+                  </div>
+                  <p class="mb-1">
+                    {% if item.title %}
+                      {{ item.title }}
+                    {% else %}
+                      <span class="text-muted">No title</span>
+                    {% endif %}
+                  </p>
+                  {% if item.language.all %}
+                    <small>
+                      {% for lang in item.language.all %}
+                        <span class="badge bg-info text-dark me-1">{{ lang }}</span>
+                      {% endfor %}
+                    </small>
+                  {% endif %}
+                </a>
+              {% endfor %}
+            </div>
+            
+            {% if items|length > 50 %}
+              <div class="card-footer text-center">
+                <p class="text-muted mb-2">Showing first 50 of {{ items|length }} items</p>
+                <a href="{% url 'item_index' %}?collection={{ collection.id }}" class="btn btn-outline-primary btn-sm">
+                  View All Items
+                </a>
+              </div>
+            {% endif %}
+          {% else %}
+            <div class="text-center p-4">
+              <i class="fas fa-box-open text-muted fs-1 mb-3"></i>
+              <p>No items found in this collection.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- Languages Statistics Card -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light">
+          <h3 class="card-title mb-0">Language Distribution</h3>
+        </div>
+        <div class="card-body">
+          {% if language_stats %}
+            <ul class="list-group list-group-flush">
+              {% for lang_stat in language_stats %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                  {{ lang_stat.language }}
+                  <span class="badge bg-primary rounded-pill">{{ lang_stat.count }}</span>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-center text-muted">No language information available</p>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- Resource Types Card -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light">
+          <h3 class="card-title mb-0">Resource Types</h3>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-6 mb-3">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-file-audio text-primary me-2 fs-4"></i>
+                <div>
+                  <h6 class="text-muted mb-0">Audio</h6>
+                  <p class="h4 mb-0">{{ audio_count|default:"0" }}</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-6 mb-3">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-file-video text-primary me-2 fs-4"></i>
+                <div>
+                  <h6 class="text-muted mb-0">Video</h6>
+                  <p class="h4 mb-0">{{ video_count|default:"0" }}</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-6 mb-3">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-file-alt text-primary me-2 fs-4"></i>
+                <div>
+                  <h6 class="text-muted mb-0">Text</h6>
+                  <p class="h4 mb-0">{{ text_count|default:"0" }}</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-6 mb-3">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-image text-primary me-2 fs-4"></i>
+                <div>
+                  <h6 class="text-muted mb-0">Image</h6>
+                  <p class="h4 mb-0">{{ image_count|default:"0" }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
 </div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Extent:</b> {{ collection.extent }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Date range:</b> {{ collection.date_range }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Abstract:</b> {{ collection.abstract|linebreaks }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Genres:</b> {{ collection.get_genres_display }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Description of scope and content</b> {{ collection.description|linebreaks }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Background information, project history, community info:</b> {{ collection.background }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Description of arrangement, collector conventions:</b> {{ collection.conventions }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Acquisition information:</b> {{ collection.acquisition }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Access/use statement:</b> {{ collection.access_statement }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Creators:</b> {{ collection.citation_authors }}
-    </div>
-</div>
-<div>
-    <br /><hr />
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <h2>Versioning</h2>
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>Last updated:</b> {{ collection.updated }}
-    </div>
-</div>
-<div class="row">
-    <div class="col-md-12">
-        <b>By:</b> {{ collection.modified_by }}
-    </div>
-</div>
+
 {{ geographic_points|json_script:"geographic_points" }}
 <script>
   let locations = JSON.parse(document.getElementById('geographic_points').textContent);
 </script>
 <script src="{% static 'map.js' %}" type="application/javascript"></script>
-
 {% endblock %}

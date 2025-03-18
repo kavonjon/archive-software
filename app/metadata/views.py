@@ -3510,11 +3510,11 @@ def import_date_field(model_field, human_fields, headers, row, object_instance):
                     date_day_1 = ''
                     date_day_2 = ''
 
-            date_1 = date_month_1 + '/' + date_day_1 + '/' + date_year_1
+            date_1 = date_year_1 + '/' + date_month_1 + '/' + date_day_1
             date_1 = re.sub(r"/+", "/", date_1)
             date_1 = re.sub(r"^/*", "", date_1)
 
-            date_2 = date_month_2 + '/' + date_day_2 + '/' + date_year_2
+            date_2 = date_year_2 + '/' + date_month_2 + '/' + date_day_2
             date_2 = re.sub(r"/+", "/", date_2)
             date_2 = re.sub(r"^/*", "", date_2)
 

@@ -93,7 +93,8 @@ class Command(BaseCommand):
                             f"  {field}: Converting '{original_value}' to '{standardized_date}'"
                         )
                     )
-                    setattr(item, field, standardized_date)
-                    item.save()
+                    with item._meta.model._default_manager.disable_mptt_updates():
+                        setattr(item, field, standardized_date)
+                        item.save()
 
         self.stdout.write(self.style.SUCCESS('Date standardization completed')) 

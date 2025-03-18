@@ -352,3 +352,5 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour='*/6', minute=0),  # Run every 6 hours
     },
 }
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

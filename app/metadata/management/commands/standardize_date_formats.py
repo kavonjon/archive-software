@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+from django.db.models import signals
 import re
 from metadata.models import Item
 
@@ -69,6 +70,9 @@ class Command(BaseCommand):
             f'{field}__isnull': True for field in date_fields
         })
 
+        # Temporarily disconnect the post_save signal
+        signals.post_save.receivers = []
+
         for item in items:
             self.stdout.write(f"Processing item {item.catalog_number}")
             
@@ -93,8 +97,7 @@ class Command(BaseCommand):
                             f"  {field}: Converting '{original_value}' to '{standardized_date}'"
                         )
                     )
-                    with item._meta.model._default_manager.disable_mptt_updates():
-                        setattr(item, field, standardized_date)
-                        item.save()
+                    setattr(item, field, standardized_date)
+                    item.save()
 
         self.stdout.write(self.style.SUCCESS('Date standardization completed')) 

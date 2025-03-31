@@ -149,6 +149,22 @@
             </div>
           {% endif %}
           
+          <!-- Related Publications/Collections -->
+          {% if collection.related_publications_collections %}
+            <div class="mb-4">
+              <h5 class="border-bottom pb-2 text-primary">Related Publications/Collections</h5>
+              <div class="ps-3">{{ collection.related_publications_collections|linebreaks }}</div>
+            </div>
+          {% endif %}
+
+          <!-- Expecting Additions -->
+          {% if collection.expecting_additions %}
+            <div class="mb-4">
+              <h5 class="border-bottom pb-2 text-primary">Expecting Additions</h5>
+              <div class="ps-3">{{ collection.expecting_additions|linebreaks }}</div>
+            </div>
+          {% endif %}
+          
           <!-- Citation Authors -->
           {% if collection.citation_authors %}
             <div class="mb-4">

@@ -10,7 +10,7 @@ from .models import Collection, Item, ItemTitle, Languoid, Dialect, DialectInsta
 class CollectionForm(ModelForm):
     class Meta:
         model = Collection
-        exclude = ['access_levels', 'genres', 'languages', 'date_range', 'added', 'updated', 'modified_by']
+        exclude = ['access_levels', 'genres', 'languages', 'date_range', 'date_range_min', 'date_range_max', 'item_count', 'added', 'updated', 'modified_by']
         widgets = {
             'languages': Select2MultipleWidget,  # Apply Select2 to the M2M field
         }

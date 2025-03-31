@@ -508,9 +508,9 @@ class Geographic(models.Model):
 
 
 class Collection(models.Model):
-    uuid = models.UUIDField(unique=True, default=uuid.uuid4)
-    slug = models.CharField(max_length=20, unique=True, blank=True)
-    collection_abbr = models.CharField(max_length=10)
+    uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+    slug = models.CharField(max_length=20, unique=True, blank=True, editable=False)
+    collection_abbr = models.CharField(max_length=10, verbose_name="collection abbreviation")
     name = models.CharField(max_length=255)
     languages = models.ManyToManyField(Languoid, verbose_name="list of languages", related_name='collection_languages', blank=True)
     extent = models.CharField(max_length=255, blank=True)
@@ -523,6 +523,8 @@ class Collection(models.Model):
     conventions = models.TextField(blank=True, verbose_name="description of arrangement, collector conventions")
     acquisition = models.TextField(blank=True, verbose_name="acquisition information")
     access_statement = models.TextField(blank=True, verbose_name="access/use statement")
+    related_publications_collections = models.TextField(blank=True, verbose_name="related publications/collections")
+    expecting_additions = models.BooleanField(null=True, blank=True)
     citation_authors = models.TextField(blank=True, verbose_name="citation authors")
     access_levels = MultiSelectField(choices=ACCESS_CHOICES, blank=True)
     genres = MultiSelectField(choices=GENRE_CHOICES, blank=True)
@@ -543,8 +545,8 @@ class Collection(models.Model):
 
 
 class Item(models.Model):
-    uuid = models.UUIDField(unique=True, default=uuid.uuid4)
-    slug = models.CharField(max_length=20, unique=True, blank=True)
+    uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+    slug = models.CharField(max_length=20, unique=True, blank=True, editable=False)
     collection = models.ForeignKey(Collection, related_name='collection_items', on_delete=models.SET_NULL, null=True, blank=True)
     access_level_restrictions = models.TextField(blank=True)
     accession_date = models.CharField(max_length=255, blank=True, validators =[validate_date_text])

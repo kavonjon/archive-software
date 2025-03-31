@@ -47,6 +47,7 @@ class CollectionViewSet(viewsets.ReadOnlyModelViewSet):
     required_scopes = ['read']
     versioning_class = ArchiveAPIVersioning
     filterset_class = CollectionFilter
+    lookup_field = 'slug'
 
     def get_queryset(self):
         return Collection.objects.all()

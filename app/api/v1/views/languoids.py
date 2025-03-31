@@ -23,6 +23,7 @@ class LanguoidViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAdminOrHasToken]
     required_scopes = ['read']
     versioning_class = ArchiveAPIVersioning
+    lookup_field = 'glottocode'
 
     def get_serializer_class(self):
         if self.action == 'list':

@@ -12,7 +12,14 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 
 # Ensure Redis password is included in broker URL
 redis_password = os.environ.get('REDIS_PASSWORD')
-redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+redis_url = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
+
+# Make sure we don't use localhost in Docker environments
+if 'localhost' in redis_url and os.environ.get('SERVER_ROLE') in ('public', 'private'):
+    # Replace localhost with the service name in docker-compose
+    redis_url = redis_url.replace('localhost', 'redis')
+
+# Ensure password is included in the URL
 if redis_password and '://' in redis_url:
     protocol, rest = redis_url.split('://', 1)
     if '@' not in rest:

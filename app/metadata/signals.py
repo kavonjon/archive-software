@@ -57,5 +57,11 @@ def update_collection_dates_on_item_change(sender, instance, **kwargs):
     collection = getattr(instance, 'collection', None)
     
     if collection:
-        # Schedule the task to run asynchronously
-        update_collection_date_ranges.delay()
+        # Schedule the task to run asynchronously with retry handling
+        try:
+            update_collection_date_ranges.delay()
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to queue task update_collection_date_ranges: {e}")
+            # We can proceed without the Celery task, but log the error

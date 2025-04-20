@@ -308,6 +308,11 @@ PUBLIC_SERVER_URL = os.environ.get('PUBLIC_SERVER_URL', '')
 REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
 
+# For Docker deployments, make sure we don't use localhost
+if 'localhost' in REDIS_URL and SERVER_ROLE in ('public', 'private'):
+    # Replace localhost with the service name in docker-compose
+    REDIS_URL = REDIS_URL.replace('localhost', 'redis')
+
 # Add password to Redis URL if it exists
 if REDIS_PASSWORD and '://' in REDIS_URL:
     protocol, rest = REDIS_URL.split('://', 1)

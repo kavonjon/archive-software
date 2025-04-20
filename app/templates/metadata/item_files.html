@@ -92,7 +92,7 @@
                     {% else %}
                     <div class="alert alert-info">
                         <p>No files found in the item directory. Files should be placed in:</p>
-                        <pre>main_storage/files/{{ item.collection.collection_abbr }}/{{ item.catalog_number }}/</pre>
+                        <pre>{{ storage_base_name }}/files/{{ item.collection.collection_abbr }}/{{ item.catalog_number }}/</pre>
                     </div>
                     {% endif %}
                 </div>
@@ -110,11 +110,11 @@
                     <p><strong>Collection:</strong> {{ item.collection.collection_abbr }} - {{ item.collection.name }}</p>
                     <p>
                         <strong>Files Directory:</strong><br>
-                        <code>main_storage/files/{{ item.collection.collection_abbr }}/{{ item.catalog_number }}/</code>
+                        <code>{{ storage_base_name }}/files/{{ item.collection.collection_abbr }}/{{ item.catalog_number }}/</code>
                     </p>
                     <p>
                         <strong>Metadata Directory:</strong><br>
-                        <code>main_storage/metadata/{{ item.collection.collection_abbr }}/{{ item.catalog_number }}/</code>
+                        <code>{{ storage_base_name }}/metadata/{{ item.collection.collection_abbr }}/{{ item.catalog_number }}/</code>
                     </p>
                     <div class="alert alert-warning">
                         <p><i class="fas fa-info-circle"></i> <strong>Note:</strong></p>

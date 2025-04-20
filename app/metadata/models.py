@@ -864,10 +864,8 @@ class Item(models.Model):
         # Call the original save method
         super().save(*args, **kwargs)
         
-        # Export metadata to JSON (if on private server)
-        from django.conf import settings
-        if settings.SERVER_ROLE == 'private':
-            self.export_metadata()
+        # Export metadata to JSON
+        self.export_metadata()
 
 class ItemTitle(models.Model):
     title = models.CharField(max_length=500)

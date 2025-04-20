@@ -4388,11 +4388,6 @@ def item_files(request, item_id):
     """
     item = get_object_or_404(Item, pk=item_id)
     
-    # Check that we're on the private server
-    if settings.SERVER_ROLE != 'private':
-        messages.error(request, "File management is only available on the private server")
-        return redirect('item_detail', item_id=item_id)
-    
     # Check that the item has a collection assigned
     if not item.collection:
         messages.error(request, "Item must be assigned to a collection before managing files")
@@ -4441,10 +4436,6 @@ def api_update_item_files(request, item_id):
     API endpoint for updating item file selection via AJAX
     """
     item = get_object_or_404(Item, pk=item_id)
-    
-    # Check that we're on the private server
-    if settings.SERVER_ROLE != 'private':
-        return JsonResponse({'error': 'File management is only available on the private server'}, status=403)
     
     # Check that the item has a collection assigned
     if not item.collection:

@@ -24,9 +24,7 @@
 <div class="form-row">
     <h1>
     <a class="btn btn-primary" href="edit/" role="button">Edit</a>
-    {% if settings.SERVER_ROLE == 'private' %}
     <a class="btn btn-info" href="{% url 'item_files' item_id=item.id %}" role="button">Manage Files</a>
-    {% endif %}
     <a href="{% url "item_delete" item.id %}"><i class="fas fa-times"></i></a>
     </h1>
 </div>

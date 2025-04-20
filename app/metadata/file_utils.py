@@ -12,11 +12,11 @@ logger = logging.getLogger(__name__)
 
 # Base paths
 def get_main_storage_base():
-    """Get the base path for main storage on private server"""
-    if settings.SERVER_ROLE != 'private':
-        logger.error("Attempting to access main storage on non-private server")
-        return None
-    return settings.MAIN_STORAGE_PATH
+    """Get the base path for storage based on server role"""
+    if settings.SERVER_ROLE == 'private':
+        return settings.MAIN_STORAGE_PATH
+    else:  # public server
+        return settings.PUBLIC_STORAGE_PATH
 
 def get_files_path():
     """Get the path to the files directory"""
@@ -315,11 +315,6 @@ def item_files(request, item_id):
     from metadata.models import File
     
     item = get_object_or_404(Item, pk=item_id)
-    
-    # Check that we're on the private server
-    if settings.SERVER_ROLE != 'private':
-        messages.error(request, "File management is only available on the private server")
-        return redirect('item_detail', item_id=item_id)
     
     # Check that the item has a collection assigned
     if not item.collection:

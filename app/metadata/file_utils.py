@@ -183,9 +183,11 @@ def save_item_metadata(collection_id, item_id, metadata, collection_abbr=None, c
         file_id = item_id
         
     if not item_metadata_path:
+        logger.error(f"Could not get metadata path for {collection_abbr}/{catalog_number}")
         return False
     
     # Ensure directory exists
+    logger.info(f"Ensuring directory structure for metadata {collection_abbr}/{catalog_number}")
     if collection_abbr and catalog_number:
         ensure_directory_structure(None, None, collection_abbr, catalog_number)
     else:
@@ -193,13 +195,15 @@ def save_item_metadata(collection_id, item_id, metadata, collection_abbr=None, c
     
     # Create metadata filename
     metadata_file = os.path.join(item_metadata_path, f"{file_id}_metadata.json")
+    logger.info(f"Saving metadata to {metadata_file}")
     
     try:
         with open(metadata_file, 'w') as f:
             json.dump(metadata, f, indent=2)
+        logger.info(f"Successfully saved metadata to {metadata_file}")
         return True
     except Exception as e:
-        logger.error(f"Error saving item metadata: {str(e)}")
+        logger.error(f"Error saving item metadata to {metadata_file}: {str(e)}")
         return False
 
 def load_collection_metadata(collection_id):
@@ -288,8 +292,10 @@ def save_derivative(collection_id, item_id, original_filename, derivative_data, 
 def update_file_metadata(collection_id, item_id, file_list, collection_abbr=None, catalog_number=None):
     """
     Update the file metadata for an item (JSON export only)
-    Note: This is only for export purposes - 
-    the primary source of selected files is now the File model objects
+    
+    Note: This is only for export purposes and should not be called directly.
+    Instead, use Item.save_file_selection() which properly updates both the
+    database and calls this function as needed.
     
     Args:
         collection_id: ID of the collection
@@ -312,7 +318,7 @@ def item_files(request, item_id):
     """
     View for managing files associated with an item
     """
-    from metadata.models import File
+    from metadata.models import File, Item
     
     item = get_object_or_404(Item, pk=item_id)
     
@@ -344,6 +350,11 @@ def item_files(request, item_id):
         'item': item,
         'available_files': available_files,
         'selected_files': selected_files,
+        'storage_base_name': get_main_storage_base(),
     }
     
-    return render(request, 'metadata/item_files.html', context) 
+    return render(request, 'metadata/item_files.html', context)
+
+# The save_file_selection function has been removed to eliminate duplication.
+# The canonical implementation is now in the Item.save_file_selection method (in models.py),
+# which properly handles both database updates and metadata file generation. 

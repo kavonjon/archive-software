@@ -24,6 +24,8 @@ from .serializers import ItemMigrateSerializer, LegacyLanguoidSerializer
 from .forms import CollectionForm, LanguoidForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
 from django.contrib.staticfiles import finders
 from django.views.decorators.http import require_POST
+import logging
+from metadata.file_utils import get_main_storage_base
 
 def is_member_of_archivist(user):
     return user.groups.filter(name="Archivist").exists()
@@ -4386,24 +4388,22 @@ def item_files(request, item_id):
     """
     View for managing files associated with an item
     """
+    from metadata.models import File, Item
+    from metadata.file_utils import get_main_storage_base
+    
     item = get_object_or_404(Item, pk=item_id)
     
     # Check that the item has a collection assigned
     if not item.collection:
         messages.error(request, "Item must be assigned to a collection before managing files")
-        return redirect('item_detail', item_id=item_id)
+        return redirect('item_detail', pk=item_id)
     
     # Get the list of available files
     available_files = item.get_item_files()
     
-    # Load the current file selection from metadata
-    from .file_utils import load_item_metadata
-    metadata = load_item_metadata(
-        item.collection.pk, item.pk,
-        collection_abbr=item.collection.collection_abbr,
-        catalog_number=item.catalog_number
-    ) or {}
-    selected_files = metadata.get('files', [])
+    # Get selected files directly from File objects instead of metadata
+    file_objects = File.objects.filter(item=item)
+    selected_files = [file_obj.filename for file_obj in file_objects]
     
     # Handle form submission
     if request.method == 'POST':
@@ -4424,6 +4424,7 @@ def item_files(request, item_id):
         'item': item,
         'available_files': available_files,
         'selected_files': selected_files,
+        'storage_base_name': get_main_storage_base()
     }
     
     return render(request, 'metadata/item_files.html', context)
@@ -4435,26 +4436,48 @@ def api_update_item_files(request, item_id):
     """
     API endpoint for updating item file selection via AJAX
     """
-    item = get_object_or_404(Item, pk=item_id)
-    
-    # Check that the item has a collection assigned
-    if not item.collection:
-        return JsonResponse({'error': 'Item must be assigned to a collection'}, status=400)
+    import logging
+    logger = logging.getLogger(__name__)
     
     try:
-        # Parse the JSON data from the request
-        data = json.loads(request.body)
-        selected_files = data.get('selected_files', [])
+        item = get_object_or_404(Item, pk=item_id)
+        logger.error(f"Processing item {item_id}: {item.catalog_number}")
         
-        # Update the file selection
-        if item.save_file_selection(selected_files):
-            # Re-export the item metadata
-            item.export_metadata()
-            return JsonResponse({'success': True, 'message': 'File selection updated successfully'})
-        else:
-            return JsonResponse({'error': 'Error updating file selection'}, status=500)
+        # Check that the item has a collection assigned
+        if not item.collection:
+            logger.error(f"Item {item_id} has no collection assigned")
+            return JsonResponse({'error': 'Item must be assigned to a collection'}, status=400)
+        
+        logger.error(f"Item collection: {item.collection.collection_abbr}")
+        
+        try:
+            # Parse the JSON data from the request
+            data = json.loads(request.body)
+            selected_files = data.get('selected_files', [])
+            logger.error(f"Selected files: {selected_files}")
             
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+            # Update the file selection
+            # Log available files for the item
+            available_files = item.get_item_files()
+            logger.error(f"Available files: {available_files}")
+            
+            result = item.save_file_selection(selected_files)
+            logger.error(f"save_file_selection result: {result}")
+            
+            if result:
+                # Re-export the item metadata
+                logger.error("Exporting metadata")
+                item.export_metadata()
+                return JsonResponse({'success': True, 'message': 'File selection updated successfully'})
+            else:
+                logger.error("Error updating file selection - save_file_selection returned False")
+                return JsonResponse({'error': 'Error updating file selection'}, status=500)
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {str(e)}")
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
     except Exception as e:
+        logger.error(f"Exception in api_update_item_files: {type(e).__name__}: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         return JsonResponse({'error': str(e)}, status=500)

@@ -15,6 +15,7 @@ from multiselectfield import MultiSelectField
 #from approx_dates.models import ApproxDate
 from video_encoding.fields import VideoField
 from video_encoding.models import Format
+import logging
 
 
 
@@ -799,11 +800,14 @@ class Item(models.Model):
         Export this item's metadata to a JSON file in the metadata directory
         """
         from .file_utils import save_item_metadata, ensure_directory_structure
+        logger = logging.getLogger(__name__)
         
         if not self.collection or not self.pk:
+            logger.error(f"Cannot export metadata: No collection or primary key for item {self}")
             return False
             
         # Ensure the directory structure exists using new path format
+        logger.info(f"Ensuring directory structure for {self.collection.collection_abbr}/{self.catalog_number}")
         ensure_directory_structure(None, None, self.collection.collection_abbr, self.catalog_number)
         
         # Create a dictionary of metadata to export
@@ -825,12 +829,15 @@ class Item(models.Model):
         }
         
         # Add the list of available files
-        metadata['available_files'] = self.get_item_files()
+        available_files = self.get_item_files()
+        logger.info(f"Available files: {available_files}")
+        metadata['available_files'] = available_files
         
         # Add detailed file information
         files_data = {}
         total_bytes = 0
         file_objects = File.objects.filter(item=self)
+        logger.info(f"File objects: {[f.filename for f in file_objects]}")
         
         for file_obj in file_objects:
             total_bytes += file_obj.filesize or 0
@@ -852,8 +859,14 @@ class Item(models.Model):
         
         # Save the metadata to a file
         # Pass collection_abbr and catalog_number to save_item_metadata
-        return save_item_metadata(self.collection.pk, self.pk, metadata, 
+        logger.info(f"Saving metadata to file for {self.catalog_number}")
+        result = save_item_metadata(self.collection.pk, self.pk, metadata, 
                                   self.collection.collection_abbr, self.catalog_number)
+        if result:
+            logger.info(f"Metadata saved successfully for {self.catalog_number}")
+        else:
+            logger.error(f"Failed to save metadata for {self.catalog_number}")
+        return result
     
     def save(self, *args, **kwargs):
         # Generate slug if not already set

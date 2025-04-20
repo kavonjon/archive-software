@@ -154,15 +154,24 @@ $(document).ready(function() {
                 'X-CSRFToken': '{{ csrf_token }}'
             },
             success: function(response) {
+                console.log('Success response:', response);
+                
+                // Reload selected files to reflect changes
+                // (No page reload needed, just update the checkboxes)
+                
                 // Show success message
                 $('div.messages').html(
-                    '<div class="alert alert-success">File selection updated successfully</div>'
+                    '<div class="alert alert-success">' + 
+                    '<i class="fas fa-check-circle"></i> File selection updated successfully. ' +
+                    selectedFiles.length + ' file(s) selected.</div>'
                 );
                 
                 // Scroll to top to show message
                 $('html, body').animate({ scrollTop: 0 }, 'slow');
             },
-            error: function(xhr) {
+            error: function(xhr, status, error) {
+                console.error('Error response:', xhr.responseText, status, error);
+                
                 var message = 'Error updating file selection';
                 if (xhr.responseJSON && xhr.responseJSON.error) {
                     message = xhr.responseJSON.error;

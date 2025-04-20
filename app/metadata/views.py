@@ -9,9 +9,9 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.admin.utils import flatten
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required, user_passes_test, permission_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.http import Http404, HttpResponse, StreamingHttpResponse
+from django.http import Http404, HttpResponse, StreamingHttpResponse, JsonResponse
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.forms.models import model_to_dict
@@ -23,6 +23,7 @@ from .models import Item, ItemTitle, Collection, Languoid, Dialect, DialectInsta
 from .serializers import ItemMigrateSerializer, LegacyLanguoidSerializer
 from .forms import CollectionForm, LanguoidForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
 from django.contrib.staticfiles import finders
+from django.views.decorators.http import require_POST
 
 def is_member_of_archivist(user):
     return user.groups.filter(name="Archivist").exists()
@@ -1781,7 +1782,8 @@ def item_detail(request, pk):
         'collaborator_info' : collaborator_info,
         'dialect_info' : dialect_info,
         'geographic_info' : geographic_info,
-        'geographic_points' : geographic_points
+        'geographic_points' : geographic_points,
+        'settings': settings,  # Add this line
     }
     return render(request, 'item_detail.html', context)
 
@@ -4377,3 +4379,91 @@ class document_upload(UserPassesTestMixin, FormView):
 # cataloged date: 3 part
 # collaborator date of birth: simple date, has approximates
 # collaborator date of death: simple date, has approximates
+
+@login_required
+@permission_required('metadata.change_item')
+def item_files(request, item_id):
+    """
+    View for managing files associated with an item
+    """
+    item = get_object_or_404(Item, pk=item_id)
+    
+    # Check that we're on the private server
+    if settings.SERVER_ROLE != 'private':
+        messages.error(request, "File management is only available on the private server")
+        return redirect('item_detail', item_id=item_id)
+    
+    # Check that the item has a collection assigned
+    if not item.collection:
+        messages.error(request, "Item must be assigned to a collection before managing files")
+        return redirect('item_detail', item_id=item_id)
+    
+    # Get the list of available files
+    available_files = item.get_item_files()
+    
+    # Load the current file selection from metadata
+    from .file_utils import load_item_metadata
+    metadata = load_item_metadata(
+        item.collection.pk, item.pk,
+        collection_abbr=item.collection.collection_abbr,
+        catalog_number=item.catalog_number
+    ) or {}
+    selected_files = metadata.get('files', [])
+    
+    # Handle form submission
+    if request.method == 'POST':
+        # Get the list of selected files from the form
+        selected_files = request.POST.getlist('selected_files', [])
+        
+        # Update the file selection
+        if item.save_file_selection(selected_files):
+            messages.success(request, "File selection updated successfully")
+        else:
+            messages.error(request, "Error updating file selection")
+        
+        # Redirect to prevent duplicate submissions
+        return redirect('item_files', item_id=item_id)
+    
+    # Prepare the context for rendering the template
+    context = {
+        'item': item,
+        'available_files': available_files,
+        'selected_files': selected_files,
+    }
+    
+    return render(request, 'metadata/item_files.html', context)
+
+@login_required
+@permission_required('metadata.change_item')
+@require_POST
+def api_update_item_files(request, item_id):
+    """
+    API endpoint for updating item file selection via AJAX
+    """
+    item = get_object_or_404(Item, pk=item_id)
+    
+    # Check that we're on the private server
+    if settings.SERVER_ROLE != 'private':
+        return JsonResponse({'error': 'File management is only available on the private server'}, status=403)
+    
+    # Check that the item has a collection assigned
+    if not item.collection:
+        return JsonResponse({'error': 'Item must be assigned to a collection'}, status=400)
+    
+    try:
+        # Parse the JSON data from the request
+        data = json.loads(request.body)
+        selected_files = data.get('selected_files', [])
+        
+        # Update the file selection
+        if item.save_file_selection(selected_files):
+            # Re-export the item metadata
+            item.export_metadata()
+            return JsonResponse({'success': True, 'message': 'File selection updated successfully'})
+        else:
+            return JsonResponse({'error': 'Error updating file selection'}, status=500)
+            
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

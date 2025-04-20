@@ -1,6 +1,13 @@
 import os
 from celery import Celery
 from celery.schedules import crontab
+import socket
+import platform
+
+# Fix for macOS fork issues
+if platform.system() == 'Darwin':  # macOS
+    os.environ.setdefault('OBJC_DISABLE_INITIALIZE_FORK_SAFETY', 'YES')
+    os.environ.setdefault('FORKED_BY_MULTIPROCESSING', '1')
 
 # Set the default Django settings module
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'archive.settings')
@@ -12,12 +19,26 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 
 # Ensure Redis password is included in broker URL
 redis_password = os.environ.get('REDIS_PASSWORD')
-redis_url = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
+redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 
-# Make sure we don't use localhost in Docker environments
-if 'localhost' in redis_url and os.environ.get('SERVER_ROLE') in ('public', 'private'):
-    # Replace localhost with the service name in docker-compose
-    redis_url = redis_url.replace('localhost', 'redis')
+# Check if we're running in Docker or development
+# In Docker, we can resolve the 'redis' hostname, but in dev we use 'localhost'
+def is_docker():
+    """Check if we're running in a Docker container by looking for specific env markers"""
+    return os.path.exists('/.dockerenv') or os.environ.get('DOCKER_CONTAINER') == 'true'
+
+def can_resolve_hostname(hostname):
+    """Check if a hostname can be resolved"""
+    try:
+        socket.gethostbyname(hostname)
+        return True
+    except socket.error:
+        return False
+
+# Choose the right Redis host
+if 'localhost' not in redis_url and 'redis' in redis_url and not can_resolve_hostname('redis'):
+    # We're trying to connect to 'redis' host but can't resolve it (development mode)
+    redis_url = redis_url.replace('redis:', 'localhost:')
 
 # Ensure password is included in the URL
 if redis_password and '://' in redis_url:
@@ -26,6 +47,12 @@ if redis_password and '://' in redis_url:
         host_part = rest
         app.conf.broker_url = f"{protocol}://:{redis_password}@{host_part}"
         app.conf.result_backend = app.conf.broker_url
+
+# Configure Celery worker settings
+if platform.system() == 'Darwin':  # macOS
+    # Use prefork pool on macOS to avoid fork issues
+    app.conf.worker_pool = 'prefork'
+    app.conf.worker_concurrency = int(os.environ.get('CELERY_WORKER_CONCURRENCY', 4))
 
 # Auto-discover tasks in all installed apps
 app.autodiscover_tasks()

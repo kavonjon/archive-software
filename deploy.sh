@@ -29,6 +29,20 @@ if [ "$SERVER_ROLE" = "private" ]; then
     fi
 fi
 
+# Set Docker environment variable
+export DOCKER_CONTAINER="true"
+
+# Add to deploy.sh before starting Docker
+if [ "$SERVER_ROLE" = "private" ]; then
+  # Create directories on host if they don't exist
+  mkdir -p "${HOST_STORAGE_PATH}/main_storage/files"
+  mkdir -p "${HOST_STORAGE_PATH}/main_storage/metadata"
+  mkdir -p "${HOST_STORAGE_PATH}/sequestered_incoming"
+  
+  # Set appropriate permissions
+  chmod -R 755 "${HOST_STORAGE_PATH}"
+fi
+
 # Deploy the appropriate configuration with build flag
 if [ "$SERVER_ROLE" = "public" ]; then
     echo "Deploying public server configuration..."

@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Manage Files - {{ item.catalog_number }}{% endblock %}
+
+{% block page_content %}
+<div class="container-fluid mt-3">
+    <div class="row">
+        <div class="col-12">
+            <h2>Manage Files for Item: {{ item.catalog_number }}</h2>
+            <p>
+                <a href="{% url 'item_detail' pk=item.pk %}" class="btn btn-sm btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Item
+                </a>
+            </p>
+            
+            {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4>Available Files in Files Directory</h4>
+                </div>
+                <div class="card-body">
+                    {% if available_files %}
+                    <form method="post" id="fileForm">
+                        {% csrf_token %}
+                        <div class="row mb-3">
+                            <div class="col">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save File Selection
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 50px;">Select</th>
+                                        <th>Filename</th>
+                                        <th style="width: 150px;">Preview</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for file in available_files %}
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" name="selected_files" value="{{ file }}" 
+                                                {% if file in selected_files %}checked{% endif %} 
+                                                class="form-check-input" />
+                                        </td>
+                                        <td>{{ file }}</td>
+                                        <td class="text-center">
+                                            {% with file_ext=file|lower %}
+                                                {% if file_ext|slice:"-4:" == '.pdf' %}
+                                                    <i class="fas fa-file-pdf fa-2x text-danger"></i>
+                                                {% elif file_ext|slice:"-4:" == '.doc' or file_ext|slice:"-5:" == '.docx' %}
+                                                    <i class="fas fa-file-word fa-2x text-primary"></i>
+                                                {% elif file_ext|slice:"-4:" == '.xls' or file_ext|slice:"-5:" == '.xlsx' %}
+                                                    <i class="fas fa-file-excel fa-2x text-success"></i>
+                                                {% elif file_ext|slice:"-4:" == '.jpg' or file_ext|slice:"-5:" == '.jpeg' or file_ext|slice:"-4:" == '.png' or file_ext|slice:"-4:" == '.gif' %}
+                                                    <i class="fas fa-file-image fa-2x text-info"></i>
+                                                {% elif file_ext|slice:"-4:" == '.mp3' or file_ext|slice:"-4:" == '.wav' %}
+                                                    <i class="fas fa-file-audio fa-2x text-warning"></i>
+                                                {% elif file_ext|slice:"-4:" == '.mp4' or file_ext|slice:"-4:" == '.mov' %}
+                                                    <i class="fas fa-file-video fa-2x text-danger"></i>
+                                                {% else %}
+                                                    <i class="fas fa-file fa-2x text-secondary"></i>
+                                                {% endif %}
+                                            {% endwith %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save File Selection
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <p>No files found in the item directory. Files should be placed in:</p>
+                        <pre>main_storage/files/{{ item.collection.collection_abbr }}/{{ item.catalog_number }}/</pre>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h4>Information</h4>
+                </div>
+                <div class="card-body">
+                    <p>
+                        <strong>Item:</strong> {{ item.catalog_number }}
+                        {% if item.english_title %}<br><strong>Title:</strong> {{ item.english_title }}{% endif %}
+                    </p>
+                    <p><strong>Collection:</strong> {{ item.collection.collection_abbr }} - {{ item.collection.name }}</p>
+                    <p>
+                        <strong>Files Directory:</strong><br>
+                        <code>main_storage/files/{{ item.collection.collection_abbr }}/{{ item.catalog_number }}/</code>
+                    </p>
+                    <p>
+                        <strong>Metadata Directory:</strong><br>
+                        <code>main_storage/metadata/{{ item.collection.collection_abbr }}/{{ item.catalog_number }}/</code>
+                    </p>
+                    <div class="alert alert-warning">
+                        <p><i class="fas fa-info-circle"></i> <strong>Note:</strong></p>
+                        <ul>
+                            <li>To add files, upload them directly to the files directory on the server.</li>
+                            <li>Files selected here will be included in the item's metadata and available for download.</li>
+                            <li>Files not selected will remain in the directory but won't be included in the item's metadata.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Enable AJAX form submission
+    $('#fileForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        // Get all selected files
+        var selectedFiles = [];
+        $('input[name="selected_files"]:checked').each(function() {
+            selectedFiles.push($(this).val());
+        });
+        
+        // Send AJAX request
+        $.ajax({
+            url: '{% url "api_update_item_files" item_id=item.pk %}',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ selected_files: selectedFiles }),
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            success: function(response) {
+                // Show success message
+                $('div.messages').html(
+                    '<div class="alert alert-success">File selection updated successfully</div>'
+                );
+                
+                // Scroll to top to show message
+                $('html, body').animate({ scrollTop: 0 }, 'slow');
+            },
+            error: function(xhr) {
+                var message = 'Error updating file selection';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    message = xhr.responseJSON.error;
+                }
+                
+                // Show error message
+                $('div.messages').html(
+                    '<div class="alert alert-danger">' + message + '</div>'
+                );
+                
+                // Scroll to top to show message
+                $('html, body').animate({ scrollTop: 0 }, 'slow');
+            }
+        });
+    });
+});
+</script>
+{% endblock %} 

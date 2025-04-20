@@ -1,6 +1,7 @@
 import re
 import uuid
 import base58
+import os
 from django.db import models
 from django.urls import reverse
 from django.core.exceptions import ValidationError
@@ -543,6 +544,50 @@ class Collection(models.Model):
             self.slug = f"{encoded[:5]}-{encoded[5:10]}"
         super().save(*args, **kwargs)
 
+    def export_metadata(self):
+        """
+        Export this collection's metadata to a JSON file in the metadata directory
+        """
+        from .file_utils import save_collection_metadata, ensure_directory_structure
+        
+        if not self.pk:
+            return False
+            
+        # Ensure the directory structure exists
+        ensure_directory_structure(self.pk)
+        
+        # Create a dictionary of metadata to export
+        metadata = {
+            'id': self.pk,
+            'collection_abbr': self.collection_abbr,
+            'name': self.name,
+            'abstract': self.abstract,
+            'description': self.description,
+            'background': self.background,
+            'conventions': self.conventions,
+            'date_range': self.date_range,
+            'access_statement': self.access_statement,
+            'item_count': self.item_count,
+            'expecting_additions': self.expecting_additions,
+            'access_levels': self.access_levels,
+            'languages': [lang.name for lang in self.languages.all()],
+            'genres': self.genres,
+            'modified_by': self.modified_by,
+            'last_updated': self.updated.isoformat() if self.updated else None,
+        }
+        
+        # Save the metadata to a file
+        return save_collection_metadata(self.pk, metadata)
+    
+    def save(self, *args, **kwargs):
+        # Call the original save method
+        super().save(*args, **kwargs)
+        
+        # Export metadata to JSON (if on private server)
+        from django.conf import settings
+        if settings.SERVER_ROLE == 'private':
+            self.export_metadata()
+
 
 class Item(models.Model):
     uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
@@ -642,11 +687,187 @@ class Item(models.Model):
         self.creation_date = validate_date_text(self.creation_date)
         self.deposit_date = validate_date_text(self.deposit_date)
 
+    def get_item_files(self):
+        """
+        Get a list of files available for this item in the files directory
+        """
+        from .file_utils import list_item_files_by_numbers
+        
+        if not self.collection or not self.pk:
+            return []
+        
+        # Use only the new path with collection_abbr and catalog_number
+        return list_item_files_by_numbers(self.collection.collection_abbr, self.catalog_number)
+    
+    def save_file_selection(self, selected_files):
+        """
+        Save the list of selected files to the item's metadata and create File objects
+        
+        Args:
+            selected_files: List of filenames that should be included in this item
+        """
+        from .file_utils import update_file_metadata, ensure_directory_structure
+        
+        if not self.collection or not self.pk:
+            return False
+            
+        # Ensure the directory structure exists using the new path format
+        ensure_directory_structure(None, None, self.collection.collection_abbr, self.catalog_number)
+        
+        # Get the list of all files in the item directory
+        from .file_utils import list_item_files_by_numbers, get_item_files_path_by_numbers
+        import os
+        import hashlib
+        import mimetypes
+        
+        available_files = list_item_files_by_numbers(self.collection.collection_abbr, self.catalog_number)
+        
+        # Create or update File objects for selected files
+        for filename in selected_files:
+            if filename in available_files:
+                # Create relative path
+                rel_path = os.path.join(
+                    self.collection.collection_abbr,
+                    self.catalog_number,
+                    filename
+                )
+                
+                # Get absolute path
+                abs_path = os.path.join(
+                    get_item_files_path_by_numbers(self.collection.collection_abbr, self.catalog_number),
+                    filename
+                )
+                
+                # Get file stats
+                file_stats = os.stat(abs_path)
+                file_size = file_stats.st_size
+                
+                # Get mimetype
+                mime_type, _ = mimetypes.guess_type(filename)
+                mime_type = mime_type or 'application/octet-stream'
+                
+                # Calculate checksum
+                checksum = ""
+                try:
+                    with open(abs_path, 'rb') as f:
+                        sha256 = hashlib.sha256()
+                        for byte_block in iter(lambda: f.read(4096), b""):
+                            sha256.update(byte_block)
+                        checksum = sha256.hexdigest()
+                except Exception as e:
+                    logger.error(f"Error calculating checksum for {abs_path}: {str(e)}")
+                
+                # Get file extension
+                _, file_ext = os.path.splitext(filename)
+                file_ext = file_ext.lower()[1:] if file_ext else ''
+                
+                # Create or update File object
+                file_obj, created = File.objects.get_or_create(
+                    filename=filename,
+                    item=self,
+                    defaults={
+                        'filepath': rel_path,
+                        'filetype': file_ext,
+                        'filesize': file_size,
+                        'checksum': checksum,
+                        'mimetype': mime_type,
+                        'access_level': self.item_access_level,  # Default to item's access level
+                        'title': filename,
+                        'modified_by': self.modified_by
+                    }
+                )
+                
+                # If file exists, update its metadata
+                if not created:
+                    file_obj.filepath = rel_path
+                    file_obj.filetype = file_ext
+                    file_obj.filesize = file_size
+                    file_obj.checksum = checksum
+                    file_obj.mimetype = mime_type
+                    file_obj.modified_by = self.modified_by
+                    file_obj.save()
+        
+        # Delete File objects for files that are no longer selected
+        File.objects.filter(item=self).exclude(filename__in=selected_files).delete()
+        
+        # Update the file metadata
+        return update_file_metadata(self.collection.pk, self.pk, selected_files, 
+                                   self.collection.collection_abbr, self.catalog_number)
+    
+    def export_metadata(self):
+        """
+        Export this item's metadata to a JSON file in the metadata directory
+        """
+        from .file_utils import save_item_metadata, ensure_directory_structure
+        
+        if not self.collection or not self.pk:
+            return False
+            
+        # Ensure the directory structure exists using new path format
+        ensure_directory_structure(None, None, self.collection.collection_abbr, self.catalog_number)
+        
+        # Create a dictionary of metadata to export
+        metadata = {
+            'id': self.pk,
+            'catalog_number': self.catalog_number,
+            'collection': self.collection.collection_abbr if self.collection else None,
+            'english_title': self.english_title,
+            'indigenous_title': self.indigenous_title,
+            'description': self.description_scope_and_content,
+            'collection_date': self.collection_date,
+            'creation_date': self.creation_date,
+            'languages': [lang.name for lang in self.language.all()],
+            'resource_type': self.resource_type,
+            'genre': self.genre,
+            'access_level': self.item_access_level,
+            'modified_by': self.modified_by,
+            'last_updated': self.updated.isoformat() if self.updated else None,
+        }
+        
+        # Add the list of available files
+        metadata['available_files'] = self.get_item_files()
+        
+        # Add detailed file information
+        files_data = {}
+        total_bytes = 0
+        file_objects = File.objects.filter(item=self)
+        
+        for file_obj in file_objects:
+            total_bytes += file_obj.filesize or 0
+            files_data[file_obj.filename] = {
+                'id': str(file_obj.uuid),
+                'checksum': file_obj.checksum,
+                'ext': file_obj.get_extension(),
+                'size': file_obj.filesize,
+                'mimetype': file_obj.mimetype,
+                'key': file_obj.filename,
+                'metadata': file_obj.get_metadata_dict()
+            }
+        
+        metadata['files'] = {
+            'count': len(file_objects),
+            'total_bytes': total_bytes,
+            'entries': files_data
+        }
+        
+        # Save the metadata to a file
+        # Pass collection_abbr and catalog_number to save_item_metadata
+        return save_item_metadata(self.collection.pk, self.pk, metadata, 
+                                  self.collection.collection_abbr, self.catalog_number)
+    
     def save(self, *args, **kwargs):
+        # Generate slug if not already set
         if not self.slug:
             encoded = base58.b58encode(self.uuid.bytes).decode()[:10]
             self.slug = f"{encoded[:5]}-{encoded[5:10]}"
+        
+        # Call the original save method
         super().save(*args, **kwargs)
+        
+        # Export metadata to JSON (if on private server)
+        from django.conf import settings
+        if settings.SERVER_ROLE == 'private':
+            self.export_metadata()
 
 class ItemTitle(models.Model):
     title = models.CharField(max_length=500)
@@ -660,6 +881,68 @@ class ItemTitle(models.Model):
         ordering = ['item', 'title']
     def __str__(self):
         return self.item.catalog_number + ": " + self.title
+
+class File(models.Model):
+    """
+    Model for storing metadata about files associated with items
+    Will eventually replace the Document model
+    """
+    # Identifiers
+    uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+    
+    # Basic file information
+    filename = models.CharField(max_length=255)
+    filepath = models.CharField(max_length=512, help_text="Path to the file relative to storage base")
+    filetype = models.CharField(max_length=32, blank=True)
+    access_level = models.CharField(max_length=1, choices=ACCESS_CHOICES, blank=True)
+    title = models.CharField(max_length=255, blank=True)
+    
+    # File technical metadata
+    filesize = models.PositiveIntegerField(null=True, blank=True)
+    checksum = models.CharField(max_length=64, blank=True, help_text="SHA-256 checksum of the file")
+    mimetype = models.CharField(max_length=128, blank=True)
+    duration = models.FloatField(null=True, blank=True)
+    av_spec = models.CharField(max_length=255, blank=True)
+    
+    # Content metadata
+    creation_date = models.CharField(max_length=255, blank=True, validators=[validate_date_text])
+    creation_date_min = models.DateField(null=True, blank=True)
+    creation_date_max = models.DateField(null=True, blank=True)
+    
+    # Relationships - using direct M2M fields instead of through models
+    language = models.ManyToManyField(Languoid, verbose_name="list of languages", 
+                                      related_name='file_languages', blank=True)
+    collaborator = models.ManyToManyField(Collaborator, verbose_name="list of collaborators", 
+                                         related_name='file_collaborators', blank=True)
+    item = models.ForeignKey('Item', related_name='item_files', on_delete=models.CASCADE, null=True, blank=True)
+    
+    # Metadata
+    added = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+    modified_by = models.CharField(max_length=255)
+    
+    class Meta:
+        ordering = ['filename']
+        
+    def __str__(self):
+        return self.filename
+        
+    def clean(self):
+        self.creation_date = validate_date_text(self.creation_date)
+        
+    def get_extension(self):
+        """Get the file extension"""
+        return os.path.splitext(self.filename)[1].lower()[1:] if '.' in self.filename else ''
+        
+    def get_metadata_dict(self):
+        """Return file metadata as a dictionary for API use"""
+        return {
+            'title': self.title,
+            'access_level': self.access_level,
+            'creation_date': self.creation_date,
+            'languages': [lang.name for lang in self.language.all()],
+            'collaborators': [collab.name for collab in self.collaborator.all()]
+        }
 
 class Document(models.Model):
     filename = models.CharField(max_length=255)

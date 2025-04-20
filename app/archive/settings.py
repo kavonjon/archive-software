@@ -306,12 +306,26 @@ LOGGING = {
 SERVER_ROLE = os.environ.get('SERVER_ROLE', 'public')
 PUBLIC_SERVER_URL = os.environ.get('PUBLIC_SERVER_URL', '')
 REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')
-REDIS_URL = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
 
-# For Docker deployments, make sure we don't use localhost
-if 'localhost' in REDIS_URL and SERVER_ROLE in ('public', 'private'):
-    # Replace localhost with the service name in docker-compose
-    REDIS_URL = REDIS_URL.replace('localhost', 'redis')
+# Detect environment (Docker vs development)
+def is_docker():
+    """Check if we're running in a Docker container by looking for specific env markers"""
+    return os.path.exists('/.dockerenv') or os.environ.get('DOCKER_CONTAINER') == 'true'
+
+def can_resolve_hostname(hostname):
+    """Check if a hostname can be resolved"""
+    try:
+        import socket
+        socket.gethostbyname(hostname)
+        return True
+    except socket.error:
+        return False
+
+# Choose the right Redis host
+if 'localhost' not in REDIS_URL and 'redis' in REDIS_URL and not can_resolve_hostname('redis'):
+    # We're trying to connect to 'redis' host but can't resolve it (development mode)
+    REDIS_URL = REDIS_URL.replace('redis:', 'localhost:')
 
 # Add password to Redis URL if it exists
 if REDIS_PASSWORD and '://' in REDIS_URL:
@@ -345,7 +359,14 @@ else:  # private
         'common.tasks.*': {'queue': 'common'},
     }
     MAIN_STORAGE_PATH = os.path.join(BASE_DIR, 'main_storage')
+    MAIN_STORAGE_FILES_PATH = os.path.join(MAIN_STORAGE_PATH, 'files')
+    MAIN_STORAGE_METADATA_PATH = os.path.join(MAIN_STORAGE_PATH, 'metadata')
     SEQUESTERED_INCOMING_PATH = os.path.join(BASE_DIR, 'sequestered_incoming')
+    
+    # Create main storage subdirectories if they don't exist
+    os.makedirs(MAIN_STORAGE_PATH, exist_ok=True)
+    os.makedirs(MAIN_STORAGE_FILES_PATH, exist_ok=True)
+    os.makedirs(MAIN_STORAGE_METADATA_PATH, exist_ok=True)
 
 CELERY_BEAT_SCHEDULE = {
     'update-collection-item-counts': {

@@ -32,15 +32,28 @@ if ! redis-cli -a "${REDIS_PASSWORD}" ping > /dev/null; then
     exit 1
 fi
 
+# Set specific environment variables for development mode
+export REDIS_URL="redis://localhost:6379/0"
+export DOCKER_CONTAINER="false"
+
+# Fix for macOS fork() issues with Celery
+export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
+export PYTHONPATH=$(pwd)
+export FORKED_BY_MULTIPROCESSING=1
+
 # Change to the app directory
 cd app
 
 # Start Celery worker with appropriate queues
 if [ "$SERVER_ROLE" = "public" ]; then
-    celery -A archive worker -Q public,common --loglevel=info &
+    # Use spawn method on macOS for Celery
+    CELERY_WORKER_CONCURRENCY=${CELERY_WORKER_CONCURRENCY:-4}
+    celery -A archive worker -Q public,common --loglevel=info --concurrency=$CELERY_WORKER_CONCURRENCY -P prefork &
     celery -A archive beat --loglevel=info &
 else
-    celery -A archive worker -Q private,common --loglevel=info &
+    # Use spawn method on macOS for Celery
+    CELERY_WORKER_CONCURRENCY=${CELERY_WORKER_CONCURRENCY:-4}
+    celery -A archive worker -Q private,common --loglevel=info --concurrency=$CELERY_WORKER_CONCURRENCY -P prefork &
     celery -A archive beat --loglevel=info &
 fi
 

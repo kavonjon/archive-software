@@ -15,6 +15,7 @@ services:
       - .env
     environment:
       - SERVER_ROLE=public
+      - DOCKER_CONTAINER=true
     depends_on:
       - db
       - redis
@@ -61,6 +62,7 @@ services:
       - .env
     environment:
       - SERVER_ROLE=public
+      - DOCKER_CONTAINER=true
     depends_on:
       - redis
       - db
@@ -74,6 +76,7 @@ services:
       - .env
     environment:
       - SERVER_ROLE=public
+      - DOCKER_CONTAINER=true
     depends_on:
       - redis
       - db

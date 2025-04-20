@@ -97,6 +97,9 @@ urlpatterns = [
 
     # Your existing API URLs
     path('api/', include('api.urls')),
+
+    # Add this to the urlpatterns before the API URLs
+    path('metadata/', include('metadata.urls')),
 ]
 
 #urlpatterns = path(r'dj/', include(urlpatterns)),  # prepend 'django/' to all URLs

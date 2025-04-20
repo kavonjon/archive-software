@@ -11,7 +11,9 @@ app/archive/secrets.py
 app/archive/deploychoice.py
 app/runserver.py
 app/media/imports
+app/main_storage
 app/static
+app/celerybeat-schedule.db
 docs/reference
 backup/*
 

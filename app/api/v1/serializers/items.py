@@ -162,6 +162,7 @@ class ItemDetailSerializer(serializers.ModelSerializer):
     collection = CollectionSerializer(read_only=True)
     titles = ItemTitleSerializer(source='title_item', many=True)
     title = serializers.SerializerMethodField()
+    files = serializers.SerializerMethodField()
     id = serializers.CharField(source='slug')
 
     class Meta:
@@ -172,6 +173,7 @@ class ItemDetailSerializer(serializers.ModelSerializer):
             'metadata',
             'titles',
             'title',
+            'files',
         ]
 
     @extend_schema_field(serializers.CharField(allow_null=True))
@@ -180,6 +182,40 @@ class ItemDetailSerializer(serializers.ModelSerializer):
         if default_title:
             return default_title.title
         return None
+
+    @extend_schema_field(serializers.DictField(allow_null=True))
+    def get_files(self, obj):
+        """Get file information for the item"""
+        # Get all File objects associated with this item
+        file_objects = obj.item_files.all()
+        
+        if not file_objects:
+            return None
+            
+        # Calculate total size
+        total_bytes = 0
+        for file_obj in file_objects:
+            total_bytes += file_obj.filesize or 0
+            
+        # Build entries dictionary
+        entries = {}
+        for file_obj in file_objects:
+            entries[file_obj.filename] = {
+                'id': str(file_obj.uuid),
+                'checksum': file_obj.checksum,
+                'ext': file_obj.get_extension(),
+                'size': file_obj.filesize,
+                'mimetype': file_obj.mimetype,
+                'key': file_obj.filename,
+                'metadata': file_obj.get_metadata_dict()
+            }
+            
+        # Return the files data in the requested format
+        return {
+            'count': len(file_objects),
+            'total_bytes': total_bytes,
+            'entries': entries
+        }
 
     def get_metadata(self, obj):
         return {

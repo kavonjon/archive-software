@@ -5,10 +5,10 @@ services:
     restart: unless-stopped
     volumes:
       - static_volume:/app/static
-      - public_storage:/app/public_storage
-      - sequestered_incoming:/app/sequestered_incoming
-      - sequestered_outgoing:/app/sequestered_outgoing
-      - temp_storage:/app/temp_storage
+      - ${HOST_STORAGE_PATH}/public_storage:/app/public_storage
+      - ${HOST_STORAGE_PATH}/sequestered_incoming:/app/sequestered_incoming
+      - ${HOST_STORAGE_PATH}/sequestered_outgoing:/app/sequestered_outgoing
+      - ${HOST_STORAGE_PATH}/temp_storage:/app/temp_storage
     expose:
       - 8000
     env_file:
@@ -54,10 +54,10 @@ services:
     restart: unless-stopped
     command: celery -A archive worker -Q public,common
     volumes:
-      - public_storage:/app/public_storage
-      - sequestered_incoming:/app/sequestered_incoming
-      - sequestered_outgoing:/app/sequestered_outgoing
-      - temp_storage:/app/temp_storage
+      - ${HOST_STORAGE_PATH}/public_storage:/app/public_storage
+      - ${HOST_STORAGE_PATH}/sequestered_incoming:/app/sequestered_incoming
+      - ${HOST_STORAGE_PATH}/sequestered_outgoing:/app/sequestered_outgoing
+      - ${HOST_STORAGE_PATH}/temp_storage:/app/temp_storage
     env_file:
       - .env
     environment:
@@ -100,8 +100,8 @@ services:
     restart: unless-stopped
     volumes:
       - static_volume:/app/static/
-      - public_storage:/app/public_storage:ro
-      - temp_storage:/app/temp_storage:ro
+      - ${HOST_STORAGE_PATH}/public_storage:/app/public_storage:ro
+      - ${HOST_STORAGE_PATH}/temp_storage:/app/temp_storage:ro
     expose:
       - 8081
     depends_on:
@@ -111,10 +111,7 @@ volumes:
   postgres_data:
   static_volume:
   redis_data:
-  public_storage:       # Main public storage
-  sequestered_incoming: # Quarantine for uploaded files
-  sequestered_outgoing: # Files ready to be transferred to private
-  temp_storage:         # Temporary storage for private files
+  # public_storage, sequestered_incoming, sequestered_outgoing, and temp_storage are now host-mounted
 
 networks:
   default:

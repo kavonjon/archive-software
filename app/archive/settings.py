@@ -351,19 +351,29 @@ if SERVER_ROLE == 'public':
         'metadata.tasks.*': {'queue': 'public'},
         'common.tasks.*': {'queue': 'common'},
     }
-    PUBLIC_STORAGE_PATH = os.path.join(HOST_STORAGE_BASE, 'public_storage')
-    TEMP_STORAGE_PATH = os.path.join(HOST_STORAGE_BASE, 'temp_storage')
-    SEQUESTERED_INCOMING_PATH = os.path.join(HOST_STORAGE_BASE, 'sequestered_incoming')
-    SEQUESTERED_OUTGOING_PATH = os.path.join(HOST_STORAGE_BASE, 'sequestered_outgoing')
+    
+    # Define the storage paths - consistent between Docker and development
+    if is_docker():
+        PUBLIC_STORAGE_PATH = '/app/public_storage'
+    else:
+        PUBLIC_STORAGE_PATH = os.path.join(HOST_STORAGE_BASE, 'public_storage')
+    TEMP_STORAGE_PATH = os.path.join(PUBLIC_STORAGE_PATH, '..', 'temp_storage')
+    SEQUESTERED_INCOMING_PATH = os.path.join(PUBLIC_STORAGE_PATH, '..', 'sequestered_incoming')
+    SEQUESTERED_OUTGOING_PATH = os.path.join(PUBLIC_STORAGE_PATH, '..', 'sequestered_outgoing')
 else:  # private server
     CELERY_TASK_ROUTES = {
         'metadata.tasks.*': {'queue': 'private'},
         'common.tasks.*': {'queue': 'common'},
     }
-    MAIN_STORAGE_PATH = os.path.join(HOST_STORAGE_BASE, 'main_storage')
-    TEMP_STORAGE_PATH = os.path.join(HOST_STORAGE_BASE, 'temp_storage')
-    SEQUESTERED_INCOMING_PATH = os.path.join(HOST_STORAGE_BASE, 'sequestered_incoming')
-    SEQUESTERED_OUTGOING_PATH = os.path.join(HOST_STORAGE_BASE, 'sequestered_outgoing')
+    
+    # Define the storage paths - consistent between Docker and development
+    if is_docker():
+        MAIN_STORAGE_PATH = '/app/main_storage'
+    else:
+        MAIN_STORAGE_PATH = os.path.join(HOST_STORAGE_BASE, 'main_storage')
+    TEMP_STORAGE_PATH = os.path.join(MAIN_STORAGE_PATH, '..', 'temp_storage')
+    SEQUESTERED_INCOMING_PATH = os.path.join(MAIN_STORAGE_PATH, '..', 'sequestered_incoming')
+    SEQUESTERED_OUTGOING_PATH = os.path.join(MAIN_STORAGE_PATH, '..', 'sequestered_outgoing')
 
 CELERY_BEAT_SCHEDULE = {
     'update-collection-item-counts': {

@@ -342,31 +342,28 @@ CELERY_RESULT_BACKEND = REDIS_URL
 if SERVER_ROLE == 'private':
     PUBLIC_REDIS_URL = os.environ.get('PUBLIC_REDIS_URL', '')
 
+# Base storage path from environment or default to project directory
+HOST_STORAGE_BASE = os.environ.get('HOST_STORAGE_PATH', BASE_DIR)
+
 # File storage paths based on server role
 if SERVER_ROLE == 'public':
     CELERY_TASK_ROUTES = {
         'metadata.tasks.*': {'queue': 'public'},
         'common.tasks.*': {'queue': 'common'},
     }
-    PUBLIC_STORAGE_PATH = os.path.join(BASE_DIR, 'public_storage')
-    TEMP_STORAGE_PATH = os.path.join(BASE_DIR, 'temp_storage')
-    SEQUESTERED_INCOMING_PATH = os.path.join(BASE_DIR, 'sequestered_incoming')
-    SEQUESTERED_OUTGOING_PATH = os.path.join(BASE_DIR, 'sequestered_outgoing')
-    
-else:  # private
+    PUBLIC_STORAGE_PATH = os.path.join(HOST_STORAGE_BASE, 'public_storage')
+    TEMP_STORAGE_PATH = os.path.join(HOST_STORAGE_BASE, 'temp_storage')
+    SEQUESTERED_INCOMING_PATH = os.path.join(HOST_STORAGE_BASE, 'sequestered_incoming')
+    SEQUESTERED_OUTGOING_PATH = os.path.join(HOST_STORAGE_BASE, 'sequestered_outgoing')
+else:  # private server
     CELERY_TASK_ROUTES = {
         'metadata.tasks.*': {'queue': 'private'},
         'common.tasks.*': {'queue': 'common'},
     }
-    MAIN_STORAGE_PATH = os.path.join(BASE_DIR, 'main_storage')
-    MAIN_STORAGE_FILES_PATH = os.path.join(MAIN_STORAGE_PATH, 'files')
-    MAIN_STORAGE_METADATA_PATH = os.path.join(MAIN_STORAGE_PATH, 'metadata')
-    SEQUESTERED_INCOMING_PATH = os.path.join(BASE_DIR, 'sequestered_incoming')
-    
-    # Create main storage subdirectories if they don't exist
-    os.makedirs(MAIN_STORAGE_PATH, exist_ok=True)
-    os.makedirs(MAIN_STORAGE_FILES_PATH, exist_ok=True)
-    os.makedirs(MAIN_STORAGE_METADATA_PATH, exist_ok=True)
+    MAIN_STORAGE_PATH = os.path.join(HOST_STORAGE_BASE, 'main_storage')
+    TEMP_STORAGE_PATH = os.path.join(HOST_STORAGE_BASE, 'temp_storage')
+    SEQUESTERED_INCOMING_PATH = os.path.join(HOST_STORAGE_BASE, 'sequestered_incoming')
+    SEQUESTERED_OUTGOING_PATH = os.path.join(HOST_STORAGE_BASE, 'sequestered_outgoing')
 
 CELERY_BEAT_SCHEDULE = {
     'update-collection-item-counts': {

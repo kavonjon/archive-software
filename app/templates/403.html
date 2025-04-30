@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block page_content %}
+<h1>🔒 Security Verification Failed</h1>
+<p>We're sorry, but we couldn't verify this request for security reasons.</p>
+<p>This might be because:</p>
+<ul>
+    <li>Your session has expired</li>
+    <li>You're using the back button after logging in</li>
+    <li>Cookies might be disabled in your browser</li>
+</ul>
+<p>Please try <a href="javascript:window.location.reload()">refreshing the page</a> or <a href="/">return to the homepage</a> and try again.</p>
+<p> </p>
+<p><small>This is a CSRF verification error (403).</small></p>
+
+{% endblock %} 

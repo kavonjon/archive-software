@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.contrib.contenttypes.fields import GenericRelation
-from django.db.models.signals import post_delete
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 #from django.utils.six import python_2_unicode_compatible
 from multiselectfield import MultiSelectField
@@ -870,25 +870,26 @@ class Item(models.Model):
             logger.error(f"Failed to save metadata for {self.catalog_number}")
         return result
     
-    @transaction.atomic
     def save(self, *args, **kwargs):
-        """
-        Save the item with transaction management and handle file selection and metadata export
-        """
         # Generate slug if not already set
         if not self.slug:
             encoded = base58.b58encode(self.uuid.bytes).decode()[:10]
             self.slug = f"{encoded[:5]}-{encoded[5:10]}"
         
-        # Call the original save method within transaction
+        # Call the original save method
         super().save(*args, **kwargs)
         
         # Handle file selection if there are selected files
         if hasattr(self, '_selected_files'):
             self.save_file_selection()
-        
-        # Export metadata asynchronously using Celery task
-        export_item_metadata.delay(self.pk)
+
+@receiver(post_save, sender=Item)
+def trigger_metadata_export(sender, instance, created, **kwargs):
+    """
+    Signal handler to trigger metadata export asynchronously after save
+    """
+    from .tasks import export_item_metadata
+    export_item_metadata.delay(instance.pk)
 
 class ItemTitle(models.Model):
     title = models.CharField(max_length=500)

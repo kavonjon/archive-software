@@ -16,8 +16,6 @@ from multiselectfield import MultiSelectField
 from video_encoding.fields import VideoField
 from video_encoding.models import Format
 import logging
-from django.db import transaction
-from .tasks import export_item_metadata
 
 
 

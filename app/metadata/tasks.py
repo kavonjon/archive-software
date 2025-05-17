@@ -7,6 +7,9 @@ from datetime import datetime, timedelta
 from metadata.models import Collection, Item
 from django.db.models import Min, Max
 from .utils import parse_standardized_date
+from .models import File
+from .file_utils import ensure_directory_structure, save_item_metadata
+from celery.exceptions import MaxRetriesExceededError
 
 logger = logging.getLogger(__name__)
 
@@ -280,4 +283,90 @@ def format_date_range(min_date, max_date):
                 return f"{min_str}-{max_str}"
     except Exception as e:
         logger.error(f"Error formatting date range: {str(e)}")
-        return "" 
+        return ""
+
+@shared_task(bind=True, max_retries=3)
+def export_item_metadata(self, item_id):
+    """
+    Export an item's metadata to JSON file asynchronously with retry logic
+    """
+    try:
+        item = Item.objects.get(pk=item_id)
+        logger.info(f"Starting metadata export for item {item.catalog_number}")
+        
+        if not item.collection or not item.pk:
+            logger.error(f"Cannot export metadata: No collection or primary key for item {item}")
+            return False
+            
+        # Ensure the directory structure exists using new path format
+        logger.info(f"Ensuring directory structure for {item.collection.collection_abbr}/{item.catalog_number}")
+        ensure_directory_structure(None, None, item.collection.collection_abbr, item.catalog_number)
+        
+        # Create a dictionary of metadata to export
+        metadata = {
+            'id': item.pk,
+            'catalog_number': item.catalog_number,
+            'collection': item.collection.collection_abbr if item.collection else None,
+            'english_title': item.english_title,
+            'indigenous_title': item.indigenous_title,
+            'description': item.description_scope_and_content,
+            'collection_date': item.collection_date,
+            'creation_date': item.creation_date,
+            'languages': [lang.name for lang in item.language.all()],
+            'resource_type': item.resource_type,
+            'genre': item.genre,
+            'access_level': item.item_access_level,
+            'modified_by': item.modified_by,
+            'last_updated': item.updated.isoformat() if item.updated else None,
+        }
+        
+        # Add the list of available files
+        available_files = item.get_item_files()
+        logger.info(f"Available files: {available_files}")
+        metadata['available_files'] = available_files
+        
+        # Add detailed file information
+        files_data = {}
+        total_bytes = 0
+        file_objects = File.objects.filter(item=item)
+        logger.info(f"File objects: {[f.filename for f in file_objects]}")
+        
+        for file_obj in file_objects:
+            total_bytes += file_obj.filesize or 0
+            files_data[file_obj.filename] = {
+                'id': str(file_obj.uuid),
+                'checksum': file_obj.checksum,
+                'ext': file_obj.get_extension(),
+                'size': file_obj.filesize,
+                'mimetype': file_obj.mimetype,
+                'key': file_obj.filename,
+                'metadata': file_obj.get_metadata_dict()
+            }
+        
+        metadata['files'] = {
+            'count': len(file_objects),
+            'total_bytes': total_bytes,
+            'entries': files_data
+        }
+        
+        # Save the metadata to a file
+        logger.info(f"Saving metadata to file for {item.catalog_number}")
+        result = save_item_metadata(item.collection.pk, item.pk, metadata, 
+                                  item.collection.collection_abbr, item.catalog_number)
+        if result:
+            logger.info(f"Metadata saved successfully for {item.catalog_number}")
+        else:
+            logger.error(f"Failed to save metadata for {item.catalog_number}")
+            raise Exception("Failed to save metadata file")
+        return result
+        
+    except Item.DoesNotExist:
+        logger.error(f"Item with ID {item_id} does not exist")
+        return False
+    except Exception as e:
+        logger.error(f"Error exporting metadata for item {item_id}: {str(e)}")
+        try:
+            self.retry(exc=e, countdown=60)  # Retry after 1 minute
+        except MaxRetriesExceededError:
+            logger.error(f"Failed to export metadata for item {item_id} after max retries")
+            return False 

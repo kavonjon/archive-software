@@ -16,6 +16,8 @@ from multiselectfield import MultiSelectField
 from video_encoding.fields import VideoField
 from video_encoding.models import Format
 import logging
+from django.db import transaction
+from .tasks import export_item_metadata
 
 
 
@@ -868,17 +870,25 @@ class Item(models.Model):
             logger.error(f"Failed to save metadata for {self.catalog_number}")
         return result
     
+    @transaction.atomic
     def save(self, *args, **kwargs):
+        """
+        Save the item with transaction management and handle file selection and metadata export
+        """
         # Generate slug if not already set
         if not self.slug:
             encoded = base58.b58encode(self.uuid.bytes).decode()[:10]
             self.slug = f"{encoded[:5]}-{encoded[5:10]}"
         
-        # Call the original save method
+        # Call the original save method within transaction
         super().save(*args, **kwargs)
         
-        # Export metadata to JSON
-        self.export_metadata()
+        # Handle file selection if there are selected files
+        if hasattr(self, '_selected_files'):
+            self.save_file_selection()
+        
+        # Export metadata asynchronously using Celery task
+        export_item_metadata.delay(self.pk)
 
 class ItemTitle(models.Model):
     title = models.CharField(max_length=500)

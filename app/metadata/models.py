@@ -699,114 +699,26 @@ class Item(models.Model):
         
         # Use only the new path with collection_abbr and catalog_number
         return list_item_files_by_numbers(self.collection.collection_abbr, self.catalog_number)
-    
-    def save_file_selection(self, selected_files):
-        """
-        Save the list of selected files to the item's metadata and create File objects
-        
-        Args:
-            selected_files: List of filenames that should be included in this item
-        """
-        from .file_utils import update_file_metadata, ensure_directory_structure
-        
-        if not self.collection or not self.pk:
-            return False
-            
-        # Ensure the directory structure exists using the new path format
-        ensure_directory_structure(None, None, self.collection.collection_abbr, self.catalog_number)
-        
-        # Get the list of all files in the item directory
-        from .file_utils import list_item_files_by_numbers, get_item_files_path_by_numbers
-        import os
-        import hashlib
-        import mimetypes
-        
-        available_files = list_item_files_by_numbers(self.collection.collection_abbr, self.catalog_number)
-        
-        # Create or update File objects for selected files
-        for filename in selected_files:
-            if filename in available_files:
-                # Create relative path
-                rel_path = os.path.join(
-                    self.collection.collection_abbr,
-                    self.catalog_number,
-                    filename
-                )
-                
-                # Get absolute path
-                abs_path = os.path.join(
-                    get_item_files_path_by_numbers(self.collection.collection_abbr, self.catalog_number),
-                    filename
-                )
-                
-                # Get file stats
-                file_stats = os.stat(abs_path)
-                file_size = file_stats.st_size
-                
-                # Get mimetype
-                mime_type, _ = mimetypes.guess_type(filename)
-                mime_type = mime_type or 'application/octet-stream'
-                
-                # Calculate checksum
-                checksum = ""
-                try:
-                    with open(abs_path, 'rb') as f:
-                        sha256 = hashlib.sha256()
-                        for byte_block in iter(lambda: f.read(4096), b""):
-                            sha256.update(byte_block)
-                        checksum = sha256.hexdigest()
-                except Exception as e:
-                    logger.error(f"Error calculating checksum for {abs_path}: {str(e)}")
-                
-                # Get file extension
-                _, file_ext = os.path.splitext(filename)
-                file_ext = file_ext.lower()[1:] if file_ext else ''
-                
-                # Create or update File object
-                file_obj, created = File.objects.get_or_create(
-                    filename=filename,
-                    item=self,
-                    defaults={
-                        'filepath': rel_path,
-                        'filetype': file_ext,
-                        'filesize': file_size,
-                        'checksum': checksum,
-                        'mimetype': mime_type,
-                        'access_level': self.item_access_level,  # Default to item's access level
-                        'title': filename,
-                        'modified_by': self.modified_by
-                    }
-                )
-                
-                # If file exists, update its metadata
-                if not created:
-                    file_obj.filepath = rel_path
-                    file_obj.filetype = file_ext
-                    file_obj.filesize = file_size
-                    file_obj.checksum = checksum
-                    file_obj.mimetype = mime_type
-                    file_obj.modified_by = self.modified_by
-                    file_obj.save()
-        
-        # Delete File objects for files that are no longer selected
-        File.objects.filter(item=self).exclude(filename__in=selected_files).delete()
-        
-        # Update the file metadata
-        return update_file_metadata(self.collection.pk, self.pk, selected_files, 
-                                   self.collection.collection_abbr, self.catalog_number)
 
     def save(self, *args, **kwargs):
-        # Generate slug if not already set
-        if not self.slug:
-            encoded = base58.b58encode(self.uuid.bytes).decode()[:10]
-            self.slug = f"{encoded[:5]}-{encoded[5:10]}"
-        
-        # Call the original save method
-        super().save(*args, **kwargs)
-        
-        # Handle file selection if there are selected files
-        if hasattr(self, '_selected_files'):
-            self.save_file_selection()
+        try:
+            # Generate slug if not already set
+            if not self.slug:
+                encoded = base58.b58encode(self.uuid.bytes).decode()[:10]
+                self.slug = f"{encoded[:5]}-{encoded[5:10]}"
+            
+            # Call the original save method
+            super().save(*args, **kwargs)
+            
+            # Handle file selection if there are selected files
+            if hasattr(self, '_selected_files'):
+                # Move file operations to a background task
+                from .tasks import save_file_selection
+                save_file_selection.delay(self.pk, self._selected_files)
+                
+        except Exception as e:
+            logging.error(f"Error saving Item {self.pk}: {str(e)}")
+            raise
 
 class ItemTitle(models.Model):
     title = models.CharField(max_length=500)

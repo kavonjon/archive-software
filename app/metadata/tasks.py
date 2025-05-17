@@ -8,8 +8,10 @@ from metadata.models import Collection, Item
 from django.db.models import Min, Max
 from .utils import parse_standardized_date
 from .models import File
-from .file_utils import ensure_directory_structure, save_item_metadata
+from .file_utils import ensure_directory_structure, save_item_metadata, list_item_files_by_numbers, get_item_files_path_by_numbers, update_file_metadata
 from celery.exceptions import MaxRetriesExceededError
+import hashlib
+import mimetypes
 
 logger = logging.getLogger(__name__)
 
@@ -370,3 +372,111 @@ def export_item_metadata(self, item_id):
         except MaxRetriesExceededError:
             logger.error(f"Failed to export metadata for item {item_id} after max retries")
             return False 
+
+@shared_task(bind=True, max_retries=3)
+def save_file_selection(self, item_id, selected_files):
+    """
+    Save the list of selected files to the item's metadata and create File objects asynchronously
+    
+    Args:
+        item_id: The ID of the item to process
+        selected_files: List of filenames that should be included in this item
+    """
+    try:
+        item = Item.objects.get(pk=item_id)
+        
+        if not item.collection:
+            logger.error(f"No collection found for item {item_id}")
+            return False
+            
+        # Ensure the directory structure exists
+        ensure_directory_structure(None, None, item.collection.collection_abbr, item.catalog_number)
+        
+        # Get available files
+        available_files = list_item_files_by_numbers(item.collection.collection_abbr, item.catalog_number)
+        
+        # Process each selected file
+        for filename in selected_files:
+            if filename in available_files:
+                try:
+                    # Create relative path
+                    rel_path = os.path.join(
+                        item.collection.collection_abbr,
+                        item.catalog_number,
+                        filename
+                    )
+                    
+                    # Get absolute path
+                    abs_path = os.path.join(
+                        get_item_files_path_by_numbers(item.collection.collection_abbr, item.catalog_number),
+                        filename
+                    )
+                    
+                    # Get file stats
+                    file_stats = os.stat(abs_path)
+                    file_size = file_stats.st_size
+                    
+                    # Get mimetype
+                    mime_type, _ = mimetypes.guess_type(filename)
+                    mime_type = mime_type or 'application/octet-stream'
+                    
+                    # Calculate checksum
+                    checksum = ""
+                    try:
+                        with open(abs_path, 'rb') as f:
+                            sha256 = hashlib.sha256()
+                            for byte_block in iter(lambda: f.read(4096), b""):
+                                sha256.update(byte_block)
+                            checksum = sha256.hexdigest()
+                    except Exception as e:
+                        logger.error(f"Error calculating checksum for {abs_path}: {str(e)}")
+                    
+                    # Get file extension
+                    _, file_ext = os.path.splitext(filename)
+                    file_ext = file_ext.lower()[1:] if file_ext else ''
+                    
+                    # Create or update File object
+                    file_obj, created = File.objects.get_or_create(
+                        filename=filename,
+                        item=item,
+                        defaults={
+                            'filepath': rel_path,
+                            'filetype': file_ext,
+                            'filesize': file_size,
+                            'checksum': checksum,
+                            'mimetype': mime_type,
+                            'access_level': item.item_access_level,
+                            'title': filename,
+                            'modified_by': item.modified_by
+                        }
+                    )
+                    
+                    # If file exists, update its metadata
+                    if not created:
+                        file_obj.filepath = rel_path
+                        file_obj.filetype = file_ext
+                        file_obj.filesize = file_size
+                        file_obj.checksum = checksum
+                        file_obj.mimetype = mime_type
+                        file_obj.modified_by = item.modified_by
+                        file_obj.save()
+                        
+                except Exception as e:
+                    logger.error(f"Error processing file {filename} for item {item_id}: {str(e)}")
+                    continue
+        
+        # Delete File objects for files that are no longer selected
+        File.objects.filter(item=item).exclude(filename__in=selected_files).delete()
+        
+        # Update the file metadata
+        update_file_metadata(item.collection.pk, item.pk, selected_files,
+                           item.collection.collection_abbr, item.catalog_number)
+        
+        return True
+        
+    except Item.DoesNotExist:
+        logger.error(f"Item {item_id} not found")
+        return False
+    except Exception as e:
+        logger.error(f"Error processing files for item {item_id}: {str(e)}")
+        self.retry(exc=e, countdown=60)  # Retry after 60 seconds 

@@ -796,80 +796,7 @@ class Item(models.Model):
         # Update the file metadata
         return update_file_metadata(self.collection.pk, self.pk, selected_files, 
                                    self.collection.collection_abbr, self.catalog_number)
-    
-    def export_metadata(self):
-        """
-        Export this item's metadata to a JSON file in the metadata directory
-        """
-        from .file_utils import save_item_metadata, ensure_directory_structure
-        logger = logging.getLogger(__name__)
-        
-        if not self.collection or not self.pk:
-            logger.error(f"Cannot export metadata: No collection or primary key for item {self}")
-            return False
-            
-        # Ensure the directory structure exists using new path format
-        logger.info(f"Ensuring directory structure for {self.collection.collection_abbr}/{self.catalog_number}")
-        ensure_directory_structure(None, None, self.collection.collection_abbr, self.catalog_number)
-        
-        # Create a dictionary of metadata to export
-        metadata = {
-            'id': self.pk,
-            'catalog_number': self.catalog_number,
-            'collection': self.collection.collection_abbr if self.collection else None,
-            'english_title': self.english_title,
-            'indigenous_title': self.indigenous_title,
-            'description': self.description_scope_and_content,
-            'collection_date': self.collection_date,
-            'creation_date': self.creation_date,
-            'languages': [lang.name for lang in self.language.all()],
-            'resource_type': self.resource_type,
-            'genre': self.genre,
-            'access_level': self.item_access_level,
-            'modified_by': self.modified_by,
-            'last_updated': self.updated.isoformat() if self.updated else None,
-        }
-        
-        # Add the list of available files
-        available_files = self.get_item_files()
-        logger.info(f"Available files: {available_files}")
-        metadata['available_files'] = available_files
-        
-        # Add detailed file information
-        files_data = {}
-        total_bytes = 0
-        file_objects = File.objects.filter(item=self)
-        logger.info(f"File objects: {[f.filename for f in file_objects]}")
-        
-        for file_obj in file_objects:
-            total_bytes += file_obj.filesize or 0
-            files_data[file_obj.filename] = {
-                'id': str(file_obj.uuid),
-                'checksum': file_obj.checksum,
-                'ext': file_obj.get_extension(),
-                'size': file_obj.filesize,
-                'mimetype': file_obj.mimetype,
-                'key': file_obj.filename,
-                'metadata': file_obj.get_metadata_dict()
-            }
-        
-        metadata['files'] = {
-            'count': len(file_objects),
-            'total_bytes': total_bytes,
-            'entries': files_data
-        }
-        
-        # Save the metadata to a file
-        # Pass collection_abbr and catalog_number to save_item_metadata
-        logger.info(f"Saving metadata to file for {self.catalog_number}")
-        result = save_item_metadata(self.collection.pk, self.pk, metadata, 
-                                  self.collection.collection_abbr, self.catalog_number)
-        if result:
-            logger.info(f"Metadata saved successfully for {self.catalog_number}")
-        else:
-            logger.error(f"Failed to save metadata for {self.catalog_number}")
-        return result
-    
+
     def save(self, *args, **kwargs):
         # Generate slug if not already set
         if not self.slug:
@@ -882,14 +809,6 @@ class Item(models.Model):
         # Handle file selection if there are selected files
         if hasattr(self, '_selected_files'):
             self.save_file_selection()
-
-@receiver(post_save, sender=Item)
-def trigger_metadata_export(sender, instance, created, **kwargs):
-    """
-    Signal handler to trigger metadata export asynchronously after save
-    """
-    from .tasks import export_item_metadata
-    export_item_metadata.delay(instance.pk)
 
 class ItemTitle(models.Model):
     title = models.CharField(max_length=500)

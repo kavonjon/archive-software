@@ -1,6 +1,6 @@
 from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
-from .models import Languoid, Item
+from .models import Languoid, Item, CollaboratorRole
 from .tasks import update_collection_date_ranges
 from .utils import parse_standardized_date
 
@@ -83,3 +83,14 @@ def update_collection_dates_on_item_change(sender, instance, **kwargs):
             logger.error(f"Failed to queue task update_collection_date_ranges: {e}")
             # We can proceed without the Celery task, but log the error
             cache.delete(cache_key)  # Clear the cache so future attempts can happen
+
+@receiver(post_save, sender=CollaboratorRole)
+def set_citation_author_for_roles(sender, instance, created, **kwargs):
+    """
+    Signal handler to automatically set citation_author to True for Author or Performer roles
+    when not explicitly specified.
+    """
+    if created and not instance.citation_author:
+        if 'author' in instance.role or 'performer' in instance.role:
+            instance.citation_author = True
+            instance.save(update_fields=['citation_author'])

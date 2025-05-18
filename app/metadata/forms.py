@@ -138,7 +138,7 @@ class CollaboratorForm(ModelForm):
 class CollaboratorRoleForm(ModelForm):
     class Meta:
         model = CollaboratorRole
-        fields = ['role']
+        fields = ['role', 'citation_author']
 
 class GeographicForm(ModelForm):
     class Meta:

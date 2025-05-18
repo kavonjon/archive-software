@@ -2,6 +2,7 @@ from rest_framework import serializers
 from metadata.models import Item, GENRE_CHOICES, Collection
 from drf_spectacular.utils import extend_schema_field
 from typing import Optional
+from .collaborator_roles import ItemCollaboratorSerializer
 
 class ItemTitleSerializer(serializers.Serializer):
     """Serializer for item titles"""
@@ -30,7 +31,6 @@ class ItemMetadataSerializer(serializers.Serializer):
     description = serializers.CharField(source='description_scope_and_content', allow_blank=True)
     call_number = serializers.CharField(allow_blank=True)
     copyrighted_notes = serializers.CharField(allow_blank=True)
-    # ... other metadata fields
 
     def get_all_languages(self, obj):
         return SimpleLanguageSerializer(obj.language.all(), many=True).data
@@ -112,6 +112,7 @@ class ItemDetailMetadataSerializer(serializers.Serializer):
     call_number = serializers.CharField(allow_blank=True)
     catalog_number = serializers.CharField()
     cataloged_date = serializers.DateField(allow_null=True)
+    collaborators = serializers.SerializerMethodField()
     collecting_notes = serializers.CharField(allow_blank=True)
     collection_date = serializers.DateField(allow_null=True)
     condition_notes = serializers.CharField(allow_blank=True)
@@ -139,6 +140,7 @@ class ItemDetailMetadataSerializer(serializers.Serializer):
     total_number_of_pages_and_physical_description = serializers.CharField(allow_blank=True)
     type_of_accession = serializers.CharField(allow_blank=True)
 
+
     def get_all_languages(self, obj):
         return SimpleLanguageSerializer(obj.language.all(), many=True).data
 
@@ -155,6 +157,14 @@ class ItemDetailMetadataSerializer(serializers.Serializer):
                     })
                     break
         return genres
+
+    def get_collaborators(self, obj):
+        """Get collaborators for this item"""
+        return ItemCollaboratorSerializer(
+            obj.collaborator.all(),
+            many=True,
+            context={'item': obj}
+        ).data
 
 class ItemDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer with full metadata"""
@@ -230,6 +240,7 @@ class ItemDetailSerializer(serializers.ModelSerializer):
             'call_number': obj.call_number,
             'catalog_number': obj.catalog_number,
             'cataloged_date': obj.cataloged_date,
+            'collaborators': self.metadata.get_collaborators(obj),
             'collecting_notes': obj.collecting_notes,
             'collection_date': obj.collection_date,
             'condition_notes': obj.condition_notes,
@@ -255,5 +266,5 @@ class ItemDetailSerializer(serializers.ModelSerializer):
             'resource_type': obj.resource_type,
             'software_used': obj.software_used,
             'total_number_of_pages_and_physical_description': obj.total_number_of_pages_and_physical_description,
-            'type_of_accession': obj.type_of_accession,
+            'type_of_accession': obj.type_of_accession
         }

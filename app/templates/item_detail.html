@@ -204,7 +204,10 @@
 {% for collaborator, role in collaborator_info %}
 <div class="row">
     <div class="col-md-12">
-        <b>Collaborator:</b> <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'collaborator_detail' collaborator.pk %}">{% anonymize_collaborators collaborator request.user 'name' %}</a>, <b>Role:</b> {% if request.user|has_group:"Archivist"%}<a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'collaborator_role_edit' role.pk %}">{% endif %} {% if role.role %} {{ role.role }} {% else %} (blank) {% endif %}{% if request.user|has_group:"Archivist"%} </a>{% endif %}
+        <b>Collaborator:</b> <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'collaborator_detail' collaborator.pk %}">{% anonymize_collaborators collaborator request.user 'name' %}</a>, 
+        <b>Role:</b> {% if request.user|has_group:"Archivist"%}<a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'collaborator_role_edit' role.pk %}">{% endif %} 
+        {% if role.role %} {{ role.role }} {% else %} (blank) {% endif %}{% if request.user|has_group:"Archivist"%} </a>{% endif %}
+        {% if role.citation_author %} <span class="badge bg-info">Citation Author</span>{% endif %}
     </div>
 </div>
 {% endfor %}

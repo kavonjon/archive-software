@@ -449,6 +449,8 @@ class DialectInstance(models.Model):
         return self.language_dialectinstance_language
 
 class Collaborator(models.Model):
+    uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+    slug = models.CharField(max_length=20, unique=True, blank=True, editable=False)
     anonymous = models.BooleanField(null=True, blank=True)
     birthdate = models.DateField(null=True, blank=True)
     birthdate = models.CharField(max_length=255, blank=True, validators =[validate_date_text])
@@ -480,6 +482,12 @@ class Collaborator(models.Model):
     def clean(self):
         self.birthdate = validate_date_text(self.birthdate)
         self.deathdate = validate_date_text(self.deathdate)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            encoded = base58.b58encode(self.uuid.bytes).decode()[:10]
+            self.slug = f"{encoded[:5]}-{encoded[5:10]}"
+        super().save(*args, **kwargs)
 
 class CollaboratorName(models.Model):
     first_name = models.CharField(max_length=255)
@@ -825,6 +833,7 @@ class CollaboratorRole(models.Model):
     item = models.ForeignKey('Item', related_name='item_collaboratorroles', on_delete=models.CASCADE, null=True, blank=True)
     collaborator = models.ForeignKey('Collaborator', related_name='collaborator_collaboratorroles', on_delete=models.CASCADE)
     role = MultiSelectField(choices=ROLE_CHOICES, blank=True)
+    citation_author = models.BooleanField(default=False, verbose_name="Citation author")
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     modified_by = models.CharField(max_length=255)

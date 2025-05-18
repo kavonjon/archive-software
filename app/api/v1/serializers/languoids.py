@@ -1,6 +1,15 @@
 from rest_framework import serializers
 from metadata.models import Languoid
 
+class SimpleLanguageSerializer(serializers.ModelSerializer):
+    """Simple serializer for languoid information"""
+    id = serializers.CharField(source='glottocode')
+    name = serializers.CharField()
+
+    class Meta:
+        model = Languoid
+        fields = ['id', 'name']
+
 class LanguoidListMetadataSerializer(serializers.Serializer):
     """Serializer for languoid metadata fields in list view"""
     family_id = serializers.CharField(allow_blank=True)

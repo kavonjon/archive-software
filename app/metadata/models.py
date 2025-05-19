@@ -548,12 +548,20 @@ class Collection(models.Model):
         return self.collection_abbr
 
     def save(self, *args, **kwargs):
+        # Generate UUID and slug if needed
         if not self.uuid:
             self.uuid = uuid.uuid4()
         if not self.slug:
             encoded = base58.b58encode(self.uuid.bytes).decode()[:10]
             self.slug = f"{encoded[:5]}-{encoded[5:10]}"
+            
+        # Call the original save method
         super().save(*args, **kwargs)
+        
+        # Export metadata to JSON (if on private server)
+        from django.conf import settings
+        if settings.SERVER_ROLE == 'private':
+            self.export_metadata()
 
     def export_metadata(self):
         """
@@ -589,15 +597,6 @@ class Collection(models.Model):
         
         # Save the metadata to a file
         return save_collection_metadata(self.pk, metadata)
-    
-    def save(self, *args, **kwargs):
-        # Call the original save method
-        super().save(*args, **kwargs)
-        
-        # Export metadata to JSON (if on private server)
-        from django.conf import settings
-        if settings.SERVER_ROLE == 'private':
-            self.export_metadata()
 
 
 class Item(models.Model):

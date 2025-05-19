@@ -548,6 +548,8 @@ class Collection(models.Model):
         return self.collection_abbr
 
     def save(self, *args, **kwargs):
+        if not self.uuid:
+            self.uuid = uuid.uuid4()
         if not self.slug:
             encoded = base58.b58encode(self.uuid.bytes).decode()[:10]
             self.slug = f"{encoded[:5]}-{encoded[5:10]}"

@@ -2576,6 +2576,10 @@ def collaborator_index(request):
         try:
             from .tasks import generate_collaborator_export
             from celery.exceptions import Retry
+            import logging
+            logger = logging.getLogger(__name__)
+            
+            logger.info(f"Starting async export for user {request.user.id}")
             
             # Collect filter parameters to pass to the task
             filter_params = {
@@ -2585,8 +2589,12 @@ def collaborator_index(request):
                 'order_choice': order_choice
             }
             
+            logger.info(f"Filter params: {filter_params}")
+            
             # Test if Celery/Redis is available by trying to start the task
+            logger.info("Attempting to start Celery task...")
             task = generate_collaborator_export.delay(request.user.id, filter_params)
+            logger.info(f"Task started successfully with ID: {task.id}")
             
             # Show a message to the user
             messages.success(

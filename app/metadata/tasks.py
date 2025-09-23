@@ -501,10 +501,16 @@ def generate_collaborator_export(self, user_id, filter_params):
     from datetime import datetime
     
     try:
-        logger.info(f"Starting collaborator export for user {user_id}")
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"=== STARTING COLLABORATOR EXPORT TASK ===")
+        logger.info(f"Task ID: {self.request.id}")
+        logger.info(f"User ID: {user_id}")
+        logger.info(f"Filter params: {filter_params}")
         
         # Get the user for permission checks
         user = User.objects.get(pk=user_id)
+        logger.info(f"Found user: {user.username}")
         
         # Rebuild the queryset using the filter parameters
         from .views import is_member_of_archivist, is_valid_param
@@ -648,27 +654,55 @@ def generate_collaborator_export(self, user_id, filter_params):
             sheet.append(xl_row)
 
         # Save to a temporary file and then to Django's file storage
+        logger.info("Generating Excel content...")
         excel_content = save_virtual_workbook(new_workbook)
+        logger.info(f"Excel content generated, size: {len(excel_content)} bytes")
+        
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f'collaborators-export-{timestamp}.xlsx'
+        logger.info(f"Generated filename: {filename}")
         
         # Ensure the exports directory exists
         import os
         exports_dir = os.path.join(default_storage.location, 'exports')
+        logger.info(f"Checking exports directory: {exports_dir}")
+        
         if not os.path.exists(exports_dir):
+            logger.info(f"Creating exports directory: {exports_dir}")
             os.makedirs(exports_dir, exist_ok=True)
             logger.info(f"Created exports directory: {exports_dir}")
+        else:
+            logger.info(f"Exports directory already exists: {exports_dir}")
         
         # Save to Django's default storage (this could be local files or cloud storage)
+        logger.info("Attempting to save file to Django storage...")
         try:
             file_path = default_storage.save(f'exports/{filename}', ContentFile(excel_content))
             logger.info(f"File saved successfully to: {file_path}")
             
-            # Verify the file was actually saved
-            if not default_storage.exists(file_path):
-                raise Exception(f"File was not saved properly: {file_path}")
+            # Verify the file was actually saved with multiple checks
+            logger.info(f"Verifying file save: {file_path}")
+            
+            # Check 1: Django storage exists
+            exists_check = default_storage.exists(file_path)
+            logger.info(f"Django storage exists check: {exists_check}")
+            
+            # Check 2: Direct filesystem check
+            full_path = os.path.join(default_storage.location, file_path)
+            fs_exists = os.path.exists(full_path)
+            logger.info(f"Filesystem exists check: {fs_exists} at {full_path}")
+            
+            # Check 3: File size check
+            if fs_exists:
+                file_size = os.path.getsize(full_path)
+                logger.info(f"File size: {file_size} bytes")
+            
+            if not exists_check or not fs_exists:
+                error_msg = f"File verification failed - Django: {exists_check}, FS: {fs_exists}, Path: {full_path}"
+                logger.error(error_msg)
+                raise Exception(error_msg)
                 
-            logger.info(f"Collaborator export completed: {file_path}")
+            logger.info(f"Collaborator export completed and verified: {file_path}")
             
             return {
                 'success': True,

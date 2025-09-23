@@ -652,17 +652,33 @@ def generate_collaborator_export(self, user_id, filter_params):
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f'collaborators-export-{timestamp}.xlsx'
         
+        # Ensure the exports directory exists
+        import os
+        exports_dir = os.path.join(default_storage.location, 'exports')
+        if not os.path.exists(exports_dir):
+            os.makedirs(exports_dir, exist_ok=True)
+            logger.info(f"Created exports directory: {exports_dir}")
+        
         # Save to Django's default storage (this could be local files or cloud storage)
-        file_path = default_storage.save(f'exports/{filename}', ContentFile(excel_content))
-        
-        logger.info(f"Collaborator export completed: {file_path}")
-        
-        return {
-            'success': True,
-            'file_path': file_path,
-            'filename': filename,
-            'count': collaborators_in_qs.count()
-        }
+        try:
+            file_path = default_storage.save(f'exports/{filename}', ContentFile(excel_content))
+            logger.info(f"File saved successfully to: {file_path}")
+            
+            # Verify the file was actually saved
+            if not default_storage.exists(file_path):
+                raise Exception(f"File was not saved properly: {file_path}")
+                
+            logger.info(f"Collaborator export completed: {file_path}")
+            
+            return {
+                'success': True,
+                'file_path': file_path,
+                'filename': filename,
+                'count': collaborators_in_qs.count()
+            }
+        except Exception as save_error:
+            logger.error(f"Failed to save export file: {str(save_error)}")
+            raise Exception(f"File save failed: {str(save_error)}")
         
     except Exception as e:
         logger.error(f"Error generating collaborator export: {str(e)}")

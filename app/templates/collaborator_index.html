@@ -18,7 +18,7 @@
         <div class="col-md-1">
         </div>
         <div class="col-md-1">
-            <button type="button" class="btn btn-primary" id="export-btn" onclick="startExport()">
+            <button type="button" class="btn btn-primary text-nowrap" id="export-btn" onclick="startExport()" style="min-width: 140px;">
                 <i class="fas fa-download"></i> Export
             </button>
         </div>
@@ -135,7 +135,7 @@ function startExport() {
         method: 'GET',
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            'X-CSRFToken': '{{ csrf_token }}'
         }
     })
     .then(response => response.json())

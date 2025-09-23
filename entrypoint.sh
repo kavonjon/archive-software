@@ -1,6 +1,8 @@
 #!/bin/sh
 
+# Run migrations and collect static files for all services
 python manage.py migrate --no-input
 python manage.py collectstatic --no-input
 
-gunicorn archive.wsgi:application --bind 0.0.0.0:8000
+# Execute the command passed as arguments
+exec "$@"

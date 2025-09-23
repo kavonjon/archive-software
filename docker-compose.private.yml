@@ -3,6 +3,7 @@ services:
     build: .
     container_name: django_gunicorn_private
     restart: unless-stopped
+    command: gunicorn archive.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - static_volume:/app/static
       - ${HOST_STORAGE_PATH}/main_storage:/app/main_storage

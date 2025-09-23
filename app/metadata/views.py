@@ -2599,10 +2599,15 @@ def collaborator_index(request):
             return redirect('collaborator_index')
             
         except Exception as e:
+            # Log the specific error for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Celery task failed: {str(e)}")
+            
             # Fallback to synchronous export if Celery/Redis is unavailable
             messages.warning(
                 request,
-                'Background processing unavailable. Generating export synchronously - this may take a moment for large datasets.'
+                f'Background processing unavailable ({str(e)}). Generating export synchronously - this may take a moment for large datasets.'
             )
             
             # Use the original synchronous export logic
@@ -2783,6 +2788,37 @@ def collaborator_index(request):
         'other_languages_contains_query_last' : other_languages_contains_query_last,
     }
     return render(request, 'collaborator_index.html', context)
+
+@login_required
+def celery_health_check(request):
+    """
+    Check if Celery is working properly
+    """
+    try:
+        from .tasks import generate_collaborator_export
+        from celery import current_app
+        
+        # Check if we can connect to Redis
+        inspect = current_app.control.inspect()
+        stats = inspect.stats()
+        
+        if stats:
+            return JsonResponse({
+                'status': 'healthy',
+                'workers': list(stats.keys()),
+                'broker_url': current_app.conf.broker_url[:30] + '***' if current_app.conf.broker_url else 'Not set'
+            })
+        else:
+            return JsonResponse({
+                'status': 'no_workers',
+                'broker_url': current_app.conf.broker_url[:30] + '***' if current_app.conf.broker_url else 'Not set'
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'error': str(e)
+        })
 
 @login_required
 def download_export(request, filename):

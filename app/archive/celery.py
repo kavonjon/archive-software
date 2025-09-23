@@ -47,6 +47,17 @@ if redis_password and '://' in redis_url:
         host_part = rest
         app.conf.broker_url = f"{protocol}://:{redis_password}@{host_part}"
         app.conf.result_backend = app.conf.broker_url
+        print(f"Celery configured with Redis URL: {protocol}://:{redis_password[:3]}***@{host_part}")
+    else:
+        # URL already has auth, use as-is
+        app.conf.broker_url = redis_url
+        app.conf.result_backend = redis_url
+        print(f"Using existing Redis URL with auth: {redis_url[:20]}***")
+else:
+    # No password or malformed URL, use default
+    app.conf.broker_url = redis_url
+    app.conf.result_backend = redis_url
+    print(f"Using Redis URL without auth: {redis_url}")
 
 # Configure Celery worker settings
 if platform.system() == 'Darwin':  # macOS

@@ -479,4 +479,194 @@ def save_file_selection(self, item_id, selected_files):
         return False
     except Exception as e:
         logger.error(f"Error processing files for item {item_id}: {str(e)}")
-        self.retry(exc=e, countdown=60)  # Retry after 60 seconds 
+        self.retry(exc=e, countdown=60)  # Retry after 60 seconds
+
+@shared_task(bind=True)
+def generate_collaborator_export(self, user_id, filter_params):
+    """
+    Generate collaborator export spreadsheet asynchronously
+    
+    Args:
+        user_id: ID of the user requesting the export
+        filter_params: Dictionary of filter parameters from the request
+    """
+    import tempfile
+    from openpyxl import Workbook
+    from openpyxl.styles import PatternFill
+    from openpyxl.writer.excel import save_virtual_workbook
+    from django.contrib.auth.models import User
+    from django.db.models import Count, Q
+    from django.core.files.storage import default_storage
+    from django.core.files.base import ContentFile
+    from datetime import datetime
+    
+    try:
+        logger.info(f"Starting collaborator export for user {user_id}")
+        
+        # Get the user for permission checks
+        user = User.objects.get(pk=user_id)
+        
+        # Rebuild the queryset using the filter parameters
+        from .views import is_member_of_archivist, is_valid_param
+        from .models import Collaborator
+        
+        qs = Collaborator.objects.all()
+        
+        # Apply the same filters as in the view
+        if not is_member_of_archivist(user):
+            qs = qs.exclude(anonymous=True)
+            
+        # Apply filters from the original request
+        if filter_params.get('name_contains'):
+            name_query = filter_params['name_contains']
+            if name_query.lower() == 'anonymous':
+                anonymous_list = Collaborator.objects.filter(anonymous=True)
+            else:
+                anonymous_list = Collaborator.objects.none()
+            qs = qs.filter(
+                Q(name__icontains=name_query) | 
+                Q(nickname__icontains=name_query) | 
+                Q(other_names__icontains=name_query)
+            )
+            qs = qs.union(anonymous_list)
+            
+        if filter_params.get('native_languages_contains'):
+            qs = qs.filter(native_languages__name__icontains=filter_params['native_languages_contains'])
+            
+        if filter_params.get('other_languages_contains'):
+            qs = qs.filter(other_languages__name__icontains=filter_params['other_languages_contains'])
+            
+        qs = qs.distinct()
+        
+        # Order the results
+        order_choice = filter_params.get('order_choice', 'name')
+        if order_choice == "updated":
+            qs = qs.order_by('-updated')
+        else:
+            qs = qs.order_by('name')
+            
+        collaborators_in_qs = qs
+        
+        logger.info(f"Found {collaborators_in_qs.count()} collaborators to export")
+        
+        # Determine how many native language columns are needed
+        native_language_list = collaborators_in_qs.annotate(key_count=Count('native_languages__name'))
+        native_language_counts = [entry.key_count for entry in native_language_list]
+        max_native_language_counts = max(native_language_counts) if native_language_counts else 1
+        if max_native_language_counts < 1:
+            max_native_language_counts = 1
+
+        # Determine how many other language columns are needed
+        other_language_list = collaborators_in_qs.annotate(key_count=Count('other_languages__name'))
+        other_language_counts = [entry.key_count for entry in other_language_list]
+        max_other_language_counts = max(other_language_counts) if other_language_counts else 1
+        if max_other_language_counts < 1:
+            max_other_language_counts = 1
+
+        # Define color styles
+        style_general = PatternFill(start_color='00FFFF66', end_color='00FFFF66', fill_type='solid')
+        style_personal = PatternFill(start_color='0080FF80', end_color='0080FF80', fill_type='solid')
+        style_languages = PatternFill(start_color='009999FF', end_color='009999FF', fill_type='solid')
+
+        new_workbook = Workbook()
+        sheet = new_workbook.active
+
+        sheet_column_counter = 1
+        header_cell = sheet.cell(row=1, column=sheet_column_counter)
+
+        # Create headers
+        headers = [
+            ('Collaborator ID', style_general),
+            ('Name', style_general),
+            ('First Name', style_general),
+            ('Last Name', style_general),
+            ('Nickname', style_personal),
+            ('Other Names', style_personal),
+            ('Anonymous', style_personal),
+            ('Birth Date', style_personal),
+            ('Death Date', style_personal),
+            ('Gender', style_personal),
+            ('Origin', style_personal),
+            ('Clan/Society', style_personal),
+            ('Tribal Affiliations', style_personal),
+        ]
+        
+        # Add headers
+        for header_text, style in headers:
+            header_cell.value = header_text
+            header_cell.fill = style
+            sheet_column_counter += 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
+
+        # Native languages columns
+        for i in range(1, max_native_language_counts + 1):
+            header_cell.value = f'Native Language {i}'
+            header_cell.fill = style_languages
+            sheet_column_counter += 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
+
+        # Other languages columns
+        for i in range(1, max_other_language_counts + 1):
+            header_cell.value = f'Other Language {i}'
+            header_cell.fill = style_languages
+            sheet_column_counter += 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
+
+        header_cell.value = 'Other Information'
+        header_cell.fill = style_personal
+
+        # Populate data rows
+        for collaborator in collaborators_in_qs:
+            xl_row = []
+            
+            xl_row.append(collaborator.collaborator_id)
+            xl_row.append(collaborator.name)
+            xl_row.append(collaborator.firstname)
+            xl_row.append(collaborator.lastname)
+            xl_row.append(collaborator.nickname)
+            xl_row.append(collaborator.other_names)
+            xl_row.append('Yes' if collaborator.anonymous else 'No' if collaborator.anonymous is False else '')
+            xl_row.append(collaborator.birthdate)
+            xl_row.append(collaborator.deathdate)
+            xl_row.append(collaborator.gender)
+            xl_row.append(collaborator.origin)
+            xl_row.append(collaborator.clan_society)
+            xl_row.append(collaborator.tribal_affiliations)
+            
+            # Native languages
+            native_language_rows = list(collaborator.native_languages.all().values_list('name', flat=True).order_by('name'))
+            native_language_rows.extend([''] * (max_native_language_counts - len(native_language_rows)))
+            xl_row.extend(native_language_rows)
+            
+            # Other languages
+            other_language_rows = list(collaborator.other_languages.all().values_list('name', flat=True).order_by('name'))
+            other_language_rows.extend([''] * (max_other_language_counts - len(other_language_rows)))
+            xl_row.extend(other_language_rows)
+            
+            xl_row.append(collaborator.other_info)
+
+            sheet.append(xl_row)
+
+        # Save to a temporary file and then to Django's file storage
+        excel_content = save_virtual_workbook(new_workbook)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'collaborators-export-{timestamp}.xlsx'
+        
+        # Save to Django's default storage (this could be local files or cloud storage)
+        file_path = default_storage.save(f'exports/{filename}', ContentFile(excel_content))
+        
+        logger.info(f"Collaborator export completed: {file_path}")
+        
+        return {
+            'success': True,
+            'file_path': file_path,
+            'filename': filename,
+            'count': collaborators_in_qs.count()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating collaborator export: {str(e)}")
+        return {
+            'success': False,
+            'error': str(e)
+        } 

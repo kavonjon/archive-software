@@ -2572,172 +2572,202 @@ def collaborator_index(request):
     results_count = qs.count()
 
     if 'export' in request.GET:
-        # Export collaborators to Excel spreadsheet
-        collaborators_in_qs = Collaborator.objects.filter(pk__in=list(qs.values_list('pk', flat=True)))
-        
-        # Determine how many native language columns are needed
-        native_language_list = collaborators_in_qs.annotate(key_count=Count('native_languages__name'))
-        native_language_counts = []
-        for entry in native_language_list:
-            native_language_counts.append(entry.key_count)
-        max_native_language_counts = max(native_language_counts) if native_language_counts else 1
-        if max_native_language_counts < 1:
-            max_native_language_counts = 1
+        # Try async export first, fallback to sync if Redis/Celery unavailable
+        try:
+            from .tasks import generate_collaborator_export
+            from celery.exceptions import Retry
+            
+            # Collect filter parameters to pass to the task
+            filter_params = {
+                'name_contains': name_contains_query,
+                'native_languages_contains': native_languages_contains_query,
+                'other_languages_contains': other_languages_contains_query,
+                'order_choice': order_choice
+            }
+            
+            # Test if Celery/Redis is available by trying to start the task
+            task = generate_collaborator_export.delay(request.user.id, filter_params)
+            
+            # Show a message to the user
+            messages.success(
+                request, 
+                f'Export started! Your collaborator export is being generated in the background. '
+                f'This may take a few minutes for large datasets. Task ID: {task.id}'
+            )
+            
+            # Redirect back to the same page to show the message
+            return redirect('collaborator_index')
+            
+        except Exception as e:
+            # Fallback to synchronous export if Celery/Redis is unavailable
+            messages.warning(
+                request,
+                'Background processing unavailable. Generating export synchronously - this may take a moment for large datasets.'
+            )
+            
+            # Use the original synchronous export logic
+            collaborators_in_qs = Collaborator.objects.filter(pk__in=list(qs.values_list('pk', flat=True)))
+            
+            # Determine how many native language columns are needed
+            native_language_list = collaborators_in_qs.annotate(key_count=Count('native_languages__name'))
+            native_language_counts = []
+            for entry in native_language_list:
+                native_language_counts.append(entry.key_count)
+            max_native_language_counts = max(native_language_counts) if native_language_counts else 1
+            if max_native_language_counts < 1:
+                max_native_language_counts = 1
 
-        # Determine how many other language columns are needed
-        other_language_list = collaborators_in_qs.annotate(key_count=Count('other_languages__name'))
-        other_language_counts = []
-        for entry in other_language_list:
-            other_language_counts.append(entry.key_count)
-        max_other_language_counts = max(other_language_counts) if other_language_counts else 1
-        if max_other_language_counts < 1:
-            max_other_language_counts = 1
+            # Determine how many other language columns are needed
+            other_language_list = collaborators_in_qs.annotate(key_count=Count('other_languages__name'))
+            other_language_counts = []
+            for entry in other_language_list:
+                other_language_counts.append(entry.key_count)
+            max_other_language_counts = max(other_language_counts) if other_language_counts else 1
+            if max_other_language_counts < 1:
+                max_other_language_counts = 1
 
-        # Define color styles following the existing pattern
-        style_general = PatternFill(start_color='00FFFF66',
-                                   end_color='00FFFF66',
-                                   fill_type='solid')
-        style_personal = PatternFill(start_color='0080FF80',
-                                    end_color='0080FF80',
-                                    fill_type='solid')
-        style_languages = PatternFill(start_color='009999FF',
-                                     end_color='009999FF',
-                                     fill_type='solid')
-        style_metadata = PatternFill(start_color='00CCCCCC',
-                                    end_color='00CCCCCC',
-                                    fill_type='solid')
+            # Define color styles following the existing pattern
+            style_general = PatternFill(start_color='00FFFF66',
+                                       end_color='00FFFF66',
+                                       fill_type='solid')
+            style_personal = PatternFill(start_color='0080FF80',
+                                        end_color='0080FF80',
+                                        fill_type='solid')
+            style_languages = PatternFill(start_color='009999FF',
+                                         end_color='009999FF',
+                                         fill_type='solid')
 
-        new_workbook = Workbook()
-        sheet = new_workbook.active
+            new_workbook = Workbook()
+            sheet = new_workbook.active
 
-        sheet_column_counter = 1
-        header_cell = sheet.cell(row=1, column=sheet_column_counter)
+            sheet_column_counter = 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
 
-        # Create headers
-        header_cell.value = 'Collaborator ID'
-        header_cell.fill = style_general
-        sheet_column_counter += 1
-        header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        header_cell.value = 'Name'
-        header_cell.fill = style_general
-        sheet_column_counter += 1
-        header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        header_cell.value = 'First Name'
-        header_cell.fill = style_general
-        sheet_column_counter += 1
-        header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        header_cell.value = 'Last Name'
-        header_cell.fill = style_general
-        sheet_column_counter += 1
-        header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        header_cell.value = 'Nickname'
-        header_cell.fill = style_personal
-        sheet_column_counter += 1
-        header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        header_cell.value = 'Other Names'
-        header_cell.fill = style_personal
-        sheet_column_counter += 1
-        header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        header_cell.value = 'Anonymous'
-        header_cell.fill = style_personal
-        sheet_column_counter += 1
-        header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        header_cell.value = 'Birth Date'
-        header_cell.fill = style_personal
-        sheet_column_counter += 1
-        header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        header_cell.value = 'Death Date'
-        header_cell.fill = style_personal
-        sheet_column_counter += 1
-        header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        header_cell.value = 'Gender'
-        header_cell.fill = style_personal
-        sheet_column_counter += 1
-        header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        header_cell.value = 'Origin'
-        header_cell.fill = style_personal
-        sheet_column_counter += 1
-        header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        header_cell.value = 'Clan/Society'
-        header_cell.fill = style_personal
-        sheet_column_counter += 1
-        header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        header_cell.value = 'Tribal Affiliations'
-        header_cell.fill = style_personal
-        sheet_column_counter += 1
-        header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        # Native languages columns
-        column_counter = 1
-        while column_counter <= max_native_language_counts:
-            header_cell.value = 'Native Language %s' % column_counter
-            header_cell.fill = style_languages
+            # Create headers
+            header_cell.value = 'Collaborator ID'
+            header_cell.fill = style_general
             sheet_column_counter += 1
             header_cell = sheet.cell(row=1, column=sheet_column_counter)
-            column_counter += 1
 
-        # Other languages columns
-        column_counter = 1
-        while column_counter <= max_other_language_counts:
-            header_cell.value = 'Other Language %s' % column_counter
-            header_cell.fill = style_languages
+            header_cell.value = 'Name'
+            header_cell.fill = style_general
             sheet_column_counter += 1
             header_cell = sheet.cell(row=1, column=sheet_column_counter)
-            column_counter += 1
 
-        header_cell.value = 'Other Information'
-        header_cell.fill = style_personal
+            header_cell.value = 'First Name'
+            header_cell.fill = style_general
+            sheet_column_counter += 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
 
-        # Populate data rows
-        for collaborator in collaborators_in_qs:
-            xl_row = []
-            
-            xl_row.append(collaborator.collaborator_id)
-            xl_row.append(collaborator.name)
-            xl_row.append(collaborator.firstname)
-            xl_row.append(collaborator.lastname)
-            xl_row.append(collaborator.nickname)
-            xl_row.append(collaborator.other_names)
-            xl_row.append('Yes' if collaborator.anonymous else 'No' if collaborator.anonymous is False else '')
-            xl_row.append(collaborator.birthdate)
-            xl_row.append(collaborator.deathdate)
-            xl_row.append(collaborator.gender)
-            xl_row.append(collaborator.origin)
-            xl_row.append(collaborator.clan_society)
-            xl_row.append(collaborator.tribal_affiliations)
-            
-            # Native languages
-            native_language_rows = []
-            native_language_rows.extend(collaborator.native_languages.all().values_list('name', flat=True).order_by('name'))
-            native_language_rows.extend([''] * (max_native_language_counts - len(collaborator.native_languages.all())))
-            xl_row.extend(native_language_rows)
-            
-            # Other languages
-            other_language_rows = []
-            other_language_rows.extend(collaborator.other_languages.all().values_list('name', flat=True).order_by('name'))
-            other_language_rows.extend([''] * (max_other_language_counts - len(collaborator.other_languages.all())))
-            xl_row.extend(other_language_rows)
-            
-            xl_row.append(collaborator.other_info)
+            header_cell.value = 'Last Name'
+            header_cell.fill = style_general
+            sheet_column_counter += 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
 
-            sheet.append(xl_row)
+            header_cell.value = 'Nickname'
+            header_cell.fill = style_personal
+            sheet_column_counter += 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
 
-        response = HttpResponse(content=save_virtual_workbook(new_workbook), content_type='application/vnd.ms-excel')
-        response['Content-Disposition'] = 'attachment; filename=collaborators-export.xlsx'
+            header_cell.value = 'Other Names'
+            header_cell.fill = style_personal
+            sheet_column_counter += 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
 
-        return response
+            header_cell.value = 'Anonymous'
+            header_cell.fill = style_personal
+            sheet_column_counter += 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
+
+            header_cell.value = 'Birth Date'
+            header_cell.fill = style_personal
+            sheet_column_counter += 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
+
+            header_cell.value = 'Death Date'
+            header_cell.fill = style_personal
+            sheet_column_counter += 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
+
+            header_cell.value = 'Gender'
+            header_cell.fill = style_personal
+            sheet_column_counter += 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
+
+            header_cell.value = 'Origin'
+            header_cell.fill = style_personal
+            sheet_column_counter += 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
+
+            header_cell.value = 'Clan/Society'
+            header_cell.fill = style_personal
+            sheet_column_counter += 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
+
+            header_cell.value = 'Tribal Affiliations'
+            header_cell.fill = style_personal
+            sheet_column_counter += 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
+
+            # Native languages columns
+            column_counter = 1
+            while column_counter <= max_native_language_counts:
+                header_cell.value = 'Native Language %s' % column_counter
+                header_cell.fill = style_languages
+                sheet_column_counter += 1
+                header_cell = sheet.cell(row=1, column=sheet_column_counter)
+                column_counter += 1
+
+            # Other languages columns
+            column_counter = 1
+            while column_counter <= max_other_language_counts:
+                header_cell.value = 'Other Language %s' % column_counter
+                header_cell.fill = style_languages
+                sheet_column_counter += 1
+                header_cell = sheet.cell(row=1, column=sheet_column_counter)
+                column_counter += 1
+
+            header_cell.value = 'Other Information'
+            header_cell.fill = style_personal
+
+            # Populate data rows
+            for collaborator in collaborators_in_qs:
+                xl_row = []
+                
+                xl_row.append(collaborator.collaborator_id)
+                xl_row.append(collaborator.name)
+                xl_row.append(collaborator.firstname)
+                xl_row.append(collaborator.lastname)
+                xl_row.append(collaborator.nickname)
+                xl_row.append(collaborator.other_names)
+                xl_row.append('Yes' if collaborator.anonymous else 'No' if collaborator.anonymous is False else '')
+                xl_row.append(collaborator.birthdate)
+                xl_row.append(collaborator.deathdate)
+                xl_row.append(collaborator.gender)
+                xl_row.append(collaborator.origin)
+                xl_row.append(collaborator.clan_society)
+                xl_row.append(collaborator.tribal_affiliations)
+                
+                # Native languages
+                native_language_rows = []
+                native_language_rows.extend(collaborator.native_languages.all().values_list('name', flat=True).order_by('name'))
+                native_language_rows.extend([''] * (max_native_language_counts - len(collaborator.native_languages.all())))
+                xl_row.extend(native_language_rows)
+                
+                # Other languages
+                other_language_rows = []
+                other_language_rows.extend(collaborator.other_languages.all().values_list('name', flat=True).order_by('name'))
+                other_language_rows.extend([''] * (max_other_language_counts - len(collaborator.other_languages.all())))
+                xl_row.extend(other_language_rows)
+                
+                xl_row.append(collaborator.other_info)
+
+                sheet.append(xl_row)
+
+            response = HttpResponse(content=save_virtual_workbook(new_workbook), content_type='application/vnd.ms-excel')
+            response['Content-Disposition'] = 'attachment; filename=collaborators-export.xlsx'
+
+            return response
 
     paginator = Paginator(qs, 100)
     page_number = request.GET.get('page')
@@ -2753,6 +2783,27 @@ def collaborator_index(request):
         'other_languages_contains_query_last' : other_languages_contains_query_last,
     }
     return render(request, 'collaborator_index.html', context)
+
+@login_required
+def download_export(request, filename):
+    """
+    Download an export file
+    """
+    from django.core.files.storage import default_storage
+    from django.http import Http404
+    
+    file_path = f'exports/{filename}'
+    
+    if not default_storage.exists(file_path):
+        raise Http404("Export file not found")
+    
+    try:
+        with default_storage.open(file_path, 'rb') as f:
+            response = HttpResponse(f.read(), content_type='application/vnd.ms-excel')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+    except Exception as e:
+        raise Http404("Error accessing export file")
 
 @login_required
 def collaborator_detail(request, pk):

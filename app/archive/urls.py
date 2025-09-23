@@ -20,7 +20,7 @@ from django.conf.urls import handler500
 from django.conf.urls.static import static
 from django.urls import path, include
 from django.views.generic import TemplateView
-from metadata.views import collection_index, collection_detail, collection_add, collection_edit, collection_delete, item_index, item_migrate_list, item_detail, item_edit, item_add, item_delete,languoid_index, languoid_detail, languoid_edit, languoid_add, languoid_delete, languoid_stats, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView, LanguoidListView, custom_error_500, custom_error_403, trigger_error
+from metadata.views import collection_index, collection_detail, collection_add, collection_edit, collection_delete, item_index, item_migrate_list, item_detail, item_edit, item_add, item_delete,languoid_index, languoid_detail, languoid_edit, languoid_add, languoid_delete, languoid_stats, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView, LanguoidListView, custom_error_500, custom_error_403, trigger_error, download_export
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
@@ -87,6 +87,9 @@ urlpatterns = [
     path('documents/import/', document_upload.as_view(), name='document_upload'),
     path('collaborators/import/', ImportView, name='import_collaborator'),
     path('languages/import/', ImportView, name='import_language'),
+    
+    # Export downloads
+    path('download-export/<str:filename>/', download_export, name='download_export'),
 
     # API Schema and Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

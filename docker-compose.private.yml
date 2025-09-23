@@ -14,8 +14,8 @@ services:
     environment:
       - SERVER_ROLE=private
       - PUBLIC_SERVER_URL=${PUBLIC_SERVER_URL}
-      - REDIS_URL=redis://redis:6379/0
-      - PUBLIC_REDIS_URL=${PUBLIC_REDIS_URL}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - PUBLIC_REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - DOCKER_CONTAINER=true
     depends_on:
       - db
@@ -61,7 +61,7 @@ services:
     environment:
       - SERVER_ROLE=private
       - PUBLIC_SERVER_URL=${PUBLIC_SERVER_URL}
-      - REDIS_URL=${PUBLIC_REDIS_URL}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - DOCKER_CONTAINER=true
     depends_on:
       - db
@@ -79,7 +79,7 @@ services:
     environment:
       - SERVER_ROLE=private
       - PUBLIC_SERVER_URL=${PUBLIC_SERVER_URL}
-      - REDIS_URL=${PUBLIC_REDIS_URL}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - DOCKER_CONTAINER=true
     depends_on:
       - db

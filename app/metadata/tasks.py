@@ -662,47 +662,56 @@ def generate_collaborator_export(self, user_id, filter_params):
         filename = f'collaborators-export-{timestamp}.xlsx'
         logger.info(f"Generated filename: {filename}")
         
-        # Ensure the exports directory exists
+        # Use Django storage with proper error handling and validation
+        from django.core.files.storage import default_storage
+        from django.core.files.base import ContentFile
+        from django.conf import settings
         import os
-        exports_dir = os.path.join(default_storage.location, 'exports')
-        logger.info(f"Checking exports directory: {exports_dir}")
         
+        logger.info("Validating Django storage configuration...")
+        
+        # Validate Django storage is properly configured
+        if not hasattr(settings, 'MEDIA_ROOT'):
+            raise Exception("Django MEDIA_ROOT not configured in Celery worker")
+        
+        if not default_storage.location:
+            raise Exception("Django storage location not available in Celery worker")
+        
+        logger.info(f"Storage backend: {default_storage.__class__.__name__}")
+        logger.info(f"Storage location: {default_storage.location}")
+        
+        # Ensure exports directory exists
+        exports_dir = os.path.join(default_storage.location, 'exports')
         if not os.path.exists(exports_dir):
             logger.info(f"Creating exports directory: {exports_dir}")
             os.makedirs(exports_dir, exist_ok=True)
-            logger.info(f"Created exports directory: {exports_dir}")
-        else:
-            logger.info(f"Exports directory already exists: {exports_dir}")
         
-        # Save to Django's default storage (this could be local files or cloud storage)
-        logger.info("Attempting to save file to Django storage...")
+        # Verify directory is writable
+        if not os.access(exports_dir, os.W_OK):
+            raise Exception(f"Exports directory not writable: {exports_dir}")
+        
+        # Save file using Django storage with atomic operations
+        logger.info(f"Saving file using Django storage: exports/{filename}")
+        
         try:
-            file_path = default_storage.save(f'exports/{filename}', ContentFile(excel_content))
-            logger.info(f"File saved successfully to: {file_path}")
+            # Use ContentFile for proper Django storage handling
+            content_file = ContentFile(excel_content)
+            file_path = default_storage.save(f'exports/{filename}', content_file)
+            logger.info(f"File saved to Django storage: {file_path}")
             
-            # Verify the file was actually saved with multiple checks
-            logger.info(f"Verifying file save: {file_path}")
+            # Verify file exists and get size
+            if default_storage.exists(file_path):
+                file_size = default_storage.size(file_path)
+                logger.info(f"File verified in storage: {file_path} ({file_size} bytes)")
+            else:
+                raise Exception(f"File not found in storage after save: {file_path}")
             
-            # Check 1: Django storage exists
-            exists_check = default_storage.exists(file_path)
-            logger.info(f"Django storage exists check: {exists_check}")
-            
-            # Check 2: Direct filesystem check
+            # Double-check with filesystem
             full_path = os.path.join(default_storage.location, file_path)
-            fs_exists = os.path.exists(full_path)
-            logger.info(f"Filesystem exists check: {fs_exists} at {full_path}")
+            if not os.path.exists(full_path):
+                raise Exception(f"File not found on filesystem: {full_path}")
             
-            # Check 3: File size check
-            if fs_exists:
-                file_size = os.path.getsize(full_path)
-                logger.info(f"File size: {file_size} bytes")
-            
-            if not exists_check or not fs_exists:
-                error_msg = f"File verification failed - Django: {exists_check}, FS: {fs_exists}, Path: {full_path}"
-                logger.error(error_msg)
-                raise Exception(error_msg)
-                
-            logger.info(f"Collaborator export completed and verified: {file_path}")
+            logger.info(f"Collaborator export completed successfully: {file_path}")
             
             return {
                 'success': True,
@@ -710,9 +719,10 @@ def generate_collaborator_export(self, user_id, filter_params):
                 'filename': filename,
                 'count': collaborators_in_qs.count()
             }
-        except Exception as save_error:
-            logger.error(f"Failed to save export file: {str(save_error)}")
-            raise Exception(f"File save failed: {str(save_error)}")
+            
+        except Exception as storage_error:
+            logger.error(f"Django storage operation failed: {storage_error}")
+            raise Exception(f"File save failed: {storage_error}")
         
     except Exception as e:
         logger.error(f"Error generating collaborator export: {str(e)}")

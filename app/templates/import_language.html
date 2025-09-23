@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% load static %}
 
+{% block messages %}
+{# This template handles its own messages - suppress base template messages #}
+{% endblock %}
+
 {% block page_content %}
 <div class="container mt-3">
   <h2>Import languoids via excel</h2>

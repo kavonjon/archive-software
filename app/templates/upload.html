@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% load static %}
 
+{% block messages %}
+{# This template handles its own messages - suppress base template messages #}
+{% endblock %}
+
 {% block page_content %}
 <h1>Upload file</h1>
 

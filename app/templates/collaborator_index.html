@@ -18,7 +18,9 @@
         <div class="col-md-1">
         </div>
         <div class="col-md-1">
-            <button type="submit" class="btn btn-primary" name="export" title="Export">Export</button>
+            <button type="button" class="btn btn-primary" id="export-btn" onclick="startExport()">
+                <i class="fas fa-download"></i> Export
+            </button>
         </div>
     </div>
     <div class="row mt-2">
@@ -101,6 +103,171 @@
 </div>
 
 <script>
+// Export functionality
+let currentTaskId = null;
+let pollInterval = null;
+let userHasInteracted = false;
+
+// Track user interactions to determine if auto-download should happen
+document.addEventListener('click', function(e) {
+    if (e.target.id !== 'export-btn') {
+        userHasInteracted = true;
+    }
+});
+
+function startExport() {
+    const exportBtn = document.getElementById('export-btn');
+    const currentUrl = new URL(window.location);
+    
+    // Reset interaction tracking
+    userHasInteracted = false;
+    
+    // Change button to preparing state
+    exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing Export...';
+    exportBtn.disabled = true;
+    exportBtn.className = 'btn btn-warning';
+    
+    // Add export parameter to current URL
+    currentUrl.searchParams.set('export', '1');
+    
+    // Make AJAX request
+    fetch(currentUrl.toString(), {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.task_id) {
+            // Start polling for task completion
+            currentTaskId = data.task_id;
+            pollTaskStatus();
+        } else if (data.fallback_sync) {
+            // Fallback to synchronous export
+            handleSyncFallback();
+        } else {
+            // Error occurred
+            showError(data.message || 'Export failed');
+        }
+    })
+    .catch(error => {
+        console.error('Export error:', error);
+        showError('Network error occurred');
+    });
+}
+
+function pollTaskStatus() {
+    if (!currentTaskId) return;
+    
+    pollInterval = setInterval(() => {
+        fetch(`/export-task-status/${currentTaskId}/`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.state === 'SUCCESS') {
+                // Task completed successfully
+                clearInterval(pollInterval);
+                showDownloadReady(data.result);
+            } else if (data.state === 'FAILURE' || data.state === 'ERROR') {
+                // Task failed
+                clearInterval(pollInterval);
+                showError(data.status || 'Export failed');
+            }
+            // For PENDING and PROGRESS states, keep polling
+        })
+        .catch(error => {
+            console.error('Status check error:', error);
+            clearInterval(pollInterval);
+            showError('Failed to check export status');
+        });
+    }, 2000); // Poll every 2 seconds
+}
+
+function showDownloadReady(result) {
+    const exportBtn = document.getElementById('export-btn');
+    
+    // Change button to download ready state
+    exportBtn.innerHTML = '<i class="fas fa-download"></i> Download Export';
+    exportBtn.disabled = false;
+    exportBtn.className = 'btn btn-success';
+    
+    // Set up download functionality
+    exportBtn.onclick = function() {
+        downloadFile(result.filename);
+    };
+    
+    // Auto-download if user hasn't interacted with the page
+    if (!userHasInteracted && result.filename) {
+        setTimeout(() => {
+            if (!userHasInteracted) {
+                downloadFile(result.filename);
+            }
+        }, 1000); // Wait 1 second before auto-download
+    }
+}
+
+function downloadFile(filename) {
+    // Create download link and trigger it
+    const downloadUrl = `/download-export/${filename}/`;
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Reset button to original state
+    resetExportButton();
+}
+
+function handleSyncFallback() {
+    const exportBtn = document.getElementById('export-btn');
+    
+    // Change button to indicate synchronous processing
+    exportBtn.innerHTML = '<i class="fas fa-cog fa-spin"></i> Generating...';
+    exportBtn.className = 'btn btn-info';
+    
+    // Redirect to synchronous export (will download immediately)
+    const currentUrl = new URL(window.location);
+    currentUrl.searchParams.set('export', '1');
+    window.location.href = currentUrl.toString();
+}
+
+function showError(message) {
+    const exportBtn = document.getElementById('export-btn');
+    
+    // Show error state
+    exportBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Export Failed';
+    exportBtn.className = 'btn btn-danger';
+    
+    // Show error message
+    alert(`Export failed: ${message}`);
+    
+    // Reset button after 3 seconds
+    setTimeout(resetExportButton, 3000);
+}
+
+function resetExportButton() {
+    const exportBtn = document.getElementById('export-btn');
+    exportBtn.innerHTML = '<i class="fas fa-download"></i> Export';
+    exportBtn.disabled = false;
+    exportBtn.className = 'btn btn-primary';
+    exportBtn.onclick = startExport;
+    
+    // Clear any ongoing polling
+    if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+    }
+    currentTaskId = null;
+}
+
+// Existing script
 $('select[name=form_control_sort]').val("{{ order_choice_last }}");
 $('.form-control').form-control('refresh')
 </script>

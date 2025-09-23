@@ -2596,7 +2596,15 @@ def collaborator_index(request):
             task = generate_collaborator_export.delay(request.user.id, filter_params)
             logger.info(f"Task started successfully with ID: {task.id}")
             
-            # Show a message to the user
+            # Handle AJAX requests differently
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'task_id': task.id,
+                    'message': 'Export started! Your collaborator export is being generated in the background.'
+                })
+            
+            # Show a message to the user for non-AJAX requests
             messages.success(
                 request, 
                 f'Export started! Your collaborator export is being generated in the background. '
@@ -2613,6 +2621,15 @@ def collaborator_index(request):
             logger.error(f"Celery task failed: {str(e)}")
             
             # Fallback to synchronous export if Celery/Redis is unavailable
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                # For AJAX requests, return error and let frontend handle fallback
+                return JsonResponse({
+                    'success': False,
+                    'error': str(e),
+                    'fallback_sync': True,
+                    'message': f'Background processing unavailable ({str(e)}). Will generate export synchronously.'
+                })
+            
             messages.warning(
                 request,
                 f'Background processing unavailable ({str(e)}). Generating export synchronously - this may take a moment for large datasets.'
@@ -2796,6 +2813,48 @@ def collaborator_index(request):
         'other_languages_contains_query_last' : other_languages_contains_query_last,
     }
     return render(request, 'collaborator_index.html', context)
+
+@login_required
+def export_task_status(request, task_id):
+    """
+    Check the status of an export task
+    """
+    try:
+        from celery.result import AsyncResult
+        
+        task = AsyncResult(task_id)
+        
+        if task.state == 'PENDING':
+            response = {
+                'state': task.state,
+                'status': 'Task is waiting to be processed...'
+            }
+        elif task.state == 'PROGRESS':
+            response = {
+                'state': task.state,
+                'status': task.info.get('status', 'Processing...'),
+                'current': task.info.get('current', 0),
+                'total': task.info.get('total', 1)
+            }
+        elif task.state == 'SUCCESS':
+            response = {
+                'state': task.state,
+                'status': 'Export completed successfully!',
+                'result': task.result
+            }
+        else:  # FAILURE
+            response = {
+                'state': task.state,
+                'status': str(task.info),  # Error message
+            }
+            
+        return JsonResponse(response)
+        
+    except Exception as e:
+        return JsonResponse({
+            'state': 'ERROR',
+            'status': f'Error checking task status: {str(e)}'
+        })
 
 @login_required
 def celery_health_check(request):

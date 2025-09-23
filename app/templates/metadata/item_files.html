@@ -3,6 +3,10 @@
 
 {% block title %}Manage Files - {{ item.catalog_number }}{% endblock %}
 
+{% block messages %}
+{# This template handles its own messages - suppress base template messages #}
+{% endblock %}
+
 {% block page_content %}
 <div class="container-fluid mt-3">
     <div class="row">

@@ -2,6 +2,10 @@
 {% load static %}
 {% load metadata_templatetags %}
 
+{% block messages %}
+{# This template handles its own messages - suppress base template messages #}
+{% endblock %}
+
 {% block page_content %}
 {% if messages %}
 <ul>

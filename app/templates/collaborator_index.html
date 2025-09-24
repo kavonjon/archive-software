@@ -18,7 +18,7 @@
         <div class="col-md-1">
         </div>
         <div class="col-md-1">
-            <button type="button" class="btn btn-primary text-nowrap" id="export-btn" onclick="startExport()" style="min-width: 180px;">
+            <button type="button" class="btn btn-primary text-nowrap" id="export-btn" onclick="startExport()" style="min-width: 220px;">
                 <i class="fas fa-download"></i> Export
             </button>
         </div>
@@ -173,7 +173,7 @@ function pollTaskStatus() {
     if (!currentTaskId) return;
     
     pollInterval = setInterval(() => {
-        fetch(`/export-task-status/${currentTaskId}/`, {
+        fetch(`/collaborators/export-task-status/${currentTaskId}/`, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
@@ -203,8 +203,8 @@ function pollTaskStatus() {
 function showDownloadReady(result) {
     const exportBtn = document.getElementById('export-btn');
     
-    // Change button to download ready state
-    exportBtn.innerHTML = '<i class="fas fa-download"></i> Download Export';
+    // Change button to indicate export is ready - but make action clear
+    exportBtn.innerHTML = '<i class="fas fa-file-download"></i> Download Export';
     exportBtn.disabled = false;
     exportBtn.className = 'btn btn-success';
     
@@ -219,18 +219,26 @@ function showDownloadReady(result) {
     };
     
     // Auto-download if user hasn't interacted with the page
+    // This provides immediate gratification for simple export use cases
     if (!userHasInteracted && result.filename) {
         setTimeout(() => {
             if (!userHasInteracted && currentResult && currentResult.filename) {
                 downloadFile(currentResult.filename);
             }
-        }, 1000); // Wait 1 second before auto-download
+        }, 1500); // Wait 1.5 seconds to let user see the ready state
     }
 }
 
 function downloadFile(filename) {
+    const exportBtn = document.getElementById('export-btn');
+    
+    // Show brief downloading feedback
+    exportBtn.innerHTML = '<i class="fas fa-check"></i> Starting Download...';
+    exportBtn.disabled = true;
+    exportBtn.className = 'btn btn-success';
+    
     // Create download link and trigger it
-    const downloadUrl = `/download-export/${filename}/`;
+    const downloadUrl = `/collaborators/download-export/${filename}/`;
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = filename;
@@ -238,8 +246,23 @@ function downloadFile(filename) {
     link.click();
     document.body.removeChild(link);
     
-    // Reset button to original state
-    resetExportButton();
+    // Clean up and reset after brief feedback
+    setTimeout(() => {
+        // Clean up the downloaded file
+        fetch(`/collaborators/cleanup-export/${filename}/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        }).catch(error => {
+            console.warn('File cleanup failed:', error);
+        });
+        
+        // Reset to allow new export
+        resetExportButton();
+        
+    }, 1500); // Wait 1.5 seconds for download to start and cleanup
 }
 
 function handleSyncFallback() {

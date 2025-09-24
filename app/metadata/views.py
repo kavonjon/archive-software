@@ -2815,9 +2815,9 @@ def collaborator_index(request):
     return render(request, 'collaborator_index.html', context)
 
 @login_required
-def export_task_status(request, task_id):
+def collaborator_export_task_status(request, task_id):
     """
-    Check the status of an export task
+    Check the status of a collaborator export task
     """
     try:
         from celery.result import AsyncResult
@@ -2857,6 +2857,45 @@ def export_task_status(request, task_id):
         })
 
 @login_required
+def cleanup_collaborator_export(request, filename):
+    """
+    Clean up a collaborator export file after successful download
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST method required'}, status=405)
+    
+    try:
+        from django.core.files.storage import default_storage
+        import os
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        # Validate filename to prevent path traversal
+        if not filename or '..' in filename or '/' in filename:
+            logger.warning(f"Invalid filename for cleanup: {filename}")
+            return JsonResponse({'error': 'Invalid filename'}, status=400)
+        
+        # Only allow cleanup of export files
+        if not filename.startswith('collaborators-export-') or not filename.endswith('.xlsx'):
+            logger.warning(f"Unauthorized file cleanup attempt: {filename}")
+            return JsonResponse({'error': 'Unauthorized file type'}, status=403)
+        
+        file_path = f'exports/{filename}'
+        
+        if default_storage.exists(file_path):
+            default_storage.delete(file_path)
+            logger.info(f"Cleaned up export file: {file_path}")
+            return JsonResponse({'success': True, 'message': 'File cleaned up successfully'})
+        else:
+            logger.info(f"Export file not found for cleanup: {file_path}")
+            return JsonResponse({'success': True, 'message': 'File already cleaned up'})
+            
+    except Exception as e:
+        logger.error(f"Error cleaning up export file {filename}: {str(e)}")
+        return JsonResponse({'error': f'Cleanup failed: {str(e)}'}, status=500)
+
+@login_required
 def celery_health_check(request):
     """
     Check if Celery is working properly
@@ -2888,24 +2927,35 @@ def celery_health_check(request):
         })
 
 @login_required
-def download_export(request, filename):
+def download_collaborator_export(request, filename):
     """
-    Download an export file
+    Download a collaborator export file
     """
     from django.core.files.storage import default_storage
     from django.http import Http404
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    # Validate this is a collaborator export file
+    if not filename.startswith('collaborators-export-') or not filename.endswith('.xlsx'):
+        logger.warning(f"Invalid collaborator export filename: {filename}")
+        raise Http404("Invalid export file")
     
     file_path = f'exports/{filename}'
     
     if not default_storage.exists(file_path):
+        logger.warning(f"Collaborator export file not found: {file_path}")
         raise Http404("Export file not found")
     
     try:
         with default_storage.open(file_path, 'rb') as f:
             response = HttpResponse(f.read(), content_type='application/vnd.ms-excel')
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            logger.info(f"Successfully served collaborator export: {filename}")
             return response
     except Exception as e:
+        logger.error(f"Error serving collaborator export {filename}: {str(e)}")
         raise Http404("Error accessing export file")
 
 @login_required

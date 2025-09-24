@@ -386,4 +386,15 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+# Cache configuration for django-select2
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
+
+# django-select2 cache backend setting
+SELECT2_CACHE_BACKEND = 'default'
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

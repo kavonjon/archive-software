@@ -512,94 +512,20 @@ def generate_collaborator_export(self, user_id, filter_params):
         user = User.objects.get(pk=user_id)
         logger.info(f"Found user: {user.username}")
         
-        # Rebuild the queryset using the filter parameters
-        from .views import is_member_of_archivist, is_valid_param
-        from .models import Collaborator
+        # Use service to build filtered queryset
+        from .services import CollaboratorService
         
-        qs = Collaborator.objects.all()
-        
-        # Apply the same filters as in the view
-        if not is_member_of_archivist(user):
-            qs = qs.exclude(anonymous=True)
-            
-        # Apply filters from the original request - match view logic exactly
-        if filter_params.get('collection_contains'):
-            # Filter by collection - check if any items in the collection match
-            qs = qs.filter(item_collaborators__collection__collection_abbr__icontains=filter_params['collection_contains']).distinct()
-            
-        if filter_params.get('native_languages_contains'):
-            qs = qs.filter(native_languages__name__icontains=filter_params['native_languages_contains'])
-            
-        if filter_params.get('other_languages_contains'):
-            qs = qs.filter(other_languages__name__icontains=filter_params['other_languages_contains'])
-            
-        anonymous_list = Collaborator.objects.none()  # Initialize 
-        if filter_params.get('name_contains'):
-            name_query = filter_params['name_contains']
-            if name_query.lower() == 'anonymous':
-                anonymous_list = Collaborator.objects.filter(anonymous=True)
-            qs = qs.filter(
-                Q(name__icontains=name_query) | 
-                Q(nickname__icontains=name_query) | 
-                Q(other_names__icontains=name_query)
-            )
-            
-        qs = qs.distinct()
-        qs = qs.union(anonymous_list)  # Always union, matching view logic
-        
-        # Order the results
-        order_choice = filter_params.get('order_choice', 'name')
-        if order_choice == "updated":
-            qs = qs.order_by('-updated')
-        else:
-            qs = qs.order_by('name')
-            
-        collaborators_in_qs = qs
+        collaborators_in_qs = CollaboratorService.build_filtered_queryset(user, filter_params)
         
         logger.info(f"Found {collaborators_in_qs.count()} collaborators to export")
         
-        # Determine how many native language columns are needed
-        native_language_list = collaborators_in_qs.annotate(key_count=Count('native_languages__name'))
-        native_language_counts = [entry.key_count for entry in native_language_list]
-        max_native_language_counts = max(native_language_counts) if native_language_counts else 1
-        if max_native_language_counts < 1:
-            max_native_language_counts = 1
-
-        # Determine how many other language columns are needed
-        other_language_list = collaborators_in_qs.annotate(key_count=Count('other_languages__name'))
-        other_language_counts = [entry.key_count for entry in other_language_list]
-        max_other_language_counts = max(other_language_counts) if other_language_counts else 1
-        if max_other_language_counts < 1:
-            max_other_language_counts = 1
-
-        # Define color styles
-        style_general = PatternFill(start_color='00FFFF66', end_color='00FFFF66', fill_type='solid')
-        style_personal = PatternFill(start_color='0080FF80', end_color='0080FF80', fill_type='solid')
-        style_languages = PatternFill(start_color='009999FF', end_color='009999FF', fill_type='solid')
-
-        new_workbook = Workbook()
-        sheet = new_workbook.active
-
-        sheet_column_counter = 1
-        header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        # Create headers
-        headers = [
-            ('Collaborator ID', style_general),
-            ('Name', style_general),
-            ('First Name', style_general),
-            ('Last Name', style_general),
-            ('Nickname', style_personal),
-            ('Other Names', style_personal),
-            ('Anonymous', style_personal),
-            ('Birth Date', style_personal),
-            ('Death Date', style_personal),
-            ('Gender', style_personal),
-            ('Origin', style_personal),
-            ('Clan/Society', style_personal),
-            ('Tribal Affiliations', style_personal),
-            ('Collections', style_general),
-        ]
+        # Use service to generate workbook
+        new_workbook = CollaboratorService.generate_export_workbook(collaborators_in_qs)
+        filename = CollaboratorService.generate_export_filename()
+        
+        # Convert workbook to bytes for storage
+        from openpyxl.writer.excel import save_virtual_workbook
+        excel_content = save_virtual_workbook(new_workbook)
         
         # Add headers
         for header_text, style in headers:

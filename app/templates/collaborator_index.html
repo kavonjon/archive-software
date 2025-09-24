@@ -27,7 +27,7 @@
     Filtered results: {{ results_count }}
     </div>
     <div class="row">
-        <div class="col-md-3">
+        <div class="col-md-2">
           <div class="input-group">
             <input class="form-control py-2 border-right-0 border" type="search" name="name_contains"
             placeholder="Name contains..." value="{{ name_contains_query_last }}" />
@@ -36,7 +36,7 @@
             </span>
           </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <div class="input-group">
             <input class="form-control py-2 border-right-0 border" type="search" name="collection_contains"
                 placeholder="Collection codes (e.g. ACH, NAL)" value="{{ collection_contains_query_last }}" />
@@ -45,7 +45,7 @@
             </span>
           </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
           <div class="input-group">
             <input class="form-control py-2 border-right-0 border" type="search" name="native_languages_contains"
             placeholder="Native languages contain..." value="{{ native_languages_contains_query_last }}" />
@@ -54,7 +54,7 @@
             </span>
           </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
           <div class="input-group">
             <input class="form-control py-2 border-right-0 border" type="search" name="other_languages_contains"
             placeholder="Other languages contain..." value="{{ other_languages_contains_query_last }}" />
@@ -65,6 +65,9 @@
         </div>
     </div>
 </form>
+
+<!-- Data Rows -->
+<div class="mt-3">
 {% for collaborator in queryset %}
 <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'collaborator_detail' collaborator.pk %}">
     <div class="row">
@@ -86,6 +89,7 @@
     </div>
 </a>
 {% endfor %}
+</div>
 
 <div class="pagination">
     <span class="step-links">

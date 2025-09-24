@@ -32,6 +32,9 @@ class Command(BaseCommand):
         header_cell.value = 'Other Languages'
         sheet_column_counter += 1
         header_cell = sheet.cell(row=1, column=sheet_column_counter )
+        header_cell.value = 'Collections'
+        sheet_column_counter += 1
+        header_cell = sheet.cell(row=1, column=sheet_column_counter )
         header_cell.value = 'Clan Society'
         sheet_column_counter += 1
         header_cell = sheet.cell(row=1, column=sheet_column_counter )
@@ -75,6 +78,11 @@ class Command(BaseCommand):
             xl_row.append(collaborator.anonymous)
             xl_row.append(", ".join( collaborator.native_languages.values_list('name', flat=True) ) )
             xl_row.append(", ".join( collaborator.other_languages.values_list('name', flat=True) ) )
+            
+            # Collections - get unique collection abbreviations
+            collection_abbrs = list(set(collaborator.item_collaborators.filter(collection__isnull=False).values_list('collection__collection_abbr', flat=True)))
+            xl_row.append(', '.join(sorted(collection_abbrs)))
+            
             xl_row.append(collaborator.clan_society)
             xl_row.append(collaborator.tribal_affiliations)
             xl_row.append(collaborator.origin)

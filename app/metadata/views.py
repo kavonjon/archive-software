@@ -2521,57 +2521,33 @@ def dialect_instance_edit(request, pk):
 
 @login_required
 def collaborator_index(request):
-    qs = Collaborator.objects.all()
+    # Extract filter parameters
     order_choice = request.GET.get("form_control_sort")
     name_contains_query = request.GET.get('name_contains')
     collection_contains_query = request.GET.get('collection_contains')
     native_languages_contains_query = request.GET.get('native_languages_contains')
     other_languages_contains_query = request.GET.get('other_languages_contains')
 
-    order_choice_last = order_choice
-    name_contains_query_last = ''
-    collection_contains_query_last = ''
-    native_languages_contains_query_last = ''
-    other_languages_contains_query_last = ''
+    # Prepare filter parameters for service
+    filter_params = {
+        'name_contains': name_contains_query,
+        'collection_contains': collection_contains_query,
+        'native_languages_contains': native_languages_contains_query,
+        'other_languages_contains': other_languages_contains_query,
+        'order_choice': order_choice
+    }
 
-
-    if not is_member_of_archivist(request.user):
-        qs = qs.exclude(anonymous = True)
-
-    if is_valid_param(collection_contains_query):
-        # Filter by collection - check if any items in the collection match
-        qs = qs.filter(item_collaborators__collection__collection_abbr__icontains=collection_contains_query).distinct()
-        collection_contains_query_last = collection_contains_query
-
-    if is_valid_param(native_languages_contains_query):
-        qs = qs.filter(native_languages__name__icontains = native_languages_contains_query)
-        native_languages_contains_query_last = native_languages_contains_query
-
-    if is_valid_param(other_languages_contains_query):
-        qs = qs.filter(other_languages__name__icontains = other_languages_contains_query)
-        other_languages_contains_query_last = other_languages_contains_query
-
-    anonymous_list = Collaborator.objects.none()
-    if is_valid_param(name_contains_query):
-        if ( name_contains_query == 'Anonymous' ) or ( name_contains_query == 'anonymous' ):
-            anonymous_list = Collaborator.objects.filter(anonymous = True)
-        qs = qs.filter(
-            Q(name__icontains = name_contains_query) | Q(nickname__icontains = name_contains_query) | Q(other_names__icontains = name_contains_query)
-            )
-
-        name_contains_query_last = name_contains_query
-
-    qs = qs.distinct()
-
-    qs = qs.union(anonymous_list)
-
-#    print(type(order_choice))
-    if order_choice == "updated":
-        qs = qs.order_by('-updated')
-    else:
-        qs = qs.order_by('name')
-
+    # Use service to build filtered queryset
+    from .services import CollaboratorService
+    qs = CollaboratorService.build_filtered_queryset(request.user, filter_params)
     results_count = qs.count()
+
+    # Prepare template variables
+    order_choice_last = order_choice
+    name_contains_query_last = name_contains_query if is_valid_param(name_contains_query) else ''
+    collection_contains_query_last = collection_contains_query if is_valid_param(collection_contains_query) else ''
+    native_languages_contains_query_last = native_languages_contains_query if is_valid_param(native_languages_contains_query) else ''
+    other_languages_contains_query_last = other_languages_contains_query if is_valid_param(other_languages_contains_query) else ''
 
     if 'export' in request.GET:
         # Try async export first, fallback to sync if Redis/Celery unavailable
@@ -2583,14 +2559,7 @@ def collaborator_index(request):
             
             logger.info(f"Starting async export for user {request.user.id}")
             
-            # Collect filter parameters to pass to the task
-            filter_params = {
-                'name_contains': name_contains_query,
-                'collection_contains': collection_contains_query,
-                'native_languages_contains': native_languages_contains_query,
-                'other_languages_contains': other_languages_contains_query,
-                'order_choice': order_choice
-            }
+            # Use the same filter_params we already prepared
             
             logger.info(f"Filter params: {filter_params}")
             
@@ -2638,8 +2607,14 @@ def collaborator_index(request):
                 f'Background processing unavailable ({str(e)}). Generating export synchronously - this may take a moment for large datasets.'
             )
             
-            # Use the original synchronous export logic
-            collaborators_in_qs = Collaborator.objects.filter(pk__in=list(qs.values_list('pk', flat=True)))
+            # Use service for synchronous export
+            workbook = CollaboratorService.generate_export_workbook(qs)
+            filename = CollaboratorService.generate_export_filename()
+            
+            response = HttpResponse(content=save_virtual_workbook(workbook), content_type='application/vnd.ms-excel')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+            return response
             
             # Determine how many native language columns are needed
             native_language_list = collaborators_in_qs.annotate(key_count=Count('native_languages__name'))
@@ -2806,8 +2781,12 @@ def collaborator_index(request):
 
                 sheet.append(xl_row)
 
+            from datetime import datetime
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f'collaborators-export-{timestamp}.xlsx'
+            
             response = HttpResponse(content=save_virtual_workbook(new_workbook), content_type='application/vnd.ms-excel')
-            response['Content-Disposition'] = 'attachment; filename=collaborators-export.xlsx'
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
             return response
 

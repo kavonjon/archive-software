@@ -59,22 +59,29 @@ class CollaboratorService:
         if is_valid_param(other_languages_contains_query):
             qs = qs.filter(other_languages__name__icontains=other_languages_contains_query)
             
+        # Apply distinct operation BEFORE any union operations
+        qs = qs.distinct()
+        
         # Apply name filter with anonymous handling
         if is_valid_param(name_contains_query):
             if name_contains_query.lower() == 'anonymous':
-                # For anonymous search, combine with existing filters
+                # For anonymous search, build separate queryset with same filters
                 anonymous_qs = Collaborator.objects.filter(anonymous=True)
+                
                 # Apply the same non-name filters to anonymous results
                 if not is_member_of_archivist(user):
                     pass  # Anonymous users are already included in this case
                 if is_valid_param(collection_contains_query):
                     anonymous_qs = anonymous_qs.filter(
                         item_collaborators__collection__collection_abbr__icontains=collection_contains_query
-                    ).distinct()
+                    )
                 if is_valid_param(native_languages_contains_query):
                     anonymous_qs = anonymous_qs.filter(native_languages__name__icontains=native_languages_contains_query)
                 if is_valid_param(other_languages_contains_query):
                     anonymous_qs = anonymous_qs.filter(other_languages__name__icontains=other_languages_contains_query)
+                
+                # Apply distinct to anonymous queryset before union
+                anonymous_qs = anonymous_qs.distinct()
                 
                 # Union the main queryset with anonymous results
                 qs = qs.union(anonymous_qs)
@@ -85,9 +92,6 @@ class CollaboratorService:
                     Q(nickname__icontains=name_contains_query) | 
                     Q(other_names__icontains=name_contains_query)
                 )
-        
-        # Apply distinct operation
-        qs = qs.distinct()
         
         # Apply ordering - must be done after union operations
         if order_choice == "updated":

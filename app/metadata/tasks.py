@@ -508,24 +508,49 @@ def generate_collaborator_export(self, user_id, filter_params):
         logger.info(f"User ID: {user_id}")
         logger.info(f"Filter params: {filter_params}")
         
+        # Add detailed debugging
+        logger.info(f"=== DEBUGGING EXPORT STEP BY STEP ===")
+        logger.info(f"Step 1: About to get user object")
+        
         # Get the user for permission checks
         user = User.objects.get(pk=user_id)
-        logger.info(f"Found user: {user.username}")
+        logger.info(f"Step 2: Found user: {user.username}")
         
         # Use service to build filtered queryset
+        logger.info(f"Step 3: About to call CollaboratorService.build_filtered_queryset")
         from .services import CollaboratorService
         
+        logger.info(f"Step 4: Calling service with filters: {filter_params}")
         collaborators_in_qs = CollaboratorService.build_filtered_queryset(user, filter_params)
         
-        logger.info(f"Found {collaborators_in_qs.count()} collaborators to export")
+        logger.info(f"Step 5: Service returned queryset, counting results...")
+        count = collaborators_in_qs.count()
+        logger.info(f"Step 6: Found {count} collaborators to export")
+        
+        # Test if we can actually iterate over the queryset
+        logger.info(f"Step 7: Testing queryset iteration...")
+        try:
+            first_collaborator = collaborators_in_qs.first()
+            if first_collaborator:
+                logger.info(f"Step 8: First collaborator: {first_collaborator.name}")
+            else:
+                logger.info(f"Step 8: No collaborators in queryset")
+        except Exception as qs_error:
+            logger.error(f"Step 8 ERROR: Cannot iterate queryset: {qs_error}")
+            raise
         
         # Use service to generate workbook
+        logger.info(f"Step 9: About to generate workbook...")
         new_workbook = CollaboratorService.generate_export_workbook(collaborators_in_qs)
+        logger.info(f"Step 10: Workbook generated successfully")
+        
         filename = CollaboratorService.generate_export_filename()
+        logger.info(f"Step 11: Generated filename: {filename}")
         
         # Convert workbook to bytes for storage
+        logger.info(f"Step 12: Converting workbook to bytes...")
         excel_content = save_virtual_workbook(new_workbook)
-        logger.info(f"Excel content generated, size: {len(excel_content)} bytes")
+        logger.info(f"Step 13: Excel content generated, size: {len(excel_content)} bytes")
         
         # Use Django storage with proper error handling and validation
         from django.core.files.storage import default_storage

@@ -39,7 +39,7 @@
         <div class="col-md-3">
           <div class="input-group">
             <input class="form-control py-2 border-right-0 border" type="search" name="collection_contains"
-                placeholder="[placeholder]" value="{{ collection_contains_query_last }}" />
+                placeholder="Collection codes (e.g. ACH, NAL)" value="{{ collection_contains_query_last }}" />
             <span class="input-group-text bg-transparent">
               <i class="bi bi-search"></i>
             </span>
@@ -68,16 +68,19 @@
 {% for collaborator in queryset %}
 <a class="link-dark link-opacity-50-hover link-underline-opacity-0 link-underline-opacity-50-hover" href="{% url 'collaborator_detail' collaborator.pk %}">
     <div class="row">
-        <div class="col-md-3">
+        <div class="col-md-2">
             {% anonymize_collaborators collaborator request.user 'all_names' %}
         </div>
-        <div class="col-md-3">
-
+        <div class="col-md-2">
+            {% regroup collaborator.item_collaborators.all by collection.collection_abbr as collections_grouped %}
+            {% for group in collections_grouped %}
+                {% if group.grouper %}{{ group.grouper }}{% if not forloop.last %}, {% endif %}{% endif %}
+            {% endfor %}
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             {{ collaborator.native_languages.all|join:", " }}
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
             {{ collaborator.other_languages.all|join:", " }}
         </div>
     </div>

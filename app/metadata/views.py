@@ -2540,7 +2540,7 @@ def collaborator_index(request):
 
     if is_valid_param(collection_contains_query):
         # Filter by collection - check if any items in the collection match
-        qs = qs.filter(item__collection__collection_name__icontains=collection_contains_query).distinct()
+        qs = qs.filter(item_collaborators__collection__collection_abbr__icontains=collection_contains_query).distinct()
         collection_contains_query_last = collection_contains_query
 
     if is_valid_param(native_languages_contains_query):
@@ -2742,6 +2742,11 @@ def collaborator_index(request):
             sheet_column_counter += 1
             header_cell = sheet.cell(row=1, column=sheet_column_counter)
 
+            header_cell.value = 'Collections'
+            header_cell.fill = style_general
+            sheet_column_counter += 1
+            header_cell = sheet.cell(row=1, column=sheet_column_counter)
+
             # Native languages columns
             column_counter = 1
             while column_counter <= max_native_language_counts:
@@ -2780,6 +2785,10 @@ def collaborator_index(request):
                 xl_row.append(collaborator.origin)
                 xl_row.append(collaborator.clan_society)
                 xl_row.append(collaborator.tribal_affiliations)
+                
+                # Collections - get unique collection abbreviations
+                collection_abbrs = list(collaborator.item_collaborators.filter(collection__isnull=False).values_list('collection__collection_abbr', flat=True).distinct())
+                xl_row.append(', '.join(sorted(collection_abbrs)))
                 
                 # Native languages
                 native_language_rows = []

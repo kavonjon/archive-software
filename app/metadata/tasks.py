@@ -525,7 +525,7 @@ def generate_collaborator_export(self, user_id, filter_params):
         # Apply filters from the original request - match view logic exactly
         if filter_params.get('collection_contains'):
             # Filter by collection - check if any items in the collection match
-            qs = qs.filter(item__collection__collection_name__icontains=filter_params['collection_contains']).distinct()
+            qs = qs.filter(item_collaborators__collection__collection_abbr__icontains=filter_params['collection_contains']).distinct()
             
         if filter_params.get('native_languages_contains'):
             qs = qs.filter(native_languages__name__icontains=filter_params['native_languages_contains'])
@@ -598,6 +598,7 @@ def generate_collaborator_export(self, user_id, filter_params):
             ('Origin', style_personal),
             ('Clan/Society', style_personal),
             ('Tribal Affiliations', style_personal),
+            ('Collections', style_general),
         ]
         
         # Add headers
@@ -641,6 +642,10 @@ def generate_collaborator_export(self, user_id, filter_params):
             xl_row.append(collaborator.origin)
             xl_row.append(collaborator.clan_society)
             xl_row.append(collaborator.tribal_affiliations)
+            
+            # Collections - get unique collection abbreviations
+            collection_abbrs = list(collaborator.item_collaborators.filter(collection__isnull=False).values_list('collection__collection_abbr', flat=True).distinct())
+            xl_row.append(', '.join(sorted(collection_abbrs)))
             
             # Native languages
             native_language_rows = list(collaborator.native_languages.all().values_list('name', flat=True).order_by('name'))

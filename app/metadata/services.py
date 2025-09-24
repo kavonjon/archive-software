@@ -48,12 +48,11 @@ class CollaboratorService:
         if not is_member_of_archivist(user):
             qs = qs.exclude(anonymous=True)
 
-        # Apply collection filter - TODO: Need to implement this properly
-        # Note: Original didn't have collection filter, so this is new
+        # Apply collection filter - EXACTLY like original
         if is_valid_param(collection_contains_query):
             qs = qs.filter(
                 item_collaborators__collection__collection_abbr__icontains=collection_contains_query
-            )
+            ).distinct()
 
         # Apply language filters - EXACTLY like original
         if is_valid_param(native_languages_contains_query):
@@ -66,7 +65,20 @@ class CollaboratorService:
         anonymous_list = Collaborator.objects.none()
         if is_valid_param(name_contains_query):
             if name_contains_query.lower() == 'anonymous':
+                # For anonymous search, get all anonymous collaborators with same filters applied
                 anonymous_list = Collaborator.objects.filter(anonymous=True)
+                
+                # Apply the same non-name filters to anonymous list
+                if is_valid_param(collection_contains_query):
+                    anonymous_list = anonymous_list.filter(
+                        item_collaborators__collection__collection_abbr__icontains=collection_contains_query
+                    ).distinct()
+                if is_valid_param(native_languages_contains_query):
+                    anonymous_list = anonymous_list.filter(native_languages__name__icontains=native_languages_contains_query)
+                if is_valid_param(other_languages_contains_query):
+                    anonymous_list = anonymous_list.filter(other_languages__name__icontains=other_languages_contains_query)
+            
+            # Apply name filter to main queryset (this will find collaborators with "anonymous" in their name)
             qs = qs.filter(
                 Q(name__icontains=name_contains_query) | 
                 Q(nickname__icontains=name_contains_query) | 
@@ -76,8 +88,9 @@ class CollaboratorService:
         # Apply distinct FIRST - EXACTLY like original
         qs = qs.distinct()
 
-        # Apply union AFTER distinct - EXACTLY like original
-        qs = qs.union(anonymous_list)
+        # Apply union AFTER distinct - ONLY if we have anonymous results
+        if anonymous_list.exists():
+            qs = qs.union(anonymous_list)
 
         # Apply ordering - EXACTLY like original
         if order_choice == "updated":
@@ -108,15 +121,31 @@ class CollaboratorService:
         style_languages = PatternFill(start_color="D7E4BD", end_color="D7E4BD", fill_type="solid")
         
         # Determine dynamic column counts
-        native_language_list = collaborators_queryset.annotate(key_count=Count('native_languages__name'))
-        native_language_counts = [entry.key_count for entry in native_language_list]
-        max_native_language_counts = max(native_language_counts) if native_language_counts else 1
+        # Handle union querysets which don't support annotate()
+        try:
+            native_language_list = collaborators_queryset.annotate(key_count=Count('native_languages__name'))
+            native_language_counts = [entry.key_count for entry in native_language_list]
+            max_native_language_counts = max(native_language_counts) if native_language_counts else 1
+            
+            other_language_list = collaborators_queryset.annotate(key_count=Count('other_languages__name'))
+            other_language_counts = [entry.key_count for entry in other_language_list]
+            max_other_language_counts = max(other_language_counts) if other_language_counts else 1
+        except Exception:
+            # Fallback for union querysets - manually count languages
+            max_native_language_counts = 1
+            max_other_language_counts = 1
+            
+            for collaborator in collaborators_queryset:
+                native_count = collaborator.native_languages.count()
+                other_count = collaborator.other_languages.count()
+                
+                if native_count > max_native_language_counts:
+                    max_native_language_counts = native_count
+                if other_count > max_other_language_counts:
+                    max_other_language_counts = other_count
+        
         if max_native_language_counts < 1:
             max_native_language_counts = 1
-
-        other_language_list = collaborators_queryset.annotate(key_count=Count('other_languages__name'))
-        other_language_counts = [entry.key_count for entry in other_language_list]
-        max_other_language_counts = max(other_language_counts) if other_language_counts else 1
         if max_other_language_counts < 1:
             max_other_language_counts = 1
         

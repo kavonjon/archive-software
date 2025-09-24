@@ -2539,6 +2539,8 @@ def collaborator_index(request):
         qs = qs.exclude(anonymous = True)
 
     if is_valid_param(collection_contains_query):
+        # Filter by collection - check if any items in the collection match
+        qs = qs.filter(item__collection__collection_name__icontains=collection_contains_query).distinct()
         collection_contains_query_last = collection_contains_query
 
     if is_valid_param(native_languages_contains_query):
@@ -2584,6 +2586,7 @@ def collaborator_index(request):
             # Collect filter parameters to pass to the task
             filter_params = {
                 'name_contains': name_contains_query,
+                'collection_contains': collection_contains_query,
                 'native_languages_contains': native_languages_contains_query,
                 'other_languages_contains': other_languages_contains_query,
                 'order_choice': order_choice

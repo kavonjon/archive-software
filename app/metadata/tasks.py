@@ -522,19 +522,10 @@ def generate_collaborator_export(self, user_id, filter_params):
         if not is_member_of_archivist(user):
             qs = qs.exclude(anonymous=True)
             
-        # Apply filters from the original request
-        if filter_params.get('name_contains'):
-            name_query = filter_params['name_contains']
-            if name_query.lower() == 'anonymous':
-                anonymous_list = Collaborator.objects.filter(anonymous=True)
-            else:
-                anonymous_list = Collaborator.objects.none()
-            qs = qs.filter(
-                Q(name__icontains=name_query) | 
-                Q(nickname__icontains=name_query) | 
-                Q(other_names__icontains=name_query)
-            )
-            qs = qs.union(anonymous_list)
+        # Apply filters from the original request - match view logic exactly
+        if filter_params.get('collection_contains'):
+            # Filter by collection - check if any items in the collection match
+            qs = qs.filter(item__collection__collection_name__icontains=filter_params['collection_contains']).distinct()
             
         if filter_params.get('native_languages_contains'):
             qs = qs.filter(native_languages__name__icontains=filter_params['native_languages_contains'])
@@ -542,7 +533,19 @@ def generate_collaborator_export(self, user_id, filter_params):
         if filter_params.get('other_languages_contains'):
             qs = qs.filter(other_languages__name__icontains=filter_params['other_languages_contains'])
             
+        anonymous_list = Collaborator.objects.none()  # Initialize 
+        if filter_params.get('name_contains'):
+            name_query = filter_params['name_contains']
+            if name_query.lower() == 'anonymous':
+                anonymous_list = Collaborator.objects.filter(anonymous=True)
+            qs = qs.filter(
+                Q(name__icontains=name_query) | 
+                Q(nickname__icontains=name_query) | 
+                Q(other_names__icontains=name_query)
+            )
+            
         qs = qs.distinct()
+        qs = qs.union(anonymous_list)  # Always union, matching view logic
         
         # Order the results
         order_choice = filter_params.get('order_choice', 'name')

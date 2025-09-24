@@ -18,7 +18,7 @@
         <div class="col-md-1">
         </div>
         <div class="col-md-1">
-            <button type="button" class="btn btn-primary text-nowrap" id="export-btn" onclick="startExport()" style="min-width: 160px;">
+            <button type="button" class="btn btn-primary text-nowrap" id="export-btn" onclick="startExport()" style="min-width: 180px;">
                 <i class="fas fa-download"></i> Export
             </button>
         </div>
@@ -107,6 +107,7 @@
 let currentTaskId = null;
 let pollInterval = null;
 let userHasInteracted = false;
+let currentResult = null; // Track current export result
 
 // Track user interactions to determine if auto-download should happen
 document.addEventListener('click', function(e) {
@@ -118,6 +119,16 @@ document.addEventListener('click', function(e) {
 function startExport() {
     const exportBtn = document.getElementById('export-btn');
     const currentUrl = new URL(window.location);
+    
+    // Clear any previous export data
+    currentResult = null;
+    currentTaskId = null;
+    
+    // Clear any ongoing polling from previous exports
+    if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+    }
     
     // Reset interaction tracking
     userHasInteracted = false;
@@ -168,18 +179,19 @@ function pollTaskStatus() {
             }
         })
         .then(response => response.json())
-        .then(data => {
-            if (data.state === 'SUCCESS') {
-                // Task completed successfully
-                clearInterval(pollInterval);
-                showDownloadReady(data.result);
-            } else if (data.state === 'FAILURE' || data.state === 'ERROR') {
-                // Task failed
-                clearInterval(pollInterval);
-                showError(data.status || 'Export failed');
-            }
-            // For PENDING and PROGRESS states, keep polling
-        })
+                .then(data => {
+                    if (data.state === 'SUCCESS') {
+                        // Task completed successfully
+                        clearInterval(pollInterval);
+                        currentResult = data.result; // Store the result
+                        showDownloadReady(data.result);
+                    } else if (data.state === 'FAILURE' || data.state === 'ERROR') {
+                        // Task failed
+                        clearInterval(pollInterval);
+                        showError(data.status || 'Export failed');
+                    }
+                    // For PENDING and PROGRESS states, keep polling
+                })
         .catch(error => {
             console.error('Status check error:', error);
             clearInterval(pollInterval);
@@ -196,16 +208,21 @@ function showDownloadReady(result) {
     exportBtn.disabled = false;
     exportBtn.className = 'btn btn-success';
     
-    // Set up download functionality
+    // Set up download functionality - use the stored current result
     exportBtn.onclick = function() {
-        downloadFile(result.filename);
+        if (currentResult && currentResult.filename) {
+            downloadFile(currentResult.filename);
+        } else {
+            console.error('No current result available for download');
+            showError('Download file not available');
+        }
     };
     
     // Auto-download if user hasn't interacted with the page
     if (!userHasInteracted && result.filename) {
         setTimeout(() => {
-            if (!userHasInteracted) {
-                downloadFile(result.filename);
+            if (!userHasInteracted && currentResult && currentResult.filename) {
+                downloadFile(currentResult.filename);
             }
         }, 1000); // Wait 1 second before auto-download
     }
@@ -264,7 +281,11 @@ function resetExportButton() {
         clearInterval(pollInterval);
         pollInterval = null;
     }
+    
+    // Clear all export state
     currentTaskId = null;
+    currentResult = null;
+    userHasInteracted = false;
 }
 
 // Existing script

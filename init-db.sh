@@ -65,11 +65,11 @@ echo "Checking if database $DB_NAME is empty on port $DB_PORT..."
 DB_EMPTY=$(psql -U postgres -p "$DB_PORT" -d "$DB_NAME" -tAc "SELECT COUNT(*) = 0 FROM pg_tables WHERE schemaname = 'public';")
 if [[ "$DB_EMPTY" == "t" ]]; then
   echo "Database $DB_NAME is empty. Restoring from dump..."
-  if [[ -f /backup/backup.sql ]]; then
-    psql -U postgres -p "$DB_PORT" -d "$DB_NAME" < /backup/backup.sql
-    echo "Restore completed."
+  if [[ -f /backup/initial_restore.sql ]]; then
+    psql -U postgres -p "$DB_PORT" -d "$DB_NAME" < /backup/initial_restore.sql
+    echo "Initial restore completed."
   else
-    echo "No dump file found at /backup/backup.sql. Skipping restore."
+    echo "No initial restore file found at /backup/initial_restore.sql. Skipping restore."
   fi
 else
   echo "Database $DB_NAME is already populated on port $DB_PORT. Skipping restore."

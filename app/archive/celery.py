@@ -134,7 +134,7 @@ app.conf.beat_schedule = {
     },
     'backup-database': {
         'task': 'archive.tasks.backup_database',
-        'schedule': crontab(hour=0, minute=0),  # Run at midnight every day
+        'schedule': crontab(hour=3, minute=0),  # Run at 3:00 AM every day
     },
     # Add this new entry for the date range update task
     'update-collection-date-ranges': {

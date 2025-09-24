@@ -6,8 +6,10 @@ services:
     command: gunicorn archive.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - static_volume:/app/static
+      - media_volume:/app/media
       - ${HOST_STORAGE_PATH}/main_storage:/app/main_storage
       - ${HOST_STORAGE_PATH}/sequestered_incoming:/app/sequestered_incoming
+      - ./backup:/app/backup
     expose:
       - 8000
     env_file:
@@ -55,8 +57,10 @@ services:
     restart: unless-stopped
     command: celery -A archive worker -Q private,common
     volumes:
+      - media_volume:/app/media
       - ${HOST_STORAGE_PATH}/main_storage:/app/main_storage
       - ${HOST_STORAGE_PATH}/sequestered_incoming:/app/sequestered_incoming
+      - ./backup:/app/backup
     env_file:
       - .env
     environment:
@@ -74,7 +78,9 @@ services:
     restart: unless-stopped
     command: celery -A archive beat
     volumes:
+      - media_volume:/app/media
       - ${HOST_STORAGE_PATH}/main_storage:/app/main_storage
+      - ./backup:/app/backup
     env_file:
       - .env
     environment:
@@ -124,6 +130,7 @@ services:
 volumes:
   postgres_data:
   static_volume:
+  media_volume:
   redis_data:
   # main_storage and sequestered_incoming are host-mounted
 

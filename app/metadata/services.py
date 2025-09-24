@@ -60,21 +60,36 @@ class CollaboratorService:
             qs = qs.filter(other_languages__name__icontains=other_languages_contains_query)
             
         # Apply name filter with anonymous handling
-        anonymous_list = Collaborator.objects.none()
         if is_valid_param(name_contains_query):
             if name_contains_query.lower() == 'anonymous':
-                anonymous_list = Collaborator.objects.filter(anonymous=True)
-            qs = qs.filter(
-                Q(name__icontains=name_contains_query) | 
-                Q(nickname__icontains=name_contains_query) | 
-                Q(other_names__icontains=name_contains_query)
-            )
-            
-        # Apply distinct and union operations
-        qs = qs.distinct()
-        qs = qs.union(anonymous_list)
+                # For anonymous search, combine with existing filters
+                anonymous_qs = Collaborator.objects.filter(anonymous=True)
+                # Apply the same non-name filters to anonymous results
+                if not is_member_of_archivist(user):
+                    pass  # Anonymous users are already included in this case
+                if is_valid_param(collection_contains_query):
+                    anonymous_qs = anonymous_qs.filter(
+                        item_collaborators__collection__collection_abbr__icontains=collection_contains_query
+                    ).distinct()
+                if is_valid_param(native_languages_contains_query):
+                    anonymous_qs = anonymous_qs.filter(native_languages__name__icontains=native_languages_contains_query)
+                if is_valid_param(other_languages_contains_query):
+                    anonymous_qs = anonymous_qs.filter(other_languages__name__icontains=other_languages_contains_query)
+                
+                # Union the main queryset with anonymous results
+                qs = qs.union(anonymous_qs)
+            else:
+                # Regular name search
+                qs = qs.filter(
+                    Q(name__icontains=name_contains_query) | 
+                    Q(nickname__icontains=name_contains_query) | 
+                    Q(other_names__icontains=name_contains_query)
+                )
         
-        # Apply ordering
+        # Apply distinct operation
+        qs = qs.distinct()
+        
+        # Apply ordering - must be done after union operations
         if order_choice == "updated":
             qs = qs.order_by('-updated')
         else:

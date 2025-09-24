@@ -524,77 +524,8 @@ def generate_collaborator_export(self, user_id, filter_params):
         filename = CollaboratorService.generate_export_filename()
         
         # Convert workbook to bytes for storage
-        from openpyxl.writer.excel import save_virtual_workbook
-        excel_content = save_virtual_workbook(new_workbook)
-        
-        # Add headers
-        for header_text, style in headers:
-            header_cell.value = header_text
-            header_cell.fill = style
-            sheet_column_counter += 1
-            header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        # Native languages columns
-        for i in range(1, max_native_language_counts + 1):
-            header_cell.value = f'Native Language {i}'
-            header_cell.fill = style_languages
-            sheet_column_counter += 1
-            header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        # Other languages columns
-        for i in range(1, max_other_language_counts + 1):
-            header_cell.value = f'Other Language {i}'
-            header_cell.fill = style_languages
-            sheet_column_counter += 1
-            header_cell = sheet.cell(row=1, column=sheet_column_counter)
-
-        header_cell.value = 'Other Information'
-        header_cell.fill = style_personal
-
-        # Populate data rows
-        for collaborator in collaborators_in_qs:
-            xl_row = []
-            
-            xl_row.append(collaborator.collaborator_id)
-            xl_row.append(collaborator.name)
-            xl_row.append(collaborator.firstname)
-            xl_row.append(collaborator.lastname)
-            xl_row.append(collaborator.nickname)
-            xl_row.append(collaborator.other_names)
-            xl_row.append('Yes' if collaborator.anonymous else 'No' if collaborator.anonymous is False else '')
-            xl_row.append(collaborator.birthdate)
-            xl_row.append(collaborator.deathdate)
-            xl_row.append(collaborator.gender)
-            xl_row.append(collaborator.origin)
-            xl_row.append(collaborator.clan_society)
-            xl_row.append(collaborator.tribal_affiliations)
-            
-            # Collections - get unique collection abbreviations
-            collection_abbrs = list(collaborator.item_collaborators.filter(collection__isnull=False).values_list('collection__collection_abbr', flat=True).distinct())
-            xl_row.append(', '.join(sorted(collection_abbrs)))
-            
-            # Native languages
-            native_language_rows = list(collaborator.native_languages.all().values_list('name', flat=True).order_by('name'))
-            native_language_rows.extend([''] * (max_native_language_counts - len(native_language_rows)))
-            xl_row.extend(native_language_rows)
-            
-            # Other languages
-            other_language_rows = list(collaborator.other_languages.all().values_list('name', flat=True).order_by('name'))
-            other_language_rows.extend([''] * (max_other_language_counts - len(other_language_rows)))
-            xl_row.extend(other_language_rows)
-            
-            xl_row.append(collaborator.other_info)
-
-            sheet.append(xl_row)
-
-        # Save to a temporary file and then to Django's file storage
-        logger.info("Generating Excel content...")
         excel_content = save_virtual_workbook(new_workbook)
         logger.info(f"Excel content generated, size: {len(excel_content)} bytes")
-        
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f'collaborators-export-{timestamp}.xlsx'
-        logger.info(f"Generated filename: {filename}")
         
         # Use Django storage with proper error handling and validation
         from django.core.files.storage import default_storage

@@ -1,0 +1,208 @@
+{
+  "stage_5_lto_backup_system": {
+    "version": "1.0",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "High-level Stage 5 planning for LTO tape backup system",
+    
+    "stage_overview": {
+      "decision_id": "stage5_001",
+      "content": "Sophisticated LTO tape backup system with encyclopedia-style collection groupings and automated compression management",
+      "added_date": "2025-01-04",
+      "strategic_importance": "Long-term preservation and backup of archive files to university LTO tape system",
+      "prerequisite": "Stage 2 (repository management) and Stage 4 (miscellaneous improvements) must be complete",
+      "complexity_level": "High - involves dynamic grouping, compression estimation, and hybrid automation",
+      "confidence_level": "medium",
+      "status": "outlined"
+    },
+    
+    "lto_system_constraints": {
+      "university_requirements": {
+        "decision_id": "stage5_002",
+        "content": "University LTO system requires files >1TB, necessitating collection grouping and compression strategy",
+        "added_date": "2025-01-04",
+        "minimum_size": ">1TB per backup file",
+        "compression_requirement": "Files must be compressed before submission to LTO system",
+        "manual_intervention": "Human intervention required for final LTO submission process",
+        "external_process": "Final LTO tape writing handled outside our system by university",
+        "confidence_level": "high",
+        "status": "outlined"
+      }
+    },
+    
+    "encyclopedia_grouping_system": {
+      "dynamic_collection_grouping": {
+        "decision_id": "stage5_003",
+        "content": "Intelligent grouping of collections into 'encyclopedia volumes' that meet size requirements",
+        "added_date": "2025-01-04",
+        "grouping_strategy": "Collections grouped alphabetically (e.g., collection1-collection3) based on compression size estimation",
+        "size_estimation": "System estimates compressed size to ensure each group meets >1TB minimum",
+        "dynamic_adjustment": "Groups can be split/merged as collections grow to maintain optimal sizing",
+        "metadata_tracking": "JSON files and/or NoSQL in PostgreSQL track grouping configurations",
+        "confidence_level": "medium",
+        "status": "outlined"
+      },
+      
+      "change_detection": {
+        "decision_id": "stage5_004",
+        "content": "System tracks when groupings contain data changed since last backup generation",
+        "added_date": "2025-01-04",
+        "change_monitoring": "Periodic checks identify groupings with modified data since last backup",
+        "timestamp_tracking": "Last generation timestamp stored for each encyclopedia grouping",
+        "notification_system": "Archivist interface shows which groupings need regeneration",
+        "check_frequency": "System designed for ~3-month check cycles",
+        "confidence_level": "medium",
+        "status": "outlined"
+      }
+    },
+    
+    "backup_generation_workflow": {
+      "hybrid_automation": {
+        "decision_id": "stage5_005",
+        "content": "Semi-automated workflow with archivist control and background processing",
+        "added_date": "2025-01-04",
+        "archivist_trigger": "Archivist reviews change notifications and clicks button to generate backups",
+        "background_compression": "System compresses selected groupings in background",
+        "temporary_storage": "Compressed files stored in separate volume accessible to archivist",
+        "external_transfer": "Archivist-triggered rsync to separate server for LTO processing",
+        "manual_completion": "Human manually completes LTO submission process outside system",
+        "cleanup_schedule": "Generated backup files deleted from system after 2 weeks",
+        "confidence_level": "medium",
+        "status": "outlined"
+      }
+    },
+    
+    "storage_architecture": {
+      "backup_volume": {
+        "decision_id": "stage5_006",
+        "content": "Dedicated volume on private server for temporary backup file storage",
+        "added_date": "2025-01-04",
+        "volume_purpose": "Store compressed encyclopedia files temporarily",
+        "access_pattern": "Read-only access for archivist via remote mount",
+        "source_location": "Files generated from main_storage after processing",
+        "retention_policy": "Files automatically deleted after 2 weeks",
+        "size_planning": "Volume sized to accommodate multiple encyclopedia groupings simultaneously",
+        "confidence_level": "medium",
+        "status": "outlined"
+      }
+    },
+    
+    "metadata_and_tracking": {
+      "grouping_metadata": {
+        "decision_id": "stage5_007",
+        "content": "Comprehensive metadata system for tracking encyclopedia groupings and backup status",
+        "added_date": "2025-01-04",
+        "storage_approach": "JSON files and/or NoSQL fields in PostgreSQL",
+        "tracked_information": [
+          "Encyclopedia grouping definitions (which collections in each group)",
+          "Last generation timestamps",
+          "Compression size estimates",
+          "Change detection status",
+          "Backup generation history"
+        ],
+        "grouping_flexibility": "System allows regrouping as collections grow/shrink",
+        "lto_independence": "System doesn't track which files are on which tapes (handled externally)",
+        "confidence_level": "medium",
+        "status": "outlined"
+      }
+    },
+    
+    "user_interface": {
+      "archivist_dashboard": {
+        "decision_id": "stage5_008",
+        "content": "Administrative interface for managing LTO backup process",
+        "added_date": "2025-01-04",
+        "dashboard_features": [
+          "View encyclopedia groupings and their status",
+          "See which groupings have changes since last backup",
+          "Trigger backup generation for selected groupings",
+          "Monitor background compression progress",
+          "Initiate rsync to external server",
+          "View backup generation history"
+        ],
+        "access_control": "Available only to archivists and administrators",
+        "integration": "Built into main React frontend from Stage 0/1",
+        "confidence_level": "medium",
+        "status": "outlined"
+      }
+    },
+    
+    "technical_requirements": {
+      "compression_system": {
+        "decision_id": "stage5_009",
+        "content": "Efficient compression system for creating >1TB backup files",
+        "added_date": "2025-01-04",
+        "compression_algorithm": "TBD - optimize for archive file types and university requirements",
+        "size_estimation": "Accurate estimation system for planning encyclopedia groupings",
+        "background_processing": "Celery tasks for compression to avoid blocking UI",
+        "progress_tracking": "Real-time progress updates for archivist dashboard",
+        "error_handling": "Robust error handling with retry capabilities",
+        "confidence_level": "low",
+        "status": "outlined"
+      }
+    },
+    
+    "development_considerations": {
+      "complexity_factors": {
+        "decision_id": "stage5_010",
+        "content": "High complexity due to dynamic grouping, size estimation, and hybrid workflow",
+        "added_date": "2025-01-04",
+        "challenging_aspects": [
+          "Accurate compression size estimation",
+          "Dynamic regrouping algorithms",
+          "Coordination between automated and manual processes",
+          "External system integration",
+          "Large file compression performance"
+        ],
+        "research_needed": [
+          "University LTO system specific requirements",
+          "Optimal compression algorithms for archive content",
+          "Performance characteristics of large file compression"
+        ],
+        "confidence_level": "low",
+        "status": "outlined"
+      }
+    },
+    
+    "future_detailed_planning": {
+      "expansion_areas": {
+        "decision_id": "stage5_011",
+        "content": "Areas requiring detailed planning when Stage 5 development begins",
+        "added_date": "2025-01-04",
+        "detailed_planning_needed": [
+          "Compression algorithm selection and optimization",
+          "Encyclopedia grouping algorithms",
+          "Size estimation accuracy methods",
+          "Error handling and recovery procedures",
+          "Performance optimization for large-scale compression",
+          "Integration testing with university LTO system",
+          "User workflow optimization",
+          "Backup verification procedures"
+        ],
+        "stakeholder_coordination": "Coordination with university IT for LTO system requirements",
+        "confidence_level": "medium",
+        "status": "outlined"
+      }
+    },
+    
+    "success_criteria": {
+      "stage_completion": {
+        "decision_id": "stage5_012",
+        "content": "Stage 5 complete when LTO backup system is operational and integrated with archivist workflows",
+        "added_date": "2025-01-04",
+        "functional_requirements": [
+          "Encyclopedia grouping system accurately estimates and creates >1TB backup files",
+          "Change detection system identifies when groupings need regeneration",
+          "Archivist dashboard provides clear visibility and control",
+          "Background compression system handles large-scale operations efficiently",
+          "Integration with external rsync and LTO submission process",
+          "Automatic cleanup of temporary backup files"
+        ],
+        "operational_requirements": "System supports regular backup cycles with minimal manual intervention",
+        "performance_requirements": "Compression and backup generation completes within reasonable timeframes",
+        "integration_requirements": "Seamless integration with university LTO submission process",
+        "confidence_level": "low",
+        "status": "outlined"
+      }
+    }
+  }
+}

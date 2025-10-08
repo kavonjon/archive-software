@@ -1,0 +1,54 @@
+{
+  "coding_patterns": {
+    "version": "1.0",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Initial context memory system setup discussion",
+    "note": "Initial population - needs audit and expansion with actual code patterns",
+    
+    "established_patterns": {
+      "service_layer_pattern": {
+        "decision_id": "pattern_001",
+        "content": "Service classes used for business logic centralization, as seen in CollaboratorService",
+        "added_date": "2025-01-04",
+        "example_location": "app/metadata/services.py - CollaboratorService",
+        "rationale": "Centralizes shared logic between views and tasks to avoid code duplication",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["data_model_understanding.json"]
+      }
+    },
+    
+    "code_organization": {
+      "django_app_structure": {
+        "decision_id": "pattern_002",
+        "content": "Standard Django app structure with models, views, services, tasks separation",
+        "added_date": "2025-01-04",
+        "structure_elements": ["models.py", "views.py", "services.py", "tasks.py", "serializers.py"],
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "patterns_to_establish": {
+      "mode_detection": {
+        "decision_id": "pattern_003",
+        "content": "Pattern needed for detecting and handling deployment mode (public vs private)",
+        "added_date": "2025-01-04",
+        "implementation_approach": "Environment variable-based mode detection with consistent usage across codebase",
+        "confidence_level": "medium",
+        "status": "pending",
+        "cross_references": ["mode_specific_code.json"]
+      },
+      
+      "api_endpoint_classification": {
+        "decision_id": "pattern_004",
+        "content": "Pattern needed for marking endpoints as internal vs public for documentation purposes",
+        "added_date": "2025-01-04",
+        "implementation_approach": "Decorator or configuration-based approach to classify endpoints",
+        "confidence_level": "medium", 
+        "status": "pending",
+        "cross_references": ["api_classification.json"]
+      }
+    }
+  }
+}

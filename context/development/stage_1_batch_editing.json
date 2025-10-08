@@ -1,0 +1,221 @@
+{
+  "stage_1_batch_editing": {
+    "version": "1.0",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Detailed Stage 1 planning for smart spreadsheet batch editing features",
+    
+    "stage_overview": {
+      "decision_id": "stage1_001",
+      "content": "Sophisticated batch editing system with smart spreadsheet interface replacing current import functionality",
+      "added_date": "2025-01-04",
+      "strategic_importance": "Provides immediate value to museum staff daily workflows, enables efficient bulk data management",
+      "prerequisite": "Stage 0 React infrastructure must be complete",
+      "confidence_level": "high",
+      "status": "planned"
+    },
+    
+    "smart_spreadsheet_interface": {
+      "visual_design": {
+        "decision_id": "stage1_002",
+        "content": "Interface that looks and behaves exactly like a spreadsheet with Google Sheets-style UX",
+        "added_date": "2025-01-04",
+        "appearance": "Standard spreadsheet grid with rows and columns",
+        "column_mapping": "Each column corresponds to a model field",
+        "row_mapping": "Each row corresponds to a model instance (existing or draft)",
+        "interaction_paradigm": "Copy/paste operations for batch editing across cells",
+        "confidence_level": "high",
+        "status": "planned"
+      },
+      
+      "smart_cell_architecture": {
+        "decision_id": "stage1_003",
+        "content": "Cells display human-friendly text but contain machine-readable JSON data",
+        "added_date": "2025-01-04",
+        "display_states": {
+          "inactive": "Human-friendly text display (e.g., list of language names)",
+          "editing": "Machine-readable JSON displayed as editable text",
+          "overlay": "Rich UI overlay for complex field editing"
+        },
+        "data_flow": "Human display ↔ JSON data ↔ overlay UI ↔ validation ↔ save",
+        "validation_integration": "Per-cell validation via internal API endpoints with visual feedback",
+        "confidence_level": "high",
+        "status": "planned"
+      },
+      
+      "overlay_editing_system": {
+        "decision_id": "stage1_004",
+        "content": "Rich overlay UI for editing complex fields like M2M and FK relationships",
+        "added_date": "2025-01-04",
+        "trigger": "User clicks on cell to open overlay for complex field types",
+        "functionality": "Overlay populated with current valid JSON data from cell",
+        "ui_components": "Field-appropriate editing interfaces (dropdowns, multi-select, etc.)",
+        "data_persistence": "Overlay saves data back to cell as valid JSON",
+        "user_experience": "Seamless transition between spreadsheet and rich editing",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "batch_editing_operations": {
+      "copy_paste_functionality": {
+        "decision_id": "stage1_005",
+        "content": "Core batch editing through spreadsheet copy/paste operations with intelligent validation",
+        "added_date": "2025-01-04",
+        "same_column_paste": "Copy cell to multiple rows in same column for bulk assignment",
+        "cross_column_paste": "Paste to different field type triggers validation error (red highlight)",
+        "data_preservation": "Cells maintain valid machine-readable JSON for reliable copying",
+        "validation_feedback": "Invalid pastes immediately highlighted red with error messages",
+        "confidence_level": "high",
+        "status": "planned"
+      },
+      
+      "change_tracking": {
+        "decision_id": "stage1_006",
+        "content": "Visual tracking of all changes with multiple highlight states",
+        "added_date": "2025-01-04",
+        "highlight_states": {
+          "yellow": "User has edited this cell",
+          "red": "Validation error in this cell",
+          "orange": "User edit that conflicts with updated DB data (concurrent editing)"
+        },
+        "change_persistence": "All changes tracked until save or discard operation",
+        "save_requirements": "Cannot save with any red (invalid) cells",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "data_management": {
+      "existing_object_handling": {
+        "decision_id": "stage1_007",
+        "content": "Smart detection and population of existing objects based on unique identifiers",
+        "added_date": "2025-01-04",
+        "identification": "Match existing objects by unique fields (catalog_number for Items)",
+        "data_population": "Populate cells with existing DB data for matched objects",
+        "change_detection": "Only show fields that differ from current DB state",
+        "update_behavior": "Changes only applied to modified fields during save operation",
+        "confidence_level": "high",
+        "status": "planned"
+      },
+      
+      "draft_object_handling": {
+        "decision_id": "stage1_008",
+        "content": "Frontend state management for objects not yet in database",
+        "added_date": "2025-01-04",
+        "storage_approach": "Draft objects exist only in React state until save operation",
+        "data_structure": "Same structure as DB objects but flagged as drafts",
+        "validation": "Full validation applied to draft objects before save",
+        "persistence": "Lost on page refresh/discard - no backend staging system needed",
+        "save_behavior": "Created in DB during transaction-based save operation",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "spreadsheet_upload_integration": {
+      "upload_processing": {
+        "decision_id": "stage1_009",
+        "content": "Spreadsheet upload pipes directly to smart spreadsheet interface instead of automatic ingestion",
+        "added_date": "2025-01-04",
+        "process_flow": "Upload → Parse → Populate spreadsheet UI → User review/edit → Save",
+        "object_matching": "Attempt to match uploaded rows to existing objects by unique identifiers",
+        "field_parsing": "Intelligent parsing of text fields (comma-separated lists for M2M)",
+        "change_highlighting": "Only fields different from DB are highlighted and shown as changed",
+        "user_control": "User can review, edit, and selectively save changes before DB modification",
+        "confidence_level": "high",
+        "status": "planned"
+      },
+      
+      "field_interpretation": {
+        "decision_id": "stage1_010",
+        "content": "Smart parsing of uploaded spreadsheet data for complex field types",
+        "added_date": "2025-01-04",
+        "text_parsing": "Convert comma-separated lists to M2M relationships",
+        "fk_resolution": "Attempt to resolve foreign key references by name/identifier",
+        "validation_feedback": "Unparseable data highlighted for user correction",
+        "fallback_behavior": "Unresolvable data preserved as text for manual correction",
+        "confidence_level": "medium",
+        "status": "planned"
+      }
+    },
+    
+    "save_operations": {
+      "transaction_based_saves": {
+        "decision_id": "stage1_011",
+        "content": "All-or-nothing save operations with selective row saving capability",
+        "added_date": "2025-01-04",
+        "transaction_scope": "All selected rows must save successfully or entire operation rolls back",
+        "row_selection": "User can select specific rows to save, leaving others unchanged",
+        "validation_blocking": "Save operation blocked if any selected rows have validation errors",
+        "error_handling": "Clear feedback on which rows/cells prevent save operation",
+        "success_feedback": "Clear indication of which rows were successfully saved",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "concurrent_editing_handling": {
+      "optimistic_locking": {
+        "decision_id": "stage1_012",
+        "content": "Basic concurrent editing protection with conflict detection and user resolution",
+        "added_date": "2025-01-04",
+        "change_detection": "Check if objects changed since UI was populated",
+        "conflict_behavior": "Fail transaction and repopulate row with current DB data",
+        "user_edit_preservation": "Maintain user's edited values (yellow highlighting)",
+        "conflict_highlighting": "Orange highlighting for user edits that conflict with updated data",
+        "resolution_process": "User manually reviews orange cells and decides on final values",
+        "confidence_level": "medium",
+        "status": "planned"
+      }
+    },
+    
+    "model_implementation_priority": {
+      "implementation_order": {
+        "decision_id": "stage1_013",
+        "content": "Languages/Languoids → Collaborators → Items implementation sequence",
+        "added_date": "2025-01-04",
+        "phase_1": "Languages/Languoids (simpler model for testing core functionality)",
+        "phase_2": "Collaborators (moderate complexity with some relationships)",
+        "phase_3": "Items (most complex with multiple M2M and FK relationships)",
+        "field_type_approach": "Implement all field types together rather than text-first incremental approach",
+        "rationale": "Complex fields drive most of the UI complexity, so partial implementation not useful for testing",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "api_requirements": {
+      "validation_endpoints": {
+        "decision_id": "stage1_014",
+        "content": "Internal API endpoints for per-cell validation and save operations",
+        "added_date": "2025-01-04",
+        "per_cell_validation": "Endpoint to validate individual field values in real-time",
+        "bulk_validation": "Endpoint to validate entire row or multiple rows before save",
+        "save_operations": "Transaction-based endpoints for saving selected rows",
+        "change_detection": "Endpoints to check if objects have been modified since last fetch",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "success_criteria": {
+      "stage_completion": {
+        "decision_id": "stage1_015",
+        "content": "Stage 1 complete when smart spreadsheet fully replaces current import functionality",
+        "added_date": "2025-01-04",
+        "functional_requirements": [
+          "Smart spreadsheet interface for all three models (Languages, Collaborators, Items)",
+          "Copy/paste batch editing with validation",
+          "Spreadsheet upload integration with smart parsing",
+          "Transaction-based saves with error handling",
+          "Basic concurrent editing protection"
+        ],
+        "user_acceptance": "Museum staff can efficiently perform all current import/edit operations",
+        "performance_requirements": "Handles typical dataset sizes without performance issues",
+        "replacement_ready": "Can completely replace existing Django import functionality",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    }
+  }
+}

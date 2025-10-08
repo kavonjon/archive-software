@@ -1,0 +1,105 @@
+{
+  "data_model_understanding": {
+    "version": "1.0",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Initial context memory system setup discussion",
+    "note": "Initial population - needs expansion with detailed model analysis",
+    
+    "core_entities": {
+      "item": {
+        "decision_id": "model_001",
+        "content": "Items are catalog entries with rich metadata - core entity of the archive system",
+        "added_date": "2025-01-04",
+        "characteristics": ["Catalog numbers", "Titles (indigenous and English)", "Access levels", "Resource types", "Creation dates"],
+        "relationships": ["Has many Documents/Files", "Has many Collaborators", "Belongs to Collections"],
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "collaborator": {
+        "decision_id": "model_002",
+        "content": "Collaborators are people involved in creating or contributing to archived materials",
+        "added_date": "2025-01-04",
+        "characteristics": ["Names (multiple forms)", "Anonymous flag", "Birth/death dates", "Gender", "Origin", "Tribal affiliations"],
+        "relationships": ["Related to Items", "Related to Documents", "Has native languages", "Has other languages"],
+        "special_considerations": ["Anonymous collaborators for cultural sensitivity"],
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "collection": {
+        "decision_id": "model_003",
+        "content": "Collections are organized groupings of related materials",
+        "added_date": "2025-01-04",
+        "characteristics": ["Collection abbreviations", "Names", "Organizational structure"],
+        "relationships": ["Contains multiple Items"],
+        "confidence_level": "medium",
+        "status": "active"
+      },
+      
+      "languoid": {
+        "decision_id": "model_004",
+        "content": "Languages with dialect information for linguistic heritage documentation",
+        "added_date": "2025-01-04",
+        "characteristics": ["Language names", "Dialect variations"],
+        "relationships": ["Related to Collaborators (native/other)", "Related to Documents", "Related to Items"],
+        "confidence_level": "medium",
+        "status": "active"
+      },
+      
+      "document_file": {
+        "decision_id": "model_005",
+        "content": "Documents/Files are the actual digital assets associated with Items",
+        "added_date": "2025-01-04",
+        "characteristics": ["Filenames", "File types", "Access levels", "Durations", "Creation dates", "Technical metadata"],
+        "relationships": ["Belongs to Items", "Related to Collaborators", "Related to Languages"],
+        "evolution_note": "File model appears to be replacing Document model",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "model_patterns": {
+      "access_control": {
+        "decision_id": "model_006",
+        "content": "Multi-level access control system (1-4) implemented across Items and Documents",
+        "added_date": "2025-01-04",
+        "levels": ["Open Access", "Onsite viewing", "Time-limited", "Depositor-controlled"],
+        "implementation": "Access level fields on relevant models",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "cultural_sensitivity": {
+        "decision_id": "model_007",
+        "content": "Anonymous flag on Collaborators indicates cultural sensitivity considerations",
+        "added_date": "2025-01-04",
+        "rationale": "Some contributors need anonymity for cultural or personal reasons",
+        "implementation_impact": "Special handling in queries, display, and access control",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "service_layer_patterns": {
+      "collaborator_service": {
+        "decision_id": "model_008",
+        "content": "CollaboratorService centralizes business logic for collaborator operations",
+        "added_date": "2025-01-04",
+        "capabilities": ["Filtered querying with permissions", "Export functionality", "Anonymous collaborator handling"],
+        "pattern": "Service layer separates business logic from views and tasks",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "detailed_model_analysis": {
+      "note": "Comprehensive model field analysis and relationship mapping to be conducted during audit phase",
+      "field_mappings": {},
+      "relationship_details": {},
+      "constraint_analysis": {},
+      "migration_history": {},
+      "model_evolution_patterns": {}
+    }
+  }
+}

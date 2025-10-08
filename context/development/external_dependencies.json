@@ -1,0 +1,79 @@
+{
+  "external_dependencies": {
+    "version": "1.0",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Initial context memory system setup discussion",
+    "note": "Initial population - needs audit and expansion with actual dependency analysis",
+    
+    "tracked_dependencies": {
+      "django": {
+        "decision_id": "dep_001",
+        "content": "Django framework - core dependency for web application",
+        "added_date": "2025-01-04",
+        "current_version": "3.2 (from requirements.txt analysis)",
+        "context_impact": ["Model relationships", "Authentication patterns", "Template system", "Admin interface"],
+        "last_reviewed": "2025-01-04",
+        "upgrade_considerations": ["Custom user model compatibility", "Model field changes", "Template syntax updates"],
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "django_rest_framework": {
+        "decision_id": "dep_002",
+        "content": "Django REST Framework - critical for public API functionality",
+        "added_date": "2025-01-04", 
+        "current_version": "3.14.0 (from requirements.txt analysis)",
+        "context_impact": ["API serialization", "Authentication", "Permissions", "API documentation"],
+        "upgrade_considerations": ["Serializer compatibility", "Authentication changes", "Permission system updates"],
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "dependency_review_triggers": [
+      "Before major refactoring",
+      "When adding new third-party integrations", 
+      "Quarterly dependency audit",
+      "Before deployment architecture changes",
+      "When security updates available"
+    ],
+    
+    "impact_assessment_areas": {
+      "dual_deployment": {
+        "decision_id": "dep_003",
+        "content": "Dependencies must be compatible with dual-deployment architecture",
+        "added_date": "2025-01-04",
+        "considerations": ["Environment variable configuration", "Mode-specific functionality", "Cross-server compatibility"],
+        "confidence_level": "medium",
+        "status": "active"
+      }
+    },
+    
+    "dependency_inventory": {
+      "note": "Key dependencies identified from requirements.txt analysis",
+      "core_framework": {
+        "django": "3.2",
+        "psycopg2-binary": "2.9.9"
+      },
+      "api_related": {
+        "djangorestframework": "3.14.0",
+        "django-oauth-toolkit": "2.3.0",
+        "drf-spectacular": "0.28.0"
+      },
+      "deployment_related": {
+        "celery": "5.4.0",
+        "redis": "5.1.1",
+        "gunicorn": "23.0.0"
+      },
+      "cultural_content_handling": {
+        "mutagen": "1.47.0",
+        "librosa": "0.10.2",
+        "openpyxl": "3.1.5"
+      },
+      "development_tools": {
+        "django-extensions": "3.2.3",
+        "django-select2": "8.2.1"
+      }
+    }
+  }
+}

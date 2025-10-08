@@ -1,0 +1,109 @@
+{
+  "cultural_context": {
+    "version": "1.0",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Initial context memory system setup discussion",
+    "note": "Initial population - needs significant expansion with cultural domain expertise",
+    
+    "cultural_sensitivity_paramount": {
+      "foundational_principle": {
+        "decision_id": "cultural_001",
+        "content": "Cultural considerations are paramount in all technical decisions affecting data access and visibility",
+        "added_date": "2025-01-04",
+        "core_principle": "Respect for Native American cultural heritage and community control over cultural materials",
+        "architectural_influence": "Cultural sensitivity requirements drive major technical architecture decisions",
+        "confidence_level": "critical",
+        "status": "active"
+      },
+      
+      "access_level_system": {
+        "decision_id": "cultural_002",
+        "content": "Access levels are the primary technical mechanism for respecting cultural sensitivities and community control",
+        "added_date": "2025-01-04",
+        "implementation": "Multi-level access system where different materials have different visibility restrictions",
+        "cultural_rationale": "Ensures culturally sensitive materials are only accessible to appropriate audiences",
+        "technical_integration": "Access levels must be respected throughout all system components - database, API, file access",
+        "confidence_level": "critical",
+        "status": "active",
+        "cross_references": ["preservation_rules.json", "api_classification.json"]
+      },
+      
+      "public_server_restrictions": {
+        "decision_id": "cultural_003",
+        "content": "Public server contains only access level 1 materials as primary cultural protection mechanism",
+        "added_date": "2025-01-04",
+        "protection_approach": "Subset of files and sanitized metadata on public server ensures culturally sensitive materials remain on private server only",
+        "access_level_1_definition": "Materials appropriate for general public access without cultural restrictions",
+        "sync_filtering": "Private server publishing process must filter by access level before pushing to public server",
+        "confidence_level": "critical",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "project_requirements.json"]
+      }
+    },
+    
+    "technical_architecture_influence": {
+      "dual_server_cultural_rationale": {
+        "decision_id": "cultural_004",
+        "content": "Dual-deployment architecture exists primarily to enable cultural sensitivity controls through data segregation",
+        "added_date": "2025-01-04",
+        "cultural_driver": "Need to provide public access while maintaining strict control over culturally sensitive materials",
+        "technical_solution": "Complete separation of public-appropriate vs restricted materials across different server infrastructures",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "field_level_filtering": {
+        "decision_id": "cultural_005",
+        "content": "Database synchronization includes field-level filtering to exclude sensitive information from public server",
+        "added_date": "2025-01-04",
+        "filtering_approach": "Serializers control which fields are included in public API and cross-server sync",
+        "sensitive_field_examples": "Internal notes, restricted collaborator information, detailed cultural context",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["architectural_decisions.json"]
+      }
+    },
+    
+    "content_types_cultural_significance": {
+      "ceremonial_content": {
+        "decision_id": "cultural_003",
+        "content": "Ceremonial music and content requires special cultural sensitivity and access considerations",
+        "added_date": "2025-01-04",
+        "types": ["Music: Ceremonial", "Music: Native American Church", "Music: Sundance", "Prayer", "Traditional stories"],
+        "sensitivity_level": "high",
+        "confidence_level": "medium",
+        "status": "active"
+      },
+      
+      "linguistic_materials": {
+        "decision_id": "cultural_004",
+        "content": "System handles linguistic heritage materials with language and dialect information",
+        "added_date": "2025-01-04",
+        "considerations": ["Language preservation", "Dialect documentation", "Educational materials", "Community access"],
+        "confidence_level": "medium",
+        "status": "active"
+      }
+    },
+    
+    "access_control_cultural_aspects": {
+      "access_levels": {
+        "decision_id": "cultural_005",
+        "content": "Multi-level access system (1-4) suggests graduated access based on cultural sensitivity",
+        "added_date": "2025-01-04",
+        "levels": ["Open Access", "Onsite viewing only", "Time-limited access", "Depositor-controlled access"],
+        "cultural_rationale": "Different materials require different levels of protection and community control",
+        "confidence_level": "medium",
+        "status": "active"
+      }
+    },
+    
+    "cultural_domain_knowledge": {
+      "note": "Detailed cultural context and domain expertise to be populated during audit phase",
+      "tribal_affiliations": {},
+      "ceremonial_protocols": {},
+      "language_communities": {},
+      "cultural_sensitivity_guidelines": {},
+      "community_engagement_practices": {}
+    }
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "user_workflows": {
+    "version": "1.0",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Initial context memory system setup discussion",
+    "note": "Initial population - needs expansion with actual user behavior analysis",
+    
+    "user_types": {
+      "museum_staff": {
+        "decision_id": "workflow_001",
+        "content": "Museum staff (Archivists, Museum Staff, Administrators) managing daily archive operations",
+        "added_date": "2025-01-04",
+        "daily_workflows": [
+          "Editing individual objects without batch editing",
+          "Batch editing multiple records",
+          "Uploading files to the system",
+          "Viewing items and collections",
+          "Using spreadsheet export features",
+          "Performing searches across different models (Items, Collections, Collaborators, Languoids)"
+        ],
+        "workflow_priority": "These represent the most frequent operations that drive daily productivity",
+        "batch_editing_importance": "Batch editing is critical enough to warrant dedicated development stage (Stage 2)",
+        "iterative_note": "This list will be expanded as additional workflows are identified during development",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["project_requirements.json", "preservation_rules.json"]
+      },
+      
+      "api_consumers": {
+        "decision_id": "workflow_002",
+        "content": "External applications and systems consuming the public API",
+        "added_date": "2025-01-04",
+        "typical_workflows": [
+          "OAI-PMH metadata harvesting for discovery systems",
+          "Public website displaying archive content with file access",
+          "Automated metadata synchronization"
+        ],
+        "access_patterns": [
+          "Public tier: Open metadata harvesting",
+          "Privileged tier: Full metadata + file downloads with API keys"
+        ],
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["api_classification.json"]
+      }
+    },
+    
+    "current_interface_patterns": {
+      "search_and_filter": {
+        "decision_id": "workflow_004",
+        "content": "Current system provides text-based filtering and keyword search across various fields",
+        "added_date": "2025-01-04",
+        "capabilities": ["Keyword search", "Collaborator filtering", "Language filtering", "Collection filtering", "Access level filtering"],
+        "interface_elements": ["Search forms", "Filter dropdowns", "Results lists"],
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["data_model_understanding.json"]
+      },
+      
+      "export_functionality": {
+        "decision_id": "workflow_005",
+        "content": "System provides export functionality for collaborator data as seen in CollaboratorService",
+        "added_date": "2025-01-04",
+        "export_formats": ["Excel workbooks with styled headers"],
+        "user_benefit": "Researchers and archivists can export filtered data for external analysis",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "workflow_analysis_needed": {
+      "note": "Detailed user workflow analysis to be conducted during audit phase",
+      "search_patterns": {},
+      "navigation_preferences": {},
+      "content_interaction_methods": {},
+      "export_usage_patterns": {},
+      "access_control_workflows": {}
+    }
+  }
+}

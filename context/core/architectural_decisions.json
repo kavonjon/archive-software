@@ -1,0 +1,236 @@
+{
+  "architectural_decisions": {
+    "version": "1.1",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Storage volume analysis and database sync design decisions",
+    
+    "api_evolution": {
+      "django_to_drf_transition": {
+        "decision_id": "arch_dec_001",
+        "content": "Evolved from Django templates with patchwork JSON and DRF endpoints to structured public-facing DRF API. This was a mid-development architectural change driven by crucial customer requirement for public API access",
+        "added_date": "2025-01-04",
+        "rationale": "Customer needed public API functionality, but existing system was template-based with ad-hoc endpoints",
+        "impact": "Created dual endpoint ecosystem - internal template endpoints + public API endpoints",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["decision_genealogy.json", "api_classification.json"]
+      },
+      
+      "endpoint_visibility_strategy": {
+        "decision_id": "arch_dec_002", 
+        "content": "Deliberate strategy to maintain internal endpoints for template data fetching while exposing only appropriate endpoints in public API documentation",
+        "added_date": "2025-01-04",
+        "rationale": "Internal endpoints serve specific template needs and should not clutter public API documentation",
+        "impact": "Need clear classification system for internal vs public endpoints",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["api_classification.json", "refactoring_roadmap.json"]
+      }
+    },
+    
+    "deployment_architecture": {
+      "dual_server_decision": {
+        "decision_id": "arch_dec_003",
+        "content": "Mid-development decision to implement dual-deployment architecture: public server (internet-facing) and private server (behind firewall, internal IP only)",
+        "added_date": "2025-01-04",
+        "rationale": "Requirements changed to need both public access and secure internal processing. Customer wanted simple deployment rather than complex infrastructure management",
+        "impact": "Increased overall application complexity but maintained deployment simplicity for customer",
+        "confidence_level": "high", 
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "project_requirements.json"]
+      },
+      
+      "monorepo_maintenance": {
+        "decision_id": "arch_dec_004",
+        "content": "Decision to maintain single repository despite dual-deployment complexity rather than splitting into separate repositories",
+        "added_date": "2025-01-04",
+        "rationale": "Splitting repos was not an option at that point in development. Monorepo approach allows customer to deploy as simple two-server setup with different env variables rather than managing separate codebases",
+        "impact": "Requires careful management of mode-specific vs shared code, but preserves deployment simplicity",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["mode_specific_code.json", "deployment_architecture.json"]
+      }
+    },
+    
+    "data_flow_architecture": {
+      "bidirectional_sync": {
+        "decision_id": "arch_dec_005",
+        "content": "Data flows from public server to private server for ingestion, then private server publishes subset back to public server. Private server can reach public server but not vice versa",
+        "added_date": "2025-01-04",
+        "rationale": "Security model requires private server isolation while enabling data sharing",
+        "impact": "Requires robust data synchronization mechanisms and careful access control",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "mode_specific_code.json"]
+      }
+    },
+    
+    "storage_architecture": {
+      "seven_volume_design": {
+        "decision_id": "arch_dec_008",
+        "content": "Decision to implement seven distinct storage volumes with specific purposes: upload_quarantine, scan_output, ingest_queue, main_storage, public_storage, temp_storage, sync_data",
+        "added_date": "2025-01-04",
+        "rationale": "Multi-stage file processing pipeline requires clear separation of concerns for security, virus scanning, cross-server transfer, and temporary access",
+        "impact": "Complex volume management but provides robust security and clear data flow",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "project_requirements.json"]
+      },
+      
+      "volume_naming_strategy": {
+        "decision_id": "arch_dec_009",
+        "content": "Decision to use descriptive volume names that clarify purpose rather than generic sequestered_* naming: upload_quarantine → scan_output → ingest_queue → main_storage",
+        "added_date": "2025-01-04",
+        "rationale": "Original naming (sequestered_incoming on both servers) created confusion about data flow and volume purposes",
+        "impact": "Clearer understanding of file processing pipeline and easier debugging",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json"]
+      },
+      
+      "organized_file_structure": {
+        "decision_id": "arch_dec_010",
+        "content": "Decision to organize files by collection abbreviation and catalog number: {storage}/files/{collection_abbr}/{catalog_number}/ with parallel metadata structure",
+        "added_date": "2025-01-04",
+        "rationale": "Provides logical organization matching the data model and enables efficient file management and retrieval",
+        "impact": "Clear file organization but requires consistent path management across all storage operations",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["data_model_understanding.json", "deployment_architecture.json"]
+      }
+    },
+    
+    "database_synchronization_architecture": {
+      "checksum_based_change_detection": {
+        "decision_id": "arch_dec_011",
+        "content": "Decision to use checksum-based change detection over timestamp-based for database synchronization between private and public servers",
+        "added_date": "2025-01-04",
+        "rationale": "More reliable than timestamps, handles clock drift and ensures data integrity. Provides definitive change detection even with complex relationships",
+        "impact": "Requires additional storage for checksums but provides robust change detection",
+        "alternatives_considered": ["Timestamp-based incremental sync", "Event-driven sync without checksums"],
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "project_requirements.json"]
+      },
+      
+      "event_driven_sync": {
+        "decision_id": "arch_dec_012",
+        "content": "Decision to implement event-driven database synchronization triggered by Django model signals with batching within time windows",
+        "added_date": "2025-01-04",
+        "rationale": "Real-time responsiveness while avoiding excessive sync operations. Batching reduces overhead and provides efficient incremental updates",
+        "impact": "Near real-time sync with efficient batching, but requires careful signal handling and queue management",
+        "alternatives_considered": ["Scheduled full sync", "Manual sync triggers"],
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "project_requirements.json"]
+      },
+      
+      "incremental_export_strategy": {
+        "decision_id": "arch_dec_013",
+        "content": "Decision to use incremental exports (only changed records) rather than full database exports for sync operations",
+        "added_date": "2025-01-04",
+        "rationale": "Much smaller file sizes, faster processing, efficient bandwidth usage. Combined with checksum detection provides reliable change identification",
+        "impact": "Complex sync logic but significantly improved performance and resource usage",
+        "alternatives_considered": ["Full export every sync"],
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json"]
+      },
+      
+      "private_server_wins_policy": {
+        "decision_id": "arch_dec_014",
+        "content": "Decision that private server always wins in conflict resolution - no conflict detection needed, private server data is authoritative",
+        "added_date": "2025-01-04",
+        "rationale": "Private server is the authoritative source for all data. Public server is read-only recipient of curated subset",
+        "impact": "Simplified conflict resolution but requires careful data flow management",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json"]
+      },
+      
+      "retry_rollback_architecture": {
+        "decision_id": "arch_dec_015",
+        "content": "Decision to implement comprehensive retry logic (3 attempts with exponential backoff) and transaction-based rollback on partial failures",
+        "added_date": "2025-01-04",
+        "rationale": "Ensures data consistency and handles temporary network/system issues. All-or-nothing approach prevents partial sync states",
+        "impact": "Robust sync reliability but requires careful transaction management and detailed logging",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "project_requirements.json"]
+      },
+      
+      "sync_data_volume": {
+        "decision_id": "arch_dec_016",
+        "content": "Decision to create dedicated sync_data volume for database synchronization rather than using existing volumes or API calls",
+        "added_date": "2025-01-04",
+        "rationale": "Keeps sync operations separate from file processing pipeline. Consistent with existing volume-based architecture pattern",
+        "impact": "Additional volume to manage but provides clear separation of concerns",
+        "alternatives_considered": ["API-based sync", "Shared volume with file processing"],
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json"]
+      }
+    },
+    
+    "virus_scanning_architecture": {
+      "multi_stage_quarantine": {
+        "decision_id": "arch_dec_017",
+        "content": "Decision to implement multi-stage quarantine system with virus scanning at multiple points in the pipeline",
+        "added_date": "2025-01-04",
+        "rationale": "Provides defense in depth - scanning on public server before cross-server transfer and additional scanning on private server before final storage",
+        "impact": "Multiple scanning points increase security but add processing overhead",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "project_requirements.json"]
+      },
+      
+      "cross_server_file_transfer": {
+        "decision_id": "arch_dec_018",
+        "content": "Decision that private server actively copies files from public server's scan_output rather than public server pushing files",
+        "added_date": "2025-01-04",
+        "rationale": "Maintains security isolation - private server can reach public but not vice versa. Private server controls when and what files to ingest",
+        "impact": "Private server must monitor and pull files, but maintains security boundaries",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json"]
+      }
+    },
+    
+    "temporary_access_architecture": {
+      "temp_storage_design": {
+        "decision_id": "arch_dec_019",
+        "content": "Decision to implement temp_storage volume for archivist-controlled temporary file sharing with automated cleanup, even though push mechanism is beyond MVP",
+        "added_date": "2025-01-04",
+        "rationale": "Infrastructure must exist for future feature, cleanup process is needed regardless. Better to build complete infrastructure than partial implementation",
+        "impact": "Additional volume and cleanup processes but provides foundation for future selective sharing feature",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "project_requirements.json"]
+      }
+    },
+    
+    "implementation_philosophy": {
+      "shared_codebase_principle": {
+        "decision_id": "arch_dec_006",
+        "content": "Vast majority of code should be common between deployment modes, with mode-specific differences primarily in bash scripts for data synchronization (rsync, etc.)",
+        "added_date": "2025-01-04",
+        "rationale": "Minimizes maintenance overhead while supporting dual-deployment requirements",
+        "impact": "Need clear boundaries for what code is shared vs mode-specific",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["mode_specific_code.json", "coding_patterns.json"]
+      },
+      
+      "evolutionary_development": {
+        "decision_id": "arch_dec_007",
+        "content": "Architecture has evolved through multiple phases as requirements changed, resulting in layers of decisions and code that may need strategic refactoring",
+        "added_date": "2025-01-04",
+        "rationale": "Natural evolution of project as customer needs became clearer",
+        "impact": "Need strategic approach to refactoring - preserve critical functionality while modernizing architecture",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["refactoring_roadmap.json", "decision_genealogy.json", "preservation_rules.json"]
+      }
+    }
+  }
+}

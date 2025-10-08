@@ -1,0 +1,99 @@
+{
+  "context_memory_protocol": {
+    "version": "1.0",
+    "last_updated": "2025-01-04",
+    "purpose": "Persistent project knowledge base for strategic project management and development collaboration on archive software",
+    
+    "update_protocol": {
+      "primary_approach": "amendment_and_evolution",
+      "default_behavior": "Add new information with timestamps, preserve decision history",
+      
+      "when_to_amend": [
+        "New requirements discovered",
+        "Additional architectural decisions made", 
+        "Deeper understanding of existing code patterns",
+        "New technical debt identified",
+        "Refined user workflow understanding",
+        "API changes (internal vs public classification)",
+        "Features affecting deployment modes"
+      ],
+      
+      "when_to_revise": [
+        "Erroneous information discovered",
+        "Fundamental requirement changes",
+        "Architectural pivots that invalidate previous decisions",
+        "File consolidation needs when unwieldy"
+      ],
+      
+      "entry_structure": {
+        "decision_id": "unique_identifier",
+        "content": "the actual information", 
+        "added_date": "YYYY-MM-DD",
+        "conversation_reference": "brief description of discussion context",
+        "confidence_level": "high|medium|low",
+        "status": "active|deprecated|under_review"
+      },
+      
+      "revision_indicators": {
+        "deprecation": "Mark old info as 'deprecated' rather than deleting",
+        "supersession": "Add 'superseded_by' references to new decisions",
+        "revision_reason": "Always include why information changed"
+      }
+    },
+    
+    "self_enforcement": {
+      "built_in_triggers": [
+        "Making architectural changes",
+        "Discovering new requirements or constraints",
+        "Completing significant refactoring", 
+        "Making API changes",
+        "Adding features affecting deployment modes",
+        "Before ending conversations with decisions made"
+      ],
+      
+      "conversation_end_checklist": [
+        "What did we learn about requirements?",
+        "What architectural decisions did we make?",
+        "What code patterns did we establish?", 
+        "What needs to be preserved going forward?",
+        "Which context files need updates?"
+      ],
+      
+      "decision_point_protocol": [
+        "Check relevant context files before suggesting major changes",
+        "Update files with decision rationale",
+        "Confirm updates align with PM understanding"
+      ]
+    },
+    
+    "quality_control": {
+      "conflict_resolution": "When conflicts detected, immediately prompt PM with specific conflict and request resolution guidance",
+      "uncertainty_handling": "Flag uncertain information and request PM confirmation before writing",
+      "cross_reference_validation": "When updating one file, check if related files need updates",
+      "reality_checks": "Flag when context seems inconsistent with current codebase"
+    },
+    
+    "file_growth_management": {
+      "size_triggers": {
+        "line_count": 2000,
+        "file_size": "150KB"
+      },
+      "splitting_protocol": [
+        "Analyze file's logical sections",
+        "Propose split based on natural boundaries, cross-reference frequency, usage patterns",
+        "Get PM approval before executing split",
+        "Maintain proper cross-references after split"
+      ]
+    },
+    
+    "emergency_protocol": {
+      "inconsistency_response": [
+        "Stop all development work immediately",
+        "Prompt PM with specific inconsistency detected",
+        "Provide severity assessment",
+        "Propose recovery options",
+        "Request guidance on resolution approach"
+      ]
+    }
+  }
+}

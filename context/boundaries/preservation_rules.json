@@ -1,0 +1,336 @@
+{
+  "preservation_rules": {
+    "version": "1.1",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Codebase analysis of existing functionality that must be preserved",
+    
+    "core_data_models": {
+      "data_integrity": {
+        "decision_id": "preserve_001",
+        "content": "All existing data models and their relationships must remain functional during any refactoring",
+        "added_date": "2025-01-04",
+        "critical_models": [
+          "Item (catalog entries with rich metadata)",
+          "Collection (organizational structure)",
+          "Collaborator (people associated with items)",
+          "Languoid (language/dialect information)",
+          "Document (legacy file model - in transition)",
+          "File (new file model - replacing Document)",
+          "Geographic (location data)",
+          "CollaboratorRole (person-item relationships)"
+        ],
+        "field_constraints": "catalog_number must remain unique across all Items",
+        "relationship_preservation": "Many-to-many relationships between Items-Collaborators, Items-Languages, Collections-Languages must be preserved",
+        "confidence_level": "critical",
+        "status": "active"
+      },
+      
+      "choice_field_stability": {
+        "decision_id": "preserve_002",
+        "content": "All choice field constants must remain stable as they represent controlled vocabularies",
+        "added_date": "2025-01-04",
+        "critical_choices": [
+          "ACCESS_CHOICES (access levels)",
+          "RESOURCE_TYPE_CHOICES (content types)",
+          "GENRE_CHOICES (content genres)",
+          "ROLE_CHOICES (collaborator roles)",
+          "LANGUAGE_DESCRIPTION_CHOICES (linguistic categories)"
+        ],
+        "rationale": "These choices are used in production data and changing them would break existing records",
+        "confidence_level": "critical",
+        "status": "active"
+      }
+    },
+    
+    "authentication_and_permissions": {
+      "user_groups": {
+        "decision_id": "preserve_003",
+        "content": "Existing user group-based permission system must continue to function",
+        "added_date": "2025-01-04",
+        "current_groups": [
+          "Archivist (full data operations access)",
+          "Admin (site administration access)"
+        ],
+        "permission_functions": [
+          "is_member_of_archivist() function",
+          "@user_passes_test decorators",
+          "UserPassesTestMixin classes"
+        ],
+        "template_integration": "{% if request.user|has_group:\"Archivist\"%} template tags",
+        "confidence_level": "critical",
+        "status": "active"
+      },
+      
+      "session_authentication": {
+        "decision_id": "preserve_004",
+        "content": "Django session-based authentication for template views must remain functional",
+        "added_date": "2025-01-04",
+        "authentication_methods": [
+          "@login_required decorators",
+          "LoginRequiredMixin for class-based views",
+          "Django's built-in authentication views",
+          "Password change functionality"
+        ],
+        "login_flow": "Standard Django login/logout at /accounts/login/, /accounts/logout",
+        "confidence_level": "critical",
+        "status": "active"
+      },
+      
+      "api_authentication": {
+        "decision_id": "preserve_005",
+        "content": "OAuth2 token authentication for public API must remain functional",
+        "added_date": "2025-01-04",
+        "implementation": "oauth2_provider with IsAdminOrHasToken permission class",
+        "token_scopes": ["read", "write"],
+        "fallback_auth": "Staff users can access API via session authentication",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "user_interfaces": {
+      "template_based_interface": {
+        "decision_id": "preserve_006",
+        "content": "All existing Django template-based interfaces for museum staff must remain functional",
+        "added_date": "2025-01-04",
+        "critical_interfaces": [
+          "Catalog management (/catalog/ - item CRUD operations)",
+          "Collection management (/collections/ - collection CRUD)",
+          "Collaborator management (/collaborators/ - people CRUD)",
+          "Language management (/languoids/ - language CRUD)",
+          "Document management (/documents/ - legacy file management)",
+          "Import interfaces (/catalog/import/, /collaborators/import/, /languages/import/)",
+          "Export functionality (Excel exports, metadata exports)"
+        ],
+        "navigation": "Bootstrap-based navigation menu with dropdowns",
+        "confidence_level": "critical",
+        "status": "active"
+      },
+      
+      "search_and_filtering": {
+        "decision_id": "preserve_007",
+        "content": "Existing search and filtering capabilities must be preserved",
+        "added_date": "2025-01-04",
+        "search_features": [
+          "Multi-field item search with complex filters",
+          "Pagination (100 items per page)",
+          "Column selection for exports",
+          "Sort ordering options",
+          "Filter persistence across page loads"
+        ],
+        "filter_types": [
+          "Text contains searches",
+          "Date range filters",
+          "Choice field filters",
+          "Related model filters (collections, languages, collaborators)"
+        ],
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "data_import_export": {
+      "excel_export": {
+        "decision_id": "preserve_008",
+        "content": "Excel export functionality with custom column selection must be preserved",
+        "added_date": "2025-01-04",
+        "export_features": [
+          "Custom column selection via Columns_export model",
+          "Filtered export (export search results)",
+          "Multiple format support (Excel primarily)",
+          "Metadata export functionality"
+        ],
+        "technical_implementation": "openpyxl library for Excel generation",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "import_workflows": {
+        "decision_id": "preserve_009",
+        "content": "Existing import workflows for items, collaborators, and languages must be preserved",
+        "added_date": "2025-01-04",
+        "import_types": [
+          "Item catalog import",
+          "Collaborator import",
+          "Language import",
+          "Document upload (file ingestion)"
+        ],
+        "import_interface": "ImportView handling multiple import types",
+        "file_processing": "Excel file parsing and validation",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "public_api": {
+      "rest_api_endpoints": {
+        "decision_id": "preserve_010",
+        "content": "All existing DRF API endpoints must remain functional and backward compatible",
+        "added_date": "2025-01-04",
+        "public_endpoints": [
+          "/api/v1/items/ (archive items)",
+          "/api/v1/collections/ (collections)",
+          "/api/v1/languoids/ (language information)",
+          "/api/v1/collaborators/ (people information)",
+          "/api/beta/v1/* (beta versions of all endpoints)"
+        ],
+        "api_features": [
+          "Pagination with 100 items per page",
+          "Filtering by various fields",
+          "OpenAPI/Swagger documentation at /api/docs/",
+          "OAuth2 token authentication",
+          "Versioning support (beta/stable)"
+        ],
+        "confidence_level": "critical",
+        "status": "active"
+      }
+    },
+    
+    "background_processing": {
+      "celery_tasks": {
+        "decision_id": "preserve_011",
+        "content": "Existing Celery task infrastructure and scheduled tasks must continue to function",
+        "added_date": "2025-01-04",
+        "critical_tasks": [
+          "update_collection_item_counts (daily at 2 AM)",
+          "cleanup_temp_files (every 6 hours)",
+          "export tasks for collaborator data",
+          "File processing tasks"
+        ],
+        "queue_system": "Role-based queue routing (public/private/common queues)",
+        "task_monitoring": "Task status checking and result retrieval",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "file_handling": {
+      "document_model_transition": {
+        "decision_id": "preserve_012",
+        "content": "During Document→File model transition, existing Document records and functionality must be preserved",
+        "added_date": "2025-01-04",
+        "preservation_requirements": [
+          "All existing Document records must remain accessible",
+          "Document CRUD interfaces must continue working",
+          "File associations with Items must be maintained",
+          "Metadata extraction capabilities must be preserved"
+        ],
+        "migration_constraint": "Data migration must be reversible and not lose information",
+        "confidence_level": "critical",
+        "status": "active"
+      },
+      
+      "metadata_extraction": {
+        "decision_id": "preserve_013",
+        "content": "Existing file metadata extraction capabilities must be preserved",
+        "added_date": "2025-01-04",
+        "extraction_libraries": [
+          "mutagen (audio metadata)",
+          "librosa (audio analysis)",
+          "openpyxl (Excel file processing)"
+        ],
+        "metadata_types": "Audio duration, format, technical specifications",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "geographic_features": {
+      "mapping_functionality": {
+        "decision_id": "preserve_014",
+        "content": "Geographic coordinate storage and mapping features must be preserved",
+        "added_date": "2025-01-04",
+        "geographic_features": [
+          "Lat/long coordinate storage",
+          "Multiple geographic points per item",
+          "Map visualization capabilities",
+          "Geographic data CRUD operations"
+        ],
+        "confidence_level": "medium",
+        "status": "active"
+      }
+    },
+    
+    "data_validation": {
+      "date_validation": {
+        "decision_id": "preserve_015",
+        "content": "Custom date validation and parsing must continue to work",
+        "added_date": "2025-01-04",
+        "validation_function": "validate_date_text() for flexible date input",
+        "date_range_fields": "Support for min/max date pairs across multiple models",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "unique_constraints": {
+        "decision_id": "preserve_016",
+        "content": "All unique field constraints must be maintained",
+        "added_date": "2025-01-04",
+        "unique_fields": [
+          "Item.catalog_number (primary identifier)",
+          "Collection.collection_abbr (collection code)",
+          "UUID fields across all models"
+        ],
+        "confidence_level": "critical",
+        "status": "active"
+      }
+    },
+    
+    "production_deployment": {
+      "current_production_data": {
+        "decision_id": "preserve_017",
+        "content": "System is currently deployed in production with real data - all changes must be backward compatible",
+        "added_date": "2025-01-04",
+        "deployment_status": "Private mode deployment with production data",
+        "compatibility_requirement": "No breaking changes to existing data structures or APIs",
+        "migration_safety": "All database migrations must be reversible and tested",
+        "confidence_level": "critical",
+        "status": "active"
+      }
+    },
+    
+    "error_handling": {
+      "custom_error_pages": {
+        "decision_id": "preserve_018",
+        "content": "Custom error handling and user-friendly error pages must be preserved",
+        "added_date": "2025-01-04",
+        "error_pages": [
+          "500.html (server errors)",
+          "403.html (permission denied)",
+          "no_permission.html (insufficient permissions)"
+        ],
+        "error_functions": "custom_error_500, custom_error_403 handlers",
+        "confidence_level": "medium",
+        "status": "active"
+      }
+    },
+    
+    "refactoring_constraints": {
+      "backward_compatibility": {
+        "decision_id": "preserve_019",
+        "content": "All refactoring must maintain backward compatibility with existing interfaces and data",
+        "added_date": "2025-01-04",
+        "compatibility_areas": [
+          "URL patterns and routing",
+          "Template variable names and structure",
+          "API response formats",
+          "Database field names and types",
+          "File paths and storage locations"
+        ],
+        "testing_requirement": "Existing functionality must be tested before and after refactoring",
+        "confidence_level": "critical",
+        "status": "active"
+      },
+      
+      "incremental_changes": {
+        "decision_id": "preserve_020",
+        "content": "Changes should be made incrementally to minimize risk of breaking existing functionality",
+        "added_date": "2025-01-04",
+        "approach": "Add new functionality alongside existing, then gradually migrate",
+        "rollback_plan": "All changes must have clear rollback procedures",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    }
+  }
+}

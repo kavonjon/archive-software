@@ -1,0 +1,98 @@
+{
+  "technical_debt_registry": {
+    "version": "1.0",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Initial context memory system setup discussion", 
+    "note": "Initial population - needs audit and expansion",
+    
+    "legacy_components": {
+      "invenio_component": {
+        "decision_id": "debt_001",
+        "content": "Invenio component exists in codebase but is legacy/inactive - cannot be removed currently",
+        "added_date": "2025-01-04",
+        "debt_type": "legacy_code",
+        "impact": "Code complexity, potential confusion for developers",
+        "removal_blockers": "Unknown dependencies or customer requirements preventing removal",
+        "mitigation": "Ignore for new development, document clearly as legacy",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["project_requirements.json"]
+      }
+    },
+    
+    "incomplete_implementations": {
+      "virus_scanning_implementation": {
+        "decision_id": "debt_002",
+        "content": "Virus scanning integration ready for development but sequenced after batch editing priorities",
+        "added_date": "2025-01-04",
+        "debt_type": "development_sequencing",
+        "current_state": "Commented out for deployment simplicity during rapid development, not a technical blocker",
+        "implementation_readiness": "Ready to develop - fits into Stage 1 (public/private infrastructure)",
+        "sequencing_rationale": "Stage 2 (batch editing) provides more immediate value to museum staff than infrastructure work",
+        "timeline": "Development Stage 1 - likely second priority after batch editing",
+        "complexity": "Low to medium - integration patterns already established",
+        "priority": "medium",
+        "confidence_level": "high",
+        "status": "ready_for_development",
+        "cross_references": ["project_requirements.json", "deployment_architecture.json"]
+      },
+      
+      "document_to_file_transition": {
+        "decision_id": "debt_003",
+        "content": "Strategic transition from Document model to File model to enable true file ingestion and better naming",
+        "added_date": "2025-01-04",
+        "debt_type": "model_evolution",
+        "current_state": "Document model handles file metadata from uploads but doesn't retain files. File model being built for true ingestion",
+        "migration_approach": "Build file management system on clean File model, then migrate data from Document to File at the end",
+        "data_volume": "Currently <100,000 records, expected to reach 10^5 order of magnitude",
+        "complexity": "Low - mostly straightforward data migration with minimal relationship complications",
+        "timeline": "Strategic priority - fits into repository management system development (Category 3)",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "planned",
+        "cross_references": ["project_requirements.json", "refactoring_roadmap.json"]
+      },
+      
+      "dual_deployment_data_sync": {
+        "decision_id": "debt_003",
+        "content": "Data synchronization mechanisms between public and private servers not fully implemented",
+        "added_date": "2025-01-04",
+        "debt_type": "incomplete_feature",
+        "impact": "Core dual-deployment functionality not operational",
+        "completion_requirements": "Bash scripts for rsync, volume configuration, bidirectional data flow",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "refactoring_roadmap.json"]
+      },
+      
+      "mode_specific_functionality": {
+        "decision_id": "debt_004",
+        "content": "Environment variable-based mode switching and mode-specific code organization incomplete",
+        "added_date": "2025-01-04",
+        "debt_type": "incomplete_feature",
+        "impact": "Cannot properly deploy to both server modes",
+        "completion_requirements": "Clear mode detection, mode-specific feature flags, deployment configuration",
+        "priority": "high",
+        "confidence_level": "high", 
+        "status": "active",
+        "cross_references": ["mode_specific_code.json", "deployment_architecture.json"]
+      }
+    },
+    
+    "architectural_inconsistencies": {
+      "endpoint_classification": {
+        "decision_id": "debt_004",
+        "content": "Internal vs public endpoint classification may not be fully implemented in codebase",
+        "added_date": "2025-01-04",
+        "debt_type": "architectural_inconsistency",
+        "impact": "Potential exposure of internal endpoints in public documentation",
+        "resolution_approach": "Audit existing endpoints, implement proper classification system",
+        "priority": "medium",
+        "confidence_level": "medium",
+        "status": "active",
+        "cross_references": ["api_classification.json", "refactoring_roadmap.json"]
+      }
+    }
+  }
+}

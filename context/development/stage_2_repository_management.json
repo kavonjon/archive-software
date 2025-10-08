@@ -1,0 +1,276 @@
+{
+  "stage_2_repository_management": {
+    "version": "1.0",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Comprehensive Stage 2 planning for repository management system implementation",
+    
+    "stage_overview": {
+      "decision_id": "stage2_001",
+      "content": "Transform system from metadata-only to full file content storage and management, transitioning from Document to File model",
+      "added_date": "2025-01-04",
+      "strategic_importance": "Enables true repository management similar to InvenioRDM but simplified for specific needs",
+      "prerequisite": "Stage 0 (React infrastructure) and Stage 1 (batch editing) must be complete",
+      "completion_criteria": "Full file ingestion, storage, and management system operational with Document→File migration complete",
+      "confidence_level": "high",
+      "status": "planned"
+    },
+    
+    "file_storage_architecture": {
+      "storage_organization": {
+        "decision_id": "stage2_002",
+        "content": "Files organized by collection handle, then catalog number, with automatic metadata JSON generation",
+        "added_date": "2025-01-04",
+        "directory_structure": "main_storage/files/{collection_handle}/{catalog_number}/[actual_files]",
+        "metadata_files": "Automatic generation of {collection_handle}-metadata.json and {catalog_number}-metadata.json in respective folders",
+        "filename_preservation": "Original filenames preserved during storage",
+        "metadata_content": "JSON files contain full account of object's information for external reference",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "file_model_architecture": {
+      "model_transition": {
+        "decision_id": "stage2_003",
+        "content": "File model replaces Document model with enhanced capabilities for actual file management",
+        "added_date": "2025-01-04",
+        "relationship_preservation": "Same relationship structure as Document model (primarily with Items)",
+        "field_mapping": "Document fields map to File fields, determined during development",
+        "enhanced_capabilities": [
+          "Automatic connection to real files on disk",
+          "Works on public server even when files are missing (metadata-only)",
+          "SHA-256 checksum storage and verification",
+          "File integrity status tracking",
+          "Processing status tracking"
+        ],
+        "access_control": "Same access level system as Items model",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "file_ingestion_system": {
+      "upload_mechanism": {
+        "decision_id": "stage2_004",
+        "content": "React-integrated upload system with resumable capability for files >1TB",
+        "added_date": "2025-01-04",
+        "upload_technology": "tus.io protocol for resumable uploads",
+        "large_file_support": "Seamless handling of files >1TB with background processing",
+        "progress_tracking": "Real-time upload progress in React UI",
+        "chunk_processing": "Streaming checksum calculation during upload (SHA-256)",
+        "ui_integration": "Integrated with Stage 1 React frontend",
+        "confidence_level": "high",
+        "status": "planned"
+      },
+      
+      "processing_pipeline": {
+        "decision_id": "stage2_005",
+        "content": "Multi-stage file processing pipeline with integrity verification and content analysis",
+        "added_date": "2025-01-04",
+        "processing_order": [
+          "1. SHA-256 checksum calculation (during upload)",
+          "2. Virus scanning",
+          "3. Metadata extraction (format, duration, technical specs)",
+          "4. Thumbnail generation",
+          "5. Video sample creation (first 30 seconds, low quality)",
+          "6. Final integrity verification"
+        ],
+        "failure_handling": {
+          "virus_scan_failure": "Retry once, then delete file and warn user. Archivists can override with risk warning",
+          "thumbnail_failure": "Log error, continue processing (non-critical)",
+          "integrity_failure": "Mark file for replacement, notify administrators"
+        },
+        "status_tracking": "Users see processing status in React UI",
+        "background_processing": "All post-upload processing via Celery tasks",
+        "confidence_level": "high",
+        "status": "planned"
+      },
+      
+      "validation_system": {
+        "decision_id": "stage2_006",
+        "content": "Comprehensive file validation during ingestion with metadata storage",
+        "added_date": "2025-01-04",
+        "validation_checks": [
+          "File type validation",
+          "File size limits",
+          "Format validation",
+          "Checksum integrity"
+        ],
+        "metadata_storage": "Validation results stored as File model fields",
+        "existing_fields": "Some validation metadata fields already exist in current model",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "file_access_system": {
+      "download_capabilities": {
+        "decision_id": "stage2_007",
+        "content": "Multiple download methods supporting large files and API integration",
+        "added_date": "2025-01-04",
+        "streaming_download": "Django StreamingHttpResponse for large file downloads",
+        "signed_urls": "Expiring download links for API consumers",
+        "api_integration": "Download links provided through both internal and public APIs",
+        "large_file_optimization": "Efficient streaming without loading entire files into memory",
+        "confidence_level": "high",
+        "status": "planned"
+      },
+      
+      "public_server_handling": {
+        "decision_id": "stage2_008",
+        "content": "File metadata sync to public server even when actual files are restricted",
+        "added_date": "2025-01-04",
+        "sync_logic": "Configurable access level filtering for file sync (default: level 1 only)",
+        "admin_ui": "Private server UI allows archivists/admins to configure which access levels sync",
+        "metadata_sync": "File metadata (size, checksum, format) syncs even when actual file doesn't",
+        "missing_file_ux": {
+          "ui": "Disabled download buttons with 'Contact archive for access' message",
+          "api": "download_available: false, download_url: null, access_message provided"
+        },
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "integrity_management": {
+      "checksum_system": {
+        "decision_id": "stage2_009",
+        "content": "SHA-256 checksums for both integrity verification and public sharing",
+        "added_date": "2025-01-04",
+        "calculation_timing": "Streaming calculation during upload (no full file in memory required)",
+        "dual_purpose": "Same checksum serves integrity verification and public user verification",
+        "storage": "Checksum stored in File model for API access",
+        "public_access": "Checksums available through public API for user verification",
+        "confidence_level": "high",
+        "status": "planned"
+      },
+      
+      "integrity_monitoring": {
+        "decision_id": "stage2_010",
+        "content": "Periodic integrity checks with administrative monitoring and file replacement system",
+        "added_date": "2025-01-04",
+        "periodic_checks": "Seldom Celery task verifies file integrity against stored checksums",
+        "status_tracking": "File integrity status stored as private metadata (archivists/admins only)",
+        "admin_interface": "UI page for archivists/admins to view integrity issues and take action",
+        "replacement_system": "Special upload feature for replacing corrupted files without full processing pipeline",
+        "replacement_process": "Verify correct checksum, replace file, resolve failure status",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "data_migration_strategy": {
+      "migration_approach": {
+        "decision_id": "stage2_011",
+        "content": "One-time manual migration from Document to File model with comprehensive verification",
+        "added_date": "2025-01-04",
+        "timing": "Manual execution when Stage 2 development is complete and ready for production",
+        "data_volume": "~100K Document records expected to migrate",
+        "migration_process": "Custom migration scripts with data integrity verification",
+        "rollback_plan": "Document model kept as backup until migration verified successful",
+        "verification_checks": "Built-in verification to ensure all Document data successfully migrated",
+        "model_retirement": "Document model retired only after successful migration verification",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "api_integration": {
+      "api_exposure": {
+        "decision_id": "stage2_012",
+        "content": "File model exposed through both internal and public APIs with appropriate filtering",
+        "added_date": "2025-01-04",
+        "internal_api": "Full CRUD access through /internal/v1/ endpoints",
+        "public_api": "Read-only access through /api/v1/ endpoints with access level filtering",
+        "serializer_strategy": "Separate serializers for internal vs public use cases",
+        "download_integration": "Download URLs provided through API responses",
+        "metadata_sharing": "File metadata available even when actual files are restricted",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "search_integration": {
+      "search_adaptation": {
+        "decision_id": "stage2_013",
+        "content": "Existing search functionality adapted for File model when migration complete",
+        "added_date": "2025-01-04",
+        "timing": "Search functionality updated during migration process",
+        "search_fields": "File metadata integrated into existing search capabilities",
+        "relationship_search": "File-Item relationships maintained in search results",
+        "confidence_level": "medium",
+        "status": "planned"
+      }
+    },
+    
+    "development_milestones": {
+      "milestone_1": {
+        "title": "File Model and Storage Infrastructure",
+        "deliverables": [
+          "Enhanced File model with all required fields",
+          "Storage organization system (collection/catalog structure)",
+          "Automatic metadata JSON generation",
+          "Basic file upload capability"
+        ]
+      },
+      "milestone_2": {
+        "title": "Processing Pipeline Implementation",
+        "deliverables": [
+          "SHA-256 checksum calculation during upload",
+          "Virus scanning integration",
+          "Metadata extraction (format, duration, etc.)",
+          "Thumbnail and video sample generation",
+          "Processing status tracking in UI"
+        ]
+      },
+      "milestone_3": {
+        "title": "Large File and Download Systems",
+        "deliverables": [
+          "Resumable upload system (tus.io)",
+          "Streaming download capability",
+          "Signed URL generation for API",
+          "Large file optimization (>1TB support)"
+        ]
+      },
+      "milestone_4": {
+        "title": "Integrity and Public Server Integration",
+        "deliverables": [
+          "Periodic integrity checking system",
+          "Administrative integrity monitoring UI",
+          "File replacement system for corrupted files",
+          "Public server sync with access level filtering"
+        ]
+      },
+      "milestone_5": {
+        "title": "Migration and API Integration",
+        "deliverables": [
+          "Document→File migration scripts with verification",
+          "Internal and public API endpoints",
+          "Search functionality adaptation",
+          "Complete Document model retirement"
+        ]
+      }
+    },
+    
+    "success_criteria": {
+      "stage_completion": {
+        "decision_id": "stage2_014",
+        "content": "Stage 2 complete when full repository management system operational with successful Document→File migration",
+        "added_date": "2025-01-04",
+        "functional_requirements": [
+          "Seamless file ingestion for files of any size including >1TB",
+          "Complete processing pipeline with integrity verification",
+          "Public server file sync with access level control",
+          "Administrative tools for integrity monitoring and file management",
+          "All Document model data successfully migrated to File model",
+          "API integration for both internal and public access"
+        ],
+        "performance_requirements": "System handles expected file volumes and sizes without performance degradation",
+        "data_integrity": "100% successful migration with verification checks passed",
+        "user_acceptance": "Museum staff can efficiently manage file ingestion and access",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    }
+  }
+}

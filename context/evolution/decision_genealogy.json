@@ -1,0 +1,72 @@
+{
+  "decision_genealogy": {
+    "version": "1.0",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Initial context memory system setup discussion",
+    "note": "Initial population - needs audit and expansion",
+    
+    "api_evolution_history": {
+      "original_architecture": {
+        "decision_id": "genealogy_001",
+        "content": "Project started as Django templates with patchwork of JSON and DRF endpoints for internal data fetching",
+        "added_date": "2025-01-04",
+        "historical_context": "Early development focused on template-based UI with ad-hoc API endpoints as needed",
+        "why_this_approach": "Standard Django development pattern, met initial requirements",
+        "confidence_level": "high",
+        "status": "deprecated",
+        "superseded_by": "genealogy_002"
+      },
+      
+      "api_requirement_emergence": {
+        "decision_id": "genealogy_002", 
+        "content": "Customer requirement for public-facing API emerged mid-development, necessitating structured DRF API",
+        "added_date": "2025-01-04",
+        "historical_context": "Requirements evolved to need external API access",
+        "why_this_approach": "Customer needed public API functionality that wasn't part of original scope",
+        "impact_on_existing_code": "Created need to distinguish internal template endpoints from public API endpoints",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["architectural_decisions.json", "api_classification.json"]
+      }
+    },
+    
+    "deployment_evolution_history": {
+      "single_deployment_original": {
+        "decision_id": "genealogy_003",
+        "content": "Project originally designed for single deployment model",
+        "added_date": "2025-01-04",
+        "historical_context": "Initial requirements assumed single-server deployment",
+        "why_this_approach": "Simpler architecture met original requirements",
+        "confidence_level": "medium",
+        "status": "deprecated", 
+        "superseded_by": "genealogy_004"
+      },
+      
+      "dual_deployment_pivot": {
+        "decision_id": "genealogy_004",
+        "content": "Mid-development pivot to dual-deployment architecture due to security and access requirements",
+        "added_date": "2025-01-04",
+        "historical_context": "Requirements changed to need both public access and secure internal processing",
+        "why_this_approach": "Customer needed public/private separation for security while maintaining deployment simplicity",
+        "impact_on_existing_code": "Required rethinking of deployment strategy and code organization",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["architectural_decisions.json", "deployment_architecture.json"]
+      }
+    },
+    
+    "code_organization_decisions": {
+      "monorepo_choice": {
+        "decision_id": "genealogy_005",
+        "content": "Decision to maintain monorepo despite dual-deployment complexity rather than splitting repositories",
+        "added_date": "2025-01-04",
+        "historical_context": "Could have split into separate repos but was not an option at that development stage",
+        "why_this_approach": "Splitting repos wasn't feasible, monorepo enables shared codebase with simple deployment",
+        "trade_offs": "Increased complexity in codebase vs. simplified deployment for customer",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["architectural_decisions.json", "mode_specific_code.json"]
+      }
+    }
+  }
+}

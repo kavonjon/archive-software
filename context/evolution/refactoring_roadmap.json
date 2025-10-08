@@ -1,0 +1,59 @@
+{
+  "refactoring_roadmap": {
+    "version": "1.0",
+    "last_updated": "2025-01-04", 
+    "conversation_reference": "Initial context memory system setup discussion",
+    "note": "Initial population - needs audit and expansion",
+    
+    "api_endpoint_consolidation": {
+      "area": "API Architecture",
+      "decision_id": "refactor_001",
+      "content": "Simplify API authentication from complex OAuth2 to two-tier system: OAI-PMH (no auth) + API key (privileged)",
+      "added_date": "2025-01-04",
+      "current_state": "Complex OAuth2 setup designed for write operations that are outside MVP",
+      "target_state": "Simple two-tier read-only API with future extensibility for write operations",
+      "implementation_steps": [
+        "Create OAI-PMH optimized serializer with discovery fields (title, creator, date, subject)",
+        "Implement HasValidAPIKey permission class for privileged access",
+        "Add rate limiting: 1000 req/hour (public), 100,000 req/hour (privileged)",
+        "Create APIKey model for managing approved applications",
+        "Design extensibility for future write operations and collection-level restrictions"
+      ],
+      "readiness_status": "ready_for_development",
+      "priority": "medium",
+      "rationale": "Current OAuth2 complexity was designed for features outside MVP scope",
+      "preservation_requirements": "Maintain existing API endpoints during transition, ensure backward compatibility",
+      "confidence_level": "high",
+      "status": "planned",
+      "cross_references": ["project_requirements.json", "api_classification.json"]
+    },
+    
+    "dual_deployment_implementation": {
+      "area": "Deployment Architecture", 
+      "decision_id": "refactor_002",
+      "content": "Complete implementation of dual-deployment architecture - data sync mechanisms, mode-specific functionality",
+      "added_date": "2025-01-04",
+      "readiness_status": "in_progress",
+      "priority": "high",
+      "rationale": "Architecture is defined but implementation incomplete",
+      "implementation_notes": "Focus on bash scripts for data sync, environment variable-based mode switching",
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["deployment_architecture.json", "mode_specific_code.json"]
+    },
+    
+    "general_refactoring_strategy": {
+      "area": "Overall Architecture",
+      "decision_id": "refactor_003", 
+      "content": "Strategic approach needed for refactoring evolutionary architecture - preserve critical functionality while modernizing",
+      "added_date": "2025-01-04",
+      "readiness_status": "needs_planning",
+      "priority": "ongoing",
+      "rationale": "Code has evolved through multiple phases, layers of decisions need strategic refactoring approach",
+      "key_consideration": "When to proceed with refactoring vs when to hold off to avoid breaking existing functionality",
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["decision_genealogy.json", "preservation_rules.json", "technical_debt_registry.json"]
+    }
+  }
+}

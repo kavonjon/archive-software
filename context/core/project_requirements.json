@@ -1,0 +1,364 @@
+{
+  "project_requirements": {
+    "version": "1.1",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Codebase analysis and requirement clarification",
+    
+    "core_purpose": {
+      "decision_id": "core_purpose_001",
+      "content": "Native American Languages (NAL) Archive - digital repository management system for cultural and linguistic heritage materials, operated by Sam Noble Oklahoma Museum of Natural History at the University of Oklahoma. Mission is supporting Native communities and researchers in language revitalization and cultural preservation",
+      "added_date": "2025-01-04",
+      "confidence_level": "high",
+      "status": "active"
+    },
+    
+    "system_architecture": {
+      "decision_id": "system_arch_001",
+      "content": "Django archive system with rich metadata tracking: Items → Files → Collections → Collaborators → Languages/Languoids. Files model contains metadata about actual files to be ingested, replacing legacy Documents model",
+      "added_date": "2025-01-04",
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["data_model_understanding.json", "technical_debt_registry.json"]
+    },
+    
+    "repository_management": {
+      "decision_id": "repo_mgmt_001",
+      "content": "Moving from metadata-only system to full file content storage and management, similar to InvenioRDM but simplified to meet specific needs. Must store actual file content, not just metadata pointers",
+      "added_date": "2025-01-04",
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["technical_debt_registry.json", "refactoring_roadmap.json"]
+    },
+    
+    "deployment_requirements": {
+      "dual_server_architecture": {
+        "decision_id": "deploy_arch_001",
+        "content": "Dual-deployment architecture with private server (full files + complete metadata) and public server (subset of files + sanitized metadata). Private server serves museum staff, public server serves API for separate public website. Automated sync processes push curated content from private to public",
+        "added_date": "2025-01-04",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json"]
+      },
+      
+      "monorepo_approach": {
+        "decision_id": "deploy_arch_002", 
+        "content": "Single codebase with SERVER_ROLE environment variable controlling behavior. Docker configurations for public/private modes with different storage paths, Celery queues, and feature availability. Customer deploys same codebase to both servers with different environment configurations",
+        "added_date": "2025-01-04",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["architectural_decisions.json", "mode_specific_code.json"]
+      }
+    },
+    
+      "api_requirements": {
+        "public_api_access": {
+          "decision_id": "api_access_001", 
+          "content": "Two-tier public API access: (1) Open OAI-PMH harvesting with no authentication, (2) API key access for approved applications",
+          "added_date": "2025-01-04",
+          "access_levels": {
+            "oai_pmh_public": "No authentication required, OAI-PMH optimized serializer with discovery fields (title, creator, date, subject), standard rate limiting (1000 req/hour)",
+            "privileged_api_key": "API key required for full metadata access and file download links, very generous rate limits (100,000 req/hour) for trusted applications"
+          },
+          "use_cases": {
+            "oai_pmh": "Automated metadata harvesting for discovery systems",
+            "privileged": "Approved public website displaying full metadata with file access (likely single main application)"
+          },
+          "mvp_scope": "Read-only access only, but architected for future write operations and collection-level restrictions",
+          "authentication_approach": {
+            "oai_pmh": "AllowAny permission class",
+            "privileged": "Custom API key authentication (HasValidAPIKey permission class)"
+          },
+          "confidence_level": "high",
+          "status": "active",
+          "cross_references": ["api_classification.json"]
+        },
+      "public_api": {
+        "decision_id": "api_req_001",
+        "content": "Public-facing DRF API serves completely separate public website. OAuth2 authentication with read/write scopes. API endpoints must be properly documented and classified",
+        "added_date": "2025-01-04",
+        "confidence_level": "high", 
+        "status": "active",
+        "cross_references": ["api_classification.json"]
+      },
+      
+      "internal_endpoints": {
+        "decision_id": "api_req_002",
+        "content": "Internal endpoints serve museum staff web application and should NOT appear in public API documentation. Distinction between internal template data endpoints and public API endpoints needs proper implementation",
+        "added_date": "2025-01-04",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["api_classification.json"]
+      }
+    },
+    
+    "content_types": {
+      "decision_id": "content_types_001",
+      "content": "System handles diverse cultural content: audio/video recordings (ceremonial, music, interviews, narratives), publications (books, articles, theses), manuscripts, images/photographs, 3D objects, ephemera, educational materials, historical and ethnographic content, traditional stories, prayers, and cultural practices",
+      "added_date": "2025-01-04",
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["cultural_context.json", "data_model_understanding.json"]
+    },
+    
+    "data_entities": {
+      "decision_id": "data_entities_001", 
+      "content": "Core entities include Items (catalog entries with rich metadata), Collections (organized groupings), Collaborators (people involved, including anonymous contributors), Languages (with dialect information), Documents/Files (actual digital assets)",
+      "added_date": "2025-01-04",
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["data_model_understanding.json"]
+    },
+    
+    "legacy_components": {
+      "invenio_status": {
+        "decision_id": "legacy_001",
+        "content": "Invenio component exists in codebase but is legacy/inactive. Cannot be removed currently but should be ignored for new development",
+        "added_date": "2025-01-04", 
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["technical_debt_registry.json"]
+      }
+    },
+    
+    "user_roles": {
+      "decision_id": "user_roles_001",
+      "content": "Simple permission model with four roles: Administrators (site admins, full access), Museum Staff (same privileges as Archivists), Archivists (all data operations), Read-only (view all data, no changes). Web application serves museum staff only - API serves separate public website",
+      "added_date": "2025-01-04",
+      "roles_detail": {
+        "administrators": "Django superusers with full system access",
+        "museum_staff": "New group with same privileges as Archivists for broader staff access",
+        "archivists": "Full data operations - create, edit, delete, import, export",
+        "read_only": "View access to all data without modification rights"
+      },
+      "implementation": "Django groups-based permissions - no sophisticated privilege system needed",
+      "confidence_level": "high",
+      "status": "active", 
+      "cross_references": ["user_workflows.json", "cultural_context.json"]
+    },
+    
+    "special_collections": {
+      "decision_id": "special_collections_001",
+      "content": "Reference collection exists as one collection in system requiring minor special handling, no architectural impact",
+      "added_date": "2025-01-04",
+      "confidence_level": "medium",
+      "status": "active"
+    },
+    
+    "cultural_sensitivity_requirements": {
+      "decision_id": "cultural_sensitivity_001",
+      "content": "Sophisticated 4-level access control system for cultural materials. Anonymous collaborator protection for cultural safety. Graduated access based on material sensitivity and community control",
+      "added_date": "2025-01-04",
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["cultural_context.json", "preservation_rules.json"]
+    },
+    
+    "file_processing_requirements": {
+      "virus_scanning": {
+        "decision_id": "file_proc_001",
+        "content": "MVP requirement: Virus scanning integration for all uploaded files with multi-stage quarantine system. Currently commented out in deployment for simplicity but must be implemented",
+        "added_date": "2025-01-04",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "architectural_decisions.json"]
+      },
+      
+      "cross_server_transfer": {
+        "decision_id": "file_proc_002",
+        "content": "Secure file transfer mechanism from public server quarantine to private server ingestion with automated monitoring and processing",
+        "added_date": "2025-01-04",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json"]
+      },
+      
+      "automatic_cleanup": {
+        "decision_id": "file_proc_003",
+        "content": "Automated cleanup processes for temporary files (24+ hours old) running every 6 hours via Celery scheduled tasks",
+        "added_date": "2025-01-04",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json"]
+      }
+    },
+    
+    "database_synchronization_requirements": {
+      "event_driven_sync": {
+        "decision_id": "db_sync_001",
+        "content": "Event-driven database synchronization between private and public servers triggered by model changes with batching within time windows",
+        "added_date": "2025-01-04",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["architectural_decisions.json", "deployment_architecture.json"]
+      },
+      
+      "checksum_change_detection": {
+        "decision_id": "db_sync_002",
+        "content": "Checksum-based change detection for reliable incremental sync with content hash fields on all synchronized models",
+        "added_date": "2025-01-04",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["architectural_decisions.json"]
+      },
+      
+      "retry_rollback_logic": {
+        "decision_id": "db_sync_003",
+        "content": "Comprehensive retry logic (3 attempts with exponential backoff) and transaction-based rollback on partial failures with detailed logging",
+        "added_date": "2025-01-04",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json"]
+      },
+      
+      "field_filtering": {
+        "decision_id": "db_sync_004",
+        "content": "Automatic field filtering during export to exclude sensitive data from public database with private server always winning conflicts",
+        "added_date": "2025-01-04",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["cultural_context.json", "architectural_decisions.json"]
+      }
+    },
+    
+    "storage_architecture_requirements": {
+      "seven_volume_system": {
+        "decision_id": "storage_001",
+        "content": "Seven distinct storage volumes with specific purposes: upload_quarantine, scan_output, ingest_queue, main_storage, public_storage, temp_storage, sync_data",
+        "added_date": "2025-01-04",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "architectural_decisions.json"]
+      },
+      
+      "organized_file_structure": {
+        "decision_id": "storage_002",
+        "content": "Organized file storage structure by collection abbreviation and catalog number: {storage}/files/{collection_abbr}/{catalog_number}/ and {storage}/metadata/{collection_abbr}/{catalog_number}/",
+        "added_date": "2025-01-04",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "data_model_understanding.json"]
+      }
+    },
+    
+    "temporary_access_requirements": {
+      "archivist_controlled_sharing": {
+        "decision_id": "temp_access_001",
+        "content": "Beyond MVP: Archivist interface for selective temporary file sharing - select specific files to make temporarily accessible on public server",
+        "added_date": "2025-01-04",
+        "priority": "beyond_mvp",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "user_workflows.json"]
+      },
+      
+      "temp_storage_infrastructure": {
+        "decision_id": "temp_access_002",
+        "content": "MVP: temp_storage volume and automated cleanup infrastructure must exist even though push mechanism is beyond MVP",
+        "added_date": "2025-01-04",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json"]
+      }
+    },
+    
+    "batch_editing_requirements": {
+      "decision_id": "batch_edit_001",
+      "content": "Smart spreadsheet interface for batch editing of multiple models with rich data validation and permission integration",
+      "added_date": "2025-01-04",
+      "model_coverage": [
+        "Languoid (language/dialect information)",
+        "Collaborator (people and roles)",
+        "Item (catalog entries and metadata)"
+      ],
+      "ui_design": {
+        "interface": "Spreadsheet-like view where columns correspond to model fields",
+        "smart_cells": "Cells display human-friendly text initially, switch to machine-readable JSON with rich UI when clicked",
+        "validation_approach": "Per-cell validation via internal API endpoints, invalid cells turn red",
+        "save_behavior": "Save operation blocked if any validation errors exist"
+      },
+      "permission_integration": "Must completely respect existing permission system (Archivist/Museum Staff/Read-only roles)",
+      "development_priority": "Development Stage 2 - likely first priority before infrastructure work",
+      "rationale": "Provides immediate value to museum staff for daily operations",
+      "confidence_level": "high",
+      "status": "planned",
+      "cross_references": ["user_workflows.json", "preservation_rules.json"]
+    },
+    
+    "development_stage_priorities": {
+      "decision_id": "dev_stages_001",
+      "content": "Five major development stages with strategic prioritization based on immediate value vs infrastructure needs",
+      "added_date": "2025-01-04",
+      "stage_priorities": {
+        "stage_0": "React frontend architecture migration (foundation for all future UI development)",
+        "stage_1": "Batch editing features with smart spreadsheet interface (immediate staff value)",
+        "stage_2": "Repository management system implementation (Document→File transition, true file ingestion)",
+        "stage_3": "Public/private infrastructure and file management operations (virus scanning, cross-server sync, database sync)",
+        "stage_4": "Miscellaneous improvements to existing functionality"
+      },
+      "sequencing_rationale": "Stage 0 enables modern UI development. Stage 1 provides immediate value to museum staff daily workflows. Stage 2 improves core functionality. Stage 3 enables public access capabilities.",
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["refactoring_roadmap.json", "technical_debt_registry.json", "stage_0_react_migration.json", "stage_1_batch_editing.json"]
+    },
+      "documents_to_files_migration": {
+        "decision_id": "mvp_001",
+        "content": "High priority: Migrate Documents model to Files model including production data migration. System currently deployed in private mode with real data",
+        "added_date": "2025-01-04",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["technical_debt_registry.json", "refactoring_roadmap.json"]
+      },
+      
+      "file_ingestion": {
+        "decision_id": "mvp_002", 
+        "content": "High priority: Implement full file content storage and ingestion system, moving from metadata-only to actual repository management",
+        "added_date": "2025-01-04",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["technical_debt_registry.json"]
+      },
+      
+      "sync_automation": {
+        "decision_id": "mvp_003",
+        "content": "High priority: Complete automated sync processes for private→public file and metadata synchronization with event-driven, checksum-based incremental sync",
+        "added_date": "2025-01-04", 
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "technical_debt_registry.json"]
+      },
+      
+      "virus_scanning_implementation": {
+        "decision_id": "mvp_005",
+        "content": "High priority: Implement virus scanning architecture with multi-stage quarantine system. Infrastructure ready, commented out only for deployment simplicity",
+        "added_date": "2025-01-04",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["deployment_architecture.json", "architectural_decisions.json"]
+      },
+      
+      "api_classification": {
+        "decision_id": "mvp_004",
+        "content": "Medium priority: Implement proper internal vs public API endpoint classification system for documentation control",
+        "added_date": "2025-01-04",
+        "priority": "medium", 
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["api_classification.json", "refactoring_roadmap.json"]
+      }
+    }
+  }
+}

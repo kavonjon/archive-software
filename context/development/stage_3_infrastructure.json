@@ -1,0 +1,409 @@
+{
+  "stage_3_infrastructure": {
+    "version": "1.0",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Comprehensive Stage 3 planning for public/private infrastructure implementation",
+    
+    "stage_overview": {
+      "decision_id": "stage3_001",
+      "content": "Complete implementation of dual-deployment infrastructure with cross-server communication, virus scanning, and database synchronization",
+      "added_date": "2025-01-04",
+      "strategic_importance": "Enables public access capabilities while maintaining security isolation and cultural sensitivity controls",
+      "prerequisite": "Stage 2 (repository management) must be complete for file processing integration",
+      "completion_criteria": "Full public/private server communication operational with secure file and data synchronization",
+      "confidence_level": "high",
+      "status": "planned"
+    },
+    
+    "storage_volume_implementation": {
+      "seven_volume_system": {
+        "decision_id": "stage3_002",
+        "content": "Complete implementation of 7-volume storage architecture with clear data flow separation",
+        "added_date": "2025-01-04",
+        "public_server_volumes": {
+          "upload_quarantine": {
+            "purpose": "Initial file upload destination from external sources",
+            "access_pattern": "Write: upload processes, Read: virus scanner",
+            "cleanup_policy": "Files moved to scan_output after virus scanning"
+          },
+          "scan_output": {
+            "purpose": "Clean files after virus scanning, awaiting private server pickup",
+            "access_pattern": "Write: virus scanner, Read: private server copy process",
+            "cleanup_policy": "Files copied by private server, then removed"
+          },
+          "public_storage": {
+            "purpose": "Final curated files for public access",
+            "access_pattern": "Write: private server publishing, Read: nginx (public access), API",
+            "organization": "By collection abbreviation and catalog number: /files/{collection_abbr}/{catalog_number}/"
+          },
+          "temp_storage": {
+            "purpose": "Temporary restricted access file sharing",
+            "access_pattern": "Write: private server (future), Read: nginx (temporary access)",
+            "cleanup_policy": "Files older than 24 hours removed every 6 hours via Celery task",
+            "mvp_status": "Volume exists, cleanup implemented, push mechanism beyond MVP"
+          },
+          "sync_data": {
+            "purpose": "Database synchronization data exchange",
+            "access_pattern": "Write: private server export tasks, Read: public server import tasks",
+            "file_format": "Timestamped JSON files with incremental changes"
+          }
+        },
+        "private_server_volumes": {
+          "ingest_queue": {
+            "purpose": "Files copied from public server, awaiting final ingestion",
+            "access_pattern": "Write: cross-server copy process, Read: private server ingestion, virus scanner",
+            "cleanup_policy": "Files moved to main_storage after ingestion"
+          },
+          "main_storage": {
+            "purpose": "Complete file repository with full archive content",
+            "access_pattern": "Write: ingestion processes, Read: museum staff, publishing processes",
+            "organization": "main_storage/files/{collection_abbr}/{catalog_number}/ and main_storage/metadata/{collection_abbr}/{catalog_number}/"
+          }
+        },
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "file_processing_pipeline": {
+      "eight_step_pipeline": {
+        "decision_id": "stage3_003",
+        "content": "Complete 8-step file processing pipeline from upload to final storage and publishing",
+        "added_date": "2025-01-04",
+        "pipeline_implementation": [
+          {
+            "step": 1,
+            "action": "Upload to Public",
+            "location": "upload_quarantine (public server)",
+            "implementation": "React frontend file upload integration",
+            "monitoring": "Upload progress tracking in UI"
+          },
+          {
+            "step": 2,
+            "action": "Public Virus Scan",
+            "location": "upload_quarantine → scan_output (public server)",
+            "implementation": "Virus scanner service monitors upload_quarantine every 5 minutes",
+            "error_handling": "Failed scans delete files and notify users"
+          },
+          {
+            "step": 3,
+            "action": "Cross-Server Copy",
+            "location": "scan_output (public) → ingest_queue (private)",
+            "implementation": "Private server rsync script monitors scan_output and copies files",
+            "security": "SSH-based file transfer on custom port"
+          },
+          {
+            "step": 4,
+            "action": "Private Ingestion",
+            "location": "ingest_queue → main_storage (private)",
+            "implementation": "Private server ingestion process with optional secondary virus scan",
+            "integration": "Connects to Stage 2 file processing pipeline"
+          },
+          {
+            "step": 5,
+            "action": "Private Publishing Process",
+            "location": "main_storage (private) → public_storage (public) + sync_data (public)",
+            "implementation": "Curated file publishing with access level filtering and database export generation",
+            "filtering": "Only access level 1 files by default, configurable by archivists"
+          },
+          {
+            "step": 6,
+            "action": "Public Database Sync",
+            "location": "sync_data (public) → Public database",
+            "implementation": "Public server monitors sync_data and processes incremental updates",
+            "validation": "Checksum verification and transaction-based rollback"
+          },
+          {
+            "step": 7,
+            "action": "Temporary Sharing",
+            "location": "main_storage (private) → temp_storage (public)",
+            "implementation": "Beyond MVP - archivist-controlled temporary file sharing",
+            "status": "Infrastructure ready, feature implementation beyond MVP"
+          },
+          {
+            "step": 8,
+            "action": "Automatic Cleanup",
+            "location": "temp_storage (public)",
+            "implementation": "Celery task removes files older than 24 hours every 6 hours",
+            "status": "MVP implementation ready"
+          }
+        ],
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "virus_scanning_system": {
+      "multi_stage_scanning": {
+        "decision_id": "stage3_004",
+        "content": "Defense-in-depth virus scanning at multiple pipeline points",
+        "added_date": "2025-01-04",
+        "scanning_architecture": {
+          "public_server_scanner": {
+            "location": "Public server",
+            "reads_from": "upload_quarantine",
+            "writes_to": "scan_output",
+            "scan_interval": "Every 5 minutes",
+            "purpose": "Initial scan before cross-server transfer",
+            "failure_handling": "Delete file and notify user, archivists can override with risk warning"
+          },
+          "private_server_scanner": {
+            "location": "Private server",
+            "reads_from": "ingest_queue",
+            "writes_to": "main_storage",
+            "scan_interval": "Every 5 minutes",
+            "purpose": "Additional scanning layer before final storage",
+            "optional": "Can be configured as optional secondary scan"
+          }
+        },
+        "implementation_status": "Currently commented out for deployment simplicity, ready to uncomment and configure",
+        "docker_services": "virus-scanner services defined in docker-compose files",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "cross_server_communication": {
+      "network_security_model": {
+        "decision_id": "stage3_005",
+        "content": "Unidirectional network access with volume-based data exchange for maximum security",
+        "added_date": "2025-01-04",
+        "connectivity": {
+          "private_to_public": "SSH access on custom port for file transfer and data sync",
+          "public_to_private": "No access - complete network isolation",
+          "communication_method": "Volume-based rsync operations, no direct API calls"
+        },
+        "security_benefits": [
+          "Private server protected behind university firewall",
+          "Minimal attack surface - no direct server-to-server API calls",
+          "Private server controls timing and content of all data transfers",
+          "Cultural sensitivity maintained through access level filtering"
+        ],
+        "implementation": "Bash scripts with rsync for file transfer, Celery tasks for volume monitoring",
+        "confidence_level": "high",
+        "status": "planned"
+      },
+      
+      "file_synchronization": {
+        "decision_id": "stage3_006",
+        "content": "Private server actively pulls files from public server and pushes curated content back",
+        "added_date": "2025-01-04",
+        "pull_operations": {
+          "source": "scan_output (public server)",
+          "destination": "ingest_queue (private server)",
+          "method": "rsync over SSH",
+          "monitoring": "Private server Celery task monitors scan_output periodically",
+          "cleanup": "Files removed from scan_output after successful copy"
+        },
+        "push_operations": {
+          "source": "main_storage (private server)",
+          "destination": "public_storage (public server)",
+          "filtering": "Access level based filtering (default: level 1 only)",
+          "method": "rsync over SSH with selective file copying",
+          "admin_control": "Archivist UI to configure which access levels sync"
+        },
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "database_synchronization": {
+      "event_driven_sync": {
+        "decision_id": "stage3_007",
+        "content": "Sophisticated database synchronization with checksum-based change detection and incremental updates",
+        "added_date": "2025-01-04",
+        "sync_architecture": {
+          "trigger_mechanism": "Django model signals trigger sync tasks with batching within time windows",
+          "change_detection": "SHA-256 checksums calculated for changed records, compared with stored checksums",
+          "export_generation": "Private server Celery tasks collect changed records and generate incremental JSON exports",
+          "file_format": "Timestamped JSON files written to sync_data volume",
+          "import_processing": "Public server monitors sync_data volume and processes files chronologically"
+        },
+        "reliability_features": {
+          "conflict_resolution": "Private server always wins - no conflict detection needed",
+          "retry_logic": "3 attempts with exponential backoff for failed operations",
+          "rollback_policy": "Transaction-based rollback of entire file on any failure",
+          "field_filtering": "Exclude sensitive fields during export to public server",
+          "cleanup_policy": "Remove processed files after success, keep failed files for debugging"
+        },
+        "performance_optimization": {
+          "incremental_only": "Only changed records exported, not full database dumps",
+          "batching": "Multiple changes batched within time windows to reduce sync frequency",
+          "checksum_efficiency": "Checksums stored to avoid recalculation"
+        },
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "cultural_sensitivity_integration": {
+      "access_level_filtering": {
+        "decision_id": "stage3_008",
+        "content": "Comprehensive access level filtering system protecting culturally sensitive materials",
+        "added_date": "2025-01-04",
+        "filtering_implementation": {
+          "default_behavior": "Only access level 1 materials sync to public server",
+          "admin_configuration": "Private server UI allows archivists/admins to configure which access levels sync",
+          "file_sync_filtering": "File publishing process respects access level settings",
+          "database_sync_filtering": "Database exports filter records based on access level configuration",
+          "metadata_sync": "File metadata syncs even when actual files are restricted"
+        },
+        "cultural_protection": {
+          "public_server_subset": "Public server contains only culturally appropriate materials",
+          "private_server_complete": "Private server maintains complete archive with all access levels",
+          "field_level_filtering": "Sensitive fields excluded from public database sync",
+          "serializer_control": "DRF serializers handle field filtering for different access levels"
+        },
+        "confidence_level": "critical",
+        "status": "planned"
+      }
+    },
+    
+    "administrative_interfaces": {
+      "sync_configuration_ui": {
+        "decision_id": "stage3_009",
+        "content": "Administrative interface for controlling cross-server synchronization settings",
+        "added_date": "2025-01-04",
+        "interface_features": [
+          "Configure which access levels sync to public server",
+          "Monitor file and database synchronization status",
+          "View sync operation logs and error reports",
+          "Manual trigger for sync operations",
+          "Virus scanning configuration and monitoring",
+          "Volume usage and cleanup status"
+        ],
+        "access_control": "Available only on private server for archivists and administrators",
+        "integration": "Built into React frontend from Stage 0/1",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "server_mode_implementation": {
+      "environment_variable_control": {
+        "decision_id": "stage3_010",
+        "content": "Complete SERVER_ROLE environment variable implementation for mode-specific behavior",
+        "added_date": "2025-01-04",
+        "existing_implementation": {
+          "storage_paths": "Different storage path configurations based on SERVER_ROLE",
+          "celery_queues": "Role-based task routing (public/private/common queues)",
+          "docker_deployment": "Separate compose files with appropriate volume mounts",
+          "task_behavior": "Mode-specific Celery task behavior already implemented"
+        },
+        "stage_3_enhancements": {
+          "sync_operations": "Enable cross-server sync tasks based on server role",
+          "virus_scanning": "Activate virus scanning services based on server configuration",
+          "ui_features": "Show/hide administrative features based on server role",
+          "api_endpoints": "Enable/disable sync-related API endpoints based on role"
+        },
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "temporary_access_system": {
+      "temp_storage_infrastructure": {
+        "decision_id": "stage3_011",
+        "content": "Temporary file sharing infrastructure with automated cleanup (push mechanism beyond MVP)",
+        "added_date": "2025-01-04",
+        "mvp_implementation": {
+          "volume_setup": "temp_storage volume configured on public server",
+          "cleanup_automation": "Celery task removes files older than 24 hours every 6 hours",
+          "nginx_integration": "Nginx configured to serve files from temp_storage with appropriate access controls"
+        },
+        "beyond_mvp_features": {
+          "archivist_interface": "UI for archivists to select files for temporary sharing",
+          "push_mechanism": "Private server pushes selected files to public temp_storage",
+          "access_control": "Time-limited access URLs for temporary file sharing"
+        },
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "development_milestones": {
+      "milestone_1": {
+        "title": "Volume Architecture and Monitoring",
+        "deliverables": [
+          "Complete 7-volume system implementation",
+          "Celery tasks for volume monitoring",
+          "File processing pipeline integration",
+          "Basic cross-server file transfer"
+        ]
+      },
+      "milestone_2": {
+        "title": "Virus Scanning Integration",
+        "deliverables": [
+          "Uncomment and configure virus scanning services",
+          "Multi-stage scanning pipeline implementation",
+          "Error handling and user notification system",
+          "Administrative monitoring interface"
+        ]
+      },
+      "milestone_3": {
+        "title": "Database Synchronization System",
+        "deliverables": [
+          "Event-driven sync with Django signals",
+          "Checksum-based change detection",
+          "Incremental JSON export generation",
+          "Import processing with retry/rollback logic"
+        ]
+      },
+      "milestone_4": {
+        "title": "Cultural Sensitivity and Access Control",
+        "deliverables": [
+          "Access level filtering implementation",
+          "Administrative configuration UI",
+          "Field-level filtering for sensitive data",
+          "Public server subset verification"
+        ]
+      },
+      "milestone_5": {
+        "title": "Complete Integration and Testing",
+        "deliverables": [
+          "End-to-end pipeline testing",
+          "Performance optimization",
+          "Administrative dashboards",
+          "Documentation and deployment procedures"
+        ]
+      }
+    },
+    
+    "performance_considerations": {
+      "scalability_planning": {
+        "decision_id": "stage3_012",
+        "content": "System designed to handle expected file volumes and synchronization loads",
+        "added_date": "2025-01-04",
+        "file_processing": "Pipeline handles large files (>1TB) without blocking other operations",
+        "sync_efficiency": "Incremental sync reduces bandwidth and processing requirements",
+        "volume_monitoring": "Efficient monitoring without excessive resource usage",
+        "batch_processing": "Sync operations batched to reduce overhead",
+        "confidence_level": "medium",
+        "status": "planned"
+      }
+    },
+    
+    "success_criteria": {
+      "stage_completion": {
+        "decision_id": "stage3_013",
+        "content": "Stage 3 complete when full dual-deployment infrastructure is operational with secure communication",
+        "added_date": "2025-01-04",
+        "functional_requirements": [
+          "Complete 8-step file processing pipeline operational",
+          "Multi-stage virus scanning integrated and functioning",
+          "Cross-server file synchronization working reliably",
+          "Database synchronization with checksum-based change detection",
+          "Access level filtering protecting culturally sensitive materials",
+          "Administrative interfaces for monitoring and configuration",
+          "Temporary file sharing infrastructure (cleanup MVP, push beyond MVP)"
+        ],
+        "security_requirements": "Network isolation maintained while enabling necessary data flows",
+        "cultural_requirements": "Cultural sensitivity controls fully operational",
+        "performance_requirements": "System handles expected loads without degradation",
+        "operational_requirements": "Administrative staff can monitor and manage all sync operations",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    }
+  }
+}

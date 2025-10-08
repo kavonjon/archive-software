@@ -1,0 +1,205 @@
+{
+  "api_classification": {
+    "version": "1.1",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Codebase analysis of existing endpoint structure",
+    
+    "classification_principles": {
+      "public_api_criteria": {
+        "decision_id": "api_class_001",
+        "content": "Public API endpoints serve external consumers and separate public website. Must be documented, versioned, and OAuth2 authenticated",
+        "added_date": "2025-01-04",
+        "characteristics": [
+          "OAuth2 token authentication required",
+          "Comprehensive OpenAPI documentation",
+          "Versioned with beta/stable paths",
+          "Read-only access for external consumers",
+          "Designed for separate public website consumption"
+        ],
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "internal_api_criteria": {
+        "decision_id": "api_class_002",
+        "content": "Internal API endpoints serve Django template frontend and museum staff workflows. Session-based auth, not documented publicly",
+        "added_date": "2025-01-04",
+        "characteristics": [
+          "Django session authentication",
+          "Serve template-based frontend needs",
+          "Support museum staff workflows",
+          "Not included in public API documentation",
+          "May include write operations for staff"
+        ],
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "current_endpoint_mapping": {
+      "public_api_endpoints": {
+        "base_path": "/api/",
+        "authentication": "OAuth2 token required",
+        "documentation": "Available at /api/docs/ and /api/redoc/",
+        "endpoints": {
+          "items": {
+            "paths": ["/api/beta/v1/items/", "/api/v1/items/"],
+            "methods": ["GET"],
+            "description": "Archive items with metadata",
+            "permission_class": "IsAdminOrHasToken",
+            "viewset": "ItemViewSet",
+            "serializers": ["ItemListSerializer", "ItemDetailSerializer"],
+            "openapi_documented": true
+          },
+          "collections": {
+            "paths": ["/api/beta/v1/collections/", "/api/v1/collections/"],
+            "methods": ["GET"],
+            "description": "Archive collections",
+            "permission_class": "IsAdminOrHasToken", 
+            "viewset": "CollectionViewSet",
+            "serializers": ["CollectionListSerializer", "CollectionDetailSerializer"],
+            "openapi_documented": true
+          },
+          "languoids": {
+            "paths": ["/api/beta/v1/languoids/", "/api/v1/languoids/"],
+            "methods": ["GET"],
+            "description": "Language/dialect information",
+            "permission_class": "IsAdminOrHasToken",
+            "viewset": "LanguoidViewSet", 
+            "serializers": ["LanguoidListSerializer", "LanguoidDetailSerializer"],
+            "openapi_documented": true
+          },
+          "collaborators": {
+            "paths": ["/api/beta/v1/collaborators/", "/api/v1/collaborators/"],
+            "methods": ["GET"],
+            "description": "Collaborator information",
+            "permission_class": "IsAdminOrHasToken",
+            "viewset": "CollaboratorViewSet",
+            "serializers": ["CollaboratorListSerializer", "CollaboratorDetailSerializer"],
+            "openapi_documented": true
+          }
+        }
+      },
+      
+      "internal_api_endpoints": {
+        "base_paths": ["/api/", "/metadata/api/"],
+        "authentication": "Django session (login_required)",
+        "documentation": "Not publicly documented",
+        "endpoints": {
+          "item_migrate_api": {
+            "path": "/api/item-update-migrate/<int:pk>/",
+            "methods": ["PUT", "PATCH"],
+            "description": "Item migration updates for staff",
+            "view": "ItemUpdateMigrateView",
+            "permission": "username == 'kavon' (temporary)",
+            "purpose": "Data migration workflow for staff"
+          },
+          "languoids_list_internal": {
+            "path": "/api/languoids/",
+            "methods": ["GET"],
+            "description": "Internal languoid listing for templates",
+            "view": "LanguoidListView",
+            "purpose": "Template dropdown population"
+          },
+          "item_files_api": {
+            "path": "/metadata/api/items/<int:item_id>/files/",
+            "methods": ["POST", "PUT"],
+            "description": "File management for items",
+            "view": "api_update_item_files",
+            "purpose": "Template-based file operations"
+          }
+        }
+      },
+      
+      "template_endpoints": {
+        "authentication": "Django session (login_required)",
+        "description": "Traditional Django views serving HTML templates",
+        "categories": {
+          "catalog_management": {
+            "base_path": "/catalog/",
+            "endpoints": ["item_index", "item_detail", "item_edit", "item_add", "item_delete"],
+            "purpose": "Main catalog interface for museum staff"
+          },
+          "collections_management": {
+            "base_path": "/collections/",
+            "endpoints": ["collection_index", "collection_detail", "collection_edit", "collection_add", "collection_delete"],
+            "purpose": "Collection management interface"
+          },
+          "collaborators_management": {
+            "base_path": "/collaborators/",
+            "endpoints": ["collaborator_index", "collaborator_detail", "collaborator_edit", "collaborator_add", "collaborator_delete"],
+            "purpose": "Collaborator management interface"
+          },
+          "languoids_management": {
+            "base_path": "/languoids/",
+            "endpoints": ["languoid_index", "languoid_detail", "languoid_edit", "languoid_add", "languoid_delete", "languoid_stats"],
+            "purpose": "Language/dialect management interface"
+          },
+          "documents_management": {
+            "base_path": "/documents/",
+            "endpoints": ["document_index", "document_detail", "document_edit", "document_add", "document_delete"],
+            "purpose": "Legacy document management (transitioning to Files model)"
+          },
+          "import_export": {
+            "paths": ["/catalog/import/", "/collaborators/import/", "/languages/import/"],
+            "endpoints": ["ImportView", "document_upload"],
+            "purpose": "Data import workflows for staff"
+          }
+        }
+      }
+    },
+    
+    "api_versioning_strategy": {
+      "current_approach": {
+        "decision_id": "api_class_003",
+        "content": "Dual versioning with beta/v1 paths using same ViewSets but different URL routing",
+        "added_date": "2025-01-04",
+        "implementation": "DefaultRouter instances for beta_router and stable_router",
+        "versioning_class": "ArchiveAPIVersioning",
+        "default_version": "beta.v1",
+        "allowed_versions": ["beta.v1", "v1"],
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "authentication_patterns": {
+      "public_api_auth": {
+        "method": "OAuth2 token",
+        "permission_class": "IsAdminOrHasToken",
+        "required_scopes": ["read"],
+        "implementation": "oauth2_provider.contrib.rest_framework.TokenHasScope"
+      },
+      "internal_auth": {
+        "method": "Django session",
+        "decorators": ["@login_required", "@user_passes_test"],
+        "permission_mixins": ["LoginRequiredMixin", "UserPassesTestMixin"]
+      }
+    },
+    
+    "documentation_strategy": {
+      "public_documentation": {
+        "tools": ["drf-spectacular", "OpenAPI 3.0"],
+        "endpoints": ["/api/schema/", "/api/docs/", "/api/redoc/"],
+        "includes": "All public API endpoints with full OpenAPI specs"
+      },
+      "internal_documentation": {
+        "approach": "Code comments and context files only",
+        "rationale": "Internal endpoints not meant for external consumption"
+      }
+    },
+    
+    "current_gaps_and_improvements": {
+      "endpoint_streamlining": {
+        "issue": "Some internal API endpoints may be redundant with public API",
+        "example": "Both /api/languoids/ (internal) and /api/v1/languoids/ (public) exist",
+        "improvement_needed": "Audit and potentially consolidate duplicate functionality"
+      },
+      "permission_refinement": {
+        "issue": "Some internal endpoints have temporary permission restrictions",
+        "example": "ItemUpdateMigrateView restricted to 'kavon' username",
+        "improvement_needed": "Replace with proper role-based permissions"
+      }
+    }
+  }
+}

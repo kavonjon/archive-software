@@ -1,0 +1,318 @@
+{
+  "deployment_architecture": {
+    "version": "1.1",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Complete storage volume analysis and processing pipeline design",
+    
+    "server_configuration": {
+      "public_server": {
+        "decision_id": "deploy_001",
+        "content": "Internet-facing server responsible for data ingestion and public API access",
+        "added_date": "2025-01-04",
+        "characteristics": [
+          "Internet accessible",
+          "Receives data ingestion from external sources", 
+          "Hosts public-facing API endpoints",
+          "Can be reached by private server"
+        ],
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["api_classification.json", "mode_specific_code.json"]
+      },
+      
+      "private_server": {
+        "decision_id": "deploy_002", 
+        "content": "Behind firewall server with internal IP only, handles secure processing and data integration",
+        "added_date": "2025-01-04",
+        "characteristics": [
+          "Behind firewall, internal IP only",
+          "Cannot be reached from internet",
+          "Can reach public server for data sync",
+          "Handles secure data processing and integration",
+          "Publishes curated subset of data back to public server"
+        ],
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["mode_specific_code.json", "preservation_rules.json"]
+      }
+    },
+    
+    "storage_volume_architecture": {
+      "public_server_volumes": {
+        "upload_quarantine": {
+          "decision_id": "storage_001",
+          "content": "sequestered_incoming - Initial file upload quarantine area",
+          "added_date": "2025-01-04",
+          "purpose": "Files uploaded to public server land here first, awaiting virus scanning",
+          "access_pattern": "Write: upload processes, Read: virus scanner",
+          "pipeline_position": "Step 1: Initial upload destination",
+          "cleanup_policy": "Files moved to scan_output after virus scanning",
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "scan_output": {
+          "decision_id": "storage_002", 
+          "content": "sequestered_outgoing - Virus scanner output staging area",
+          "added_date": "2025-01-04",
+          "purpose": "Clean files move here after successful virus scanning, awaiting private server ingestion",
+          "access_pattern": "Write: virus scanner, Read: private server copy process",
+          "pipeline_position": "Step 2: Post-virus-scan staging",
+          "cleanup_policy": "Files copied by private server, then removed",
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "public_storage": {
+          "decision_id": "storage_003",
+          "content": "Final destination for curated, publicly accessible files",
+          "added_date": "2025-01-04",
+          "purpose": "Contains subset of files pushed from private server through publishing process",
+          "access_pattern": "Write: private server publishing, Read: nginx (public access), API",
+          "file_organization": "By collection abbreviation and catalog number: /files/{collection_abbr}/{catalog_number}/",
+          "pipeline_position": "Step 5: Final public file destination",
+          "cleanup_policy": "Managed by private server publishing process",
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "temp_storage": {
+          "decision_id": "storage_004",
+          "content": "Temporary restricted access file sharing (MVP: cleanup only, push mechanism beyond MVP)",
+          "added_date": "2025-01-04",
+          "purpose": "Private server pushes select files here for temporary public access",
+          "access_pattern": "Write: private server (future), Read: nginx (temporary access)",
+          "archivist_workflow": "Select specific files to make temporarily accessible on public server",
+          "pipeline_position": "Step 6: Temporary sharing (beyond MVP)",
+          "cleanup_policy": "Files older than 24 hours automatically removed every 6 hours via Celery task",
+          "mvp_status": "Volume exists, cleanup implemented, push mechanism beyond MVP",
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "sync_data": {
+          "decision_id": "storage_005",
+          "content": "Database synchronization data exchange volume",
+          "added_date": "2025-01-04",
+          "purpose": "Private server writes incremental JSON export files, public server consumes for database sync",
+          "access_pattern": "Write: private server export tasks, Read: public server import tasks",
+          "file_format": "Timestamped JSON files with incremental changes",
+          "pipeline_position": "Step 6: Database synchronization",
+          "cleanup_policy": "Remove processed files after successful import, keep failed files for debugging",
+          "sync_approach": "Event-driven, checksum-based change detection",
+          "confidence_level": "high",
+          "status": "active"
+        }
+      },
+      
+      "private_server_volumes": {
+        "ingest_queue": {
+          "decision_id": "storage_006",
+          "content": "sequestered_incoming - Files awaiting private server ingestion",
+          "added_date": "2025-01-04",
+          "purpose": "Receives files copied from public server's scan_output, awaiting final ingestion",
+          "access_pattern": "Write: cross-server copy process, Read: private server ingestion, virus scanner",
+          "pipeline_position": "Step 3: Pre-ingestion quarantine on private server",
+          "cleanup_policy": "Files moved to main_storage after ingestion",
+          "security_note": "Final quarantine step before permanent storage",
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "main_storage": {
+          "decision_id": "storage_007",
+          "content": "Complete file repository with full archive content",
+          "added_date": "2025-01-04",
+          "purpose": "Final destination for all ingested files with complete metadata",
+          "access_pattern": "Write: ingestion processes, Read: museum staff, publishing processes",
+          "file_organization": "main_storage/files/{collection_abbr}/{catalog_number}/ and main_storage/metadata/{collection_abbr}/{catalog_number}/",
+          "pipeline_position": "Step 4: Final permanent storage",
+          "cleanup_policy": "Permanent storage, managed by archivists",
+          "publishing_source": "Source for curated content pushed to public server",
+          "confidence_level": "high",
+          "status": "active"
+        }
+      }
+    },
+    
+    "file_processing_pipeline": {
+      "complete_pipeline": {
+        "decision_id": "pipeline_001",
+        "content": "Eight-step file processing pipeline from upload to final storage and publishing",
+        "added_date": "2025-01-04",
+        "pipeline_steps": [
+          {
+            "step": 1,
+            "action": "Upload to Public",
+            "location": "upload_quarantine (public server)",
+            "description": "Files uploaded to public server land in quarantine"
+          },
+          {
+            "step": 2,
+            "action": "Public Virus Scan", 
+            "location": "upload_quarantine → scan_output (public server)",
+            "description": "Public scanner processes files, clean files move to scan_output"
+          },
+          {
+            "step": 3,
+            "action": "Cross-Server Copy",
+            "location": "scan_output (public) → ingest_queue (private)",
+            "description": "Private server copies files from public server's scan_output"
+          },
+          {
+            "step": 4,
+            "action": "Private Ingestion",
+            "location": "ingest_queue → main_storage (private)",
+            "description": "Private server processes files from ingest_queue to permanent storage"
+          },
+          {
+            "step": 5,
+            "action": "Private Publishing Process",
+            "location": "main_storage (private) → public_storage (public) + sync_data (public)",
+            "description": "Private server pushes curated files and database exports"
+          },
+          {
+            "step": 6,
+            "action": "Public Database Sync",
+            "location": "sync_data (public) → Public database",
+            "description": "Public server processes incremental database updates"
+          },
+          {
+            "step": 7,
+            "action": "Temporary Sharing",
+            "location": "main_storage (private) → temp_storage (public)",
+            "description": "Beyond MVP: Private server pushes select files for temporary access"
+          },
+          {
+            "step": 8,
+            "action": "Automatic Cleanup",
+            "location": "temp_storage (public)",
+            "description": "Files older than 24 hours removed every 6 hours"
+          }
+        ],
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "database_synchronization_pipeline": {
+      "sync_process": {
+        "decision_id": "db_sync_001",
+        "content": "Four-step event-driven database synchronization with checksum-based change detection",
+        "added_date": "2025-01-04",
+        "sync_steps": [
+          {
+            "step": 1,
+            "process": "Change Detection (Private Server)",
+            "description": "Model saves trigger Django signals → queue sync task, calculate checksum for changed records, compare with stored checksums"
+          },
+          {
+            "step": 2,
+            "process": "Export Generation (Private Server)", 
+            "description": "Celery task collects changed records since last sync, generate incremental JSON export, write timestamped files to sync_data volume"
+          },
+          {
+            "step": 3,
+            "process": "Import Processing (Public Server)",
+            "description": "Monitor sync_data volume, process files chronologically, checksum comparison, retry logic (3 attempts), transaction-based rollback"
+          },
+          {
+            "step": 4,
+            "process": "Cleanup and Logging",
+            "description": "Remove processed files after success, keep failed files for debugging, detailed operation logging"
+          }
+        ],
+        "sync_characteristics": {
+          "trigger": "Event-driven with batching within time windows",
+          "change_detection": "Checksum-based for reliable incremental sync",
+          "export_type": "Incremental (only changed records)",
+          "conflict_resolution": "Private server always wins",
+          "retry_policy": "3 attempts with exponential backoff",
+          "rollback_policy": "Transaction-based, rollback entire file on any failure",
+          "field_filtering": "Exclude sensitive fields during export"
+        },
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "virus_scanning_architecture": {
+      "multi_stage_scanning": {
+        "decision_id": "virus_001",
+        "content": "Defense in depth with virus scanning at multiple pipeline points",
+        "added_date": "2025-01-04",
+        "scanning_points": [
+          {
+            "location": "Public Server",
+            "scanner": "virus-scanner (public)",
+            "reads_from": "upload_quarantine",
+            "writes_to": "scan_output",
+            "scan_interval": "Every 5 minutes",
+            "purpose": "Initial scan before cross-server transfer"
+          },
+          {
+            "location": "Private Server", 
+            "scanner": "virus-scanner (private)",
+            "reads_from": "ingest_queue",
+            "writes_to": "main_storage",
+            "scan_interval": "Every 5 minutes",
+            "purpose": "Additional scanning layer before final storage"
+          }
+        ],
+        "implementation_status": "MVP - currently commented out for deployment simplicity",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "network_security_architecture": {
+      "connectivity_model": {
+        "decision_id": "deploy_011",
+        "content": "Unidirectional network access with volume-based data exchange: private server can reach public server via SSH, but no direct API communication",
+        "added_date": "2025-01-04",
+        "network_isolation": "Private server behind university network, public server internet-accessible",
+        "communication_method": "SSH on custom port for private→public access only",
+        "data_exchange_pattern": "Volume-based rsync operations to specific directories, no direct API calls between servers",
+        "security_rationale": "Maximum isolation while enabling necessary data synchronization",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "volume_based_sync": {
+        "decision_id": "deploy_012",
+        "content": "Push/ingest pattern where servers monitor volumes for files rather than direct communication",
+        "added_date": "2025-01-04",
+        "sync_approach": "Private server pushes files to specific volumes on public server via rsync",
+        "monitoring_pattern": "Both servers monitor designated volumes and process files when they appear",
+        "isolation_benefit": "No direct server-to-server API calls, minimal attack surface",
+        "implementation": "Bash scripts with rsync for file transfer, Celery tasks for volume monitoring",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "current_status": {
+      "architecture_definition": {
+        "decision_id": "deploy_010",
+        "content": "Complete 7-volume dual-deployment architecture defined with detailed processing pipelines",
+        "added_date": "2025-01-04",
+        "development_state": "Architecture fully planned, partial implementation, ongoing development of sync processes and virus scanning",
+        "mvp_components": [
+          "All 7 storage volumes",
+          "File processing pipeline (steps 1-6, 8)",
+          "Database synchronization with checksum detection",
+          "Virus scanning architecture",
+          "Cross-server file transfer",
+          "Automated cleanup processes"
+        ],
+        "beyond_mvp_components": [
+          "Archivist interface for temporary file sharing",
+          "Actual temp_storage push mechanism"
+        ],
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["project_requirements.json", "architectural_decisions.json"]
+      }
+    }
+  }
+}

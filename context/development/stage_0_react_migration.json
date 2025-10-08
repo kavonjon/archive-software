@@ -1,0 +1,167 @@
+{
+  "stage_0_react_migration": {
+    "version": "1.0",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Detailed Stage 0 planning for React frontend architecture migration",
+    
+    "stage_overview": {
+      "decision_id": "stage0_001",
+      "content": "Foundation stage to migrate from Django templates to React SPA with internal DRF APIs",
+      "added_date": "2025-01-04",
+      "strategic_importance": "Enables all future UI development including sophisticated batch editing features",
+      "completion_criteria": "React infrastructure ready for Stage 1 batch editing development",
+      "confidence_level": "high",
+      "status": "planned"
+    },
+    
+    "frontend_architecture": {
+      "react_spa_setup": {
+        "decision_id": "stage0_002",
+        "content": "Single Page Application with React Router handling all frontend routing",
+        "added_date": "2025-01-04",
+        "project_structure": "/frontend/ folder at repository root level",
+        "routing_approach": "React Router handles all client-side routing (/catalog/, /collaborators/, etc.)",
+        "django_integration": "Django serves React build files and catches unmatched URLs to serve React app",
+        "url_handling": "Proper SPA behavior with direct URL access and browser refresh support",
+        "confidence_level": "high",
+        "status": "planned"
+      },
+      
+      "technology_stack": {
+        "decision_id": "stage0_003",
+        "content": "FOSS, well-maintained packages prioritizing spreadsheet-like UX capabilities",
+        "added_date": "2025-01-04",
+        "state_management": "Redux Toolkit or Zustand for complex spreadsheet state management",
+        "ui_components": "Material-UI or similar FOSS library with clean layouts",
+        "spreadsheet_focus": "Components must support Google Sheets-style UX for batch editing",
+        "build_integration": "Standard React build process integrated with Django static files",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "internal_api_architecture": {
+      "api_design_principles": {
+        "decision_id": "stage0_004",
+        "content": "Separate internal DRF APIs for full CRUD operations distinct from public read-only APIs",
+        "added_date": "2025-01-04",
+        "endpoint_structure": "/internal/v1/ for internal APIs, /api/v1/ remains for public APIs",
+        "use_case_separation": "Internal APIs serve React frontend with full CRUD, public APIs serve external applications with read-only access",
+        "authentication": "Session-based authentication leveraging existing Django auth system",
+        "permission_integration": "Uses existing permission classes (Admin, Archivist, Museum Staff, Read-only)",
+        "confidence_level": "high",
+        "status": "planned"
+      },
+      
+      "serializer_strategy": {
+        "decision_id": "stage0_005",
+        "content": "Separate internal serializers not extending public ones due to different use cases",
+        "added_date": "2025-01-04",
+        "rationale": "Internal serializers need full field access, public serializers need filtered fields - extension would mean 'include all the rest'",
+        "validation_approach": "Extract existing validation logic from Django forms for reuse in DRF serializers",
+        "complex_field_handling": "DRF serializers handle M2M and FK relationships needed for smart spreadsheet cells",
+        "json_serialization": "Proper JSON handling for machine-readable cell data storage",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "authentication_and_permissions": {
+      "session_based_auth": {
+        "decision_id": "stage0_006",
+        "content": "React frontend authenticates via Django sessions, maintaining existing permission system",
+        "added_date": "2025-01-04",
+        "implementation": "Session-based authentication for React→Django API calls",
+        "csrf_protection": "Automatic CSRF protection through Django's session system",
+        "permission_classes": "Existing Django groups (Admin, Archivist, Museum Staff, Read-only) used for internal API authorization",
+        "user_context": "React frontend receives user context and permissions from Django session",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "transition_strategy": {
+      "parallel_development": {
+        "decision_id": "stage0_007",
+        "content": "Django templates remain functional during React development for fallback and reference",
+        "added_date": "2025-01-04",
+        "coexistence_approach": "Django templates exist as orphaned code until React frontend is complete",
+        "url_transition": "Clean switch by updating Django URL patterns to serve React SPA when ready",
+        "code_cleanup": "Delete Django frontend code (templates, template views, forms) after React transition is complete",
+        "user_transition": "Clean switch for users - no parallel systems, rapid development phase allows UX changes",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+    
+    "development_milestones": {
+      "milestone_1": {
+        "title": "React Infrastructure Setup",
+        "deliverables": [
+          "React project structure in /frontend/",
+          "Build integration with Django static files",
+          "Basic routing with React Router",
+          "Authentication integration with Django sessions"
+        ]
+      },
+      "milestone_2": {
+        "title": "Internal API Foundation",
+        "deliverables": [
+          "Internal API endpoint structure (/internal/v1/)",
+          "Basic CRUD serializers for core models",
+          "Permission integration with existing Django groups",
+          "API authentication via sessions"
+        ]
+      },
+      "milestone_3": {
+        "title": "Basic React Components",
+        "deliverables": [
+          "Navigation components",
+          "Basic list/detail views for testing",
+          "Form components for data entry",
+          "Integration testing with internal APIs"
+        ]
+      },
+      "milestone_4": {
+        "title": "Spreadsheet Infrastructure",
+        "deliverables": [
+          "Spreadsheet-like component foundation",
+          "Smart cell architecture for complex data types",
+          "State management for large datasets",
+          "Ready for Stage 1 batch editing features"
+        ]
+      }
+    },
+    
+    "technical_requirements": {
+      "performance_considerations": {
+        "decision_id": "stage0_008",
+        "content": "Architecture must support large datasets for spreadsheet-style interfaces",
+        "added_date": "2025-01-04",
+        "data_handling": "Efficient state management for hundreds of rows with complex field types",
+        "api_optimization": "Pagination and filtering support for large model datasets",
+        "client_performance": "Virtual scrolling or similar techniques for large spreadsheet views",
+        "confidence_level": "medium",
+        "status": "planned"
+      }
+    },
+    
+    "success_criteria": {
+      "stage_completion": {
+        "decision_id": "stage0_009",
+        "content": "Stage 0 complete when React infrastructure can support sophisticated batch editing features",
+        "added_date": "2025-01-04",
+        "completion_indicators": [
+          "React SPA serves all main application routes",
+          "Internal DRF APIs provide full CRUD for all models",
+          "Complex field types (M2M, FK) properly serialized and handled",
+          "Spreadsheet-like components ready for smart cell implementation",
+          "Performance adequate for large dataset manipulation"
+        ],
+        "readiness_for_stage_1": "Can begin implementing smart spreadsheet batch editing features",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    }
+  }
+}

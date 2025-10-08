@@ -1,0 +1,136 @@
+{
+  "file_index": {
+    "version": "1.0",
+    "last_updated": "2025-01-04",
+    "purpose": "Directory of all context files and their specific purposes",
+    
+    "meta_files": {
+      "protocol.json": {
+        "purpose": "How to use and maintain context files",
+        "when_to_reference": "Before making any context updates, when uncertain about procedures",
+        "update_frequency": "Only when protocol changes needed"
+      },
+      "file_index.json": {
+        "purpose": "What each file contains and when to use it",
+        "when_to_reference": "When deciding which file to update or consult",
+        "update_frequency": "When new files added or purposes change"
+      },
+      "maintenance_checklist.json": {
+        "purpose": "Self-audit prompts for context maintenance",
+        "when_to_reference": "End of conversations, before major changes, when detecting inconsistencies",
+        "update_frequency": "When new maintenance patterns identified"
+      }
+    },
+    
+    "core_files": {
+      "project_requirements.json": {
+        "purpose": "Complete customer requirements (PM's mental model)",
+        "when_to_reference": "Before any feature development, when questioning scope",
+        "update_frequency": "When requirements clarified or changed",
+        "cross_references": ["architectural_decisions.json", "refactoring_roadmap.json"]
+      },
+      "architectural_decisions.json": {
+        "purpose": "Major design decisions and rationale",
+        "when_to_reference": "Before architectural changes, when understanding system design",
+        "update_frequency": "When major structural decisions made",
+        "cross_references": ["deployment_architecture.json", "decision_genealogy.json"]
+      },
+      "deployment_architecture.json": {
+        "purpose": "Public/private dual-deployment setup and data flows",
+        "when_to_reference": "When working on deployment-specific features, data sync, server configurations",
+        "update_frequency": "When deployment architecture changes",
+        "cross_references": ["mode_specific_code.json", "technical_debt_registry.json"]
+      }
+    },
+    
+    "evolution_files": {
+      "decision_genealogy.json": {
+        "purpose": "Why current code exists - decision history and evolution",
+        "when_to_reference": "Before refactoring existing code, when understanding legacy patterns",
+        "update_frequency": "When discovering historical context, making decisions that affect existing code",
+        "cross_references": ["refactoring_roadmap.json", "preservation_rules.json"]
+      },
+      "refactoring_roadmap.json": {
+        "purpose": "Strategic timing for changes - what's ready to change vs preserve",
+        "when_to_reference": "Before any refactoring, when planning development priorities",
+        "update_frequency": "When refactoring completed, when readiness status changes",
+        "cross_references": ["technical_debt_registry.json", "preservation_rules.json"]
+      },
+      "technical_debt_registry.json": {
+        "purpose": "Known areas needing eventual cleanup with context",
+        "when_to_reference": "When working in areas with known compromises, planning refactoring",
+        "update_frequency": "When new technical debt identified, when debt resolved",
+        "cross_references": ["decision_genealogy.json", "refactoring_roadmap.json"]
+      }
+    },
+    
+    "boundary_files": {
+      "api_classification.json": {
+        "purpose": "Internal template endpoints vs public API documentation mapping",
+        "when_to_reference": "When working on API endpoints, documentation, frontend integration",
+        "update_frequency": "When new endpoints added, when API visibility changes",
+        "cross_references": ["mode_specific_code.json", "user_workflows.json"]
+      },
+      "mode_specific_code.json": {
+        "purpose": "What applies to public/private/both deployment modes",
+        "when_to_reference": "When developing features, when working on deployment-specific functionality",
+        "update_frequency": "When new mode-specific code added, when shared code identified",
+        "cross_references": ["deployment_architecture.json", "api_classification.json"]
+      },
+      "preservation_rules.json": {
+        "purpose": "Functionality that absolutely cannot break",
+        "when_to_reference": "Before any changes to existing functionality, during refactoring",
+        "update_frequency": "When critical functionality identified, when preservation rules change",
+        "cross_references": ["refactoring_roadmap.json", "decision_genealogy.json"]
+      }
+    },
+    
+    "development_files": {
+      "coding_patterns.json": {
+        "purpose": "Established development patterns and standards",
+        "when_to_reference": "When writing new code, during code reviews, establishing consistency",
+        "update_frequency": "When new patterns established, when standards evolve",
+        "cross_references": ["active_context.json", "collaboration_notes.json"]
+      },
+      "active_context.json": {
+        "purpose": "Current sprint/focus area and immediate context",
+        "when_to_reference": "At start of conversations, when planning immediate work",
+        "update_frequency": "Every conversation, when focus shifts",
+        "cross_references": ["collaboration_notes.json", "refactoring_roadmap.json"]
+      },
+      "collaboration_notes.json": {
+        "purpose": "Session-to-session continuity and reminders",
+        "when_to_reference": "At conversation start, when context needed from previous sessions",
+        "update_frequency": "End of significant conversations, when important notes made",
+        "cross_references": ["active_context.json", "coding_patterns.json"]
+      },
+      "external_dependencies.json": {
+        "purpose": "Third-party dependency tracking and impact assessment",
+        "when_to_reference": "Before dependency updates, when adding new integrations, during major refactoring",
+        "update_frequency": "When dependencies change, quarterly reviews, before major changes",
+        "cross_references": ["technical_debt_registry.json", "architectural_decisions.json"]
+      }
+    },
+    
+    "domain_files": {
+      "cultural_context.json": {
+        "purpose": "Archive domain knowledge and cultural sensitivities",
+        "when_to_reference": "When working on user-facing features, handling cultural content",
+        "update_frequency": "When cultural considerations identified, when domain knowledge gained",
+        "cross_references": ["user_workflows.json", "preservation_rules.json"]
+      },
+      "user_workflows.json": {
+        "purpose": "How different user types interact with the system",
+        "when_to_reference": "When designing features, planning UX, understanding user needs",
+        "update_frequency": "When user patterns identified, when workflows change",
+        "cross_references": ["api_classification.json", "cultural_context.json"]
+      },
+      "data_model_understanding.json": {
+        "purpose": "Core entities, relationships, and data structure knowledge",
+        "when_to_reference": "When working with models, designing features, understanding data flow",
+        "update_frequency": "When model understanding deepens, when relationships clarified",
+        "cross_references": ["coding_patterns.json", "preservation_rules.json"]
+      }
+    }
+  }
+}

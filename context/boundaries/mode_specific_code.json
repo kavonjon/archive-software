@@ -1,0 +1,232 @@
+{
+  "mode_specific_code": {
+    "version": "1.1",
+    "last_updated": "2025-01-04",
+    "conversation_reference": "Codebase analysis of existing public/private server mode patterns",
+    
+    "server_mode_determination": {
+      "environment_variable": {
+        "decision_id": "mode_001",
+        "content": "SERVER_ROLE environment variable controls all mode-specific behavior with 'public' or 'private' values",
+        "added_date": "2025-01-04",
+        "implementation": "SERVER_ROLE = os.environ.get('SERVER_ROLE', 'public')",
+        "default_value": "public",
+        "validation": "deploy.sh validates values are 'public' or 'private' only",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "deployment_scripts": {
+      "deploy_script": {
+        "decision_id": "mode_002",
+        "content": "deploy.sh uses SERVER_ROLE to choose docker-compose.public.yml or docker-compose.private.yml",
+        "added_date": "2025-01-04",
+        "file": "deploy.sh",
+        "logic": "if [ \"$SERVER_ROLE\" = \"public\" ]; then docker-compose -f docker-compose.public.yml up -d --build; else docker-compose -f docker-compose.private.yml up -d --build; fi",
+        "additional_setup": "Private mode creates host directories for main_storage and sequestered_incoming",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "dev_script": {
+        "decision_id": "mode_003",
+        "content": "dev.sh uses SERVER_ROLE to configure different Celery queues for development",
+        "added_date": "2025-01-04",
+        "file": "dev.sh",
+        "public_queues": "celery -A archive worker -Q public,common",
+        "private_queues": "celery -A archive worker -Q private,common",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "storage_path_configuration": {
+      "django_settings": {
+        "decision_id": "mode_004",
+        "content": "Django settings.py configures different storage paths based on SERVER_ROLE",
+        "added_date": "2025-01-04",
+        "file": "app/archive/settings.py",
+        "public_paths": {
+          "PUBLIC_STORAGE_PATH": "/app/public_storage (Docker) or {HOST_STORAGE_BASE}/public_storage (dev)",
+          "TEMP_STORAGE_PATH": "Relative to PUBLIC_STORAGE_PATH",
+          "SEQUESTERED_INCOMING_PATH": "Relative to PUBLIC_STORAGE_PATH",
+          "SEQUESTERED_OUTGOING_PATH": "Relative to PUBLIC_STORAGE_PATH"
+        },
+        "private_paths": {
+          "MAIN_STORAGE_PATH": "/app/main_storage (Docker) or {HOST_STORAGE_BASE}/main_storage (dev)",
+          "TEMP_STORAGE_PATH": "Relative to MAIN_STORAGE_PATH",
+          "SEQUESTERED_INCOMING_PATH": "Relative to MAIN_STORAGE_PATH",
+          "SEQUESTERED_OUTGOING_PATH": "Relative to MAIN_STORAGE_PATH"
+        },
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "file_utils": {
+        "decision_id": "mode_005",
+        "content": "file_utils.py provides mode-aware storage path helpers",
+        "added_date": "2025-01-04",
+        "file": "app/metadata/file_utils.py",
+        "function": "get_main_storage_base() returns MAIN_STORAGE_PATH for private, PUBLIC_STORAGE_PATH for public",
+        "purpose": "Centralized storage path logic for file operations",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "celery_task_routing": {
+      "queue_configuration": {
+        "decision_id": "mode_006",
+        "content": "Celery tasks routed to different queues based on SERVER_ROLE",
+        "added_date": "2025-01-04",
+        "implementation": "CELERY_TASK_ROUTES in settings.py",
+        "public_routing": "metadata.tasks.* → 'public' queue, common.tasks.* → 'common' queue",
+        "private_routing": "metadata.tasks.* → 'private' queue, common.tasks.* → 'common' queue",
+        "docker_workers": "Public: celery -A archive worker -Q public,common; Private: celery -A archive worker -Q private,common",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "task_behavior_differences": {
+      "process_scanned_files": {
+        "decision_id": "mode_007",
+        "content": "process_scanned_files task moves files to different destinations based on SERVER_ROLE",
+        "added_date": "2025-01-04",
+        "file": "app/metadata/tasks.py",
+        "public_behavior": "Clean files moved to PUBLIC_STORAGE_PATH",
+        "private_behavior": "Clean files moved to MAIN_STORAGE_PATH",
+        "code": "destination = settings.PUBLIC_STORAGE_PATH if settings.SERVER_ROLE == 'public' else settings.MAIN_STORAGE_PATH",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "cleanup_temp_files": {
+        "decision_id": "mode_008",
+        "content": "cleanup_temp_files task only runs on public server",
+        "added_date": "2025-01-04",
+        "file": "app/metadata/tasks.py",
+        "restriction": "if settings.SERVER_ROLE != 'public': return",
+        "rationale": "Temporary file cleanup is public server responsibility",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "sync_public_files": {
+        "decision_id": "mode_009",
+        "content": "sync_public_files task only runs on private server",
+        "added_date": "2025-01-04",
+        "file": "app/metadata/tasks.py",
+        "restriction": "if settings.SERVER_ROLE != 'private': return",
+        "rationale": "File synchronization to public server is private server responsibility",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "model_behavior_differences": {
+      "collection_metadata": {
+        "decision_id": "mode_010",
+        "content": "Collection model save method has different behavior based on SERVER_ROLE",
+        "added_date": "2025-01-04",
+        "file": "app/metadata/models.py",
+        "private_behavior": "Private server performs additional metadata operations",
+        "code_location": "Line 563: if settings.SERVER_ROLE == 'private':",
+        "confidence_level": "medium",
+        "status": "active",
+        "note": "Specific behavior needs further analysis"
+      }
+    },
+    
+    "docker_compose_differences": {
+      "volume_mounts": {
+        "decision_id": "mode_011",
+        "content": "Different volume mounts in docker-compose files based on server role",
+        "added_date": "2025-01-04",
+        "public_volumes": [
+          "public_storage",
+          "sequestered_incoming", 
+          "sequestered_outgoing",
+          "temp_storage",
+          "sync_data"
+        ],
+        "private_volumes": [
+          "main_storage",
+          "sequestered_incoming",
+          "backup"
+        ],
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "environment_variables": {
+        "decision_id": "mode_012",
+        "content": "Docker containers receive different environment variables",
+        "added_date": "2025-01-04",
+        "shared_vars": ["REDIS_URL", "DOCKER_CONTAINER=true"],
+        "private_only_vars": ["PUBLIC_SERVER_URL", "PUBLIC_REDIS_URL"],
+        "role_setting": "SERVER_ROLE explicitly set in docker-compose files",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "shared_code_patterns": {
+      "common_functionality": {
+        "decision_id": "mode_013",
+        "content": "Most application code is shared between modes with conditional behavior based on SERVER_ROLE checks",
+        "added_date": "2025-01-04",
+        "shared_areas": [
+          "Django models (mostly)",
+          "Views and templates",
+          "API endpoints",
+          "Admin interface",
+          "Authentication/authorization",
+          "Core business logic"
+        ],
+        "mode_specific_areas": [
+          "Storage path configuration",
+          "Celery task routing and behavior",
+          "Docker deployment configuration",
+          "File processing workflows"
+        ],
+        "principle": "Minimize mode-specific code to reduce maintenance overhead",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "current_implementation_status": {
+      "deployment_ready": {
+        "decision_id": "mode_014",
+        "content": "Mode-specific deployment infrastructure is implemented and working",
+        "added_date": "2025-01-04",
+        "working_components": [
+          "Docker compose configurations",
+          "Deployment scripts with validation",
+          "Storage path configuration",
+          "Celery queue routing",
+          "Basic task differentiation"
+        ],
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "development_areas": {
+        "decision_id": "mode_015",
+        "content": "Some mode-specific functionality is still in development",
+        "added_date": "2025-01-04",
+        "in_development": [
+          "Cross-server file synchronization",
+          "Database synchronization processes",
+          "Complete virus scanning integration",
+          "Advanced publishing workflows"
+        ],
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["technical_debt_registry.json", "deployment_architecture.json"]
+      }
+    }
+  }
+}

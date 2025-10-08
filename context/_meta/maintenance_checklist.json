@@ -1,0 +1,98 @@
+{
+  "maintenance_checklist": {
+    "version": "1.0",
+    "last_updated": "2025-01-04",
+    "purpose": "Self-audit prompts for consistent context maintenance",
+    
+    "conversation_start_checklist": [
+      "Read active_context.json for current focus area",
+      "Check collaboration_notes.json for relevant previous session context",
+      "Review any files referenced in the current work area",
+      "Note any potential conflicts between context and current codebase state"
+    ],
+    
+    "during_development_triggers": {
+      "before_architectural_changes": [
+        "Consult architectural_decisions.json for existing rationale",
+        "Check deployment_architecture.json if change affects public/private modes",
+        "Review preservation_rules.json for functionality that cannot break",
+        "Update decision_genealogy.json with new decision context"
+      ],
+      
+      "before_refactoring": [
+        "Check refactoring_roadmap.json for strategic timing",
+        "Review decision_genealogy.json for why current code exists",
+        "Consult technical_debt_registry.json for known issues in area",
+        "Verify preservation_rules.json for critical functionality"
+      ],
+      
+      "when_adding_features": [
+        "Check project_requirements.json for alignment",
+        "Review user_workflows.json for user impact",
+        "Consult api_classification.json if adding endpoints",
+        "Check mode_specific_code.json for deployment considerations"
+      ],
+      
+      "when_working_with_apis": [
+        "Review api_classification.json for internal vs public designation",
+        "Check mode_specific_code.json for deployment mode applicability",
+        "Consult user_workflows.json for usage patterns",
+        "Update api_classification.json if new endpoints added"
+      ]
+    },
+    
+    "conversation_end_checklist": [
+      "What requirements were clarified? → Update project_requirements.json",
+      "What architectural decisions were made? → Update architectural_decisions.json",
+      "What code patterns were established? → Update coding_patterns.json", 
+      "What functionality must be preserved? → Update preservation_rules.json",
+      "What technical debt was identified? → Update technical_debt_registry.json",
+      "What deployment considerations emerged? → Update mode_specific_code.json",
+      "What API changes were made? → Update api_classification.json",
+      "What should be remembered for next session? → Update collaboration_notes.json",
+      "What is the new focus area? → Update active_context.json"
+    ],
+    
+    "conflict_detection_prompts": [
+      "Do any context files contradict each other?",
+      "Does current codebase state match what context files describe?",
+      "Are there gaps in cross-references between related files?",
+      "Do preservation rules conflict with refactoring plans?",
+      "Are API classifications consistent with actual endpoint behavior?"
+    ],
+    
+    "quality_assurance_checks": [
+      "Are all new entries properly timestamped and attributed?",
+      "Do confidence levels accurately reflect certainty of information?",
+      "Are cross-references maintained when updating related information?",
+      "Is deprecated information properly marked rather than deleted?",
+      "Are file sizes approaching splitting triggers (2000 lines/150KB)?"
+    ],
+    
+    "periodic_maintenance": {
+      "weekly": [
+        "Review active_context.json for accuracy",
+        "Check collaboration_notes.json for outdated items"
+      ],
+      "monthly": [
+        "Review external_dependencies.json for updates needed",
+        "Check technical_debt_registry.json for resolved items",
+        "Verify refactoring_roadmap.json reflects current priorities"
+      ],
+      "quarterly": [
+        "Full cross-reference validation across all files",
+        "File size assessment for splitting needs",
+        "Protocol effectiveness review"
+      ]
+    },
+    
+    "emergency_response_checklist": [
+      "Immediately stop development work",
+      "Document specific inconsistency or conflict detected",
+      "Assess severity: blocking vs non-blocking for current work",
+      "Identify which files are affected",
+      "Prepare clear summary for PM including proposed resolution options",
+      "Do not proceed with development until conflict resolved"
+    ]
+  }
+}

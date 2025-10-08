@@ -12,10 +12,6 @@ if platform.system() == 'Darwin':  # macOS
 # Set the default Django settings module
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'archive.settings')
 
-# Initialize Django before creating Celery app
-import django
-django.setup()
-
 app = Celery('archive')
 
 # Use settings prefixed with CELERY_ in settings.py

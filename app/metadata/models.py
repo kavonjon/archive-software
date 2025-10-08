@@ -13,8 +13,8 @@ from django.dispatch import receiver
 from multiselectfield import MultiSelectField
 #from django_date_extensions.fields import ApproximateDateField
 #from approx_dates.models import ApproxDate
-from video_encoding.fields import VideoField
-from video_encoding.models import Format
+# from video_encoding.fields import VideoField  # Removed for Django 5.0 compatibility
+# from video_encoding.models import Format  # Removed for Django 5.0 compatibility
 import logging
 
 
@@ -842,19 +842,22 @@ class CollaboratorRole(models.Model):
         return '{self.pk}'.format(self=self)
 
 
-class Video(models.Model):
-   width = models.PositiveIntegerField(editable=False, null=True)
-   height = models.PositiveIntegerField(editable=False, null=True)
-   duration = models.FloatField(editable=False, null=True)
+# class Video(models.Model):
+#    width = models.PositiveIntegerField(editable=False, null=True)
+#    height = models.PositiveIntegerField(editable=False, null=True)
+#    duration = models.FloatField(editable=False, null=True)
+#
+#    file = VideoField(width_field='width', height_field='height',
+#                      duration_field='duration')
+#
+#    format_set = GenericRelation(Format)
+#
+# @receiver(post_delete, sender=Video)
+# def submission_delete(sender, instance, **kwargs):
+#     instance.file.delete(False)
 
-   file = VideoField(width_field='width', height_field='height',
-                     duration_field='duration')
-
-   format_set = GenericRelation(Format)
-
-@receiver(post_delete, sender=Video)
-def submission_delete(sender, instance, **kwargs):
-    instance.file.delete(False)
+# Video model temporarily disabled for Django 5.0 upgrade
+# TODO: Replace with alternative video processing solution
 
 class Columns_export(models.Model):
     name = models.CharField(max_length=255, unique=True)

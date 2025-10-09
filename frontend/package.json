@@ -30,7 +30,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "build:django": "npm run build && npm run copy-to-django",
-    "copy-to-django": "rm -rf ../app/static/frontend && mkdir -p ../app/static/frontend && cp -r build/* ../app/static/frontend/",
+    "copy-to-django": "rm -rf ../app/static-files/frontend && mkdir -p ../app/static-files/frontend && cp -r build/* ../app/static-files/frontend/",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

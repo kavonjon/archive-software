@@ -12,12 +12,12 @@ class ReactAppView(TemplateView):
     
     def get(self, request, *args, **kwargs):
         try:
-            # Path to the React build index.html file
-            index_path = os.path.join(settings.STATIC_ROOT or settings.BASE_DIR, 'static', 'frontend', 'index.html')
+            # Path to the React build index.html file in static-files (source directory)
+            index_path = os.path.join(settings.BASE_DIR, 'static-files', 'frontend', 'index.html')
             
-            # If STATIC_ROOT doesn't exist (development), try the app static directory
-            if not os.path.exists(index_path):
-                index_path = os.path.join(settings.BASE_DIR, 'static', 'frontend', 'index.html')
+            # If not found in static-files, try STATIC_ROOT (for production after collectstatic)
+            if not os.path.exists(index_path) and settings.STATIC_ROOT:
+                index_path = os.path.join(settings.STATIC_ROOT, 'frontend', 'index.html')
             
             with open(index_path, 'r', encoding='utf-8') as f:
                 return HttpResponse(f.read(), content_type='text/html')

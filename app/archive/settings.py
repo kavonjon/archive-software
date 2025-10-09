@@ -73,7 +73,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'multiselectfield',
-    'video_encoding',
+    # 'video_encoding',  # Removed for Django 5.0 compatibility
     'django_filters',
     'rest_framework',
     'oauth2_provider',

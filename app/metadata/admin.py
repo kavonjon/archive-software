@@ -1,7 +1,7 @@
 from django.contrib import admin
-from video_encoding.admin import FormatInline
+# from video_encoding.admin import FormatInline  # Removed for Django 5.0 compatibility
 
-from .models import Languoid, Dialect, DialectInstance, Collaborator, CollaboratorRole, CollaboratorName, Geographic, Item, ItemTitle, Columns_export, Document, Collection, Video
+from .models import Languoid, Dialect, DialectInstance, Collaborator, CollaboratorRole, CollaboratorName, Geographic, Item, ItemTitle, Columns_export, Document, Collection  # Video removed for Django 5.0 compatibility
 
 admin.site.register(Languoid)
 admin.site.register(Dialect)
@@ -25,10 +25,11 @@ admin.site.register(Columns_export)
 admin.site.register(Document)
 admin.site.register(Collection)
 
-@admin.register(Video)
-class VideoAdmin(admin.ModelAdmin):
-   inlines = (FormatInline,)
-
-   list_dispaly = ('get_filename', 'width', 'height', 'duration')
-   fields = ('file', 'width', 'height', 'duration')
-   readonly_fields = fields
+# @admin.register(Video)
+# class VideoAdmin(admin.ModelAdmin):
+#    inlines = (FormatInline,)
+#
+#    list_dispaly = ('get_filename', 'width', 'height', 'duration')
+#    fields = ('file', 'width', 'height', 'duration')
+#    readonly_fields = fields
+# VideoAdmin temporarily disabled for Django 5.0 upgrade

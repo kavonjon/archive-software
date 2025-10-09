@@ -19,9 +19,9 @@ from django.db.models import Count, Sum, Max, Q
 from django.views.generic.edit import FormView, DeleteView
 from rest_framework import generics
 from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin
-from .models import Item, ItemTitle, Collection, Languoid, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, RESOURCE_TYPE_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text
+from .models import Item, ItemTitle, Collection, Languoid, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, RESOURCE_TYPE_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text  # Video removed for Django 5.0 compatibility
 from .serializers import ItemMigrateSerializer, LegacyLanguoidSerializer
-from .forms import CollectionForm, LanguoidForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, VideoForm, UploadDocumentForm
+from .forms import CollectionForm, LanguoidForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, UploadDocumentForm  # VideoForm removed for Django 5.0 compatibility
 from django.contrib.staticfiles import finders
 from django.views.decorators.http import require_POST
 import logging
@@ -4678,19 +4678,23 @@ class document_upload(UserPassesTestMixin, FormView):
                             continue
 
                 elif this_file.name.endswith(('.mpg', '.MPG', '.mp4', '.MP4', '.m4v', '.M4V', '.mov', '.MOV')):
-                    try:
-                        video_instance = Video(file=this_file)
-                        video_instance.save()
-                    except Exception as e:
-                        messages.warning(request, str(this_file.name) + " was not added/updated. (Error message for admin: video_encoding: " + str(e) + ")")
-                        try:
-                            video_instance.delete()
-                        except Exception as ee:
-                            messages.warning(request, str(this_file.name) + " was not added/updated. (Error message for admin: video_encoding: " + str(ee) + ")")
-                        instance.delete()
-                        continue
-                    instance.duration=float('%.3f'%(video_instance.duration))
-                    video_instance.delete()
+                    # Video processing temporarily disabled for Django 5.0 upgrade
+                    # TODO: Implement video duration extraction using mutagen or alternative
+                    messages.info(request, f"Video file {this_file.name} uploaded successfully. Duration extraction temporarily disabled during Django upgrade.")
+                    instance.duration = None  # Set to None until video processing is restored
+                    # try:
+                    #     video_instance = Video(file=this_file)
+                    #     video_instance.save()
+                    # except Exception as e:
+                    #     messages.warning(request, str(this_file.name) + " was not added/updated. (Error message for admin: video_encoding: " + str(e) + ")")
+                    #     try:
+                    #         video_instance.delete()
+                    #     except Exception as ee:
+                    #         messages.warning(request, str(this_file.name) + " was not added/updated. (Error message for admin: video_encoding: " + str(ee) + ")")
+                    #     instance.delete()
+                    #     continue
+                    # instance.duration=float('%.3f'%(video_instance.duration))
+                    # video_instance.delete()
 
                 elif this_file.name.endswith('.wav'):
                     try:

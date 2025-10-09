@@ -5,7 +5,7 @@ from django.forms import ModelForm
 from django.forms.widgets import CheckboxSelectMultiple
 from django.db.models import Max
 from django_select2.forms import Select2MultipleWidget
-from .models import Collection, Item, ItemTitle, Languoid, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, Video
+from .models import Collection, Item, ItemTitle, Languoid, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document  # Video removed for Django 5.0 compatibility
 
 class CollectionForm(ModelForm):
     class Meta:
@@ -376,10 +376,13 @@ class DocumentForm(ModelForm):
             'language': Select2MultipleWidget,  # Apply Select2 to the M2M field
         }
 
-class VideoForm(ModelForm):
-    class Meta:
-        model = Video
-        fields = ['file']
+# class VideoForm(ModelForm):
+#     class Meta:
+#         model = Video
+#         fields = ['file']
+# VideoForm temporarily disabled for Django 5.0 upgrade
 
 class UploadDocumentForm(forms.Form):
-    file = forms.FileField(widget=forms.ClearableFileInput(attrs={'multiple': True}))
+    # Django 5.0 fix: Use standard FileInput without multiple attribute in widget
+    # Multiple file handling will be done in the view using request.FILES.getlist()
+    file = forms.FileField()

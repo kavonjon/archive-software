@@ -5,7 +5,7 @@ import django.db.models.deletion
 import django.utils.timezone
 import metadata.models
 import multiselectfield.db.fields
-import video_encoding.fields
+# import video_encoding.fields  # Removed for Django 5.0 compatibility
 
 
 class Migration(migrations.Migration):
@@ -88,7 +88,7 @@ class Migration(migrations.Migration):
                 ('width', models.PositiveIntegerField(editable=False, null=True)),
                 ('height', models.PositiveIntegerField(editable=False, null=True)),
                 ('duration', models.FloatField(editable=False, null=True)),
-                ('file', video_encoding.fields.VideoField(height_field='height', upload_to='', width_field='width')),
+                # ('file', video_encoding.fields.VideoField(height_field='height', upload_to='', width_field='width')),  # Removed for Django 5.0 compatibility
             ],
         ),
         migrations.CreateModel(

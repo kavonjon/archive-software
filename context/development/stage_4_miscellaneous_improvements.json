@@ -20,14 +20,25 @@
         "category_description": "Performance improvements identified during development",
         "discovery_sources": ["Stage 0 React development", "Stage 1 batch editing", "Stage 2 file processing", "Stage 3 sync operations"],
         "tasks": {
-          "placeholder": {
-            "decision_id": "perf_placeholder",
-            "content": "Placeholder for performance optimization tasks to be discovered",
+          "video_processing_alternative": {
+            "decision_id": "perf_001",
+            "content": "Implement alternative video processing solution to replace removed django-video-encoding",
             "added_date": "2025-01-04",
-            "discovered_during": "N/A - placeholder",
-            "priority": "TBD",
-            "effort_estimate": "TBD",
-            "status": "placeholder"
+            "discovered_during": "Django 5.0 upgrade - django-video-encoding incompatibility",
+            "current_limitation": "Video duration extraction is disabled, video files upload but duration is set to None",
+            "proposed_solution": "Use mutagen or moviepy library for video metadata extraction",
+            "implementation_approach": [
+              "Research mutagen vs moviepy for video duration extraction",
+              "Implement video processing function using chosen library",
+              "Update document_upload view to use new video processing",
+              "Test with various video formats (.mpg, .mp4, .m4v, .mov)",
+              "Add error handling for unsupported formats"
+            ],
+            "priority": "medium",
+            "effort_estimate": "small",
+            "user_impact": "Restores video duration metadata extraction for uploaded video files",
+            "status": "identified",
+            "cross_references": ["dependency_upgrade_plan.json", "preservation_rules.json"]
           }
         }
       },
@@ -36,14 +47,25 @@
         "category_description": "UI/UX enhancements beyond core functionality requirements",
         "discovery_sources": ["Stage 0 React components", "Stage 1 spreadsheet interface", "User feedback during development"],
         "tasks": {
-          "placeholder": {
-            "decision_id": "ui_placeholder",
-            "content": "Placeholder for UI improvement tasks to be discovered",
+          "multiple_file_upload_ui": {
+            "decision_id": "ui_001",
+            "content": "Improve multiple file upload user experience after Django 5.0 FileInput widget changes",
             "added_date": "2025-01-04",
-            "discovered_during": "N/A - placeholder",
-            "priority": "TBD",
-            "effort_estimate": "TBD",
-            "status": "placeholder"
+            "discovered_during": "Django 5.0 upgrade - FileInput multiple files incompatibility",
+            "current_limitation": "UploadDocumentForm uses standard FileInput without multiple attribute",
+            "proposed_solution": "Implement modern drag-and-drop multiple file upload interface",
+            "implementation_approach": [
+              "Research modern file upload libraries (dropzone.js, filepond, etc.)",
+              "Implement drag-and-drop interface for document upload",
+              "Add file preview and progress indicators",
+              "Maintain compatibility with existing backend processing",
+              "Add file type validation on frontend"
+            ],
+            "priority": "low",
+            "effort_estimate": "medium",
+            "user_impact": "Better user experience for uploading multiple files simultaneously",
+            "status": "identified",
+            "cross_references": ["dependency_upgrade_plan.json", "stage_0_react_migration.json"]
           }
         }
       },

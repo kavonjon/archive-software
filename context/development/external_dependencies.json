@@ -10,7 +10,7 @@
         "decision_id": "dep_001",
         "content": "Django framework - core dependency for web application",
         "added_date": "2025-01-04",
-        "current_version": "3.2 (from requirements.txt analysis)",
+        "current_version": "5.0.14 (upgraded from 3.2 on 2025-01-04)",
         "context_impact": ["Model relationships", "Authentication patterns", "Template system", "Admin interface"],
         "last_reviewed": "2025-01-04",
         "upgrade_considerations": ["Custom user model compatibility", "Model field changes", "Template syntax updates"],
@@ -22,7 +22,7 @@
         "decision_id": "dep_002",
         "content": "Django REST Framework - critical for public API functionality",
         "added_date": "2025-01-04", 
-        "current_version": "3.14.0 (from requirements.txt analysis)",
+        "current_version": "3.16.1 (upgraded from 3.14.0 on 2025-01-04)",
         "context_impact": ["API serialization", "Authentication", "Permissions", "API documentation"],
         "upgrade_considerations": ["Serializer compatibility", "Authentication changes", "Permission system updates"],
         "confidence_level": "high",
@@ -52,18 +52,18 @@
     "dependency_inventory": {
       "note": "Key dependencies identified from requirements.txt analysis",
       "core_framework": {
-        "django": "3.2",
+        "django": "5.0.14",
         "psycopg2-binary": "2.9.9"
       },
       "api_related": {
-        "djangorestframework": "3.14.0",
+        "djangorestframework": "3.16.1",
         "django-oauth-toolkit": "2.3.0",
         "drf-spectacular": "0.28.0"
       },
       "deployment_related": {
-        "celery": "5.4.0",
-        "redis": "5.1.1",
-        "gunicorn": "23.0.0"
+        "celery": "5.5.3",
+        "redis": "6.4.0",
+        "gunicorn": "21.2.0"
       },
       "cultural_content_handling": {
         "mutagen": "1.47.0",

@@ -25,9 +25,12 @@
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4"
   },
+  "homepage": "/static/frontend/",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "build:django": "npm run build && npm run copy-to-django",
+    "copy-to-django": "rm -rf ../app/static/frontend && mkdir -p ../app/static/frontend && cp -r build/* ../app/static/frontend/",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

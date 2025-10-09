@@ -21,6 +21,7 @@ from django.conf.urls.static import static
 from django.urls import path, include
 from django.views.generic import TemplateView
 from metadata.views import collection_index, collection_detail, collection_add, collection_edit, collection_delete, item_index, item_migrate_list, item_detail, item_edit, item_add, item_delete,languoid_index, languoid_detail, languoid_edit, languoid_add, languoid_delete, languoid_stats, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView, LanguoidListView, custom_error_500, custom_error_403, trigger_error, download_collaborator_export, collaborator_export_task_status, celery_health_check, cleanup_collaborator_export
+from frontend_views import ReactAppView
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
@@ -104,9 +105,22 @@ urlpatterns = [
 
     # Your existing API URLs
     path('api/', include('api.urls')),
+    
+    # Internal API for React frontend
+    path('internal/', include('internal_api.urls')),
 
     # Add this to the urlpatterns before the API URLs
     path('metadata/', include('metadata.urls')),
+    
+    # React SPA routes - these should be at the end to catch unmatched routes
+    path('items/', ReactAppView.as_view(), name='react_items'),
+    path('items/<path:path>/', ReactAppView.as_view(), name='react_items_detail'),
+    path('collections/', ReactAppView.as_view(), name='react_collections'),
+    path('collections/<path:path>/', ReactAppView.as_view(), name='react_collections_detail'),
+    path('collaborators/', ReactAppView.as_view(), name='react_collaborators'),
+    path('collaborators/<path:path>/', ReactAppView.as_view(), name='react_collaborators_detail'),
+    path('languoids/', ReactAppView.as_view(), name='react_languoids'),
+    path('languoids/<path:path>/', ReactAppView.as_view(), name='react_languoids_detail'),
 ]
 
 #urlpatterns = path(r'dj/', include(urlpatterns)),  # prepend 'django/' to all URLs

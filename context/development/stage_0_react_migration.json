@@ -94,12 +94,63 @@
       }
     },
     
+    "existing_functionality_preservation": {
+      "django_template_features": {
+        "decision_id": "stage0_010",
+        "content": "Comprehensive capture of all existing Django template functionality in React SPA",
+        "added_date": "2025-01-04",
+        "core_crud_operations": [
+          "Individual object creation (Add new Item, Collection, Collaborator, etc.)",
+          "Individual object editing with inline field editing UX",
+          "Individual object deletion with confirmation",
+          "Bulk operations where they currently exist"
+        ],
+        "search_and_filtering": [
+          "Model-specific search interfaces (Items, Collections, Collaborators, Languoids)",
+          "Advanced filtering by multiple criteria",
+          "Keyword search across relevant fields",
+          "Filter combinations (e.g., by collection + language + access level)"
+        ],
+        "list_and_detail_views": [
+          "Paginated list views with sorting",
+          "Detailed object views with all metadata",
+          "Related object navigation (Item → Collection → Items)",
+          "Export functionality where it exists"
+        ],
+        "confidence_level": "high",
+        "status": "planned"
+      },
+      
+      "inline_editing_ux": {
+        "decision_id": "stage0_011", 
+        "content": "Modern inline editing approach for individual object CRUD operations",
+        "added_date": "2025-01-04",
+        "design_pattern": "Detail view with click-to-edit fields rather than separate edit forms",
+        "user_experience": [
+          "Click on any editable field in detail view to enter edit mode",
+          "Field-level validation and error display",
+          "Save/cancel options per field or save all changes",
+          "Visual indicators for unsaved changes",
+          "Permission-based field editability"
+        ],
+        "technical_implementation": [
+          "React components that toggle between display and edit modes",
+          "Field-level API updates for efficient saves",
+          "Optimistic updates with rollback on error",
+          "Real-time validation using DRF serializer validation"
+        ],
+        "benefits": "More efficient than separate edit pages, better UX for quick edits, maintains context",
+        "confidence_level": "high",
+        "status": "planned"
+      }
+    },
+
     "development_milestones": {
       "milestone_1": {
         "title": "React Infrastructure Setup",
         "deliverables": [
           "React project structure in /frontend/",
-          "Build integration with Django static files",
+          "Build integration with Django static files", 
           "Basic routing with React Router",
           "Authentication integration with Django sessions"
         ]
@@ -108,27 +159,30 @@
         "title": "Internal API Foundation",
         "deliverables": [
           "Internal API endpoint structure (/internal/v1/)",
-          "Basic CRUD serializers for core models",
-          "Permission integration with existing Django groups",
-          "API authentication via sessions"
+          "Full CRUD serializers for all core models (Items, Collections, Collaborators, Languoids)",
+          "Field-level update endpoints for inline editing",
+          "Search and filtering API endpoints",
+          "Permission integration with existing Django groups"
         ]
       },
       "milestone_3": {
-        "title": "Basic React Components",
+        "title": "Core CRUD Components",
         "deliverables": [
-          "Navigation components",
-          "Basic list/detail views for testing",
-          "Form components for data entry",
-          "Integration testing with internal APIs"
+          "List views with search/filtering for all models",
+          "Detail views with inline editing capability",
+          "Click-to-edit field components",
+          "Add new object forms/modals",
+          "Delete confirmation workflows"
         ]
       },
       "milestone_4": {
-        "title": "Spreadsheet Infrastructure",
+        "title": "Advanced Features & Spreadsheet Foundation",
         "deliverables": [
-          "Spreadsheet-like component foundation",
-          "Smart cell architecture for complex data types",
-          "State management for large datasets",
-          "Ready for Stage 1 batch editing features"
+          "Advanced search and filtering interfaces",
+          "Related object navigation",
+          "Export functionality",
+          "Spreadsheet-like component foundation for batch editing",
+          "Performance optimization for large datasets"
         ]
       }
     },
@@ -153,7 +207,13 @@
         "added_date": "2025-01-04",
         "completion_indicators": [
           "React SPA serves all main application routes",
-          "Internal DRF APIs provide full CRUD for all models",
+          "Internal DRF APIs provide full CRUD for all models (Items, Collections, Collaborators, Languoids)",
+          "All existing Django template functionality preserved and enhanced",
+          "Inline editing works for individual object fields",
+          "Search and filtering functionality matches or exceeds current capabilities",
+          "List views with pagination, sorting, and filtering",
+          "Detail views with comprehensive object information",
+          "Add/delete operations with proper confirmation workflows",
           "Complex field types (M2M, FK) properly serialized and handled",
           "Spreadsheet-like components ready for smart cell implementation",
           "Performance adequate for large dataset manipulation"

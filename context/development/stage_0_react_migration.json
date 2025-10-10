@@ -145,47 +145,73 @@
       }
     },
 
-    "development_milestones": {
-      "milestone_1": {
-        "title": "React Infrastructure Setup",
-        "deliverables": [
-          "React project structure in /frontend/",
-          "Build integration with Django static files", 
-          "Basic routing with React Router",
-          "Authentication integration with Django sessions"
-        ]
-      },
-      "milestone_2": {
-        "title": "Internal API Foundation",
-        "deliverables": [
-          "Internal API endpoint structure (/internal/v1/)",
-          "Full CRUD serializers for all core models (Items, Collections, Collaborators, Languoids)",
-          "Field-level update endpoints for inline editing",
-          "Search and filtering API endpoints",
-          "Permission integration with existing Django groups"
-        ]
-      },
-      "milestone_3": {
-        "title": "Core CRUD Components",
-        "deliverables": [
-          "List views with search/filtering for all models",
-          "Detail views with inline editing capability",
-          "Click-to-edit field components",
-          "Add new object forms/modals",
-          "Delete confirmation workflows"
-        ]
-      },
-      "milestone_4": {
-        "title": "Advanced Features & Spreadsheet Foundation",
-        "deliverables": [
-          "Advanced search and filtering interfaces",
-          "Related object navigation",
-          "Export functionality",
-          "Spreadsheet-like component foundation for batch editing",
-          "Performance optimization for large datasets"
-        ]
-      }
-    },
+        "development_milestones": {
+          "milestone_1": {
+            "title": "React Infrastructure Setup",
+            "deliverables": [
+              "React project structure in /frontend/",
+              "Build integration with Django static files",
+              "Basic routing with React Router",
+              "Authentication integration with Django sessions"
+            ],
+            "status": "completed"
+          },
+          "milestone_2": {
+            "title": "Internal API Foundation",
+            "deliverables": [
+              "Internal API endpoint structure (/internal/v1/)",
+              "Full CRUD serializers for all core models (Items, Collections, Collaborators, Languoids)",
+              "Field-level update endpoints for inline editing",
+              "Search and filtering API endpoints",
+              "Permission integration with existing Django groups"
+            ],
+            "status": "completed"
+          },
+          "milestone_3": {
+            "title": "Session-Based Authentication",
+            "deliverables": [
+              "Django authentication API endpoints (/auth/)",
+              "React AuthContext and authentication hooks",
+              "Login/logout components with Material-UI",
+              "Protected routes with staff requirements",
+              "CSRF token handling and session persistence"
+            ],
+            "status": "completed"
+          },
+          "milestone_4": {
+            "title": "Core CRUD Components - Complete Django Template Recreation",
+            "deliverables": [
+              "List views with real data for all models (Items, Collections, Collaborators, Languoids)",
+              "Detail views displaying all metadata and relationships",
+              "Add/Edit forms recreating all existing Django form functionality",
+              "Delete confirmation workflows",
+              "Field validation and error handling matching Django forms"
+            ],
+            "status": "pending"
+          },
+          "milestone_5": {
+            "title": "Advanced Search and Navigation - Django Template Parity",
+            "deliverables": [
+              "Search and filtering interfaces matching existing Django views",
+              "Related object navigation (Item → Collection → Items, etc.)",
+              "Pagination and sorting functionality",
+              "Advanced filtering by multiple criteria",
+              "Keyword search across relevant fields"
+            ],
+            "status": "pending"
+          },
+          "milestone_6": {
+            "title": "Inline Editing and Performance Optimization",
+            "deliverables": [
+              "Click-to-edit field components for efficient editing",
+              "Optimistic updates with rollback on error",
+              "Performance optimization for large datasets",
+              "Spreadsheet-like component foundation for Stage 1 batch editing",
+              "Complex field types (M2M, FK) properly handled"
+            ],
+            "status": "pending"
+          }
+        },
     
     "technical_requirements": {
       "performance_considerations": {
@@ -200,28 +226,33 @@
       }
     },
     
-    "success_criteria": {
-      "stage_completion": {
-        "decision_id": "stage0_009",
-        "content": "Stage 0 complete when React infrastructure can support sophisticated batch editing features",
-        "added_date": "2025-01-04",
-        "completion_indicators": [
-          "React SPA serves all main application routes",
-          "Internal DRF APIs provide full CRUD for all models (Items, Collections, Collaborators, Languoids)",
-          "All existing Django template functionality preserved and enhanced",
-          "Inline editing works for individual object fields",
-          "Search and filtering functionality matches or exceeds current capabilities",
-          "List views with pagination, sorting, and filtering",
-          "Detail views with comprehensive object information",
-          "Add/delete operations with proper confirmation workflows",
-          "Complex field types (M2M, FK) properly serialized and handled",
-          "Spreadsheet-like components ready for smart cell implementation",
-          "Performance adequate for large dataset manipulation"
-        ],
-        "readiness_for_stage_1": "Can begin implementing smart spreadsheet batch editing features",
-        "confidence_level": "high",
-        "status": "planned"
-      }
-    }
+        "success_criteria": {
+          "stage_completion": {
+            "decision_id": "stage0_009",
+            "content": "Stage 0 complete when React SPA fully recreates all existing Django template functionality",
+            "added_date": "2025-01-04",
+            "updated_date": "2025-01-04",
+            "scope_clarification": "Stage 0 is comprehensive Django template migration, not just infrastructure setup",
+            "completion_indicators": [
+              "React SPA serves all main application routes with full functionality",
+              "Internal DRF APIs provide complete CRUD for all models (Items, Collections, Collaborators, Languoids)",
+              "ALL existing Django template functionality recreated in React",
+              "List views with real data, pagination, sorting, and filtering",
+              "Detail views with comprehensive object information and relationships",
+              "Add/Edit forms matching all existing Django form capabilities",
+              "Delete operations with proper confirmation workflows",
+              "Search and filtering matching existing Django view functionality",
+              "Related object navigation (Item → Collection → Items, etc.)",
+              "Inline editing for efficient individual object updates",
+              "Complex field types (M2M, FK) properly serialized and handled",
+              "Field validation and error handling matching Django forms",
+              "Performance adequate for large dataset display and manipulation",
+              "Spreadsheet-like component foundation ready for Stage 1 batch editing"
+            ],
+            "readiness_for_stage_1": "Complete functional parity with existing Django templates, ready for batch editing enhancements",
+            "confidence_level": "high",
+            "status": "in_progress"
+          }
+        }
   }
 }

@@ -1,0 +1,404 @@
+{
+  "django_functionality_inventory": {
+    "version": "1.0",
+    "created_date": "2025-01-04",
+    "purpose": "Comprehensive inventory of existing Django template functionality that must be recreated in React for Stage 0",
+    "analysis_source": "Direct analysis of app/metadata/views.py and app/archive/urls.py",
+    
+    "core_models": {
+      "items": {
+        "model_name": "Item",
+        "django_url_prefix": "/catalog/",
+        "react_url_prefix": "/items/",
+        "functionality": {
+          "list_view": {
+            "view_function": "item_index",
+            "url_pattern": "catalog/",
+            "features": [
+              "Advanced filtering with 15+ filter fields",
+              "Catalog number, access level, call number filtering",
+              "Date range filtering (accession_date, creation_date)",
+              "Title search (indigenous_title, english_title, combined titles)",
+              "Resource type, language, genre filtering",
+              "Collaborator, depositor name, keyword search",
+              "Custom column selection via Columns_export",
+              "Sorting options",
+              "Pagination",
+              "Export functionality"
+            ],
+            "filter_fields": [
+              "catalog_number_contains", "item_access_level_contains", "call_number_contains",
+              "accession_date_min/max", "indigenous_title_contains", "english_title_contains",
+              "titles_contains", "resource_type_contains", "language_contains",
+              "creation_date_min/max", "description_scope_and_content_contains",
+              "genre_contains", "collaborator_contains", "depositor_name_contains",
+              "keyword_contains"
+            ]
+          },
+          "detail_view": {
+            "view_function": "item_detail",
+            "url_pattern": "catalog/<int:pk>/",
+            "features": [
+              "Complete item metadata display",
+              "Multiple titles (ItemTitle) with language associations",
+              "Associated documents with file information",
+              "Collaborator information with roles (CollaboratorRole)",
+              "Language/dialect information (DialectInstance)",
+              "Geographic information with map coordinates",
+              "Related collections display"
+            ]
+          },
+          "add_view": {
+            "view_class": "item_add",
+            "url_pattern": "catalog/add/",
+            "features": [
+              "Complete ItemForm with all fields",
+              "Staff permission required (is_member_of_archivist)",
+              "Form validation and error handling",
+              "Success message and redirect"
+            ]
+          },
+          "edit_view": {
+            "view_function": "item_edit",
+            "url_pattern": "catalog/<int:pk>/edit/",
+            "features": [
+              "Pre-populated ItemForm with existing data",
+              "Staff permission required",
+              "Form validation and error handling",
+              "Success message and redirect"
+            ]
+          },
+          "delete_view": {
+            "view_class": "item_delete",
+            "url_pattern": "catalog/<int:pk>/delete/",
+            "features": [
+              "Confirmation dialog",
+              "Staff permission required",
+              "Cascade handling for related objects",
+              "Success message and redirect"
+            ]
+          }
+        }
+      },
+      
+      "collections": {
+        "model_name": "Collection",
+        "django_url_prefix": "/collections/",
+        "react_url_prefix": "/collections/",
+        "functionality": {
+          "list_view": {
+            "view_function": "collection_index",
+            "url_pattern": "collections/",
+            "features": [
+              "Collection listing with metadata",
+              "Search and filtering capabilities",
+              "Pagination",
+              "Item count display per collection"
+            ]
+          },
+          "detail_view": {
+            "view_function": "collection_detail",
+            "url_pattern": "collections/<int:pk>/",
+            "features": [
+              "Complete collection metadata",
+              "Associated items listing",
+              "Collection statistics",
+              "Related information display"
+            ]
+          },
+          "add_view": {
+            "view_class": "collection_add",
+            "url_pattern": "collections/add/",
+            "features": [
+              "CollectionForm with all fields",
+              "Staff permission required",
+              "Form validation"
+            ]
+          },
+          "edit_view": {
+            "view_function": "collection_edit",
+            "url_pattern": "collections/<int:pk>/edit/",
+            "features": [
+              "Pre-populated CollectionForm",
+              "Staff permission required",
+              "Form validation"
+            ]
+          },
+          "delete_view": {
+            "view_class": "collection_delete",
+            "url_pattern": "collections/<int:pk>/delete/",
+            "features": [
+              "Confirmation dialog",
+              "Staff permission required",
+              "Cascade handling"
+            ]
+          }
+        }
+      },
+      
+      "collaborators": {
+        "model_name": "Collaborator",
+        "django_url_prefix": "/collaborators/",
+        "react_url_prefix": "/collaborators/",
+        "functionality": {
+          "list_view": {
+            "view_function": "collaborator_index",
+            "url_pattern": "collaborators/",
+            "features": [
+              "Collaborator listing",
+              "Search and filtering",
+              "Export functionality (Excel/CSV)",
+              "Async export with task status tracking",
+              "Pagination"
+            ]
+          },
+          "detail_view": {
+            "view_function": "collaborator_detail",
+            "url_pattern": "collaborators/<int:pk>/",
+            "features": [
+              "Complete collaborator information",
+              "Native languages with dialect information",
+              "Other languages with dialect information",
+              "Associated items listing",
+              "Language proficiency details"
+            ]
+          },
+          "add_view": {
+            "view_class": "collaborator_add",
+            "url_pattern": "collaborators/add/",
+            "features": [
+              "CollaboratorForm with all fields",
+              "Staff permission required",
+              "Form validation"
+            ]
+          },
+          "edit_view": {
+            "view_function": "collaborator_edit",
+            "url_pattern": "collaborators/<int:pk>/edit/",
+            "features": [
+              "Pre-populated CollaboratorForm",
+              "Staff permission required",
+              "Form validation"
+            ]
+          },
+          "delete_view": {
+            "view_class": "collaborator_delete",
+            "url_pattern": "collaborators/<int:pk>/delete/",
+            "features": [
+              "Confirmation dialog",
+              "Staff permission required",
+              "Cascade handling"
+            ]
+          },
+          "export_features": {
+            "export_task_status": {
+              "view_function": "collaborator_export_task_status",
+              "url_pattern": "collaborators/export-task-status/<str:task_id>/",
+              "features": ["Async task status checking", "Progress tracking"]
+            },
+            "download_export": {
+              "view_function": "download_collaborator_export",
+              "url_pattern": "collaborators/download-export/<str:filename>/",
+              "features": ["Secure file download", "Temporary file cleanup"]
+            }
+          }
+        }
+      },
+      
+      "languoids": {
+        "model_name": "Languoid",
+        "django_url_prefix": "/languoids/",
+        "react_url_prefix": "/languoids/",
+        "functionality": {
+          "list_view": {
+            "view_function": "languoid_index",
+            "url_pattern": "languoids/",
+            "features": [
+              "Language/dialect listing",
+              "Search and filtering",
+              "Hierarchical display (languages → dialects)",
+              "Statistics display",
+              "Pagination"
+            ]
+          },
+          "detail_view": {
+            "view_function": "languoid_detail",
+            "url_pattern": "languoids/<int:pk>/",
+            "features": [
+              "Complete languoid information",
+              "Associated dialects listing",
+              "Collaborators who speak this language",
+              "Items in this language",
+              "Language family information"
+            ]
+          },
+          "add_view": {
+            "view_class": "languoid_add",
+            "url_pattern": "languoids/add/",
+            "features": [
+              "LanguoidForm with all fields",
+              "Staff permission required",
+              "Form validation"
+            ]
+          },
+          "edit_view": {
+            "view_function": "languoid_edit",
+            "url_pattern": "languoids/<int:pk>/edit/",
+            "features": [
+              "Pre-populated LanguoidForm",
+              "Staff permission required",
+              "Form validation"
+            ]
+          },
+          "delete_view": {
+            "view_class": "languoid_delete",
+            "url_pattern": "languoids/<int:pk>/delete/",
+            "features": [
+              "Confirmation dialog",
+              "Staff permission required",
+              "Cascade handling"
+            ]
+          },
+          "stats_view": {
+            "view_function": "languoid_stats",
+            "url_pattern": "languoids/stats/",
+            "features": [
+              "Language statistics dashboard",
+              "Usage counts",
+              "Distribution information"
+            ]
+          }
+        }
+      }
+    },
+    
+    "supporting_functionality": {
+      "dialects": {
+        "dialect_add": {
+          "view_class": "dialect_add",
+          "url_pattern": "languoids/<int:lang_pk>/dialects/add/",
+          "features": ["Add dialect to specific language", "Staff permission required"]
+        },
+        "dialect_edit": {
+          "view_function": "dialect_edit",
+          "url_pattern": "dialects/<int:pk>/edit/",
+          "features": ["Edit dialect information", "Staff permission required"]
+        },
+        "dialect_instance_edit": {
+          "view_function": "dialect_instance_edit",
+          "url_pattern": "dialect-instances/<int:pk>/edit/",
+          "features": ["Edit dialect instance relationships", "Staff permission required"]
+        }
+      },
+      
+      "geographic": {
+        "geographic_add": {
+          "view_class": "geographic_add",
+          "url_pattern": "catalog/<int:parent_pk>/geographic/add/",
+          "features": ["Add geographic coordinates to items", "Staff permission required"]
+        },
+        "geographic_edit": {
+          "view_function": "geographic_edit",
+          "url_pattern": "geographic/<int:pk>/edit/",
+          "features": ["Edit geographic information", "Staff permission required"]
+        }
+      },
+      
+      "collaborator_roles": {
+        "collaborator_role_edit": {
+          "view_function": "collaborator_role_edit",
+          "url_pattern": "roles/<int:pk>/edit/",
+          "features": ["Edit collaborator roles on items", "Staff permission required"]
+        }
+      }
+    },
+    
+    "common_patterns": {
+      "authentication": {
+        "login_required": "All views require user authentication",
+        "staff_required": "Most modification views require staff privileges (is_member_of_archivist)",
+        "permission_handling": "Proper permission denied redirects to /no-permission"
+      },
+      
+      "form_handling": {
+        "validation": "Server-side form validation with error display",
+        "success_messages": "Success messages after successful operations",
+        "redirect_patterns": "Consistent redirect patterns after form submission"
+      },
+      
+      "search_and_filtering": {
+        "query_parameters": "GET parameters for all filter options",
+        "persistent_filters": "Filter state maintained across requests",
+        "multiple_criteria": "Support for combining multiple filter criteria",
+        "text_search": "Contains-based text searching across multiple fields"
+      },
+      
+      "relationships": {
+        "foreign_keys": "Proper handling of FK relationships in forms and display",
+        "many_to_many": "M2M relationship management (languages, collaborators)",
+        "related_objects": "Display of related objects in detail views",
+        "cascade_handling": "Proper cascade behavior on delete operations"
+      },
+      
+      "pagination": {
+        "django_paginator": "Standard Django pagination implementation",
+        "page_size": "Configurable page sizes",
+        "navigation": "Previous/next navigation with page numbers"
+      }
+    },
+    
+    "technical_requirements": {
+      "forms": {
+        "ItemForm": "Complete item creation/editing with all fields",
+        "CollectionForm": "Collection management form",
+        "CollaboratorForm": "Collaborator information form",
+        "LanguoidForm": "Language/dialect management form",
+        "GeographicForm": "Geographic coordinate form",
+        "DialectForm": "Dialect-specific form",
+        "DialectInstanceForm": "Dialect instance relationship form"
+      },
+      
+      "permissions": {
+        "is_member_of_archivist": "Staff-level permission check function",
+        "login_required": "Authentication requirement decorator",
+        "user_passes_test": "Custom permission testing"
+      },
+      
+      "data_processing": {
+        "export_functionality": "Excel/CSV export with async processing",
+        "file_handling": "Document upload and management",
+        "geographic_data": "Coordinate handling and map integration",
+        "relationship_management": "Complex M2M and FK relationship handling"
+      }
+    },
+    
+    "stage_0_requirements": {
+      "must_recreate": [
+        "All list views with full search/filtering capability",
+        "All detail views with complete information display",
+        "All add/edit forms with validation",
+        "All delete operations with confirmation",
+        "Permission-based access control",
+        "Related object navigation",
+        "Pagination and sorting",
+        "Success/error message handling",
+        "Form validation and error display"
+      ],
+      
+      "can_defer_to_later_stages": [
+        "Document upload functionality (Stage 2)",
+        "Export functionality (Stage 4)",
+        "Advanced file processing (Stage 2)",
+        "Async task processing (Stage 3)"
+      ],
+      
+      "react_specific_enhancements": [
+        "Inline editing for individual fields",
+        "Optimistic updates with rollback",
+        "Real-time validation",
+        "Improved UX over Django templates",
+        "Spreadsheet-like component foundation for Stage 1"
+      ]
+    }
+  }
+}

@@ -22,6 +22,7 @@ from django.urls import path, include
 from django.views.generic import TemplateView
 from metadata.views import collection_index, collection_detail, collection_add, collection_edit, collection_delete, item_index, item_migrate_list, item_detail, item_edit, item_add, item_delete,languoid_index, languoid_detail, languoid_edit, languoid_add, languoid_delete, languoid_stats, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView, LanguoidListView, custom_error_500, custom_error_403, trigger_error, download_collaborator_export, collaborator_export_task_status, celery_health_check, cleanup_collaborator_export
 from frontend_views import ReactAppView
+from auth_api import CSRFTokenView, LoginView, LogoutView, UserStatusView
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
@@ -108,6 +109,12 @@ urlpatterns = [
     
     # Internal API for React frontend
     path('internal/', include('internal_api.urls')),
+
+    # Authentication API for React frontend
+    path('auth/csrf/', CSRFTokenView.as_view(), name='csrf_token'),
+    path('auth/login/', LoginView.as_view(), name='api_login'),
+    path('auth/logout/', LogoutView.as_view(), name='api_logout'),
+    path('auth/status/', UserStatusView.as_view(), name='user_status'),
 
     # Add this to the urlpatterns before the API URLs
     path('metadata/', include('metadata.urls')),

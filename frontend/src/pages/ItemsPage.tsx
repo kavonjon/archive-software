@@ -1,15 +1,7 @@
 import React from 'react';
 import { Typography, Container, Paper, Box } from '@mui/material';
 import { Routes, Route } from 'react-router-dom';
-
-const ItemsList: React.FC = () => (
-  <Paper sx={{ p: 3 }}>
-    <Typography variant="h4" gutterBottom>Items</Typography>
-    <Typography variant="body1">
-      Items list view will be implemented here with search, filtering, and inline editing capabilities.
-    </Typography>
-  </Paper>
-);
+import ItemsList from '../components/items/ItemsList';
 
 const ItemDetail: React.FC = () => (
   <Paper sx={{ p: 3 }}>

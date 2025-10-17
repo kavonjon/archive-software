@@ -17,47 +17,8 @@ app = Celery('archive')
 # Use settings prefixed with CELERY_ in settings.py
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
-# Ensure Redis password is included in broker URL
-redis_password = os.environ.get('REDIS_PASSWORD')
-redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
-
-# Check if we're running in Docker or development
-# In Docker, we can resolve the 'redis' hostname, but in dev we use 'localhost'
-def is_docker():
-    """Check if we're running in a Docker container by looking for specific env markers"""
-    return os.path.exists('/.dockerenv') or os.environ.get('DOCKER_CONTAINER') == 'true'
-
-def can_resolve_hostname(hostname):
-    """Check if a hostname can be resolved"""
-    try:
-        socket.gethostbyname(hostname)
-        return True
-    except socket.error:
-        return False
-
-# Choose the right Redis host
-if 'localhost' not in redis_url and 'redis' in redis_url and not can_resolve_hostname('redis'):
-    # We're trying to connect to 'redis' host but can't resolve it (development mode)
-    redis_url = redis_url.replace('redis:', 'localhost:')
-
-# Ensure password is included in the URL
-if redis_password and '://' in redis_url:
-    protocol, rest = redis_url.split('://', 1)
-    if '@' not in rest:
-        host_part = rest
-        app.conf.broker_url = f"{protocol}://:{redis_password}@{host_part}"
-        app.conf.result_backend = app.conf.broker_url
-        print(f"Celery configured with Redis URL: {protocol}://:{redis_password[:3]}***@{host_part}")
-    else:
-        # URL already has auth, use as-is
-        app.conf.broker_url = redis_url
-        app.conf.result_backend = redis_url
-        print(f"Using existing Redis URL with auth: {redis_url[:20]}***")
-else:
-    # No password or malformed URL, use default
-    app.conf.broker_url = redis_url
-    app.conf.result_backend = redis_url
-    print(f"Using Redis URL without auth: {redis_url}")
+# Let Django settings handle all Redis configuration
+# Remove the custom Redis URL logic - Django settings will provide CELERY_BROKER_URL
 
 # Configure Celery worker settings
 if platform.system() == 'Darwin':  # macOS

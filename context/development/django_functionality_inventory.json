@@ -396,8 +396,7 @@
         "Inline editing for individual fields",
         "Optimistic updates with rollback",
         "Real-time validation",
-        "Improved UX over Django templates",
-        "Spreadsheet-like component foundation for Stage 1"
+        "Improved UX over Django templates"
       ]
     }
   }

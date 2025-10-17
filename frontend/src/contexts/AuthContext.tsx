@@ -9,6 +9,7 @@ export interface User {
   last_name: string;
   is_staff: boolean;
   is_superuser: boolean;
+  groups: string[];
 }
 
 export interface AuthState {
@@ -97,7 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Get CSRF token
   const getCSRFToken = async (): Promise<string> => {
-    const response = await fetch('/auth/csrf/', {
+    const response = await fetch('http://localhost:8000/auth/csrf/', {
       credentials: 'include',
     });
     const data = await response.json();
@@ -109,7 +110,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       dispatch({ type: 'AUTH_START' });
       
-      const response = await fetch('/auth/status/', {
+      const response = await fetch('http://localhost:8000/auth/status/', {
         credentials: 'include',
       });
       
@@ -136,7 +137,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       const csrfToken = await getCSRFToken();
       
-      const response = await fetch('/auth/login/', {
+      const response = await fetch('http://localhost:8000/auth/login/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -166,7 +167,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const csrfToken = await getCSRFToken();
       
-      await fetch('/auth/logout/', {
+      await fetch('http://localhost:8000/auth/logout/', {
         method: 'POST',
         headers: {
           'X-CSRFToken': csrfToken,

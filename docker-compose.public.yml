@@ -15,6 +15,9 @@ services:
       - .env
     environment:
       - SERVER_ROLE=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
       - DOCKER_CONTAINER=true
     depends_on:
       - db
@@ -62,6 +65,9 @@ services:
       - .env
     environment:
       - SERVER_ROLE=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
       - DOCKER_CONTAINER=true
     depends_on:
       - redis
@@ -76,6 +82,9 @@ services:
       - .env
     environment:
       - SERVER_ROLE=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
       - DOCKER_CONTAINER=true
     depends_on:
       - redis

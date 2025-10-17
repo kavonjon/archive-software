@@ -122,18 +122,62 @@
     
     "user_roles": {
       "decision_id": "user_roles_001",
-      "content": "Simple permission model with four roles: Administrators (site admins, full access), Museum Staff (same privileges as Archivists), Archivists (all data operations), Read-only (view all data, no changes). Web application serves museum staff only - API serves separate public website",
+      "content": "Group-based permission model with four roles using Django Groups to separate operational access from administrative access. Museum Staff have full editing capabilities but cannot access Django admin interface for security separation",
       "added_date": "2025-01-04",
+      "last_updated": "2025-01-12",
       "roles_detail": {
-        "administrators": "Django superusers with full system access",
-        "museum_staff": "New group with same privileges as Archivists for broader staff access",
-        "archivists": "Full data operations - create, edit, delete, import, export",
-        "read_only": "View access to all data without modification rights"
+        "administrators": {
+          "description": "Django superusers with full system access",
+          "is_staff": true,
+          "is_superuser": true,
+          "groups": [],
+          "django_admin_access": true,
+          "api_edit_access": true,
+          "security_level": "highest"
+        },
+        "archivists": {
+          "description": "Technical staff with Django admin access and full data operations",
+          "is_staff": true,
+          "is_superuser": false,
+          "groups": ["Archivist"],
+          "django_admin_access": true,
+          "api_edit_access": true,
+          "security_level": "high"
+        },
+        "museum_staff": {
+          "description": "Operational staff with full editing via React app but no Django admin access",
+          "is_staff": false,
+          "is_superuser": false,
+          "groups": ["Museum Staff"],
+          "django_admin_access": false,
+          "api_edit_access": true,
+          "security_level": "medium",
+          "rationale": "Prevents accidental backend database modifications while maintaining full operational capabilities"
+        },
+        "read_only": {
+          "description": "View access to all data without modification rights",
+          "is_staff": false,
+          "is_superuser": false,
+          "groups": [],
+          "django_admin_access": false,
+          "api_edit_access": false,
+          "security_level": "low"
+        }
       },
-      "implementation": "Django groups-based permissions - no sophisticated privilege system needed",
+      "implementation": {
+        "method": "Django Groups with custom DRF permission class (IsAuthenticatedWithEditAccess)",
+        "permission_logic": "Staff users OR Archivist/Museum Staff group members can edit data",
+        "admin_separation": "is_staff=False prevents Django admin access while group membership allows API editing"
+      },
+      "security_benefits": [
+        "Clear separation between operational and administrative interfaces",
+        "Reduced risk of accidental backend modifications",
+        "Flexible group-based role management",
+        "Maintains full functionality for operational users"
+      ],
       "confidence_level": "high",
       "status": "active", 
-      "cross_references": ["user_workflows.json", "cultural_context.json"]
+      "cross_references": ["user_workflows.json", "cultural_context.json", "coding_patterns.json"]
     },
     
     "special_collections": {
@@ -359,6 +403,96 @@
         "status": "active",
         "cross_references": ["api_classification.json", "refactoring_roadmap.json"]
       }
+    },
+    
+    "accessibility_compliance": {
+      "decision_id": "accessibility_001",
+      "content": "Web application must be fully ADA compliant for accessibility across all user interfaces",
+      "added_date": "2025-01-04",
+      "compliance_standards": ["WCAG 2.1 AA", "Section 508", "ADA Title III"],
+      "implementation_areas": [
+        "Keyboard navigation support for all interactive elements",
+        "Screen reader compatibility with semantic HTML and ARIA",
+        "Color contrast compliance (4.5:1 for normal text, 3:1 for large text)",
+        "Alternative text for all images and media content",
+        "Proper heading structure and document outline",
+        "Form label associations and error announcements",
+        "Focus indicators and logical tab order",
+        "Semantic HTML markup throughout application"
+      ],
+      "react_spa_considerations": [
+        "Accessible Material-UI components with proper ARIA attributes",
+        "Focus management during client-side route changes",
+        "Screen reader announcements for dynamic content updates",
+        "Accessible data tables with proper headers and scope",
+        "Modal dialogs with focus trapping and escape handling",
+        "Loading states and error messages announced to screen readers"
+      ],
+      "testing_requirements": [
+        "Automated accessibility testing integrated into CI/CD (axe-core)",
+        "Manual keyboard navigation testing for all workflows",
+        "Screen reader testing with NVDA, JAWS, and VoiceOver",
+        "Color contrast validation tools",
+        "Regular accessibility audits during development"
+      ],
+      "django_template_considerations": [
+        "Existing Django templates must maintain accessibility during React migration",
+        "Form validation errors properly associated with fields",
+        "Server-side rendered content follows accessibility guidelines"
+      ],
+      "priority": "high",
+      "legal_requirement": "ADA Title III compliance required for public-facing interfaces",
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["stage_0_react_migration.json", "user_workflows.json"]
+    },
+    
+    "responsive_design": {
+      "decision_id": "responsive_001",
+      "content": "Web application must use responsive design to support mobile and tablet devices",
+      "added_date": "2025-01-04",
+      "design_principles": [
+        "Mobile-first design approach",
+        "Responsive breakpoints for phone, tablet, and desktop",
+        "Touch-friendly interface elements and spacing",
+        "Optimized layouts for small screens",
+        "Readable text sizes across all devices",
+        "Accessible tap targets (minimum 44px)",
+        "Horizontal scrolling minimized or eliminated"
+      ],
+      "target_devices": [
+        "Mobile phones (320px - 768px)",
+        "Tablets (768px - 1024px)", 
+        "Desktop computers (1024px+)",
+        "Various screen orientations (portrait/landscape)"
+      ],
+      "react_implementation": [
+        "Material-UI responsive grid system",
+        "CSS media queries for custom responsive behavior",
+        "Responsive typography and spacing",
+        "Mobile-optimized navigation patterns",
+        "Touch gesture support where appropriate",
+        "Responsive data tables with horizontal scroll fallback"
+      ],
+      "user_experience_considerations": [
+        "Museum staff need mobile access for field work",
+        "Researchers may access on various devices",
+        "Public API consumers expect mobile-responsive interfaces",
+        "Complex data entry may require desktop optimization",
+        "Batch editing features need tablet-friendly design"
+      ],
+      "testing_requirements": [
+        "Cross-device testing on actual devices",
+        "Browser responsive design tools testing",
+        "Performance testing on mobile networks",
+        "Touch interaction testing",
+        "Orientation change testing"
+      ],
+      "priority": "high",
+      "rationale": "Modern web applications must support mobile devices for accessibility and user adoption",
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["stage_0_react_migration.json", "user_workflows.json", "accessibility_compliance"]
     }
   }
 }

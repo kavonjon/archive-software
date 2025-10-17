@@ -1,17 +1,23 @@
 import React from 'react';
-import { Typography, Container, Paper, Box } from '@mui/material';
+import { Routes, Route } from 'react-router-dom';
+import { Container } from '@mui/material';
+import CollectionsList from '../components/collections/CollectionsList';
+import CollectionDetail from '../components/collections/CollectionDetail';
+import CollectionCreate from '../components/collections/CollectionCreate';
 
 const CollectionsPage: React.FC = () => {
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ mt: 2, mb: 4 }}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h4" gutterBottom>Collections</Typography>
-          <Typography variant="body1">
-            Collections management interface will be implemented here.
-          </Typography>
-        </Paper>
-      </Box>
+    <Container maxWidth="lg" sx={{ py: 3 }}>
+      <Routes>
+        {/* Collections list page */}
+        <Route index element={<CollectionsList />} />
+        
+        {/* Collection Create page */}
+        <Route path="create" element={<CollectionCreate />} />
+        
+        {/* Collection Detail page */}
+        <Route path=":id" element={<CollectionDetail />} />
+      </Routes>
     </Container>
   );
 };

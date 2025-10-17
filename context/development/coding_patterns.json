@@ -1,54 +1,758 @@
 {
-  "coding_patterns": {
-    "version": "1.0",
-    "last_updated": "2025-01-04",
-    "conversation_reference": "Initial context memory system setup discussion",
-    "note": "Initial population - needs audit and expansion with actual code patterns",
-    
-    "established_patterns": {
-      "service_layer_pattern": {
-        "decision_id": "pattern_001",
-        "content": "Service classes used for business logic centralization, as seen in CollaboratorService",
-        "added_date": "2025-01-04",
-        "example_location": "app/metadata/services.py - CollaboratorService",
-        "rationale": "Centralizes shared logic between views and tasks to avoid code duplication",
-        "confidence_level": "high",
-        "status": "active",
-        "cross_references": ["data_model_understanding.json"]
-      }
+  "established_patterns": {
+    "accessibility_first_development": {
+      "decision_id": "pattern_001",
+      "content": "All React components must be built with ADA compliance as a core requirement, not an afterthought",
+      "added_date": "2025-01-04",
+      "implementation_approach": [
+        "Use accessibility utilities from utils/accessibility.ts for consistent ARIA patterns",
+        "Include proper semantic HTML structure in all components",
+        "Implement keyboard navigation support for all interactive elements",
+        "Add screen reader announcements for dynamic content changes",
+        "Use Material-UI components with built-in accessibility features",
+        "Test with axe-core automated testing during development"
+      ],
+      "required_patterns": [
+        "All forms must use formUtils.generateFieldProps() for consistent labeling",
+        "All tables must use tableUtils.generateHeaderProps() and tableUtils.generateCellProps()",
+        "All interactive elements must meet 44px minimum touch target size",
+        "All dynamic content must use focusUtils.announce() for screen reader updates",
+        "All modals and dialogs must implement proper focus trapping"
+      ],
+      "testing_requirements": [
+        "axe-core runs automatically in development mode",
+        "Manual keyboard navigation testing for each component",
+        "Screen reader testing with NVDA, JAWS, or VoiceOver",
+        "Color contrast validation for all UI elements"
+      ],
+      "priority": "critical",
+      "status": "active"
     },
     
-    "code_organization": {
-      "django_app_structure": {
-        "decision_id": "pattern_002",
-        "content": "Standard Django app structure with models, views, services, tasks separation",
-        "added_date": "2025-01-04",
-        "structure_elements": ["models.py", "views.py", "services.py", "tasks.py", "serializers.py"],
-        "confidence_level": "high",
-        "status": "active"
-      }
+    "mobile_first_responsive_design": {
+      "decision_id": "pattern_002", 
+      "content": "All React components must use mobile-first responsive design principles",
+      "added_date": "2025-01-04",
+      "implementation_approach": [
+        "Use responsive utilities from utils/responsive.ts for consistent breakpoints",
+        "Design for mobile (320px+) first, then enhance for larger screens",
+        "Use Material-UI breakpoint system for responsive behavior",
+        "Implement touch-friendly interfaces with appropriate sizing",
+        "Test on actual devices, not just browser responsive tools"
+      ],
+      "required_patterns": [
+        "All components must work on mobile (320px-768px) as primary experience",
+        "Use useMediaQuery() hook for conditional rendering based on screen size",
+        "Implement card layouts for mobile, table layouts for desktop when appropriate",
+        "Use responsive typography scaling across breakpoints",
+        "Ensure horizontal scrolling is minimized or eliminated"
+      ],
+      "breakpoint_strategy": {
+        "xs (0-600px)": "Mobile phones - card layouts, stacked forms, hamburger navigation",
+        "sm (600-900px)": "Large phones/small tablets - 2-column grids, expanded navigation",
+        "md (900-1200px)": "Tablets - 3-column grids, desktop table views",
+        "lg (1200px+)": "Desktop - full feature set, optimal spacing"
+      },
+      "priority": "high",
+      "status": "active"
+    },
+
+    "component_architecture_patterns": {
+      "decision_id": "pattern_003",
+      "content": "Standardized patterns for React component development in the archive system",
+      "added_date": "2025-01-04",
+      "file_organization": [
+        "Components organized by feature (items/, collections/, collaborators/, languoids/)",
+        "Shared utilities in utils/ (accessibility.ts, responsive.ts)",
+        "Type definitions in types/index.ts",
+        "API services in services/api.ts"
+      ],
+      "component_structure": [
+        "Use TypeScript interfaces for all prop types",
+        "Implement proper error boundaries and loading states", 
+        "Include comprehensive ARIA labeling and semantic HTML",
+        "Use Material-UI components as base with accessibility enhancements",
+        "Implement proper focus management and keyboard navigation"
+      ],
+      "state_management": [
+        "Use React hooks (useState, useEffect, useCallback) for local state",
+        "Use Redux for global application state when needed",
+        "Implement proper loading and error states for all async operations",
+        "Use proper TypeScript typing for all state objects"
+      ],
+      "priority": "high",
+      "status": "active"
+    },
+
+    "django_choice_field_display_values": {
+      "decision_id": "pattern_006",
+      "content": "Always provide both machine-readable values and human-readable display labels for Django choice fields in API responses",
+      "added_date": "2025-01-04",
+      "implementation_approach": [
+        "Use Django's built-in get_FIELD_display() methods in serializers for single-choice fields",
+        "Create custom SerializerMethodField for MultiSelectField choices with manual lookup",
+        "Import choice constants locally in serializer methods to avoid circular imports",
+        "Provide both raw value (for programmatic use) and display value (for UI) in API responses"
+      ],
+      "required_patterns": [
+        "All choice fields must include both 'field_name' and 'field_name_display' in API responses",
+        "MultiSelectField choices require custom get_FIELD_display() method implementation",
+        "Choice constants must be imported within serializer methods, not at module level",
+        "Frontend components must use '_display' fields for user-facing text"
+      ],
+      "example_implementation": {
+        "django_serializer": {
+          "single_choice": "field_display = serializers.CharField(source='get_field_display', read_only=True)",
+          "multi_select": "def get_field_display(self, obj): from metadata.models import FIELD_CHOICES; field_dict = dict(FIELD_CHOICES); return [field_dict.get(value, value) for value in obj.field]"
+        },
+        "react_usage": {
+          "display": "item.resource_type_display || 'Unknown'",
+          "programmatic": "item.resource_type === 'audio'"
+        }
+      },
+      "choice_field_types": {
+        "ACCESS_CHOICES": "('1', '1 - Open Access'), ('2', '2 - Materials available onsite'), ('3', '3 - Time limited'), ('4', '4 - Depositor controlled')",
+        "RESOURCE_TYPE_CHOICES": "('audio', 'Audio'), ('audio-video', 'Audio/Video'), ('manuscript', 'Manuscript'), etc.",
+        "GENRE_CHOICES": "MultiSelectField - requires custom handling"
+      },
+      "priority": "high",
+      "status": "active"
+    },
+
+    "separated_architecture_patterns": {
+      "decision_id": "pattern_004",
+      "content": "Development patterns for separated frontend/backend architecture",
+      "added_date": "2025-01-04", 
+      "api_communication": [
+        "All API calls use services/api.ts with proper error handling",
+        "CSRF tokens handled automatically for authenticated requests",
+        "Cross-origin requests configured with django-cors-headers",
+        "Session-based authentication with credentials included"
+      ],
+      "development_workflow": [
+        "React dev server (localhost:3000) with hot reload",
+        "Django API server (localhost:8000) with auto-reload",
+        "CORS configured for development cross-origin requests",
+        "Two terminal setup: npm start + pipenv run python manage.py runserver"
+      ],
+      "error_handling": [
+        "APIError class for structured error responses",
+        "Screen reader announcements for API errors",
+        "User-friendly error messages with retry options",
+        "Proper loading states during API operations"
+      ],
+      "priority": "high", 
+      "status": "active"
+    },
+
+    "service_layer_pattern": {
+      "decision_id": "pattern_005",
+      "content": "Business logic centralized in service classes, separate from views",
+      "added_date": "2025-01-04",
+      "examples": ["metadata.services.FilterService", "metadata.services.ExportService"],
+      "rationale": "Keeps views thin, business logic reusable and testable",
+      "confidence_level": "high",
+      "status": "active"
     },
     
-    "patterns_to_establish": {
-      "mode_detection": {
-        "decision_id": "pattern_003",
-        "content": "Pattern needed for detecting and handling deployment mode (public vs private)",
-        "added_date": "2025-01-04",
-        "implementation_approach": "Environment variable-based mode detection with consistent usage across codebase",
-        "confidence_level": "medium",
-        "status": "pending",
-        "cross_references": ["mode_specific_code.json"]
+    "dual_deployment_pattern": {
+      "decision_id": "pattern_006", 
+      "content": "Single codebase supporting both public and private server modes via SERVER_ROLE environment variable",
+      "added_date": "2025-01-04",
+      "implementation": "Conditional logic in settings.py, file_utils.py, and tasks.py",
+      "benefits": ["Code reuse", "Consistent behavior", "Simplified maintenance"],
+      "confidence_level": "high",
+      "status": "active"
+    }
+  },
+
+  "code_quality_standards": {
+    "typescript_requirements": {
+      "decision_id": "quality_001",
+      "content": "Strict TypeScript standards for type safety and maintainability",
+      "added_date": "2025-01-04",
+      "requirements": [
+        "All components must have proper TypeScript interfaces",
+        "No 'any' types unless absolutely necessary with justification",
+        "Proper type definitions for all API responses and requests",
+        "Use type assertions (as Type) only when necessary with proper casting",
+        "All props, state, and function parameters must be typed"
+      ],
+      "linting_standards": [
+        "ESLint warnings must be resolved before commits",
+        "No unused imports or variables",
+        "Consistent naming conventions (camelCase for variables, PascalCase for components)",
+        "Proper export patterns (named exports preferred over anonymous defaults)"
+      ],
+      "priority": "high",
+      "status": "active"
+    },
+
+    "testing_integration": {
+      "decision_id": "quality_002",
+      "content": "Integrated testing approach for accessibility and functionality",
+      "added_date": "2025-01-04",
+      "automated_testing": [
+        "axe-core accessibility testing runs automatically in development",
+        "TypeScript compilation must pass without errors",
+        "ESLint warnings should be resolved before commits",
+        "React Testing Library for component testing (future implementation)"
+      ],
+      "manual_testing": [
+        "Keyboard navigation testing for all interactive components",
+        "Screen reader testing with actual assistive technology",
+        "Cross-device testing on mobile, tablet, and desktop",
+        "Color contrast validation using accessibility tools"
+      ],
+      "priority": "high",
+      "status": "active"
+    }
+  },
+
+  "future_component_guidelines": {
+    "new_component_checklist": {
+      "decision_id": "guidelines_001",
+      "content": "Mandatory checklist for all new React components",
+      "added_date": "2025-01-04",
+      "accessibility_checklist": [
+        "✅ Proper semantic HTML structure (headings, landmarks, lists)",
+        "✅ ARIA labels and descriptions using accessibility utilities",
+        "✅ Keyboard navigation support for all interactive elements",
+        "✅ Screen reader announcements for dynamic content",
+        "✅ 44px minimum touch targets for all clickable elements",
+        "✅ Color contrast meets WCAG 2.1 AA standards (4.5:1 ratio)",
+        "✅ Focus indicators visible and logical tab order"
+      ],
+      "responsive_design_checklist": [
+        "✅ Mobile-first design approach (320px+ base)",
+        "✅ Responsive breakpoints using Material-UI system",
+        "✅ Touch-friendly interface elements and spacing",
+        "✅ Horizontal scrolling minimized or eliminated",
+        "✅ Typography scales appropriately across devices",
+        "✅ Card layouts for mobile, table layouts for desktop when appropriate"
+      ],
+      "code_quality_checklist": [
+        "✅ TypeScript interfaces for all props and state",
+        "✅ Proper error handling and loading states",
+        "✅ ESLint warnings resolved",
+        "✅ axe-core accessibility testing passes",
+        "✅ Cross-device testing completed"
+      ],
+      "priority": "critical",
+      "status": "active"
+    }
+  },
+
+  "maintenance_protocols": {
+    "accessibility_maintenance": {
+      "decision_id": "maintenance_001",
+      "content": "Ongoing maintenance of accessibility standards",
+      "added_date": "2025-01-04",
+      "regular_audits": [
+        "Monthly accessibility audits using automated tools",
+        "Quarterly manual testing with screen readers",
+        "Annual third-party accessibility assessment",
+        "Continuous monitoring of WCAG guideline updates"
+      ],
+      "update_protocols": [
+        "Update accessibility utilities when new patterns emerge",
+        "Test all components when assistive technology updates",
+        "Monitor and update ARIA specifications as they evolve",
+        "Keep axe-core and testing tools updated"
+      ],
+      "priority": "high",
+      "status": "active"
+    }
+  },
+
+  "code_organization": {
+    "django_app_structure": {
+      "decision_id": "org_001",
+      "content": "Standard Django app organization with services layer",
+      "added_date": "2025-01-04",
+      "structure": ["models.py", "views.py", "services.py", "forms.py", "admin.py", "tasks.py"],
+      "confidence_level": "medium",
+      "status": "active"
+    },
+    
+    "react_component_structure": {
+      "decision_id": "org_002",
+      "content": "Organized React component structure with accessibility and responsive design built-in",
+      "added_date": "2025-01-04",
+      "structure": [
+        "components/ - Feature-organized React components",
+        "utils/ - Shared utilities (accessibility.ts, responsive.ts)",
+        "types/ - TypeScript type definitions",
+        "services/ - API communication layer",
+        "contexts/ - React context providers"
+      ],
+      "confidence_level": "high",
+      "status": "active"
+    },
+
+    "comprehensive_api_serialization": {
+      "decision_id": "org_003",
+      "content": "Create comprehensive internal API serializers that match Django template field structure for complete CRUD operations",
+      "added_date": "2025-01-04",
+      "pattern": "Map all Django template fields to flat API structure organized by template sections",
+      "implementation_approach": [
+        "Analyze existing Django templates to identify all displayed fields and their groupings",
+        "Group serializer fields by template sections (General, Accessions, Location, Books, External, Deprecated, Migration, Versioning)",
+        "Include display values for all choice fields and MultiSelectFields using established patterns",
+        "Add computed fields for related data (names instead of IDs) for better frontend usability",
+        "Maintain backward compatibility with existing simplified field names",
+        "Update frontend TypeScript interfaces to match comprehensive structure with proper typing"
+      ],
+      "template_section_mapping": {
+        "General": ["catalog_number", "access_level", "call_number", "accession_date", "additional_digital_file_location"],
+        "Titles": ["primary_title", "titles", "indigenous_title", "english_title"],
+        "Content_Description": ["description", "resource_type", "genre", "language_description_type", "creation_date", "associated_ephemera"],
+        "Availability_Condition": ["availability_status", "condition", "condition_notes", "ipm_issues", "conservation_treatments_performed"],
+        "Accessions": ["accession_number", "type_of_accession", "acquisition_notes", "project_grant", "collection_info", "depositor_info"],
+        "Location": ["municipality_or_township", "county_or_parish", "state_or_province", "country_or_territory", "global_region", "recording_context"],
+        "Books": ["publisher", "publisher_address", "isbn", "loc_catalog_number", "total_number_of_pages_and_physical_description"],
+        "External": ["temporary_accession_number", "lender_loan_number", "other_institutional_number"],
+        "Deprecated": ["migration_file_format", "migration_location", "cataloged_by", "cataloged_date", "filemaker_legacy_pk_id"],
+        "Migration": ["migrate", "migrate_display"],
+        "Versioning": ["added", "updated", "modified_by"]
+      },
+      "benefits": [
+        "Complete data access for detailed views matching Django templates",
+        "Supports comprehensive CRUD operations with all necessary fields",
+        "Maintains modern flat API structure while preserving Django template organization",
+        "Enables rich frontend detail views with proper field grouping"
+      ],
+      "confidence_level": "high",
+      "status": "active"
+    },
+
+    "in_place_editing_with_layout_consistency": {
+      "decision_id": "org_004",
+      "content": "Implement in-place editing for Item detail views while maintaining layout consistency between Create and Detail views",
+      "added_date": "2025-01-04",
+      "approach": "Primary edit method is in-place editing on detail view, with Create page layout matching Detail view card organization",
+      "implementation_strategy": [
+        "In-place editing for quick field fixes (primary use case) - edit icons next to fields that convert to appropriate input types",
+        "Create page layout restructured to match Detail view card groupings for cognitive consistency",
+        "PATCH API calls for individual field updates with optimistic UI updates",
+        "Progressive enhancement - start with simple text fields, add complex field types incrementally"
+      ],
+      "user_workflow_alignment": {
+        "create_workflow": "Full form with all fields visible, organized in same card structure as detail view",
+        "edit_workflow": "In-place editing for specific field corrections without losing context",
+        "batch_edit_workflow": "Future Stage 1 feature for comprehensive multi-field changes"
+      },
+      "technical_benefits": [
+        "Reuses existing ItemDetail layout and InternalItemSerializer",
+        "No new routes or major components needed for editing",
+        "Better UX - users don't lose context when making quick fixes",
+        "More efficient API usage with targeted PATCH requests",
+        "Incremental implementation possible"
+      ],
+      "layout_consistency_requirements": [
+        "Create page must use same card organization as Detail view",
+        "Field groupings must match between Create and Detail views",
+        "Visual hierarchy and spacing should be consistent",
+        "Form validation and error handling patterns should align"
+      ],
+      "confidence_level": "high",
+      "status": "active"
+    },
+    "in_place_editing_implementation": {
+      "description": "Pattern for implementing in-place editing functionality in detail views",
+      "context": "React components that need field-level editing without navigating to separate edit pages",
+      "implementation": {
+        "state_management": {
+          "editing_fields": "Set<string> - tracks which fields are currently being edited",
+          "edit_values": "Record<string, string> - stores temporary edit values",
+          "saving_fields": "Set<string> - tracks which fields are currently being saved"
+        },
+        "api_integration": {
+          "method": "PATCH request using itemsAPI.patch(id, { [fieldName]: value })",
+          "optimistic_updates": "Update local state immediately after successful API call",
+          "error_handling": "Display field-specific error messages"
+        },
+        "ui_components": {
+          "editable_field": {
+            "edit_mode": "TextField with save/cancel buttons",
+            "view_mode": "Typography with edit icon",
+            "keyboard_shortcuts": "Enter to save, Escape to cancel",
+            "accessibility": "Tooltips, proper ARIA labels, focus management"
+          }
+        },
+        "user_experience": {
+          "auto_focus": "Focus TextField when entering edit mode",
+          "loading_states": "Show spinner during save operations",
+          "visual_feedback": "Edit icons with hover states, saving indicators"
+        }
+      },
+      "target_fields": [
+        "catalog_number - Header area, single line text with real-time validation",
+        "call_number - Item Details card, single line text", 
+        "description - Description card, multiline text (4 rows)",
+        "associated_ephemera - Description card, single line text",
+        "accession_number - Accessions card, single line text",
+        "acquisition_notes - Accessions card, multiline text (3 rows)",
+        "permission_to_publish_online - Access & Permissions card, boolean select (Yes/No/Not specified)",
+        "access_level - Item Details card, choice select (ACCESS_LEVEL_OPTIONS)",
+        "resource_type - Item Details card, choice select (RESOURCE_TYPE_OPTIONS)",
+        "availability_status - Condition card, choice select (AVAILABILITY_STATUS_OPTIONS)",
+        "condition - Condition card, choice select (CONDITION_OPTIONS)",
+        "type_of_accession - Accessions card, choice select (ACCESSION_TYPE_OPTIONS)",
+        "original_format_medium - Digitization card, choice select (FORMAT_OPTIONS)",
+        "creation_date - Important Dates card, text field with date format help",
+        "accession_date - Accessions card, text field with date format help",
+        "collection_date - Accessions card, text field with date format help",
+        "deposit_date - Accessions card, text field with date format help",
+        "collector_name - Accessions card, single line text",
+        "collector_info - Accessions card, multiline text (3 rows)",
+        "depositor_name - Accessions card, single line text", 
+        "depositor_contact_information - Accessions card, multiline text (3 rows)",
+        "location_of_original - Digitization card, single line text",
+        "publisher - Books card, single line text",
+        "publisher_address - Books card, multiline text (2 rows)",
+        "isbn - Books card, single line text",
+        "loc_catalog_number - Books card, single line text",
+        "total_number_of_pages_and_physical_description - Books card, multiline text (2 rows)",
+        "temporary_accession_number - External card, single line text",
+        "lender_loan_number - External card, single line text"
+      ],
+      "expansion_strategy": {
+        "phase_1": "Simple text fields (string, TextField) - COMPLETED",
+        "phase_2": "Choice fields (select dropdowns) - COMPLETED (boolean and choice fields implemented)",
+        "phase_3": "Date fields (flexible text input with format guidance) - COMPLETED",
+        "phase_4": "Relationship fields (autocomplete) - PENDING",
+        "phase_5": "Complex fields (MultiSelect, arrays) - PENDING"
+      },
+      "ui_philosophy": {
+        "no_main_edit_button": "Removed traditional 'Edit' button in favor of field-level editing",
+        "contextual_editing": "Edit icons appear next to each editable field",
+        "progressive_disclosure": "Only show edit UI when actively editing a field",
+        "consistent_interaction": "Same interaction pattern for all editable fields",
+        "visual_consistency": {
+          "default_state": "All fields use body2 + text.secondary (matches read-only fields)",
+          "editing_state": "TextField uses body1 + text.primary (provides clear feedback)",
+          "style_transition": "Intentional style change during editing signals active state",
+          "rationale": "Clean uniform appearance when viewing, enhanced visibility when editing",
+          "empty_value_display": "Empty editable fields show '(blank)' for clear data integrity indication",
+          "label_preservation": {
+            "approach": "Field labels always remain visible during editing",
+            "structure": "Label at top, value/TextField below, edit controls to the right",
+            "benefits": "Maintains context, prevents confusion about what field is being edited",
+            "styling": "Labels use variant='subtitle2' + fontWeight='medium' to match renderField function",
+            "spacing": "Root Box uses mb: 2 to match renderField spacing pattern for visual consistency"
+          }
+        }
+      },
+      "benefits": [
+        "Quick fixes without page navigation",
+        "Maintains context and layout",
+        "Reduces cognitive load",
+        "Optimized for common edit scenarios"
+      ],
+      "validation_patterns": {
+        "catalog_number_validation": {
+          "description": "Enhanced validation for catalog number field with real-time uniqueness checking",
+          "implementation": {
+            "debounced_validation": "Uses lodash debounce (500ms) to prevent excessive API calls",
+            "uniqueness_check": "API call to /items/?catalog_number=<value>&page_size=1 to check existence",
+            "format_validation": "Required field, max 255 characters",
+            "user_feedback": "Real-time validation messages with loading states, error alerts, and success confirmation",
+            "save_prevention": "Save button disabled when validation fails or is in progress"
+          },
+          "validation_states": {
+            "isValidating": "Shows spinner and 'Checking uniqueness...' message",
+            "error": "Displays error alert (required, too long, already exists, API error)",
+            "isValid": "Shows success message when valid and unique"
+          },
+          "integration": "Special validationState prop passed to EditableField component"
+        },
+        "date_field_implementation": {
+          "description": "Flexible date input with format guidance for cultural archive dates",
+          "approach": "Text fields with contextual help component showing accepted formats",
+          "backend_processing": "Two-layer architecture: DRF serializer validation + pre-save signal standardization",
+          "validation_location": "InternalItemSerializer validate_<field_name> methods + standardize_item_dates signal",
+          "accepted_formats": [
+            "Years: 2023, 1990s, 1990s?, 2020-2025",
+            "Months: 2023/03, March 2023, 3/2023", 
+            "Full Dates: 2023/03/15, 3/15/2023",
+            "Date Ranges: 2020/03-2023/10, 1/2020-3/2021, 2020-2023",
+            "Approximate: ca 2023, 19th century, early 2020s",
+            "Partial/Uncertain: 2023?, Spring 2023, circa 1950"
+          ],
+          "user_experience": {
+            "format_help": "DateFormatHelp component appears only when editing date fields",
+            "flexible_input": "Users can enter dates naturally without strict formatting",
+            "backend_validation": "DRF serializer validates and transforms dates on save",
+            "transformation_behavior": "User input is automatically standardized to YYYY/MM/DD format",
+            "range_calculation": "System automatically calculates min/max dates for searching"
+          },
+          "implementation_details": {
+            "help_component": "Blue info box with examples, shown conditionally with editingFields.has(fieldName)",
+            "storage": "Raw text stored in CharField, processed by DRF serializer validation and pre-save signal",
+            "display": "No frontend formatting - shows user input as-is",
+            "validation": "Two-layer validation: DRF serializer (React frontend) + pre-save signal (Django admin/direct saves)",
+            "migration_completed": "Removed unused field validators, implemented proper date standardization architecture"
+          },
+          "architecture_analysis": {
+            "original_system_design": {
+              "intent": "Manual transition strategy with carrot approach - users had to run management command to get proper search functionality",
+              "existing_functions": {
+                "validate_date_text": "EXISTING function in models.py - designed for validation/transformation but field validators don't work in Django",
+                "parse_standardized_date": "EXISTING function in utils.py - converts YYYY-first formats to min/max dates for search",
+                "standardize_date_formats_command": "EXISTING management command - batch converts MM/DD/YYYY to YYYY/MM/DD formats"
+              },
+              "design_philosophy": "Two-phase approach: 1) Run command to clean existing data, 2) Users learn YYYY format or lose search functionality",
+              "conversion_logic_location": "Date conversion logic existed in management command but NOT in real-time validation"
+            },
+            "problem_diagnosis": {
+              "field_validators_ineffective": "Django field validators that return transformed values are ignored - transformation never happened",
+              "missing_real_time_conversion": "validate_date_text function processes input but lacks MM/DD/YYYY → YYYY/MM/DD conversion logic",
+              "search_dependency": "parse_standardized_date only works with YYYY-first formats, creating incentive for proper format usage"
+            },
+            "solution_architecture": {
+              "phase_1_drf_serializer": "Added validate_<field_name> methods to InternalItemSerializer for React frontend date transformation",
+              "phase_2_pre_save_signal": "Added standardize_item_dates signal for Django admin and direct model saves",
+              "phase_3_cleanup": "Removed ineffective field validators from model definitions",
+              "conversion_logic_extraction": "Extracted ALL conversion patterns from existing management command into new standardize_date_format function"
+            },
+            "supported_conversions": {
+              "single_dates": [
+                "MM/DD/YYYY → YYYY/MM/DD (e.g., 11/23/2003 → 2003/11/23)",
+                "MM/YYYY → YYYY/MM (e.g., 11/2003 → 2003/11)"
+              ],
+              "date_ranges": [
+                "MM/YYYY-MM/YYYY → YYYY/MM-YYYY/MM (e.g., 11/2003-03/2004 → 2003/11-2004/03)",
+                "MM/DD/YYYY-MM/DD/YYYY → YYYY/MM/DD-YYYY/MM/DD (e.g., 11/23/2003-03/15/2004 → 2003/11/23-2004/03/15)"
+              ],
+              "preserved_formats": [
+                "YYYY → YYYY (no change)",
+                "YYYY-YYYY → YYYY-YYYY (no change)"
+              ]
+            },
+            "design_alignment_achieved": "Maintained original design intent while enabling automatic conversion for React frontend transition"
+          },
+          "debugging_methodology": {
+            "initial_misdiagnosis": "Initially assumed is_already_standardized function was 'too restrictive' - this was incorrect analysis",
+            "correct_diagnosis_process": [
+              "Added debug logging to pre-save signal to trace actual execution",
+              "Log output revealed signal was running but validate_date_text was not transforming dates",
+              "Traced through validate_date_text function line-by-line to understand why MM/DD/YYYY wasn't being converted",
+              "Discovered existing management command had the missing conversion logic"
+            ],
+            "key_insight": "The problem was not with our NEW code but with the EXISTING validate_date_text function lacking MM/DD/YYYY conversion",
+            "solution_approach": "Extract proven conversion logic from existing management command rather than modify existing validate_date_text function",
+            "lessons_learned": [
+              "Always distinguish between existing vs new code when diagnosing issues",
+              "Use debug logging to trace actual execution rather than making assumptions",
+              "Look for existing working implementations of desired functionality before writing new code",
+              "Understand original system design intent before implementing changes"
+            ]
+          },
+          "project_management_insights": {
+            "alignment_process": "Critical discussion to understand original design intent before implementing solutions",
+            "hypothesis_validation": "Project manager's intuition about manual transition strategy was confirmed by code analysis",
+            "design_continuity": "Solution maintains original 'carrot approach' while enabling automatic conversion for modern frontend",
+            "code_archaeology": "Understanding existing management command revealed the complete intended functionality",
+            "strategic_decision": "Chose to extract existing logic rather than modify core functions to maintain backward compatibility"
+          }
+        }
+      },
+      "confidence_level": "high",
+      "status": "active"
+    },
+    "internal_api_security": {
+      "description": "Security model for internal API endpoints using group-based permissions",
+      "context": "Four user roles with Django Groups: Admin (superuser), Archivist (staff+group), Museum Staff (group only), Read-only (authenticated)",
+      "permission_implementation": {
+        "permission_class": "IsAuthenticatedWithEditAccess",
+        "read_access": "All authenticated users can view data (GET requests)",
+        "write_access": "Staff users OR Archivist/Museum Staff group members can modify data (POST, PUT, PATCH, DELETE)",
+        "authentication": "Django session-based authentication with CSRF protection"
+      },
+      "user_role_mapping": {
+        "administrators": "Django superusers (is_staff=True, is_superuser=True) - full Django admin + API access",
+        "archivists": "Django staff users (is_staff=True) + 'Archivist' group - Django admin + API access",
+        "museum_staff": "Non-staff users (is_staff=False) + 'Museum Staff' group - API access only, NO Django admin",
+        "read_only": "Authenticated users (is_staff=False, no groups) - view-only API access"
+      },
+      "api_behavior": {
+        "get_requests": "All authenticated users can list and retrieve data",
+        "post_requests": "Staff users OR Archivist/Museum Staff group members can create new records",
+        "patch_put_requests": "Staff users OR Archivist/Museum Staff group members can update existing records",
+        "delete_requests": "Staff users OR Archivist/Museum Staff group members can delete records",
+        "authentication_failure": "Returns 401 Unauthorized for unauthenticated requests",
+        "permission_failure": "Returns 403 Forbidden for unauthorized modification attempts"
+      },
+      "frontend_implications": {
+        "read_only_users": "Can view all data, browse items, use search and filters",
+        "editing_users": "Can view and edit all data, use in-place editing, create/delete records",
+        "ui_adaptation": "Frontend should check user.is_staff OR user groups to show/hide edit controls"
+      },
+      "security_benefits": {
+        "admin_separation": "Museum Staff cannot access Django admin interface (is_staff=False)",
+        "operational_safety": "Reduces risk of accidental backend database modifications",
+        "role_flexibility": "Easy to add/remove users from Museum Staff group without affecting admin access"
+      },
+      "confidence_level": "high",
+      "status": "active"
+    },
+    "csrf_cors_configuration": {
+      "description": "Pattern for configuring CSRF and CORS settings for separated frontend/backend architecture",
+      "context": "Django backend with React frontend on different ports requiring session-based authentication",
+      "django_settings": {
+        "cors_configuration": {
+          "CORS_ALLOWED_ORIGINS": ["http://localhost:3000", "http://127.0.0.1:3000"],
+          "CORS_ALLOW_CREDENTIALS": "True - Required for session cookies",
+          "CORS_ALLOW_ALL_HEADERS": "True - For development flexibility",
+          "CORS_EXPOSE_HEADERS": ["content-type", "x-csrftoken"]
+        },
+        "csrf_configuration": {
+          "CSRF_TRUSTED_ORIGINS": ["http://localhost:3000", "http://127.0.0.1:3000"],
+          "CSRF_COOKIE_SAMESITE": "Lax - Allow cross-origin requests",
+          "CSRF_COOKIE_SECURE": "False - True only for HTTPS in production"
+        }
+      },
+      "frontend_implementation": {
+        "csrf_token_handling": "Fetch CSRF token from /auth/csrf/ endpoint before non-GET requests",
+        "credentials_mode": "include - Required for session cookies and CSRF tokens",
+        "header_inclusion": "X-CSRFToken header for all POST/PATCH/PUT/DELETE requests"
+      },
+      "common_errors": {
+        "origin_checking_failed": "Add frontend origin to CSRF_TRUSTED_ORIGINS",
+        "csrf_token_missing": "Ensure X-CSRFToken header is included in requests",
+        "credentials_not_included": "Set credentials: 'include' in fetch requests"
+      },
+      "confidence_level": "high",
+      "status": "active"
+    },
+    
+    "react_component_definition_patterns": {
+      "decision_id": "pattern_015",
+      "content": "Critical patterns for React component definitions to prevent DOM recreation and cursor jumping issues",
+      "added_date": "2025-10-14",
+      "conversation_reference": "Cursor jumping debugging session - discovered component recreation causes",
+      
+      "component_definition_rules": [
+        "NEVER define components inside other components - causes DOM recreation on every render",
+        "Define reusable components outside parent component scope",
+        "Use React.memo() for components that receive frequently changing props",
+        "Avoid useMemo() with dependencies that change on every keystroke",
+        "Pass props explicitly rather than accessing parent state directly"
+      ],
+      
+      "cursor_jumping_prevention": {
+        "root_cause": "Component recreation destroys and recreates DOM elements, losing cursor position",
+        "solution_pattern": "Move component definitions outside parent component",
+        "anti_patterns": [
+          "const MyComponent = () => { const InnerComponent = () => {...}; return <InnerComponent />; }",
+          "useMemo(() => <Component />, [frequentlyChangingValue])",
+          "Accessing parent state directly from child components"
+        ],
+        "correct_patterns": [
+          "const InnerComponent = () => {...}; const MyComponent = () => <InnerComponent />;",
+          "Pass values as props to maintain component stability",
+          "Use controlled components with explicit prop passing"
+        ]
       },
       
-      "api_endpoint_classification": {
-        "decision_id": "pattern_004",
-        "content": "Pattern needed for marking endpoints as internal vs public for documentation purposes",
-        "added_date": "2025-01-04",
-        "implementation_approach": "Decorator or configuration-based approach to classify endpoints",
-        "confidence_level": "medium", 
-        "status": "pending",
-        "cross_references": ["api_classification.json"]
-      }
+      "debugging_methodology": [
+        "Add console.log() to component render functions to track recreation",
+        "Check for changing element IDs in DOM inspector",
+        "Look for useMemo/useCallback with unstable dependencies",
+        "Verify component definitions are outside parent scope"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active"
+    },
+    
+    "mui_responsive_dropdown_patterns": {
+      "decision_id": "pattern_016", 
+      "content": "Patterns for handling long text in MUI Select components without breaking layout",
+      "added_date": "2025-10-14",
+      "conversation_reference": "Dropdown layout issue - learned to work with MUI patterns instead of fighting them",
+      
+      "layout_constraint_approach": {
+        "problem": "Long Select option text forces card/container width expansion",
+        "anti_pattern": "Using CSS to force truncation fights MUI's width calculation",
+        "solution": "Dynamic text abbreviation using renderValue prop",
+        "key_insight": "Framework-compliant solutions are simpler and more robust than CSS workarounds"
+      },
+      
+      "implementation_pattern": {
+        "abbreviation_function": "createAbbreviatedLabel(text, maxLength) - preserves prefixes, adds ellipsis",
+        "responsive_character_limits": "Use MUI breakpoints: mobile(20), tablet(30), desktop(40) characters",
+        "select_integration": "renderValue prop shows abbreviated text, dropdown shows full text",
+        "container_constraints": "FormControl with flex:1, minWidth:0 to allow shrinking"
+      },
+      
+      "code_example": {
+        "abbreviation": "const createAbbreviatedLabel = (fullLabel: string, maxLength: number = 40) => {...}",
+        "responsive_limits": "const maxLength = isMobile ? 20 : isTablet ? 30 : 40;",
+        "select_usage": "renderValue={(selected) => createAbbreviatedLabel(selectedOption.label, maxLength)}"
+      },
+      
+      "benefits": [
+        "Maintains consistent card widths across all content",
+        "Responsive to screen size changes",
+        "Works with MUI's natural behavior",
+        "No CSS !important or DOM manipulation needed",
+        "Automatically handles new database values"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active"
+    },
+    
+    "react_callback_timing_patterns": {
+      "decision_id": "pattern_017",
+      "content": "Critical patterns for proper timing of React callbacks to prevent infinite loops",
+      "added_date": "2025-10-14", 
+      "conversation_reference": "Date field infinite loop debugging - discovered render-time callback issue",
+      
+      "infinite_loop_prevention": {
+        "root_cause": "Callbacks that update state being called during render phase create infinite re-render cycles",
+        "anti_patterns": [
+          "Calling state-updating callbacks directly in JSX render (e.g., {onCallback && onCallback(value)})",
+          "Side effects during component render without useEffect",
+          "State updates triggered by render-time calculations"
+        ],
+        "correct_patterns": [
+          "Call callbacks in event handlers (onChange, onClick, etc.)",
+          "Use useEffect for side effects based on state changes", 
+          "Separate render logic from side effect logic"
+        ]
+      },
+      
+      "callback_placement_rules": {
+        "event_handlers": "Primary location for callbacks - onChange, onClick, onBlur, etc.",
+        "use_effect": "For callbacks that should run when dependencies change",
+        "never_in_render": "Never call state-updating callbacks directly in JSX render phase",
+        "conditional_execution": "Use conditional logic in event handlers, not render"
+      },
+      
+      "debugging_methodology": [
+        "Look for callbacks being called in JSX render (not in event handlers)",
+        "Check for state updates happening during render phase",
+        "Add console.log to identify render vs event-driven execution",
+        "Trace state update chains to find circular dependencies"
+      ],
+      
+      "date_field_case_study": {
+        "problem": "onValueChange callback for DateInterpretationFeedback called during render",
+        "manifestation": "Infinite loops when clicking edit buttons on date fields",
+        "solution": "Moved onValueChange calls to TextField and Select onChange handlers",
+        "lesson": "Event-driven callbacks prevent render-time side effects"
+      },
+      
+      "implementation_example": {
+        "wrong_approach": "// In JSX render: {onValueChange && onValueChange(currentValue)}",
+        "correct_approach": "// In event handler: onChange={(e) => { updateValue(e.target.value); onValueChange?.(e.target.value); }}"
+      },
+      
+      "confidence_level": "high",
+      "status": "active"
     }
   }
 }

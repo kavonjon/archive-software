@@ -4,6 +4,78 @@ from .models import Languoid, Item, CollaboratorRole
 from .tasks import update_collection_date_ranges
 from .utils import parse_standardized_date
 
+def standardize_date_format(date_str):
+    """
+    Standardize date string using the same logic as the existing management command.
+    Converts American MM/DD/YYYY formats to YYYY/MM/DD formats.
+    Preserves already standardized YYYY-first formats.
+    """
+    if not date_str:
+        return date_str
+
+    import re
+    
+    # YYYY format (preserve as is)
+    year_only = re.match(r'^(\d{4})$', date_str)
+    if year_only:
+        return date_str
+
+    # YYYY-YYYY format (preserve as is) 
+    year_range = re.match(r'^(\d{4})-(\d{4})$', date_str)
+    if year_range:
+        return date_str
+
+    # YYYY/MM-YYYY/MM format (already standardized - preserve as is)
+    # This matches both zero-padded (YYYY/MM) and non-padded (YYYY/M) formats
+    standardized_month_year_range = re.match(r'^(\d{4})/(\d{1,2})-(\d{4})/(\d{1,2})$', date_str)
+    if standardized_month_year_range:
+        return date_str
+
+    # YYYY/MM/DD-YYYY/MM/DD format (already standardized - preserve as is)
+    # This matches both zero-padded and non-padded formats
+    standardized_full_date_range = re.match(r'^(\d{4})/(\d{1,2})/(\d{1,2})-(\d{4})/(\d{1,2})/(\d{1,2})$', date_str)
+    if standardized_full_date_range:
+        return date_str
+
+    # YYYY/MM format (already standardized - preserve as is)
+    # This matches both zero-padded and non-padded formats
+    standardized_month_year = re.match(r'^(\d{4})/(\d{1,2})$', date_str)
+    if standardized_month_year:
+        return date_str
+
+    # YYYY/MM/DD format (already standardized - preserve as is)
+    # This matches both zero-padded and non-padded formats
+    standardized_full_date = re.match(r'^(\d{4})/(\d{1,2})/(\d{1,2})$', date_str)
+    if standardized_full_date:
+        return date_str
+
+    # MM/YYYY-MM/YYYY format → YYYY/MM-YYYY/MM
+    month_year_range = re.match(r'^(\d{1,2})/(\d{4})-(\d{1,2})/(\d{4})$', date_str)
+    if month_year_range:
+        month1, year1, month2, year2 = month_year_range.groups()
+        return f"{year1}/{month1.zfill(2)}-{year2}/{month2.zfill(2)}"
+
+    # MM/DD/YYYY-MM/DD/YYYY format → YYYY/MM/DD-YYYY/MM/DD  
+    full_date_range = re.match(r'^(\d{1,2})/(\d{1,2})/(\d{4})-(\d{1,2})/(\d{1,2})/(\d{4})$', date_str)
+    if full_date_range:
+        month1, day1, year1, month2, day2, year2 = full_date_range.groups()
+        return f"{year1}/{month1.zfill(2)}/{day1.zfill(2)}-{year2}/{month2.zfill(2)}/{day2.zfill(2)}"
+
+    # MM/DD/YYYY format → YYYY/MM/DD
+    full_date = re.match(r'^(\d{1,2})/(\d{1,2})/(\d{4})$', date_str)
+    if full_date:
+        month, day, year = full_date.groups()
+        return f"{year}/{month.zfill(2)}/{day.zfill(2)}"
+
+    # MM/YYYY format → YYYY/MM
+    month_year = re.match(r'^(\d{1,2})/(\d{4})$', date_str)
+    if month_year:
+        month, year = month_year.groups()
+        return f"{year}/{month.zfill(2)}"
+
+    # If no conversion patterns match, return original
+    return date_str
+
 @receiver(pre_save, sender=Item)
 def update_item_date_ranges(sender, instance, **kwargs):
     """Signal to update min/max date fields based on text date fields"""
@@ -76,7 +148,9 @@ def update_collection_dates_on_item_change(sender, instance, **kwargs):
         
         # Schedule the task to run asynchronously with retry handling
         try:
+            from django.conf import settings
             from .tasks import update_collection_date_ranges
+            
             update_collection_date_ranges.delay()
             logger.info(f"Scheduled update for collection {collection.pk}")
         except Exception as e:

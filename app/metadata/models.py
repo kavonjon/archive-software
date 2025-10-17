@@ -32,10 +32,10 @@ ACCESSION_CHOICES = (('conversion', 'Conversion'),
                      ('purchase', 'Purchase'),
                      ('reproduction', 'Reproduction'))
 
-AVAILABILITY_CHOICES = (('available', 'available'),
-                        ('restrictions', 'restrictions apply'),
-                        ('missing_parts', 'missing parts'),
-                        ('missing', 'missing'))
+AVAILABILITY_CHOICES = (('available', 'Available'),
+                        ('restrictions', 'Restrictions apply'),
+                        ('missing_parts', 'Missing parts'),
+                        ('missing', 'Missing'))
 
 CONDITION_CHOICES = (('excellent', 'Excellent'),
                      ('good', 'Good'),
@@ -453,12 +453,12 @@ class Collaborator(models.Model):
     slug = models.CharField(max_length=20, unique=True, blank=True, editable=False)
     anonymous = models.BooleanField(null=True, blank=True)
     birthdate = models.DateField(null=True, blank=True)
-    birthdate = models.CharField(max_length=255, blank=True, validators =[validate_date_text])
+    birthdate = models.CharField(max_length=255, blank=True)
     birthdate_min = models.DateField(null=True, blank=True)
     birthdate_max = models.DateField(null=True, blank=True)
     clan_society = models.CharField(max_length=255, blank=True)
     collaborator_id = models.IntegerField(unique=True)
-    deathdate = models.CharField(max_length=255, blank=True, validators =[validate_date_text])
+    deathdate = models.CharField(max_length=255, blank=True)
     deathdate_min = models.DateField(null=True, blank=True)
     deathdate_max = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=255, blank=True) # old name: sex, need to import
@@ -480,8 +480,11 @@ class Collaborator(models.Model):
     def __str__(self):
         return self.name
     def clean(self):
-        self.birthdate = validate_date_text(self.birthdate)
-        self.deathdate = validate_date_text(self.deathdate)
+        # Import our good standardization function from signals
+        from .signals import standardize_date_format
+        
+        self.birthdate = standardize_date_format(self.birthdate)
+        self.deathdate = standardize_date_format(self.deathdate)
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -604,7 +607,7 @@ class Item(models.Model):
     slug = models.CharField(max_length=20, unique=True, blank=True, editable=False)
     collection = models.ForeignKey(Collection, related_name='collection_items', on_delete=models.SET_NULL, null=True, blank=True)
     access_level_restrictions = models.TextField(blank=True)
-    accession_date = models.CharField(max_length=255, blank=True, validators =[validate_date_text])
+    accession_date = models.CharField(max_length=255, blank=True)
     accession_date_min = models.DateField(null=True, blank=True)
     accession_date_max = models.DateField(null=True, blank=True)
     accession_number = models.CharField(max_length=255, blank=True)
@@ -616,12 +619,12 @@ class Item(models.Model):
     call_number = models.TextField(blank=True)
     catalog_number = models.CharField(max_length=255, unique=True) # this is the only unique field (besides implicity primary key field)
     cataloged_by = models.CharField(max_length=255, blank=True) #to be replaced with an auto created by field/automated
-    cataloged_date = models.CharField(max_length=255, blank=True, validators =[validate_date_text])
+    cataloged_date = models.CharField(max_length=255, blank=True)
     cataloged_date_min = models.DateField(null=True, blank=True)
     cataloged_date_max = models.DateField(null=True, blank=True)
     collaborator = models.ManyToManyField(Collaborator, verbose_name="list of collaborators", related_name='item_collaborators', blank=True)
     collecting_notes = models.TextField(blank=True)
-    collection_date = models.CharField(max_length=255, blank=True, validators =[validate_date_text])
+    collection_date = models.CharField(max_length=255, blank=True)
     collection_date_min = models.DateField(null=True, blank=True)
     collection_date_max = models.DateField(null=True, blank=True)
     collection_name = models.CharField(max_length=255, blank=True) # automate from catalog number
@@ -635,10 +638,10 @@ class Item(models.Model):
     copyrighted_notes = models.TextField(blank=True)
     country_or_territory = models.CharField(max_length=255, blank=True)
     county_or_parish = models.CharField(max_length=255, blank=True)
-    creation_date = models.CharField(max_length=255, blank=True, validators =[validate_date_text]) # automate across deposit, based on check box for new deposit
+    creation_date = models.CharField(max_length=255, blank=True) # automate across deposit, based on check box for new deposit
     creation_date_min = models.DateField(null=True, blank=True)
     creation_date_max = models.DateField(null=True, blank=True)
-    deposit_date = models.CharField(max_length=255, blank=True, validators =[validate_date_text]) # automate across deposit, based on check box for new deposit
+    deposit_date = models.CharField(max_length=255, blank=True) # automate across deposit, based on check box for new deposit
     deposit_date_min = models.DateField(null=True, blank=True)
     deposit_date_max = models.DateField(null=True, blank=True)
     depositor_contact_information = models.TextField(blank=True)
@@ -691,11 +694,14 @@ class Item(models.Model):
     def __str__(self):
         return self.catalog_number
     def clean(self):
-        self.accession_date = validate_date_text(self.accession_date)
-        self.cataloged_date = validate_date_text(self.cataloged_date)
-        self.collection_date = validate_date_text(self.collection_date)
-        self.creation_date = validate_date_text(self.creation_date)
-        self.deposit_date = validate_date_text(self.deposit_date)
+        # Import our good standardization function from signals
+        from .signals import standardize_date_format
+        
+        self.accession_date = standardize_date_format(self.accession_date)
+        self.cataloged_date = standardize_date_format(self.cataloged_date)
+        self.collection_date = standardize_date_format(self.collection_date)
+        self.creation_date = standardize_date_format(self.creation_date)
+        self.deposit_date = standardize_date_format(self.deposit_date)
 
     def get_item_files(self):
         """
@@ -765,7 +771,7 @@ class File(models.Model):
     av_spec = models.CharField(max_length=255, blank=True)
     
     # Content metadata
-    creation_date = models.CharField(max_length=255, blank=True, validators=[validate_date_text])
+    creation_date = models.CharField(max_length=255, blank=True)
     creation_date_min = models.DateField(null=True, blank=True)
     creation_date_max = models.DateField(null=True, blank=True)
     
@@ -788,7 +794,10 @@ class File(models.Model):
         return self.filename
         
     def clean(self):
-        self.creation_date = validate_date_text(self.creation_date)
+        # Import our good standardization function from signals
+        from .signals import standardize_date_format
+        
+        self.creation_date = standardize_date_format(self.creation_date)
         
     def get_extension(self):
         """Get the file extension"""
@@ -813,7 +822,7 @@ class Document(models.Model):
     duration = models.FloatField(null=True, blank=True)
     filesize = models.FloatField(null=True, blank=True) # to be automated
     av_spec = models.CharField(max_length=255, blank=True) # some automation in the future
-    creation_date = models.CharField(max_length=255, blank=True, validators =[validate_date_text])
+    creation_date = models.CharField(max_length=255, blank=True)
     creation_date_min = models.DateField(null=True, blank=True)
     creation_date_max = models.DateField(null=True, blank=True)
     language = models.ManyToManyField(Languoid, through='DialectInstance', through_fields=('document', 'language'), verbose_name="list of languages", related_name='document_languages', blank=True)
@@ -827,7 +836,10 @@ class Document(models.Model):
     def __str__(self):
         return self.filename
     def clean(self):
-        self.creation_date = validate_date_text(self.creation_date)
+        # Import our good standardization function from signals
+        from .signals import standardize_date_format
+        
+        self.creation_date = standardize_date_format(self.creation_date)
 
 class CollaboratorRole(models.Model):
     document = models.ForeignKey('Document', related_name='document_collaboratorroles', on_delete=models.CASCADE, null=True, blank=True)

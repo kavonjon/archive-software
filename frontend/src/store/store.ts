@@ -1,8 +1,17 @@
-import { configureStore } from '@reduxjs/toolkit';
+import { configureStore, createSlice } from '@reduxjs/toolkit';
+
+// Placeholder slice until we add real features
+const appSlice = createSlice({
+  name: 'app',
+  initialState: {
+    initialized: true,
+  },
+  reducers: {},
+});
 
 export const store = configureStore({
   reducer: {
-    // We'll add reducers here as we build features
+    app: appSlice.reducer,
   },
 });
 

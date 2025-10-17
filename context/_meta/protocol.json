@@ -94,6 +94,97 @@
         "Propose recovery options",
         "Request guidance on resolution approach"
       ]
+    },
+    
+    "commit_and_testing_protocol": {
+      "decision_id": "protocol_005",
+      "content": "Git commit guidelines requiring user validation and testing before commits",
+      "added_date": "2025-01-04",
+      "commit_approval_process": [
+        "Complete development work for milestone/phase",
+        "Build and verify functionality compiles",
+        "VERIFY ADA compliance: axe-core passes, keyboard navigation works, screen reader compatible",
+        "VERIFY responsive design: mobile-first approach, touch-friendly, cross-device tested",
+        "ASK USER for testing/validation before committing",
+        "Wait for user feedback and approval",
+        "Only commit after user confirms testing is complete"
+      ],
+      "mandatory_user_involvement": [
+        "User must test functionality before any commits",
+        "User must approve commit timing and scope",
+        "User validates that milestone/phase is truly complete",
+        "User confirms readiness to proceed to next phase"
+      ],
+      "commit_guidelines": [
+        "Never commit without explicit user validation first",
+        "Ask for confirmation before making any commits",
+        "Include user in testing loop for each milestone",
+        "ENSURE ADA compliance and responsive design requirements are met",
+        "Descriptive commit messages with clear scope",
+        "Atomic commits for logical units of work",
+        "Include testing status and user approval in commit message",
+        "Reference context files when relevant"
+      ],
+      "message_format": "Brief summary\\n\\nDetailed changes:\\n- Feature 1\\n- Feature 2\\n\\nTested by: User validation completed\\nApproved by: Project Manager\\nNext: Planned next steps",
+      "confidence_level": "high",
+      "status": "active"
+    },
+    
+    "stack_compliant_development_protocol": {
+      "decision_id": "protocol_006",
+      "content": "Protocol for handling user requests that conflict with framework/stack best practices",
+      "added_date": "2025-10-14",
+      "conversation_reference": "Dropdown layout issue debugging - learned to discuss alternatives before fighting framework behavior",
+      
+      "trigger_conditions": [
+        "User request requires extensive CSS to override framework defaults",
+        "Implementation would fight against framework's intended behavior",
+        "Solution requires significant customization of third-party components",
+        "Approach conflicts with documented best practices for React/MUI/Django stack",
+        "Implementation would create technical debt or maintenance burden"
+      ],
+      
+      "required_protocol_steps": [
+        "STOP before implementing - do not make changes immediately",
+        "ALERT the user to the conflict with stack best practices",
+        "EXPLAIN why the request conflicts with framework patterns",
+        "PROPOSE alternative approaches that achieve the same goal using stack-compliant methods",
+        "DISCUSS trade-offs between approaches with full technical context",
+        "ONLY PROCEED after user explicitly chooses approach with full understanding"
+      ],
+      
+      "communication_template": {
+        "alert_format": "This request conflicts with [Framework] best practices because [specific reason].",
+        "alternative_proposal": "Alternative approach: [stack-compliant solution] - would this achieve your goal?",
+        "trade_off_discussion": "Trade-offs: [approach A pros/cons] vs [approach B pros/cons]"
+      },
+      
+      "example_scenarios": [
+        "CSS fighting MUI component behavior (e.g., forcing Select truncation)",
+        "Overriding React lifecycle patterns",
+        "Bypassing Django's ORM or form validation",
+        "Custom implementations of functionality already provided by framework",
+        "Solutions requiring !important CSS or DOM manipulation"
+      ],
+      
+      "benefits": [
+        "Prevents technical debt from fighting frameworks",
+        "Saves development time by avoiding failed approaches", 
+        "Leverages combined expertise (user requirements + technical constraints)",
+        "Often leads to better solutions through collaborative discussion",
+        "Maintains code quality and maintainability"
+      ],
+      
+      "success_example": {
+        "scenario": "User requested dropdown text truncation to prevent card width expansion",
+        "initial_approach": "Multiple CSS attempts to force MUI Select truncation (failed)",
+        "protocol_application": "Should have immediately proposed dynamic text abbreviation using renderValue",
+        "outcome": "Alternative solution achieved goal while working with MUI patterns",
+        "lesson": "Framework-compliant solutions are often simpler and more robust"
+      },
+      
+      "confidence_level": "high",
+      "status": "active"
     }
   }
 }

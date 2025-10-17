@@ -79,11 +79,13 @@ INSTALLED_APPS = [
     'oauth2_provider',
     'drf_spectacular',  
     'django_select2',
+    'corsheaders',  # Enable CORS for React dev server
     'metadata',
     'api',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # Must be at the top for CORS
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -306,7 +308,17 @@ LOGGING = {
 SERVER_ROLE = os.environ.get('SERVER_ROLE', 'public')
 PUBLIC_SERVER_URL = os.environ.get('PUBLIC_SERVER_URL', '')
 REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')
-REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
+# Build Redis URL from components (best practice)
+REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
+REDIS_PORT = os.environ.get('REDIS_PORT', '6379')
+REDIS_DB = os.environ.get('REDIS_DB', '0')
+
+# Construct Redis URL with proper authentication
+if REDIS_PASSWORD:
+    REDIS_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+else:
+    REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 # Detect environment (Docker vs development)
 def is_docker():
@@ -321,18 +333,6 @@ def can_resolve_hostname(hostname):
         return True
     except socket.error:
         return False
-
-# Choose the right Redis host
-if 'localhost' not in REDIS_URL and 'redis' in REDIS_URL and not can_resolve_hostname('redis'):
-    # We're trying to connect to 'redis' host but can't resolve it (development mode)
-    REDIS_URL = REDIS_URL.replace('redis:', 'localhost:')
-
-# Add password to Redis URL if it exists
-if REDIS_PASSWORD and '://' in REDIS_URL:
-    protocol, rest = REDIS_URL.split('://', 1)
-    if '@' not in rest:
-        host_part = rest
-        REDIS_URL = f"{protocol}://:{REDIS_PASSWORD}@{host_part}"
 
 # Configure Celery based on server role
 CELERY_BROKER_URL = REDIS_URL
@@ -396,5 +396,54 @@ CACHES = {
 
 # django-select2 cache backend setting
 SELECT2_CACHE_BACKEND = 'default'
+
+# =============================================================================
+# CORS Configuration for React Development Server
+# =============================================================================
+
+# Allow React dev server (localhost:3000) to make requests to Django (localhost:8000)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+# Allow credentials (cookies, authorization headers) to be sent with CORS requests
+CORS_ALLOW_CREDENTIALS = True
+
+# Allow all headers for development (can be restricted in production)
+CORS_ALLOW_ALL_HEADERS = True
+
+# Expose headers that the frontend might need
+CORS_EXPOSE_HEADERS = [
+    'content-type',
+    'x-csrftoken',
+]
+
+# Allow common HTTP methods
+CORS_ALLOWED_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# =============================================================================
+# CSRF Configuration for React Development Server
+# =============================================================================
+
+# Allow React dev server origins for CSRF validation
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+# Allow CSRF cookies to be sent from React dev server
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

@@ -54,6 +54,7 @@ class LoginView(View):
                             'last_name': user.last_name,
                             'is_staff': user.is_staff,
                             'is_superuser': user.is_superuser,
+                            'groups': list(user.groups.values_list('name', flat=True)),
                         }
                     })
                 else:
@@ -104,6 +105,7 @@ class UserStatusView(View):
                     'last_name': request.user.last_name,
                     'is_staff': request.user.is_staff,
                     'is_superuser': request.user.is_superuser,
+                    'groups': list(request.user.groups.values_list('name', flat=True)),
                 }
             })
         else:

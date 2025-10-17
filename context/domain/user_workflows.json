@@ -1,29 +1,66 @@
 {
   "user_workflows": {
-    "version": "1.0",
-    "last_updated": "2025-01-04",
-    "conversation_reference": "Initial context memory system setup discussion",
+    "version": "1.1",
+    "last_updated": "2025-01-12",
+    "conversation_reference": "Initial context memory system setup discussion + group-based permission system update",
     "note": "Initial population - needs expansion with actual user behavior analysis",
     
     "user_types": {
       "museum_staff": {
         "decision_id": "workflow_001",
-        "content": "Museum staff (Archivists, Museum Staff, Administrators) managing daily archive operations",
+        "content": "Museum staff using group-based permissions for daily archive operations with clear role separation",
         "added_date": "2025-01-04",
+        "last_updated": "2025-01-12",
+        "role_categories": {
+          "administrators": {
+            "access_level": "Full system access including Django admin",
+            "typical_users": "System administrators, technical managers",
+            "unique_capabilities": ["Server management", "User role assignment", "Database administration", "System configuration"]
+          },
+          "archivists": {
+            "access_level": "Full data operations plus Django admin access",
+            "typical_users": "Senior archivists, technical archivists",
+            "unique_capabilities": ["Django admin access for advanced operations", "Direct database queries", "System troubleshooting"]
+          },
+          "museum_staff": {
+            "access_level": "Full editing via React app, no Django admin access",
+            "typical_users": "Curators, collection managers, research assistants, student workers",
+            "security_rationale": "Operational focus with protection from accidental backend modifications",
+            "unique_capabilities": ["All daily operational tasks", "Safe editing environment", "Full React app functionality"]
+          },
+          "read_only": {
+            "access_level": "View-only access to all data",
+            "typical_users": "Researchers, interns, temporary staff",
+            "unique_capabilities": ["Browse and search all content", "Export filtered data", "View detailed metadata"]
+          }
+        },
         "daily_workflows": [
           "Editing individual objects without batch editing",
-          "Batch editing multiple records",
+          "Batch editing multiple records (desktop/tablet optimized)",
           "Uploading files to the system",
-          "Viewing items and collections",
+          "Viewing items and collections (mobile-friendly)",
           "Using spreadsheet export features",
-          "Performing searches across different models (Items, Collections, Collaborators, Languoids)"
+          "Performing searches across different models (Items, Collections, Collaborators, Languoids)",
+          "Mobile field work access for quick lookups and basic edits"
         ],
         "workflow_priority": "These represent the most frequent operations that drive daily productivity",
         "batch_editing_importance": "Batch editing is critical enough to warrant dedicated development stage (Stage 2)",
+        "device_usage_patterns": {
+          "mobile_phones": "Quick lookups, basic viewing, simple edits during field work",
+          "tablets": "Enhanced data entry, batch editing, detailed reviews",
+          "desktop_computers": "Complex batch operations, file uploads, administrative tasks"
+        },
+        "responsive_design_impact": "Interface must adapt to device capabilities while maintaining full functionality access",
+        "permission_system_benefits": {
+          "security": "Museum Staff cannot accidentally access Django admin interface",
+          "usability": "Clear role boundaries reduce user confusion",
+          "flexibility": "Easy to add/remove users from groups without affecting system access",
+          "safety": "Operational staff protected from backend system modifications"
+        },
         "iterative_note": "This list will be expanded as additional workflows are identified during development",
         "confidence_level": "high",
         "status": "active",
-        "cross_references": ["project_requirements.json", "preservation_rules.json"]
+        "cross_references": ["project_requirements.json", "preservation_rules.json", "coding_patterns.json"]
       },
       
       "api_consumers": {

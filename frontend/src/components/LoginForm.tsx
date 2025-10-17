@@ -1,115 +1,241 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  Box,
+  Paper,
+  TextField,
+  Button,
+  Typography,
+  Alert,
+  CircularProgress,
+  Container,
+  useTheme,
+  useMediaQuery,
+} from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import { focusUtils, formUtils } from '../utils/accessibility';
 
 const LoginForm: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const { state, login, clearError } = useAuth();
+  const { state, login } = useAuth();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const formRef = useRef<HTMLFormElement>(null);
+  const usernameRef = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Focus management
+  useEffect(() => {
+    // Focus the username field when component mounts
+    if (usernameRef.current) {
+      usernameRef.current.focus();
+    }
+  }, []);
+
+  // Announce errors to screen readers
+  useEffect(() => {
+    if (state.error) {
+      focusUtils.announce(state.error, 'assertive');
+    }
+  }, [state.error]);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     
     if (!username.trim() || !password.trim()) {
+      focusUtils.announce('Please fill in all required fields', 'assertive');
       return;
     }
 
     const success = await login(username, password);
     if (success) {
-      // Login successful - the auth context will handle the state update
-      console.log('Login successful');
+      focusUtils.announce('Login successful. Redirecting...', 'polite');
     }
   };
 
-  const handleInputChange = () => {
-    if (state.error) {
-      clearError();
-    }
+  const handleUsernameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setUsername(event.target.value);
   };
+
+  const handlePasswordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(event.target.value);
+  };
+
+  const isFormValid = username.trim() && password.trim();
 
   return (
-    <div style={{ maxWidth: '400px', margin: '2rem auto', padding: '2rem', border: '1px solid #ddd', borderRadius: '8px' }}>
-      <h2>Login</h2>
-      
-      {state.error && (
-        <div style={{ 
-          color: '#d32f2f', 
-          backgroundColor: '#ffebee', 
-          padding: '0.75rem', 
-          borderRadius: '4px', 
-          marginBottom: '1rem',
-          border: '1px solid #ffcdd2'
-        }}>
-          {state.error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="username" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-            Username:
-          </label>
-          <input
-            type="text"
-            id="username"
-            value={username}
-            onChange={(e) => {
-              setUsername(e.target.value);
-              handleInputChange();
-            }}
-            required
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              fontSize: '1rem'
-            }}
-            disabled={state.isLoading}
-          />
-        </div>
-
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label htmlFor="password" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
-            Password:
-          </label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              handleInputChange();
-            }}
-            required
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              fontSize: '1rem'
-            }}
-            disabled={state.isLoading}
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={state.isLoading || !username.trim() || !password.trim()}
-          style={{
-            width: '100%',
-            padding: '0.75rem',
-            backgroundColor: state.isLoading ? '#ccc' : '#1976d2',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            fontSize: '1rem',
-            cursor: state.isLoading ? 'not-allowed' : 'pointer'
+    <Container 
+      maxWidth="sm" 
+      sx={{ 
+        py: { xs: 2, sm: 4 },
+        px: { xs: 2, sm: 3 },
+      }}
+    >
+      <Paper
+        elevation={3}
+        sx={{
+          p: { xs: 3, sm: 4 },
+          borderRadius: 2,
+          maxWidth: '100%',
+        }}
+        component="section"
+        aria-labelledby="login-title"
+      >
+        <Typography 
+          id="login-title"
+          variant={isMobile ? "h5" : "h4"} 
+          component="h1" 
+          gutterBottom 
+          align="center"
+          sx={{ 
+            mb: 3,
+            fontWeight: 'medium',
           }}
         >
-          {state.isLoading ? 'Logging in...' : 'Login'}
-        </button>
-      </form>
-    </div>
+          Login to NAL Archive
+        </Typography>
+
+        {/* Error Alert */}
+        {state.error && (
+          <Alert 
+            severity="error" 
+            sx={{ mb: 3 }}
+            {...formUtils.generateErrorProps('login')}
+          >
+            {state.error}
+          </Alert>
+        )}
+
+        <Box
+          component="form"
+          ref={formRef}
+          onSubmit={handleSubmit}
+          noValidate
+          aria-labelledby="login-title"
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 3,
+          }}
+        >
+          <TextField
+            {...formUtils.generateFieldProps('username', 'Username', true)}
+            inputRef={usernameRef}
+            label="Username"
+            variant="outlined"
+            value={username}
+            onChange={handleUsernameChange}
+            required
+            fullWidth
+            autoComplete="username"
+            disabled={state.isLoading}
+            error={state.error !== null && !username.trim()}
+            helperText={
+              state.error !== null && !username.trim() 
+                ? 'Username is required' 
+                : ''
+            }
+            inputProps={{
+              'aria-describedby': state.error ? 'login-error username-help' : 'username-help',
+            }}
+            sx={{
+              '& .MuiInputBase-root': {
+                minHeight: '48px', // Touch-friendly
+              },
+            }}
+          />
+
+          <TextField
+            {...formUtils.generateFieldProps('password', 'Password', true)}
+            label="Password"
+            type="password"
+            variant="outlined"
+            value={password}
+            onChange={handlePasswordChange}
+            required
+            fullWidth
+            autoComplete="current-password"
+            disabled={state.isLoading}
+            error={state.error !== null && !password.trim()}
+            helperText={
+              state.error !== null && !password.trim() 
+                ? 'Password is required' 
+                : ''
+            }
+            inputProps={{
+              'aria-describedby': state.error ? 'login-error password-help' : 'password-help',
+            }}
+            sx={{
+              '& .MuiInputBase-root': {
+                minHeight: '48px', // Touch-friendly
+              },
+            }}
+          />
+
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            fullWidth
+            disabled={state.isLoading || !isFormValid}
+            startIcon={state.isLoading ? <CircularProgress size={20} color="inherit" aria-label="Signing in" /> : null}
+            sx={{
+              minHeight: '48px', // Touch-friendly
+              mt: 1,
+              textTransform: 'none',
+              fontSize: '1rem',
+              fontWeight: 'medium',
+            }}
+            aria-describedby={!isFormValid ? 'submit-help' : undefined}
+          >
+            {state.isLoading ? 'Logging in...' : 'Login'}
+          </Button>
+
+          {/* Hidden help text for form validation */}
+          <Box 
+            {...formUtils.generateHelpProps('username')}
+            sx={{ display: 'none' }}
+          >
+            Enter your username to log in
+          </Box>
+          
+          <Box 
+            {...formUtils.generateHelpProps('password')}
+            sx={{ display: 'none' }}
+          >
+            Enter your password to log in
+          </Box>
+
+          {!isFormValid && (
+            <Typography
+              id="submit-help"
+              variant="caption"
+              color="text.secondary"
+              sx={{ textAlign: 'center', mt: 1 }}
+              role="status"
+              aria-live="polite"
+            >
+              Please fill in all fields to continue
+            </Typography>
+          )}
+        </Box>
+
+        {/* Additional help text for screen readers */}
+        <Box
+          sx={{ 
+            position: 'absolute',
+            left: '-10000px',
+            width: '1px',
+            height: '1px',
+            overflow: 'hidden',
+          }}
+          aria-live="polite"
+          aria-atomic="true"
+          role="status"
+        >
+          {state.isLoading && 'Logging in, please wait...'}
+        </Box>
+      </Paper>
+    </Container>
   );
 };
 

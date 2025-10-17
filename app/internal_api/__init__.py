@@ -1,2 +1,1 @@
-# Internal API for React frontend
-# This package provides internal CRUD APIs for the React SPA
+# Internal API package for React frontend

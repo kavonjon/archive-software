@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -17,13 +17,77 @@ import LanguoidsPage from './pages/LanguoidsPage';
 import Navigation from './components/Navigation';
 import ProtectedRoute from './components/ProtectedRoute';
 
+// Accessibility testing (development only)
+if (process.env.NODE_ENV === 'development') {
+  const axe = require('@axe-core/react');
+  const React = require('react');
+  const ReactDOM = require('react-dom');
+  axe(React, ReactDOM, 1000);
+}
+
 const theme = createTheme({
   palette: {
     mode: 'light',
   },
+  // Accessibility improvements
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          minHeight: '44px', // Touch-friendly minimum size
+          textTransform: 'none', // Better readability
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          minWidth: '44px',
+          minHeight: '44px',
+        },
+      },
+    },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          '& .MuiInputBase-root': {
+            minHeight: '44px',
+          },
+        },
+      },
+    },
+  },
+  // Responsive breakpoints
+  breakpoints: {
+    values: {
+      xs: 0,
+      sm: 600,
+      md: 900,
+      lg: 1200,
+      xl: 1536,
+    },
+  },
 });
 
 function App() {
+  // Focus management for route changes
+  useEffect(() => {
+    const handleRouteChange = () => {
+      // Announce route changes to screen readers
+      const mainContent = document.querySelector('#main-content') as HTMLElement;
+      if (mainContent) {
+        mainContent.focus();
+      }
+    };
+
+    // Listen for route changes
+    window.addEventListener('popstate', handleRouteChange);
+    
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+    };
+  }, []);
+
   return (
     <Provider store={store}>
       <ThemeProvider theme={theme}>
@@ -31,8 +95,43 @@ function App() {
         <AuthProvider>
           <Router>
             <div className="App">
+              {/* Skip link for keyboard navigation */}
+              <a 
+                href="#main-content" 
+                style={{
+                  position: 'absolute',
+                  top: '-40px',
+                  left: '6px',
+                  background: '#1976d2',
+                  color: 'white',
+                  padding: '8px',
+                  textDecoration: 'none',
+                  borderRadius: '4px',
+                  zIndex: 1000,
+                  transition: 'top 0.3s',
+                }}
+                onFocus={(e) => {
+                  e.target.style.top = '6px';
+                }}
+                onBlur={(e) => {
+                  e.target.style.top = '-40px';
+                }}
+              >
+                Skip to main content
+              </a>
+              
               <Navigation />
-              <main style={{ padding: '20px' }}>
+              
+              <main 
+                id="main-content" 
+                tabIndex={-1}
+                style={{ 
+                  padding: '20px',
+                  outline: 'none' // Remove focus outline since this is programmatically focused
+                }}
+                role="main"
+                aria-label="Main content"
+              >
                 <Routes>
                   <Route path="/" element={<HomePage />} />
                   <Route 

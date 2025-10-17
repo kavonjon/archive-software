@@ -1,17 +1,90 @@
 {
   "stage_1_batch_editing": {
-    "version": "1.0",
-    "last_updated": "2025-01-04",
-    "conversation_reference": "Detailed Stage 1 planning for smart spreadsheet batch editing features",
+    "version": "2.0",
+    "last_updated": "2025-10-17",
+    "conversation_reference": "Detailed Stage 1 planning and implementation architecture for smart spreadsheet batch editing features",
     
     "stage_overview": {
       "decision_id": "stage1_001",
       "content": "Sophisticated batch editing system with smart spreadsheet interface replacing current import functionality",
       "added_date": "2025-01-04",
+      "updated_date": "2025-10-17",
       "strategic_importance": "Provides immediate value to museum staff daily workflows, enables efficient bulk data management",
       "prerequisite": "Stage 0 React infrastructure must be complete",
       "confidence_level": "high",
-      "status": "planned"
+      "status": "in_progress"
+    },
+    
+    "technical_architecture": {
+      "library_choice": {
+        "decision_id": "stage1_016",
+        "content": "ReactGrid selected as spreadsheet component library",
+        "added_date": "2025-10-17",
+        "library": "ReactGrid",
+        "license": "MIT",
+        "github": "https://github.com/silevis/reactgrid",
+        "rationale": "TypeScript-first, custom cell types, modern React hooks, no jQuery dependencies, perfect fit for complex requirements",
+        "key_capabilities": [
+          "Custom cell renderers for display vs data separation",
+          "Built-in copy/paste with Excel-like behavior",
+          "Custom cell editors for overlay integration",
+          "Change tracking via cell state",
+          "Full TypeScript support",
+          "Material-UI compatible for overlay dialogs"
+        ],
+        "confidence_level": "high",
+        "status": "decided"
+      },
+      
+      "component_architecture": {
+        "decision_id": "stage1_017",
+        "content": "Reusable core with model-specific wrappers pattern",
+        "added_date": "2025-10-17",
+        "pattern": "Generic SpreadsheetGrid component reused across all models with model-specific configuration wrappers",
+        "reusable_core": [
+          "SpreadsheetGrid.tsx (generic grid wrapper)",
+          "Cell type definitions (text, select, relationship, multiselect, boolean, date)",
+          "Overlay editors (RelationshipEditor, MultiSelectEditor, DateEditor)",
+          "Change tracking logic",
+          "Validation framework",
+          "Redux state management (batchSpreadsheetSlice, batchValidationSlice)"
+        ],
+        "model_specific_wrappers": [
+          "LanguoidBatchEditor.tsx (column config + languoid-specific validation)",
+          "CollaboratorBatchEditor.tsx (column config + collaborator-specific validation)",
+          "ItemBatchEditor.tsx (column config + item-specific validation)"
+        ],
+        "code_reuse_percentage": "~95% shared core, ~5% model-specific configuration",
+        "confidence_level": "high",
+        "status": "decided"
+      },
+      
+      "data_flow_architecture": {
+        "decision_id": "stage1_018",
+        "content": "Cell data structure separating display values from machine-readable data",
+        "added_date": "2025-10-17",
+        "cell_structure": {
+          "text": "Human-friendly display value (e.g., 'English, Spanish, French')",
+          "value": "Machine-readable data (e.g., [1, 5, 12] - array of IDs)",
+          "type": "Cell type (text, select, relationship, multiselect, boolean, date)",
+          "isEdited": "Change tracking flag",
+          "originalValue": "Value when loaded from DB",
+          "validationState": "valid | invalid | validating",
+          "validationError": "Error message if invalid",
+          "hasConflict": "Conflict detection flag",
+          "fieldName": "Model field name"
+        },
+        "row_structure": {
+          "id": "Database ID or 'draft-{uuid}' for new rows",
+          "cells": "Record of field name to SpreadsheetCell",
+          "isDraft": "True if new row not yet saved",
+          "hasChanges": "True if any cell edited",
+          "hasErrors": "True if any validation errors",
+          "version": "For optimistic locking conflict detection"
+        },
+        "confidence_level": "high",
+        "status": "decided"
+      }
     },
     
     "smart_spreadsheet_interface": {
@@ -169,18 +242,111 @@
       }
     },
     
-    "model_implementation_priority": {
-      "implementation_order": {
+    "implementation_phases": {
+      "phase_sequencing": {
+        "decision_id": "stage1_019",
+        "content": "Seven-phase implementation approach building from foundation to complete feature",
+        "added_date": "2025-10-17",
+        "phases": {
+          "phase_1": {
+            "title": "Foundation & Basic Grid (Languoids)",
+            "timeline": "Week 1",
+            "deliverables": [
+              "Install ReactGrid library",
+              "Create SpreadsheetGrid reusable component",
+              "Implement basic text cell type",
+              "Create Redux slices (batchSpreadsheetSlice)",
+              "Load languoids into grid with manual row addition"
+            ],
+            "excludes": ["Upload functionality deferred to Phase 6"],
+            "status": "ready"
+          },
+          "phase_2": {
+            "title": "Change Tracking & Validation",
+            "timeline": "Week 1-2",
+            "deliverables": [
+              "Implement change tracking with yellow highlighting",
+              "Add validation Redux slice",
+              "Create backend validate-cell endpoint",
+              "Show validation errors with red highlighting",
+              "Implement cell-level validation UI"
+            ],
+            "status": "pending"
+          },
+          "phase_3": {
+            "title": "Custom Cell Types",
+            "timeline": "Week 2-3",
+            "deliverables": [
+              "SelectCell for choice fields",
+              "RelationshipCell for FK fields",
+              "MultiSelectCell for M2M fields",
+              "BooleanCell for three-state boolean",
+              "DateCell for date fields"
+            ],
+            "status": "pending"
+          },
+          "phase_4": {
+            "title": "Overlay Editors",
+            "timeline": "Week 3-4",
+            "deliverables": [
+              "RelationshipEditor Material-UI dialog",
+              "MultiSelectEditor Material-UI dialog",
+              "DateEditor Material-UI dialog",
+              "Wire overlay editors to cell types",
+              "Implement search/filter in overlays"
+            ],
+            "status": "pending"
+          },
+          "phase_5": {
+            "title": "Save Operations",
+            "timeline": "Week 4-5",
+            "deliverables": [
+              "Backend save-batch endpoint with transactions",
+              "Conflict detection via version numbers",
+              "Orange highlighting for conflicts",
+              "Success/error feedback UI",
+              "Selective row saving (save selected)"
+            ],
+            "status": "pending"
+          },
+          "phase_6": {
+            "title": "Upload Integration",
+            "timeline": "Week 5-6",
+            "deliverables": [
+              "Spreadsheet parser (xlsx, csv)",
+              "Upload dialog component",
+              "Parse → populate grid workflow",
+              "Smart matching of existing objects by unique IDs",
+              "Highlight changed fields from DB"
+            ],
+            "status": "pending"
+          },
+          "phase_7": {
+            "title": "Collaborators & Items",
+            "timeline": "Week 6-8",
+            "deliverables": [
+              "CollaboratorBatchEditor wrapper with config",
+              "ItemBatchEditor wrapper with config",
+              "Model-specific validation rules",
+              "Testing across all three models"
+            ],
+            "status": "pending"
+          }
+        },
+        "confidence_level": "high",
+        "status": "in_progress"
+      },
+      
+      "model_implementation_order": {
         "decision_id": "stage1_013",
         "content": "Languages/Languoids → Collaborators → Items implementation sequence",
         "added_date": "2025-01-04",
-        "phase_1": "Languages/Languoids (simpler model for testing core functionality)",
-        "phase_2": "Collaborators (moderate complexity with some relationships)",
-        "phase_3": "Items (most complex with multiple M2M and FK relationships)",
+        "phase_1_model": "Languages/Languoids (simpler model for testing core functionality)",
+        "phase_7_models": "Collaborators then Items (increasing complexity)",
         "field_type_approach": "Implement all field types together rather than text-first incremental approach",
         "rationale": "Complex fields drive most of the UI complexity, so partial implementation not useful for testing",
         "confidence_level": "high",
-        "status": "planned"
+        "status": "in_progress"
       }
     },
     
@@ -198,23 +364,104 @@
       }
     },
     
+    "operational_decisions": {
+      "data_loading_modes": {
+        "decision_id": "stage1_020",
+        "content": "Three distinct modes for populating the spreadsheet grid",
+        "added_date": "2025-10-17",
+        "mode_a_selected_rows": {
+          "trigger": "User selects rows in list view then clicks 'Batch Edit' button",
+          "behavior": "Spreadsheet opens pre-populated with selected objects",
+          "performance_warning": "Warn user if no rows selected that ALL objects will load (may impact performance)"
+        },
+        "mode_b_upload": {
+          "trigger": "User uploads spreadsheet file",
+          "behavior": "Grid populated with uploaded rows, matching existing objects by unique IDs where possible",
+          "implementation_phase": "Phase 6"
+        },
+        "mode_c_quick_filters": {
+          "trigger": "User applies model-specific quick filters",
+          "behavior": "Load subset of objects based on filter criteria (e.g., 'Recent 100', 'Modified this week')",
+          "model_specific": "Each model can define its own quick filter presets"
+        },
+        "confidence_level": "high",
+        "status": "decided"
+      },
+      
+      "permissions_and_access": {
+        "decision_id": "stage1_021",
+        "content": "Batch editing uses same permissions as individual CRUD operations",
+        "added_date": "2025-10-17",
+        "permission_class": "IsAuthenticatedWithEditAccess (Staff OR Archivist/Museum Staff groups)",
+        "rationale": "Consistency with Stage 0 patterns, users already have edit access for individual operations",
+        "future_consideration": "Can tighten to Archivist-only if needed based on usage",
+        "confidence_level": "high",
+        "status": "decided"
+      },
+      
+      "responsive_design_strategy": {
+        "decision_id": "stage1_022",
+        "content": "Fully responsive design with relaxed constraints for mobile",
+        "added_date": "2025-10-17",
+        "desktop": {
+          "support_level": "Full",
+          "target": "Primary use case",
+          "compliance": "Full ADA compliance, all features optimized"
+        },
+        "tablet": {
+          "support_level": "Full",
+          "target": "Secondary use case",
+          "compliance": "Full ADA compliance, touch-optimized overlays"
+        },
+        "mobile_phone": {
+          "support_level": "Functional but constrained",
+          "target": "Limited/emergency use only",
+          "compliance": "Relaxed ADA requirements acceptable",
+          "acceptable_limitations": "UI elements may be smaller than ideal, spreadsheet cells may require zooming, some features may be difficult to use",
+          "rationale": "Spreadsheet UX inherently desktop-oriented, mobile is not primary use case"
+        },
+        "confidence_level": "high",
+        "status": "decided"
+      },
+      
+      "existing_import_migration": {
+        "decision_id": "stage1_023",
+        "content": "Gradual migration strategy keeping Django import parallel during development",
+        "added_date": "2025-10-17",
+        "approach": "Model-by-model replacement",
+        "migration_sequence": [
+          "Phase 1-6: Build Languoid batch editor, keep existing Item/Collaborator import active",
+          "Phase 7: Add Collaborator batch editor, deprecate Collaborator import",
+          "Phase 7: Add Item batch editor, deprecate Item import",
+          "Post-Stage 1: Remove Django ImportView entirely"
+        ],
+        "rationale": "Minimizes disruption to users, allows gradual transition, provides fallback during development",
+        "user_communication": "Notify users of new batch editing features as they become available",
+        "confidence_level": "high",
+        "status": "decided"
+      }
+    },
+    
     "success_criteria": {
       "stage_completion": {
         "decision_id": "stage1_015",
         "content": "Stage 1 complete when smart spreadsheet fully replaces current import functionality",
         "added_date": "2025-01-04",
+        "updated_date": "2025-10-17",
         "functional_requirements": [
           "Smart spreadsheet interface for all three models (Languages, Collaborators, Items)",
           "Copy/paste batch editing with validation",
           "Spreadsheet upload integration with smart parsing",
           "Transaction-based saves with error handling",
-          "Basic concurrent editing protection"
+          "Basic concurrent editing protection",
+          "Three data loading modes (selected rows, upload, quick filters)",
+          "Responsive design (desktop/tablet full, mobile functional)"
         ],
         "user_acceptance": "Museum staff can efficiently perform all current import/edit operations",
         "performance_requirements": "Handles typical dataset sizes without performance issues",
         "replacement_ready": "Can completely replace existing Django import functionality",
         "confidence_level": "high",
-        "status": "planned"
+        "status": "in_progress"
       }
     }
   }

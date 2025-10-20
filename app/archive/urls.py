@@ -126,8 +126,8 @@ urlpatterns = [
     path('collections/<path:path>/', ReactAppView.as_view(), name='react_collections_detail'),
     path('collaborators/', ReactAppView.as_view(), name='react_collaborators'),
     path('collaborators/<path:path>/', ReactAppView.as_view(), name='react_collaborators_detail'),
-    path('languoids/', ReactAppView.as_view(), name='react_languoids'),
-    path('languoids/<path:path>/', ReactAppView.as_view(), name='react_languoids_detail'),
+    path('languages/', ReactAppView.as_view(), name='react_languages'),
+    path('languages/<path:path>/', ReactAppView.as_view(), name='react_languages_detail'),
 ]
 
 #urlpatterns = path(r'dj/', include(urlpatterns)),  # prepend 'django/' to all URLs

@@ -32,6 +32,15 @@ fi
 # Set Docker environment variable
 export DOCKER_CONTAINER="true"
 
+# Build React frontend
+echo "⚛️  Building React frontend..."
+cd frontend
+npm ci --only=production
+npm run build:django
+cd ..
+echo "✅ React frontend built successfully"
+echo ""
+
 # Add to deploy.sh before starting Docker
 if [ "$SERVER_ROLE" = "private" ]; then
   # Create directories on host if they don't exist

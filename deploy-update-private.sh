@@ -20,6 +20,14 @@ echo "📥 Pulling latest code from git..."
 git pull origin main
 echo ""
 
+# Build React frontend
+echo "⚛️  Building React frontend..."
+cd frontend
+npm ci --only=production
+npm run build:django
+cd ..
+echo ""
+
 case $UPDATE_TYPE in
     "web")
         echo "🏗️  Building web container only..."

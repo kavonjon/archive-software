@@ -465,10 +465,15 @@ class InternalLanguoidSerializer(serializers.ModelSerializer):
     
     # Parent relationship names for hierarchical display
     family_name = serializers.CharField(source='family_languoid.name', read_only=True)
+    family_glottocode = serializers.CharField(source='family_languoid.glottocode', read_only=True)
     parent_name = serializers.CharField(source='parent_languoid.name', read_only=True)
+    parent_glottocode = serializers.CharField(source='parent_languoid.glottocode', read_only=True)
     pri_subgroup_name = serializers.CharField(source='pri_subgroup_languoid.name', read_only=True)
+    pri_subgroup_glottocode = serializers.CharField(source='pri_subgroup_languoid.glottocode', read_only=True)
     sec_subgroup_name = serializers.CharField(source='sec_subgroup_languoid.name', read_only=True)
+    sec_subgroup_glottocode = serializers.CharField(source='sec_subgroup_languoid.glottocode', read_only=True)
     language_name = serializers.CharField(source='language_languoid.name', read_only=True)
+    language_glottocode = serializers.CharField(source='language_languoid.glottocode', read_only=True)
     
     # Child relationship counts for overview display
     child_count = serializers.SerializerMethodField()
@@ -491,8 +496,9 @@ class InternalLanguoidSerializer(serializers.ModelSerializer):
             'parent_languoid', 'language_languoid', 'dialects_languoids',
             
             # Hierarchy - relationship names (for display)
-            'family_name', 'parent_name', 'pri_subgroup_name', 
-            'sec_subgroup_name', 'language_name',
+            'family_name', 'family_glottocode', 'parent_name', 'parent_glottocode', 
+            'pri_subgroup_name', 'pri_subgroup_glottocode', 'sec_subgroup_name', 'sec_subgroup_glottocode',
+            'language_name', 'language_glottocode',
             
             # Additional information
             'alt_name', 'alt_names', 'region', 'latitude', 'longitude',
@@ -505,9 +511,10 @@ class InternalLanguoidSerializer(serializers.ModelSerializer):
             'added', 'updated', 'modified_by'
         ]
         read_only_fields = [
-            'id', 'added', 'updated', 'child_count', 'dialect_count',
-            'family_name', 'parent_name', 'pri_subgroup_name', 
-            'sec_subgroup_name', 'language_name'
+            'id', 'added', 'updated', 'modified_by', 'child_count', 'dialect_count',
+            'family_name', 'family_glottocode', 'parent_name', 'parent_glottocode', 
+            'pri_subgroup_name', 'pri_subgroup_glottocode', 'sec_subgroup_name', 'sec_subgroup_glottocode',
+            'language_name', 'language_glottocode'
         ]
     
     def get_child_count(self, obj):
@@ -551,6 +558,25 @@ class InternalLanguoidSerializer(serializers.ModelSerializer):
                 'Secondary subgroup glottocode must be 8 characters with the last 4 being numeric.'
             )
         return value
+    
+    def create(self, validated_data):
+        """Create new languoid with user tracking"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        request = self.context.get('request')
+        logger.info(f"Serializer create() called. Request: {request}")
+        logger.info(f"Request user: {getattr(request, 'user', None)}")
+        logger.info(f"Has user attr: {hasattr(request, 'user')}")
+        
+        if request and hasattr(request, 'user'):
+            validated_data['modified_by'] = str(request.user)
+            logger.info(f"Set modified_by to: {validated_data['modified_by']}")
+        else:
+            logger.warning("No request or user found in context!")
+            
+        logger.info(f"Final validated_data: {validated_data}")
+        return super().create(validated_data)
     
     def update(self, instance, validated_data):
         """Update instance with user tracking"""

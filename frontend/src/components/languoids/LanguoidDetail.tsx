@@ -215,7 +215,7 @@ const LanguoidDetail: React.FC = () => {
 
     try {
       await languoidsAPI.delete(languoid.id);
-      navigate('/languoids');
+      navigate('/languages');
     } catch (error) {
       console.error('Error deleting languoid:', error);
       setError('Failed to delete languoid. Please try again.');
@@ -223,7 +223,7 @@ const LanguoidDetail: React.FC = () => {
   };
 
   const handleBack = () => {
-    navigate('/languoids');
+    navigate('/languages');
   };
 
   if (loading) {

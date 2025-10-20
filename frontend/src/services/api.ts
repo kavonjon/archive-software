@@ -388,7 +388,7 @@ const getCSRFToken = async (): Promise<string> => {
 };
 
 // Generic API request function with authentication
-const apiRequest = async <T>(
+export const apiRequest = async <T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> => {
@@ -613,6 +613,13 @@ export const languoidsAPI = {
   delete: (id: number): Promise<void> => {
     return apiRequest<void>(`/languoids/${id}/`, {
       method: 'DELETE',
+    });
+  },
+
+  saveBatch: (rows: any[]): Promise<{ success: boolean; saved: Languoid[]; errors: string[] }> => {
+    return apiRequest<{ success: boolean; saved: Languoid[]; errors: string[] }>('/languoids/save-batch/', {
+      method: 'POST',
+      body: JSON.stringify({ rows }),
     });
   },
 };

@@ -1,7 +1,7 @@
 {
   "stage_1_batch_editing": {
-    "version": "2.0",
-    "last_updated": "2025-10-17",
+    "version": "3.0",
+    "last_updated": "2025-10-19",
     "conversation_reference": "Detailed Stage 1 planning and implementation architecture for smart spreadsheet batch editing features",
     
     "stage_overview": {
@@ -247,6 +247,8 @@
         "decision_id": "stage1_019",
         "content": "Seven-phase implementation approach building from foundation to complete feature",
         "added_date": "2025-10-17",
+        "updated_date": "2025-10-17",
+        "phase_order_revision": "Phase 3 (Save Operations) moved before Phase 4-5 (Custom Cell Types and Overlay Editors) to enable proper testing earlier. Save is simpler to implement and required for testing subsequent phases.",
         "phases": {
           "phase_1": {
             "title": "Foundation & Basic Grid (Languoids)",
@@ -259,21 +261,39 @@
               "Load languoids into grid with manual row addition"
             ],
             "excludes": ["Upload functionality deferred to Phase 6"],
-            "status": "ready"
+            "status": "complete"
           },
           "phase_2": {
             "title": "Change Tracking & Validation",
             "timeline": "Week 1-2",
             "deliverables": [
               "Implement change tracking with yellow highlighting",
-              "Add validation Redux slice",
-              "Create backend validate-cell endpoint",
+              "Add validation framework",
+              "Create backend validate-field endpoint",
               "Show validation errors with red highlighting",
-              "Implement cell-level validation UI"
+              "Implement debounced cell-level validation"
             ],
-            "status": "pending"
+            "status": "complete"
           },
           "phase_3": {
+            "title": "Save Operations",
+            "timeline": "Week 2",
+            "deliverables": [
+              "Backend save-batch endpoint with transactions",
+              "Frontend save handler collecting edited rows",
+              "Success/error feedback UI (snackbar/alerts)",
+              "Reset dirty flags after successful save",
+              "Basic save workflow (no conflict detection yet)"
+            ],
+            "deferred_to_phase_6": [
+              "Conflict detection via version numbers",
+              "Orange highlighting for conflicts",
+              "Selective row saving (save selected rows only)"
+            ],
+            "rationale": "Simpler implementation than custom cell types, enables proper testing of all subsequent features",
+            "status": "ready"
+          },
+          "phase_4": {
             "title": "Custom Cell Types",
             "timeline": "Week 2-3",
             "deliverables": [
@@ -281,11 +301,50 @@
               "RelationshipCell for FK fields",
               "MultiSelectCell for M2M fields",
               "BooleanCell for three-state boolean",
-              "DateCell for date fields"
+              "DateCell for date fields",
+              "StringArrayCell for JSONField string arrays",
+              "DecimalCell for decimal number fields (longitude, latitude)"
             ],
-            "status": "pending"
+            "testing_note": "Now properly testable with Phase 3 save operations in place",
+            "status": "complete",
+            "selectcell_completion": {
+              "date": "2025-10-19",
+              "implementation_learnings": "Critical patterns discovered during SelectCell implementation that apply to all custom cell types",
+              "status": "complete"
+            },
+            "relationshipcell_completion": {
+              "date": "2025-10-19",
+              "implementation_learnings": "FK field editing with autocomplete search, API integration patterns, keyboard event isolation, performance optimization",
+              "status": "complete"
+            },
+            "multiselectcell_completion": {
+              "date": "2025-10-19",
+              "implementation_learnings": "Multi-action editing sessions require static class member storage (not React state) to prevent focus loss. Pattern documented in stage1_033 for future multi-action cells",
+              "status": "complete"
+            },
+            "datecell_completion": {
+              "date": "2025-10-19",
+              "implementation_learnings": "Date field editing integrates Stage 0 flexible date handling (DateInterpretationFeedback, DateFormatHelp) with Stage 1 ReactGrid architecture. Pattern documented in stage1_034",
+              "status": "complete",
+              "note": "Languoid model has no date fields, but DateCell is ready for future models (Item, Collection, Collaborator, Document)"
+            },
+            "booleancell_completion": {
+              "date": "2025-10-19",
+              "implementation_learnings": "Three-state boolean editing (Yes/No/Not specified) matches Stage 0 EditableBooleanField patterns. Simple SelectCell variant with fixed choices. Pattern documented in stage1_035",
+              "status": "complete"
+            },
+            "stringarraycell_status": {
+              "date": "2025-10-19",
+              "status": "complete",
+              "implementation_learnings": "String array editing for JSONField with tag/chip input UI. Follows MultiSelectCell static state patterns but for plain text instead of relationships. Pattern documented in stage1_036"
+            },
+            "decimalcell_completion": {
+              "date": "2025-10-20",
+              "status": "complete",
+              "implementation_learnings": "Decimal number field editing for coordinates and measurements. Simple text-based editor with numeric validation. Applied to longitude/latitude fields in Languoid batch editor. Pattern documented in stage1_037"
+            }
           },
-          "phase_4": {
+          "phase_5": {
             "title": "Overlay Editors",
             "timeline": "Week 3-4",
             "deliverables": [
@@ -295,21 +354,34 @@
               "Wire overlay editors to cell types",
               "Implement search/filter in overlays"
             ],
-            "status": "pending"
-          },
-          "phase_5": {
-            "title": "Save Operations",
-            "timeline": "Week 4-5",
-            "deliverables": [
-              "Backend save-batch endpoint with transactions",
-              "Conflict detection via version numbers",
-              "Orange highlighting for conflicts",
-              "Success/error feedback UI",
-              "Selective row saving (save selected)"
-            ],
-            "status": "pending"
+            "testing_note": "Can save after using overlay editors thanks to Phase 3",
+            "status": "deferred",
+            "deferral_decision": {
+              "date": "2025-10-20",
+              "rationale": "Phase 4 inline editors (MultiSelectCell, RelationshipCell, DateCell, etc.) are fully functional and sufficient for current needs. Overlay dialogs add complexity without clear UX benefit at this stage. Decision can be revisited after user testing reveals whether overlays are needed.",
+              "deferred_until": "Post-Phase 8 or based on user feedback",
+              "note": "If overlays are needed later, likely candidates are MultiSelectCell (for very large M2M lists) and RelationshipCell (for advanced filtering)"
+            }
           },
           "phase_6": {
+            "title": "Conflict Detection & Advanced Save",
+            "timeline": "Week 4-5",
+            "deliverables": [
+              "Optimistic locking with version numbers",
+              "Orange highlighting for conflicts",
+              "Selective row saving (save selected rows only)",
+              "Conflict resolution UI",
+              "Enhanced save operations from Phase 3"
+            ],
+            "status": "deferred",
+            "deferral_decision": {
+              "date": "2025-10-20",
+              "rationale": "Basic save operations from Phase 3 are sufficient for single-user scenarios and initial deployment. Conflict detection adds complexity that can be added later when multi-user concurrent editing becomes a real use case. Current priority is to complete core functionality (upload, other models) for user testing.",
+              "deferred_until": "Post-Phase 8 or when concurrent editing issues are reported",
+              "note": "Version field migration can be added to models now for future-proofing, but conflict detection logic can wait"
+            }
+          },
+          "phase_7": {
             "title": "Upload Integration",
             "timeline": "Week 5-6",
             "deliverables": [
@@ -321,7 +393,7 @@
             ],
             "status": "pending"
           },
-          "phase_7": {
+          "phase_8": {
             "title": "Collaborators & Items",
             "timeline": "Week 6-8",
             "deliverables": [
@@ -341,8 +413,9 @@
         "decision_id": "stage1_013",
         "content": "Languages/Languoids → Collaborators → Items implementation sequence",
         "added_date": "2025-01-04",
+        "updated_date": "2025-10-17",
         "phase_1_model": "Languages/Languoids (simpler model for testing core functionality)",
-        "phase_7_models": "Collaborators then Items (increasing complexity)",
+        "phase_8_models": "Collaborators then Items (increasing complexity)",
         "field_type_approach": "Implement all field types together rather than text-first incremental approach",
         "rationale": "Complex fields drive most of the UI complexity, so partial implementation not useful for testing",
         "confidence_level": "high",
@@ -439,6 +512,1232 @@
         "user_communication": "Notify users of new batch editing features as they become available",
         "confidence_level": "high",
         "status": "decided"
+      }
+    },
+    
+    "custom_cell_implementation_patterns": {
+      "overview": {
+        "decision_id": "stage1_024",
+        "content": "Critical patterns and lessons learned from SelectCell implementation that apply to all custom cell types",
+        "added_date": "2025-10-19",
+        "source": "SelectCell implementation (Phase 4.1)",
+        "importance": "HIGH - These patterns are mandatory for all future custom cell implementations",
+        "confidence_level": "high",
+        "status": "documented"
+      },
+      
+      "reactgrid_integration_architecture": {
+        "decision_id": "stage1_025",
+        "content": "How custom cells integrate with ReactGrid's template system",
+        "added_date": "2025-10-19",
+        "required_components": {
+          "cell_interface": "TypeScript interface extending Cell from ReactGrid, must include validationState and isEdited for styling",
+          "cell_template_class": "Class implementing CellTemplate<YourCell> with required methods",
+          "cell_view_component": "React component for rendering cell content (both display and edit modes)"
+        },
+        "template_methods": {
+          "getCompatibleCell": {
+            "purpose": "Convert uncertain cell data to compatible cell format",
+            "critical_requirement": "MUST preserve validationState and isEdited properties - ReactGrid strips them by default",
+            "implementation": "Explicitly extract and include (uncertainCell as any).validationState and isEdited in returned cell object",
+            "failure_mode": "If not preserved, cells won't show color highlighting (yellow/red/blue)"
+          },
+          "isFocusable": {
+            "purpose": "Tell ReactGrid this cell can receive focus and enter edit mode",
+            "implementation": "Return true for all interactive cells",
+            "failure_mode": "If missing or returns false, cell won't respond to Enter/double-click"
+          },
+          "handleKeyDown": {
+            "purpose": "Handle keyboard events before ReactGrid processes them",
+            "critical_complexity": "Controls edit mode state via return value { cell, enableEditMode: boolean }",
+            "state_tracking_pattern": "Use static Set to track which cells are currently being edited",
+            "enter_key_behavior": "If cell NOT in editing set: add to set and return enableEditMode: true. If cell IS in editing set: remove from set and return enableEditMode: false",
+            "escape_key_behavior": "Always remove from set and return enableEditMode: false",
+            "failure_modes": [
+              "Without state tracking: Enter key will re-enable edit mode after commit, causing stuck-in-edit-mode",
+              "ReactGrid's handleKeyDown is called independently of React event handlers",
+              "React's onKeyDown with stopPropagation doesn't prevent ReactGrid's template handleKeyDown from firing"
+            ]
+          },
+          "update": {
+            "purpose": "Merge updated cell properties when cell changes",
+            "implementation": "Call getCompatibleCell with merged properties",
+            "note": "Relies on getCompatibleCell preserving all custom properties"
+          },
+          "render": {
+            "purpose": "Return React component to render the cell",
+            "implementation": "Return <YourCellView cell={cell} isInEditMode={isInEditMode} onCellChanged={onCellChanged} />",
+            "note": "isInEditMode is controlled by ReactGrid based on handleKeyDown return values"
+          }
+        },
+        "confidence_level": "high",
+        "status": "documented"
+      },
+      
+      "spreadsheet_ux_patterns": {
+        "decision_id": "stage1_026",
+        "content": "Custom cells must mimic standard spreadsheet behavior for user familiarity",
+        "added_date": "2025-10-19",
+        "display_mode_behavior": {
+          "appearance": "Plain text display with background color based on validation state",
+          "cursor": "Default cursor",
+          "keyboard_navigation": "Arrow keys move between cells (NOT intercepted by cell)",
+          "enter_key": "Enters edit mode for this cell",
+          "double_click": "Enters edit mode for this cell",
+          "implementation_note": "Do NOT use preventDefault/stopPropagation on arrow keys in display mode"
+        },
+        "edit_mode_behavior": {
+          "appearance": "Custom editor UI (dropdown, date picker, etc.) with focus maintained on cell",
+          "cursor": "Appropriate for editor type",
+          "keyboard_navigation": {
+            "arrow_keys": "Navigate WITHIN the custom editor (e.g., dropdown options), NOT between cells",
+            "enter_key": "Commit selection and exit edit mode",
+            "escape_key": "Cancel edit and exit edit mode without committing",
+            "implementation_requirement": "MUST call preventDefault() and stopPropagation() on arrow keys to prevent ReactGrid navigation"
+          },
+          "mouse_behavior": {
+            "click_option": "Select and commit (for dropdowns)",
+            "click_away": "Exit edit mode (handled by blur)"
+          }
+        },
+        "edit_mode_entry": {
+          "triggers": ["Enter key", "Double-click (keyCode: 1 in ReactGrid's handleKeyDown)"],
+          "implementation": "Template's handleKeyDown returns enableEditMode: true for keyCode 13 or 1",
+          "state_management": "Add cell to editing Set when entering edit mode"
+        },
+        "edit_mode_exit": {
+          "commit_triggers": ["Enter key (after selecting value)", "Click option in dropdown", "Blur input element"],
+          "cancel_triggers": ["Escape key"],
+          "implementation_for_commit": {
+            "step_1": "Call onCellChanged(updatedCell, true) to update Redux state",
+            "step_2": "Blur the input element (inputRef.current.blur())",
+            "step_3": "Let Enter event propagate to ReactGrid (do NOT stopPropagation)",
+            "step_4": "ReactGrid's template handleKeyDown sees Enter, detects cell in editing Set, removes it, returns enableEditMode: false",
+            "critical_timing": "Blur must happen AFTER onCellChanged but can use setTimeout(..., 0) to ensure proper event ordering"
+          },
+          "implementation_for_cancel": {
+            "step_1": "Manually remove cell from editing Set in React's onKeyDown handler",
+            "step_2": "Close dropdown/editor UI",
+            "step_3": "Blur input element",
+            "step_4": "Call onCellChanged(cell, false)",
+            "step_5": "Let Escape propagate naturally (ReactGrid may not call template handleKeyDown for Escape)",
+            "critical_note": "React's event handler fires BEFORE ReactGrid's template handleKeyDown, so manual Set cleanup is required"
+          }
+        },
+        "confidence_level": "high",
+        "status": "documented"
+      },
+      
+      "focus_management_patterns": {
+        "decision_id": "stage1_027",
+        "content": "Maintaining focus within cell during edit mode to prevent ReactGrid from exiting edit mode prematurely",
+        "added_date": "2025-10-19",
+        "the_core_problem": "ReactGrid monitors focus to determine edit mode state. If focus leaves the cell, ReactGrid exits edit mode.",
+        "the_solution": "Use a transparent input element to maintain focus within the cell while rendering custom UI over/around it",
+        "input_element_pattern": {
+          "purpose": "Act as focus anchor, not for actual text input",
+          "attributes": {
+            "autoFocus": "true - ensures input gets focus when edit mode starts",
+            "ref": "inputRef - needed for programmatic blur() on commit/cancel",
+            "value": "cell.text or cell.value - display current value but ignore changes",
+            "onChange": "Empty handler - we don't use this input for data entry",
+            "style": {
+              "background": "transparent - custom UI renders on top",
+              "caretColor": "transparent - hide text cursor",
+              "border": "none",
+              "outline": "none",
+              "cursor": "default or pointer depending on UI"
+            }
+          }
+        },
+        "custom_ui_positioning": {
+          "dropdown_pattern": "Render dropdown as sibling to input, absolutely positioned at top: '100%' to appear below cell",
+          "overlay_pattern": "Use React Portal to render outside ReactGrid DOM if needed",
+          "z_index": "Use high z-index (10000+) to ensure dropdown appears above grid"
+        },
+        "preventing_focus_loss": {
+          "problem": "Clicking dropdown options causes input to lose focus, ReactGrid exits edit mode",
+          "solution": "Use CAPTURE PHASE event handlers to intercept events before ReactGrid sees them",
+          "implementation": {
+            "dropdown_container": "Add onPointerDownCapture={(e) => { e.preventDefault(); e.stopPropagation(); }}",
+            "dropdown_options": "Add onPointerDownCapture and onClickCapture with preventDefault and stopPropagation",
+            "why_capture_phase": "Capture phase fires BEFORE ReactGrid's event handlers, allowing us to prevent default behavior",
+            "why_pointer_not_mouse": "PointerDown captures both mouse and touch events, more reliable than MouseDown"
+          },
+          "failed_approaches": [
+            "Using stopPropagation in bubble phase - ReactGrid intercepts events earlier",
+            "Using ClickAwayListener - conflicts with ReactGrid's focus management",
+            "Using React Portal for dropdown - focus still tracked by ReactGrid, causes issues",
+            "Manual document.addEventListener for click-away - ReactGrid exits edit mode before handler fires"
+          ]
+        },
+        "confidence_level": "high",
+        "status": "documented"
+      },
+      
+      "validation_and_styling_integration": {
+        "decision_id": "stage1_028",
+        "content": "How custom cells display validation states and edit status with colored backgrounds",
+        "added_date": "2025-10-19",
+        "color_scheme": {
+          "yellow_background": "#fff9c4 - cell has been edited (isEdited: true)",
+          "red_background": "#ffebee - validation error (validationState: 'invalid')",
+          "blue_background": "#e3f2fd - validation in progress (validationState: 'validating')",
+          "transparent": "No changes, valid (isEdited: false, validationState: 'valid')"
+        },
+        "implementation_requirements": {
+          "cell_interface": "Must include optional validationState and isEdited properties",
+          "getCompatibleCell_method": "MUST preserve these properties from uncertainCell: validationState: (uncertainCell as any).validationState, isEdited: (uncertainCell as any).isEdited",
+          "spreadsheet_grid_mapping": "When creating ReactGrid cells from SpreadsheetCell data, explicitly pass validationState and isEdited",
+          "cell_view_component": "Create getCellBackgroundColor() helper function that checks validationState and isEdited, return appropriate color string"
+        },
+        "application_points": {
+          "display_mode": "Apply backgroundColor to outermost container div",
+          "edit_mode": "Apply backgroundColor to outermost container div (input has transparent background)"
+        },
+        "common_failure_mode": {
+          "symptom": "Colors don't show even though Redux state has correct validationState/isEdited values",
+          "cause": "getCompatibleCell() method strips out custom properties when creating cell object",
+          "diagnosis": "Add console.log in cell render to check if validationState/isEdited are undefined",
+          "fix": "Update getCompatibleCell to explicitly preserve these properties using (uncertainCell as any).propertyName"
+        },
+        "confidence_level": "high",
+        "status": "documented"
+      },
+      
+      "state_management_patterns": {
+        "decision_id": "stage1_029",
+        "content": "How validation and edit states flow between Redux, ReactGrid, and cell components",
+        "added_date": "2025-10-19",
+        "data_flow": {
+          "user_edits_cell": [
+            "1. Cell's onChange/onSelect handler calls onCellChanged(updatedCell, commit)",
+            "2. SpreadsheetGrid's handleChanges processes the change",
+            "3. Model wrapper's handleCellChange is called",
+            "4. Dispatch updateCell() Redux action with new value",
+            "5. Redux reducer updates cell.value and automatically sets cell.isEdited by comparing to originalValue",
+            "6. handleCellChange calls validateField() if value differs from originalValue",
+            "7. Validation hook dispatches updateCell() with validationState: 'validating'",
+            "8. After debounce, backend validation returns, dispatch updateCell() with 'valid' or 'invalid'",
+            "9. Redux state updates trigger React re-render",
+            "10. SpreadsheetGrid maps updated SpreadsheetCell to ReactGrid cell format",
+            "11. ReactGrid re-renders cell with new validationState/isEdited",
+            "12. Cell's getCellBackgroundColor() returns appropriate color",
+            "13. User sees yellow (edited) or red (invalid) or blue (validating) background"
+          ]
+        },
+        "critical_redux_patterns": {
+          "isEdited_calculation": "Redux reducer MUST compare cell.value !== cell.originalValue, not rely on passed flag",
+          "originalValue_immutability": "originalValue is set on load and NEVER mutated by edits, only by successful save",
+          "short_circuit_optimization": "If newValue === originalValue, immediately set validationState: 'valid' and skip backend call"
+        },
+        "validation_flow_optimization": {
+          "debouncing": "Use 500ms debounce to avoid excessive API calls during typing",
+          "validating_state": "Set immediately before debounce starts to give instant feedback",
+          "cleanup_on_unmount": "Clear all debounce timers when component unmounts"
+        },
+        "confidence_level": "high",
+        "status": "documented"
+      },
+      
+      "debugging_strategies": {
+        "decision_id": "stage1_030",
+        "content": "Systematic approach to debugging custom cell issues based on SelectCell experience",
+        "added_date": "2025-10-19",
+        "common_issue_patterns": {
+          "colors_not_showing": {
+            "check_1": "Add console.log in getCellBackgroundColor() to see validationState/isEdited values",
+            "check_2": "If undefined: problem is in getCompatibleCell() not preserving properties",
+            "check_3": "If defined: problem is in backgroundColor style application or CSS override",
+            "fix": "Update getCompatibleCell() to preserve properties, ensure backgroundColor is applied to correct element"
+          },
+          "stuck_in_edit_mode": {
+            "symptom": "After pressing Enter/Escape, dropdown closes but cell still has focus, arrow keys don't navigate",
+            "check_1": "Add console.log in template's handleKeyDown to see if it's being called",
+            "check_2": "Check if cell is in editing Set when it shouldn't be",
+            "check_3": "Check if isInEditMode prop is still true after commit",
+            "root_cause": "Template's handleKeyDown returning enableEditMode: true when it should return false",
+            "fix": "Implement state tracking Set, ensure Enter on already-editing cell returns enableEditMode: false"
+          },
+          "edit_mode_not_entering": {
+            "symptom": "Pressing Enter or double-clicking doesn't open editor",
+            "check_1": "Verify isFocusable() returns true",
+            "check_2": "Add console.log in handleKeyDown to see if it receives Enter (keyCode 13) or pointer event (keyCode 1)",
+            "check_3": "Check if cell is already in editing Set (shouldn't be for a cell not in edit mode)",
+            "common_cause": "Previous edit didn't properly clean up editing Set",
+            "fix": "Ensure Escape handler manually removes from Set since ReactGrid may not call handleKeyDown for Escape"
+          },
+          "dropdown_closes_on_click": {
+            "symptom": "Clicking dropdown option immediately closes dropdown without selecting",
+            "root_cause": "ReactGrid detects focus loss when click event fires",
+            "check_1": "Verify onPointerDownCapture handlers are present on dropdown container and options",
+            "check_2": "Verify handlers call e.preventDefault() and e.stopPropagation()",
+            "check_3": "Check browser console for event handler errors",
+            "fix": "Add capture phase handlers with preventDefault/stopPropagation to all interactive dropdown elements"
+          },
+          "values_revert_after_edit": {
+            "symptom": "Edit a cell, press Enter, value changes back to original",
+            "check_1": "Add console.log in Redux updateCell reducer to see if action is dispatched",
+            "check_2": "Check if row is found (rowId type mismatch: string vs number)",
+            "check_3": "Check if cell properties are actually being updated in Redux state",
+            "common_cause": "Row lookup fails due to toString() comparison not being used",
+            "fix": "Compare r.id.toString() === rowId.toString() in Redux reducer"
+          }
+        },
+        "logging_strategy": {
+          "template_methods": "Add console.log at start of handleKeyDown, getCompatibleCell to trace ReactGrid calls",
+          "cell_view_component": "Log in handleKeyDown, handleSelect, getCellBackgroundColor to trace user interactions",
+          "redux_actions": "Log in reducer before and after state updates to verify state changes",
+          "event_flow": "Use distinctive emojis (🎯, 📊, ⌨️, 🎨) to make logs easy to scan"
+        },
+        "confidence_level": "high",
+        "status": "documented"
+      },
+      
+      "architectural_lessons": {
+        "decision_id": "stage1_031",
+        "content": "High-level insights that will guide future cell type implementations",
+        "added_date": "2025-10-19",
+        "key_insights": [
+          "ReactGrid's architecture is event-driven and focus-based, not state-based - work with its patterns, not against them",
+          "Custom cells must maintain ReactGrid's illusion of being a simple spreadsheet while hiding complex UI underneath",
+          "The template system is stateless - any state tracking must be done via static class members or external stores",
+          "React's synthetic events and ReactGrid's event handling are independent systems that can conflict - use capture phase to mediate",
+          "Validation and styling must flow through ReactGrid's cell update cycle - can't directly manipulate DOM or apply classes",
+          "Testing requires the full stack (Redux + ReactGrid + custom cell) - isolated testing of cell components won't catch integration issues"
+        ],
+        "implementation_priorities": [
+          "1. Get edit mode enter/exit working correctly FIRST - this is the foundation",
+          "2. Add focus management and click handling - required for custom UI to function",
+          "3. Integrate with Redux validation state - enables visual feedback",
+          "4. Add custom UI (dropdowns, pickers, etc.) - actual functionality",
+          "5. Polish and debug edge cases - refinement"
+        ],
+        "time_investment_lessons": [
+          "Expect 60-70% of implementation time on edit mode state management and event handling",
+          "Expect 20-30% on focus management and preventing premature edit mode exit",
+          "Expect 10-20% on actual custom UI and validation integration",
+          "The complexity is in the integration, not in the custom UI itself"
+        ],
+        "reusability_assessment": "Once SelectCell pattern is established, future cell types (RelationshipCell, MultiSelectCell, DateCell) can reuse 80%+ of the focus management, event handling, and validation integration code",
+        "confidence_level": "high",
+        "status": "documented"
+      },
+      
+      "relationship_cell_patterns": {
+        "decision_id": "stage1_032",
+        "content": "Patterns specific to RelationshipCell (FK fields) that extend SelectCell foundation",
+        "added_date": "2025-10-19",
+        "source": "RelationshipCell implementation (Phase 4.2)",
+        "builds_on": "SelectCell patterns (stage1_024 through stage1_031)",
+        "api_integration_architecture": {
+          "endpoint_configuration": "Column config includes relationshipEndpoint property (e.g., '/internal/v1/languoids/')",
+          "dynamic_data_loading": "Unlike SelectCell with static choices, RelationshipCell fetches options from API on demand",
+          "search_and_filter": "Append 'search' query param for filtering, 'page_size' param for limiting results",
+          "response_format_expectations": "API must return { results: [ { id, name, ...otherFields }, ... ] } paginated format",
+          "label_construction": "Map response to { value: id, label: displayString } format, support flexible display field names (name || title || display_name)",
+          "caching_strategy": "Options loaded fresh each time dropdown opens - future optimization: cache with TTL"
+        },
+        "autocomplete_search_ui": {
+          "search_input_placement": "TextField at top of dropdown for filtering options as user types",
+          "debounced_api_calls": "300ms debounce on search query changes to limit API request frequency",
+          "loading_indicator": "CircularProgress shown in search field endAdornment while fetching",
+          "keyboard_event_isolation": "Critical: search input must NOT allow typing keys to reach ReactGrid",
+          "isolation_implementation": {
+            "selective_stopPropagation": "onKeyDownCapture handler checks if key is navigation key (Escape, Enter, arrows, Tab)",
+            "navigation_keys": "Allow Escape, Enter, arrows, Tab to propagate to parent handlers for dropdown navigation",
+            "typing_keys": "Stop propagation for backspace, letters, numbers, etc. so they work in search input",
+            "why_capture_phase": "Must intercept in capture phase before ReactGrid's handlers see the events"
+          }
+        },
+        "display_format_patterns": {
+          "human_readable_display": "Display format often differs from stored value (e.g., 'Akkadian (akka1240)' not just ID)",
+          "backend_support_required": "Serializer must include display-friendly read-only fields (e.g., parent_name, parent_glottocode)",
+          "initial_load_display": "languoidToRow() constructs display text from parent_name + parent_glottocode when available",
+          "post_selection_display": "Options array includes pre-formatted label, stored in cell.text after selection",
+          "machine_value_storage": "cell.value always contains numeric ID, cell.text contains human-readable display"
+        },
+        "validation_integration_specifics": {
+          "invalid_paste_detection": "When text pasted into relationship cell, value is null but text is not empty",
+          "validation_short_circuit": "Check for null value + non-empty text BEFORE originalValue comparison",
+          "error_message": "'Invalid relationship value. Please select from dropdown.'",
+          "validation_order_criticality": "Must check relationship-specific invalid state before short-circuit comparison (null === null would incorrectly validate)"
+        },
+        "delete_clear_behavior": {
+          "delete_key_handling": "Template's handleKeyDown handles DELETE (46) and BACKSPACE (8) keyCodes",
+          "clear_operation": "Set value to null, text to empty string, preserve validationState and isEdited",
+          "immediate_next_keypress": "Must remove cell from editingCells Set to allow immediate next Delete press without requiring cell navigation first"
+        },
+        "copy_paste_intelligence": {
+          "valid_cell_copy": "Copying cell with valid relationship ID and pasting to another row works - value + text preserved",
+          "invalid_text_paste": "Pasting arbitrary text (e.g., from non-relationship column) triggers validation error immediately",
+          "spreadsheet_grid_detection": "handleChanges checks if text change occurred on relationship column, passes null value for validation"
+        },
+        "performance_considerations": {
+          "console_log_impact": "Debug logging in hot paths (handleKeyDown, API calls, Redux updates) added 50-200ms per interaction",
+          "removal_priority": "Remove ALL console.log statements before production, keep only console.error for actual errors",
+          "react_memo_optimization": {
+            "component_memoization": "RelationshipCellView wrapped in React.memo with custom comparison function (consistent with SelectCell and MultiSelectCell)",
+            "comparison_logic": "Only re-renders if isInEditMode, cell.value, cell.text, validationState, isEdited, or relationshipEndpoint actually change",
+            "why_custom_comparison": "Cell object is new reference on every grid update, but values might not change - custom comparison prevents unnecessary re-renders",
+            "benefit": "When user types in different cell, RelationshipCells don't re-render unnecessarily"
+          },
+          "useMemo_for_cellKey": {
+            "implementation": "cellKey calculated with useMemo([cell.value, cell.text, cell.relationshipEndpoint])",
+            "why_needed": "cellKey used in Escape handler and static Set operations - memoization prevents recalculation on every render",
+            "impact": "Small but measurable - string concatenation on every render adds up with many cells"
+          },
+          "useMemo_for_gridRows": "Memoize expensive gridRows calculation with [rows, columns] dependencies",
+          "when_to_optimize": "Log removal + React.memo sufficient for 100-300 rows, additional optimization (useCallback, virtualization) needed for 500+"
+        },
+        "edge_cases_handled": {
+          "empty_search_results": "Display empty state or 'No options found' when search returns no results",
+          "api_error_handling": "Catch fetch errors, log to console.error, set options to empty array, show error in UI if needed",
+          "long_option_labels": "Overflow handling in dropdown MenuItems with proper text wrapping or truncation",
+          "concurrent_searches": "Debouncing prevents race conditions from rapid typing, last search wins"
+        },
+        "confidence_level": "high",
+        "status": "documented"
+      },
+      
+      "multiselect_cell_patterns": {
+        "decision_id": "stage1_033",
+        "content": "Patterns specific to MultiSelectCell (M2M fields) with multi-action editing sessions",
+        "added_date": "2025-10-19",
+        "source": "MultiSelectCell implementation (Phase 4.3)",
+        "builds_on": "RelationshipCell patterns (stage1_032) and SelectCell foundation (stage1_024-031)",
+        "critical_architectural_difference": "Unlike SelectCell/RelationshipCell which commit immediately after one selection, MultiSelectCell requires multiple user actions (add chip, remove chip, add another) before final commit",
+        
+        "static_state_management_pattern": {
+          "problem": "React useState for selections causes re-renders that break ReactGrid focus during multi-action sessions",
+          "why_react_state_fails": "Each setSelectedOptions() triggers React re-render, causing inputRef to be temporarily unmounted/remounted, ReactGrid detects focus loss and exits edit mode",
+          "solution": "Use static class member Map to store pending selections, avoid React state updates entirely during editing",
+          "implementation": {
+            "static_pendingSelections": "Map<string, MultiSelectOption[]> on MultiSelectCellTemplate class",
+            "key_format": "cellKey based on value_text_endpoint, same as editingCells Set",
+            "force_update_pattern": "Use dummy state counter [, forceUpdate] = useState(0) and call forceUpdate(prev => prev + 1) after Map updates",
+            "no_redux_until_commit": "handleSelect and handleRemove ONLY update static Map, never call onCellChanged",
+            "final_commit_on_enter": "handleKeyDown for Enter reads from static Map, creates final cell, commits to Redux with onCellChanged(cell, true)"
+          },
+          "memory_management": {
+            "initialize_on_entry": "handleKeyDown Enter entry clears pendingSelections.delete(cellKey) to remove stale data",
+            "cleanup_on_exit": "handleKeyDown Enter/Escape exit removes from both editingCells Set and pendingSelections Map",
+            "cleanup_on_clear": "DELETE/BACKSPACE also cleans up both Set and Map"
+          },
+          "rationale": "From contextual memory stage1_031: 'The template system is stateless - any state tracking must be done via static class members or external stores' and 'ReactGrid's architecture is event-driven and focus-based, not state-based - work with its patterns, not against them'"
+        },
+        
+        "chip_ui_patterns": {
+          "display_location": "Chips displayed at top of dropdown in a Box with flexWrap",
+          "chip_removal": "MUI Chip component with onDelete handler calling handleRemove(option)",
+          "capture_phase_protection": "Chip container and individual chips need onPointerDownCapture to prevent focus loss",
+          "styling": "Blue chips (#1976d2) with white text to match application theme",
+          "filtering_available_options": "Filter displayed options to exclude already-selected items using getSelectedOptions()"
+        },
+        
+        "state_access_pattern": {
+          "getSelectedOptions_helper": "useCallback function that checks isInEditMode and reads from static Map if editing, else derives from cell.value and options",
+          "why_helper_needed": "Provides single source of truth for selected options across render, avoids duplicate logic",
+          "usage_points": [
+            "Rendering chips: getSelectedOptions().map()",
+            "Filtering available options: options.filter(opt => !getSelectedOptions().find(...))",
+            "Getting count: getSelectedOptions().length"
+          ]
+        },
+        
+        "initialization_flow": {
+          "step_1": "User opens editor (Enter/double-click) -> handleKeyDown adds to editingCells, clears stale pendingSelections",
+          "step_2": "useEffect detects isInEditMode, calls loadOptions('')",
+          "step_3": "If cell has existing values, wait for options to load",
+          "step_4": "Second useEffect detects options loaded + cell.value exists -> populate pendingSelections from cell.value filtered through options",
+          "step_5": "forceUpdate triggers re-render, chips appear in dropdown"
+        },
+        
+        "interaction_flow": {
+          "add_chip": "User clicks option -> handleSelect -> update static Map -> forceUpdate -> chips re-render -> editor stays open",
+          "remove_chip": "User clicks X on chip -> handleRemove -> update static Map -> forceUpdate -> chips re-render -> editor stays open",
+          "commit_enter": "User presses Enter in search field -> TextField.onKeyDown intercepts -> calls handleKeyDown -> reads static Map -> creates final cell -> onCellChanged(cell, true) -> commits to Redux -> blur inputs -> editor closes",
+          "cancel_escape": "User presses Escape in search field -> TextField.onKeyDown cleans up static Map/Set -> blurs search input -> lets Escape propagate to ReactGrid -> ReactGrid template handleKeyDown returns enableEditMode:false -> editor closes",
+          "focus_maintained": "searchInputRef has autoFocus and maintains focus throughout add/remove operations, ReactGrid never detects focus loss during chip operations"
+        },
+        
+        "keyboard_event_handling": {
+          "problem": "Search TextField has focus (not transparent inputRef), so Enter/Escape events need special handling",
+          "enter_key_solution": {
+            "approach": "TextField.onKeyDown intercepts Enter, prevents default, stops propagation, manually calls parent handleKeyDown",
+            "reason": "Enter must commit changes by reading from static Map and calling onCellChanged, then blur to exit edit mode",
+            "implementation": "if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); handleKeyDown(e); }"
+          },
+          "escape_key_solution": {
+            "approach": "TextField.onKeyDown cleans up static state, blurs search input, but DOES NOT preventDefault or stopPropagation",
+            "reason": "Must let Escape bubble to ReactGrid's template handleKeyDown so it can return enableEditMode:false",
+            "implementation": "if (e.key === 'Escape') { /* cleanup */ searchInputRef.current.blur(); /* NO preventDefault/stopPropagation */ }",
+            "critical_insight": "Preventing Escape propagation breaks ReactGrid's edit mode exit - ReactGrid needs to see the Escape keyCode to exit properly"
+          },
+          "typing_keys": "Non-navigation keys call e.stopPropagation() so they work in search field without triggering ReactGrid navigation",
+          "arrow_keys": "Arrow keys allowed to propagate for dropdown navigation within MenuList"
+        },
+        
+        "validation_integration_specifics": {
+          "invalid_paste_detection": "When text pasted into multiselect cell, value is null but text is not empty - indicates arbitrary text pasted, not valid ID array",
+          "array_format_check": "Value must be array or null - if not array, immediately mark as invalid without backend call",
+          "validation_short_circuit": "Check for null value + non-empty text BEFORE originalValue comparison, also check array format",
+          "error_messages": {
+            "invalid_paste": "Invalid multiselect value. Please select from dropdown.",
+            "invalid_format": "Invalid multiselect value format."
+          },
+          "validation_order_criticality": "Must check multiselect-specific invalid states (paste detection, array format) before short-circuit comparison",
+          "array_comparison_for_short_circuit": {
+            "problem": "Arrays need deep comparison - [1,2,3] === [1,2,3] is false in JavaScript",
+            "solution": "Sort both arrays and compare JSON.stringify results",
+            "implementation": "const sortedNew = [...newValue].sort((a, b) => a - b); const sortedOrig = [...originalValue].sort((a, b) => a - b); valuesAreEqual = JSON.stringify(sortedNew) === JSON.stringify(sortedOrig);",
+            "why_sort": "User might select items in different order than DB stored them - [1,2,3] and [3,1,2] should be considered equal",
+            "handles_null": "Check if both are arrays before attempting comparison, fallback to simple equality for non-arrays"
+          }
+        },
+        
+        "copy_paste_intelligence": {
+          "valid_cell_copy": "Copying multiselect cell with valid ID array and pasting to another row works - value + text preserved",
+          "invalid_text_paste": "Pasting arbitrary text (e.g., from text column) triggers validation error immediately - value is null, text is not empty",
+          "spreadsheet_grid_detection": "handleChanges checks if text change occurred on multiselect column, passes null value for validation (similar to relationship cells)",
+          "array_preservation": "When copying/pasting valid multiselect cells, array structure is preserved through cell.value"
+        },
+        
+        "debugging_insights": {
+          "symptom_1": "Editor closing after each chip add/remove even with NO onCellChanged calls",
+          "root_cause_1": "React state updates (setSelectedOptions) causing re-renders that temporarily break focus",
+          "symptom_2": "After fixing focus with static Map, Enter worked but values disappeared on commit",
+          "root_cause_2": "TextField has focus (not transparent inputRef), so Enter keyDown handler wasn't being called - needed to intercept in TextField.onKeyDown",
+          "symptom_3": "After fixing Enter, Escape did cleanup but editor didn't close",
+          "root_cause_3": "TextField.onKeyDown was calling preventDefault/stopPropagation on Escape, preventing ReactGrid from seeing it and exiting edit mode",
+          "failed_attempts": [
+            "Attempt 1: commit=false in handleSelect/handleRemove - editor stayed open but values lost on reopen",
+            "Attempt 2: commit=true in handleSelect/handleRemove - values saved but editor closed",
+            "Attempt 3: commit=true + manual editingCells Set update - still closed, worse performance",
+            "Attempt 4: Local state only, no Redux - STILL CLOSED revealing React re-render as culprit",
+            "Attempt 5: Static Map fixed focus, but Enter didn't commit - search field had focus, needed TextField.onKeyDown",
+            "Attempt 6: Enter fixed with TextField.onKeyDown, but Escape didn't close - was blocking propagation to ReactGrid"
+          ],
+          "successful_solution": "Static class member for selections (prevents re-render focus loss) + TextField.onKeyDown for Enter (intercept and handle) + TextField.onKeyDown for Escape (cleanup but let propagate)"
+        },
+        
+        "performance_characteristics": {
+          "no_redux_churn": "Redux only updated once on Enter, not on every chip add/remove",
+          "minimal_re_renders": "forceUpdate only triggers re-render of MultiSelectCellView, not entire grid",
+          "no_console_logs": "All debug logging removed for production performance",
+          "memory_cleanup": "Static Map entries cleaned up on exit, no memory leaks",
+          "react_memo_optimization": {
+            "component_memoization": "MultiSelectCellView wrapped in React.memo with custom comparison function",
+            "comparison_logic": "Only re-renders if isInEditMode, cell.value, cell.text, validationState, isEdited, or relationshipEndpoint actually change",
+            "why_custom_comparison": "Cell object is new reference on every grid update, but values might not change - custom comparison prevents unnecessary re-renders",
+            "benefit": "When user types in different cell, MultiSelectCells don't re-render unnecessarily"
+          },
+          "useMemo_for_cellKey": {
+            "implementation": "cellKey calculated with useMemo([cell.value, cell.text, cell.relationshipEndpoint])",
+            "why_needed": "cellKey used in multiple places (getSelectedOptions, handleSelect, handleRemove) - memoization prevents recalculation on every render",
+            "impact": "Small but measurable - string concatenation on every render adds up with many cells"
+          },
+          "useCallback_for_callbacks": {
+            "loadOptions": "Memoized with useCallback to prevent recreation on every render",
+            "getSelectedOptions": "Memoized with useCallback, dependencies include cellKey",
+            "impact": "Prevents child components from re-rendering due to new function references"
+          },
+          "api_call_optimization": {
+            "debounced_search": "300ms debounce on search query changes prevents excessive API calls",
+            "no_caching_yet": "Options loaded fresh each time dropdown opens - future optimization: add TTL cache",
+            "page_size_limit": "page_size=50 param limits result set for faster response"
+          }
+        },
+        
+        "future_multi_action_cells": {
+          "applicability": "This pattern applies to ANY cell type requiring multiple user actions before commit",
+          "examples": "Date range picker, tag editor, color palette selector, file uploader",
+          "template_code": "MultiSelectCell serves as reference implementation for future multi-action cells",
+          "key_principle": "If user needs to perform multiple actions in one edit session, use static class member storage, not React state"
+        },
+        
+        "confidence_level": "high",
+        "status": "documented"
+      },
+      
+      "date_cell_patterns": {
+        "decision_id": "stage1_034",
+        "content": "Patterns specific to DateCell (flexible date input) integrating Stage 0 date handling with Stage 1 batch editing",
+        "added_date": "2025-10-19",
+        "source": "DateCell implementation (Phase 4.4)",
+        "builds_on": "Stage 0 date field implementation (EditableTextField + DateInterpretationFeedback + DateFormatHelp) and Stage 1 custom cell foundation (stage1_024-031)",
+        "architectural_integration": "Combines Stage 0's flexible date handling philosophy with Stage 1's ReactGrid cell architecture",
+        
+        "stage_0_heritage": {
+          "existing_system": "Stage 0 established flexible date input for cultural archive needs (ItemDetail, CollaboratorDetail, CollectionDetail)",
+          "key_components": {
+            "EditableTextField": "Simple text input (no date picker) for maximum flexibility",
+            "DateInterpretationFeedback": "Real-time feedback showing what will happen to user input on save (green check, blue arrow, gray question)",
+            "DateFormatHelp": "Chip-based format examples (2023, 2023/03, 2023/03/15, ranges, etc.)",
+            "dateStandardization.ts": "Frontend logic that mirrors backend date transformation (interpretDateInput, standardizeDateFormat)"
+          },
+          "validation_architecture": "Two-layer system: Frontend prediction (non-blocking real-time feedback) + Backend transformation (authoritative DRF serializer validation)",
+          "backend_mirror": "frontend/src/utils/dateStandardization.ts exactly mirrors app/metadata/signals.py standardize_date_format() for accurate preview",
+          "accepted_formats": [
+            "Years: 2023, 1990s, 1990s?, 2020-2025",
+            "Months: 2023/03, March 2023, 3/2023",
+            "Full Dates: 2023/03/15, 3/15/2023",
+            "Date Ranges: 2020/03-2023/10, 1/2020-3/2021, 2020-2023",
+            "Approximate: ca 2023, 19th century, early 2020s",
+            "Partial/Uncertain: 2023?, Spring 2023, circa 1950"
+          ],
+          "transformation_behavior": "American format (MM/DD/YYYY) automatically converted to standard format (YYYY/MM/DD) on save, approximate/text dates preserved as-is",
+          "cultural_archive_rationale": "Flexibility required for historical dates (uncertain, approximate, partial dates common in archival materials)"
+        },
+        
+        "stage_1_adaptation": {
+          "cell_architecture": "DateCellTemplate + DateCellView following established ReactGrid patterns",
+          "no_date_picker": "Plain text input maintained (NOT Material-UI DatePicker) to preserve Stage 0 flexibility",
+          "dropdown_panel_design": {
+            "trigger": "Edit mode automatically opens dropdown panel below cell",
+            "content": [
+              "DateInterpretationFeedback - Real-time preview of standardization",
+              "DateFormatHelp - Chip examples of accepted formats"
+            ],
+            "positioning": "Absolute positioned below cell (same as SelectCell/RelationshipCell dropdowns)",
+            "z_index": "10000 to appear above grid",
+            "border_styling": "2px solid #1976d2 to match application theme"
+          },
+          "transparent_input_pattern": "Uses established pattern: transparent input maintains ReactGrid focus, Material-UI TextField provides actual UI",
+          "focus_management": "TextField has autoFocus, transparent input maintains ReactGrid's focus tracking"
+        },
+        
+        "real_time_interpretation": {
+          "implementation": "useMemo(() => interpretDateInput(inputValue), [inputValue])",
+          "feedback_display": {
+            "preferred_format": "Green CheckCircleIcon + 'Already in preferred format' (e.g., 2023, 2023/03/15)",
+            "convertible": "Blue ArrowForwardIcon + 'Will become \"2023/03/15\" on save' (shows exact conversion)",
+            "unrecognized": "Gray HelpOutlineIcon + 'Format not recognized - will be saved as-is' (approximate dates)",
+            "empty": "No feedback shown for empty input"
+          },
+          "background_color": {
+            "preferred": "success.light (#e8f5e9)",
+            "convertible": "info.light (#e3f2fd)",
+            "unrecognized": "grey.100"
+          },
+          "integration_point": "Feedback shown in dropdown panel above DateFormatHelp, updates on every keystroke"
+        },
+        
+        "format_help_display": {
+          "location": "Bottom of dropdown panel (below DateInterpretationFeedback)",
+          "chip_examples": ["2023", "2023/03", "2023/03/15", "03/15/2023", "2020-2023", "2023/03-2024/05"],
+          "helper_text": "American format (MM/DD/YYYY) will be converted to standard format (YYYY/MM/DD) when saved. Approximate dates (e.g., \"circa 1950\", \"1990s?\") are also accepted.",
+          "styling": "Caption typography, chip variant outlined, grey text for note"
+        },
+        
+        "keyboard_event_handling": {
+          "enter_key": {
+            "approach": "TextField.onKeyDown intercepts Enter, prevents default, stops propagation, calls handleCommit",
+            "reason": "Commits current inputValue to Redux, then blurs to exit edit mode",
+            "implementation": "if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); handleCommit(); }",
+            "commit_logic": "Creates DateCell with value=inputValue, text=inputValue, calls onCellChanged(cell, true)"
+          },
+          "escape_key": {
+            "approach": "TextField.onKeyDown cleans up static state, blurs inputs, DOES NOT preventDefault or stopPropagation",
+            "reason": "Must let Escape bubble to ReactGrid's template handleKeyDown for proper edit mode exit",
+            "implementation": "if (e.key === 'Escape') { editingCells.delete(cellKey); setDropdownOpen(false); textFieldRef.current.blur(); /* NO preventDefault */ }",
+            "critical_insight": "Preventing Escape propagation breaks ReactGrid - learned from MultiSelectCell debugging"
+          },
+          "delete_backspace": "Template handleKeyDown clears cell value and exits edit mode (standard pattern)"
+        },
+        
+        "validation_integration": {
+          "cell_level": "validationState ('valid', 'invalid', 'validating') controls background color (red/blue/yellow)",
+          "backend_validation": "DRF serializer's validate_<field_name> methods call standardize_date_format() on save",
+          "no_blocking_validation": "Frontend interpretation is informative only, does NOT prevent saving (flexibility for edge cases)",
+          "error_display": "validationError shown if backend rejects date format",
+          "isEdited_tracking": "Yellow background for edited-but-not-saved cells"
+        },
+        
+        "performance_characteristics": {
+          "react_memo_optimization": {
+            "component_memoization": "DateCellView wrapped in React.memo with custom comparison function",
+            "comparison_logic": "Only re-renders if isInEditMode, cell.value, cell.text, validationState, or isEdited actually change",
+            "benefit": "When user types in different cell, DateCells don't re-render unnecessarily"
+          },
+          "useMemo_for_cellKey": {
+            "implementation": "cellKey calculated with useMemo([cell.value, cell.text])",
+            "why_needed": "cellKey used in Escape handler and static Set operations",
+            "impact": "Prevents unnecessary string concatenation on every render"
+          },
+          "useMemo_for_interpretation": {
+            "implementation": "interpretation = useMemo(() => interpretDateInput(inputValue), [inputValue])",
+            "why_needed": "interpretDateInput runs regex matching - memoization prevents recalculation unless input changes",
+            "impact": "Significant performance gain when dropdown is open and user hasn't typed (prevents re-running regex on every render)"
+          },
+          "no_api_calls": "DateCell is fully client-side - no API calls, no debouncing needed"
+        },
+        
+        "static_editingCells_pattern": {
+          "usage": "Same as SelectCell/RelationshipCell - static Set tracks which cells are in edit mode",
+          "initialization": "handleKeyDown adds to Set on Enter/double-click",
+          "cleanup": "handleKeyDown removes from Set on Escape, TextField.onKeyDown removes on Escape (before propagation)",
+          "purpose": "Prevents stuck-in-edit-mode bugs, enables proper Enter/Escape handling"
+        },
+        
+        "display_mode": {
+          "rendering": "Plain text div with cell.text || ''",
+          "background_color": "getCellBackgroundColor() based on validationState and isEdited",
+          "no_special_formatting": "Shows raw date string as-is (Stage 0 pattern - no frontend transformation)"
+        },
+        
+        "edit_mode": {
+          "rendering": "TextField with placeholder 'e.g., 2023, 2023/03/15, circa 1950'",
+          "input_value_state": "Local state for inputValue, initialized from cell.value on edit mode entry",
+          "dropdown_panel": "Automatically opens on edit mode entry, shows interpretation + format help",
+          "material_ui_textfield": "Variant standard, disableUnderline, custom styling for height/padding match",
+          "capture_phase_protection": "onPointerDownCapture and onClickCapture on TextField and dropdown to prevent ReactGrid focus loss"
+        },
+        
+        "model_applicability": {
+          "languoid_model": "No date fields (DateCell not needed for current Languoid batch editing)",
+          "item_model": "Multiple date fields: creation_date, accession_date, collection_date, deposit_date, cataloged_date",
+          "collection_model": "date_range_min, date_range_max (may need DateCell when Collection batch editing is implemented)",
+          "collaborator_model": "birthdate, deathdate (DateCell ready for Collaborator batch editing)",
+          "document_model": "creation_date (DateCell ready for Document batch editing)",
+          "readiness": "DateCell is fully implemented and ready for future batch editors (Item, Collection, Collaborator, Document)"
+        },
+        
+        "future_enhancements": {
+          "date_range_cells": "Could extend DateCell to support date ranges with two inputs (start-end)",
+          "calendar_picker_option": "Optional calendar icon that opens picker for users who prefer visual selection (while keeping text input as primary)",
+          "smart_suggestions": "Could suggest date corrections based on common typos or format issues",
+          "batch_date_operations": "Fill down could intelligently increment dates (e.g., 2023 -> 2024 -> 2025)"
+        },
+        
+        "lessons_learned": {
+          "stage_0_patterns_are_proven": "Stage 0's flexible date handling works well - no need to reinvent with date pickers",
+          "frontend_backend_mirroring": "Mirroring backend logic in frontend enables accurate real-time previews",
+          "cultural_archive_flexibility": "Text input flexibility is REQUIREMENT not limitation - approximate/uncertain dates are common",
+          "keyboard_event_propagation": "MultiSelectCell's Escape propagation lesson applies here - don't block ReactGrid events",
+          "performance_from_start": "React.memo and useMemo applied from beginning (lesson from earlier cells)"
+        },
+        
+        "confidence_level": "high",
+        "status": "documented"
+      },
+      
+      "decimal_cell_patterns": {
+        "decision_id": "stage1_037",
+        "content": "Patterns specific to DecimalCell (decimal number fields with validation)",
+        "added_date": "2025-10-20",
+        "updated_date": "2025-10-20",
+        "source": "DecimalCell implementation (Phase 4.7) - final working version",
+        "builds_on": "SelectCell and RelationshipCell patterns (plain HTML input, not Material-UI)",
+        "architectural_simplicity": "Plain HTML input with validation - matches established custom cell patterns",
+        
+        "critical_lesson": {
+          "mistake": "Initially tried to use Material-UI TextField which added wrapper divs with spacing, causing positioning offset",
+          "discovery": "SelectCell and RelationshipCell use plain HTML <input> elements, not Material-UI components",
+          "solution": "Switched to plain HTML input matching exact pattern from SelectCell/RelationshipCell",
+          "key_insight": "User wanted simple VISUAL appearance, not simple technical implementation. Use proven patterns with simple styling."
+        },
+        
+        "use_case": {
+          "decimal_fields": "Django DecimalField with high precision for coordinates and measurements",
+          "example_fields": [
+            "Languoid.longitude (DecimalField max_digits=22, decimal_places=16)",
+            "Languoid.latitude (DecimalField max_digits=22, decimal_places=16)",
+            "Geographic.lat (DecimalField max_digits=22, decimal_places=16)",
+            "Geographic.long (DecimalField max_digits=22, decimal_places=16)",
+            "Any decimal numeric measurements"
+          ],
+          "validation_requirements": [
+            "Must be valid decimal number format",
+            "Can be positive or negative",
+            "Can be integer or decimal (e.g., 42, 42.5, -122.419906)",
+            "Empty/blank is valid (nullable fields)",
+            "Invalid: letters, special characters (except minus sign and decimal point)"
+          ]
+        },
+        
+        "plain_html_input_architecture": {
+          "rationale": "Matches SelectCell/RelationshipCell pattern exactly - plain HTML input, no Material-UI",
+          "no_material_ui": "TextField component adds wrapper divs with default spacing - causes positioning issues",
+          "structure": {
+            "container_div": "position: relative, with onPointerDown to stopPropagation",
+            "transparent_input": "Opacity 0, maintains ReactGrid focus, handles keyboard events",
+            "visible_input": "Plain HTML <input type='text'>, fills cell with width/height 100%, transparent background"
+          },
+          "styling": {
+            "width": "100%",
+            "height": "100%",
+            "border": "none",
+            "outline": "none",
+            "background": "transparent",
+            "padding": "0 8px",
+            "fontSize": "14px",
+            "fontFamily": "inherit",
+            "margin": "0",
+            "boxSizing": "border-box"
+          },
+          "visual_result": "Looks exactly like simple text cell - no borders, no underlines, just text"
+        },
+        
+        "template_handleKeyDown_pattern": {
+          "matches_selectcell": "Uses exact same pattern as SelectCell for keyboard handling",
+          "enter_when_editing": {
+            "check": "if (keyCode === ENTER && editingCells.has(cellKey))",
+            "action": "Remove from Set and return enableEditMode: false",
+            "purpose": "Prevents editor from re-opening after commit (this was causing double-enter bug)"
+          },
+          "double_click_support": {
+            "check": "keyCode === POINTER_EVENT (1)",
+            "action": "Add to Set and return enableEditMode: true",
+            "purpose": "ReactGrid converts double-click to keyCode 1"
+          },
+          "backspace_during_edit": {
+            "check": "if ((keyCode === DELETE || BACKSPACE) && !editingCells.has(cellKey))",
+            "purpose": "Only clears cell when NOT in edit mode, during edit Backspace works normally for character deletion"
+          },
+          "escape_handling": "Remove from Set and return enableEditMode: false",
+          "getCellKey_helper": "Private method returns consistent cellKey format"
+        },
+        
+        "validation_logic": {
+          "client_side_validation": {
+            "pattern": "Regex check: /^-?\\d+\\.?\\d*$|^-?\\d*\\.\\d+$/ for complete numbers on commit",
+            "validation_timing": "Only validates on commit (blur/Enter), not during typing",
+            "validation_triggers": [
+              "onKeyDown Enter: validate and commit (preventDefault + stopPropagation)",
+              "Tab: commits value and allows navigation"
+            ]
+          },
+          "valid_formats": [
+            "Empty string: '' (for nullable fields)",
+            "Integers: '42', '-17', '0'",
+            "Decimals: '42.5', '-122.419906', '37.7749'"
+          ],
+          "invalid_formats": [
+            "Letters: 'abc', '42abc'",
+            "Multiple decimal points: '42.5.3'",
+            "Multiple minus signs: '--42'",
+            "Special characters: '42°', '42,500' (comma)",
+            "Incomplete: '-', '.', '42.' (invalid on commit)"
+          ],
+          "invalid_handling": {
+            "behavior": "On invalid commit, marks cell as invalid (red background) and COMMITS the invalid value",
+            "user_experience": "Cell exits edit mode and displays the invalid value with red background",
+            "error_display": "Tooltip on hover shows 'Invalid decimal format'",
+            "rationale": "Invalid values are committed so they can be tracked, validated by backend, and corrected later"
+          },
+          "backend_validation": "Django DecimalField validates max_digits and decimal_places, precision constraints"
+        },
+        
+        "keyboard_event_handling": {
+          "enter_key": {
+            "behavior": "Validates input, always commits (valid or invalid), exits edit mode",
+            "validation_check": "Runs validation and sets validationState accordingly",
+            "propagation": "preventDefault + stopPropagation to prevent ReactGrid from seeing this"
+          },
+          "escape_key": {
+            "behavior": "Reverts to original value, exits edit mode",
+            "cleanup": "Removes from editingCells Set, blurs input, resets local state",
+            "propagation": "Let Escape propagate to ReactGrid for proper exit"
+          },
+          "tab_key": {
+            "behavior": "Commits current value (valid or invalid) and moves to next cell",
+            "propagation": "Let Tab propagate to ReactGrid for navigation after commit"
+          }
+        },
+        
+        "display_mode": {
+          "rendering": "Plain text div showing the numeric value",
+          "background_color": "getCellBackgroundColor() based on validationState and isEdited",
+          "text_color": "Inherits default - NO red text for invalid state (only red background)",
+          "empty_display": "Empty string shows as blank cell (standard for nullable fields)",
+          "precision_display": "Shows exact string value from database (no rounding in display)",
+          "error_tooltip": "Hover shows validationError message via title attribute"
+        },
+        
+        "edit_mode": {
+          "rendering": "Plain HTML input element (type='text') - no Material-UI components",
+          "styling": "Inline styles matching SelectCell/RelationshipCell appearance",
+          "text_color": "Inherits default - NO red text for invalid state during editing",
+          "auto_focus": "Input gets autoFocus attribute",
+          "background_color": "Transparent - cell container provides background",
+          "placeholder": "Enter a number",
+          "user_experience": "Looks and feels exactly like editing a regular text cell"
+        },
+        
+        "component_view_patterns": {
+          "state_management": "useState for currentValue, useRef for input refs",
+          "no_double_commit_flag": "Not needed - event propagation properly blocked with stopPropagation",
+          "useEffect_sync": "Syncs currentValue when cell.value changes from external source",
+          "handleCommit": "Validates, always commits (valid or invalid), deletes from Set, blurs input",
+          "handleKeyDown": "Enter (preventDefault + stopPropagation + commit), Escape (revert + blur), Tab (commit)",
+          "handleChange": "Simple setState for currentValue"
+        },
+        
+        "performance_characteristics": {
+          "react_memo_optimization": {
+            "component_memoization": "DecimalCellView wrapped in React.memo with custom comparison",
+            "comparison_logic": "Only re-renders if isInEditMode, cell.value, validationState, or isEdited change",
+            "benefit": "When user edits different cell, DecimalCells don't re-render"
+          },
+          "useMemo_for_cellKey": {
+            "implementation": "cellKey = useMemo(() => cell.value + '_' + cell.text, [cell.value, cell.text])",
+            "why_needed": "Used in Escape handler and static Set operations",
+            "impact": "Prevents unnecessary string concatenation"
+          },
+          "no_api_calls": "Fully client-side validation - no network requests",
+          "minimal_complexity": "Simple text input with regex validation - very fast"
+        },
+        
+        "coordinate_specific_considerations": {
+          "longitude_range": {
+            "valid_range": "-180 to +180 degrees",
+            "validation": "Client validates format, backend/API may validate range",
+            "precision": "16 decimal places supports sub-millimeter accuracy"
+          },
+          "latitude_range": {
+            "valid_range": "-90 to +90 degrees",
+            "validation": "Client validates format, backend/API may validate range",
+            "precision": "16 decimal places supports sub-millimeter accuracy"
+          },
+          "decimal_places_note": "DecimalField(max_digits=22, decimal_places=16) stores up to 6 integer digits + 16 decimal digits"
+        },
+        
+        "model_applicability": {
+          "languoid_model": "longitude, latitude (both nullable DecimalField)",
+          "geographic_model": "lat, long (Geographic instances for documents/items)",
+          "measurement_fields": "Any numeric measurements requiring decimal precision",
+          "nullable_handling": "Supports blank=True, null=True fields (empty string commits as null)"
+        },
+        
+        "implementation_notes": {
+          "simplicity": "DecimalCell matches SelectCell/RelationshipCell patterns exactly - plain HTML input with validation",
+          "no_material_ui": "Critical: Do NOT use Material-UI TextField - it adds wrapper divs that cause positioning offset",
+          "plain_html_input": "Use plain <input type='text'> with inline styles - fills cell perfectly",
+          "text_cell_similarity": "Intentionally designed to look exactly like ReactGrid's default text cell",
+          "validation_ux": "Standard validation pattern: invalid commits show red background with invalid value visible",
+          "reusable_pattern": "Can be adapted for IntegerCell, PercentageCell, etc. by adjusting validation regex",
+          "debugging_lesson": "When positioning issues occur, check if Material-UI components are adding unwanted wrappers"
+        },
+        
+        "confidence_level": "high",
+        "status": "complete"
+      },
+      
+      "boolean_cell_patterns": {
+        "decision_id": "stage1_035",
+        "content": "Patterns specific to BooleanCell (three-state boolean fields)",
+        "added_date": "2025-10-19",
+        "source": "BooleanCell implementation (Phase 4.5)",
+        "builds_on": "SelectCell foundation (stage1_024-031) and Stage 0 EditableBooleanField patterns",
+        "architectural_simplicity": "Simplest custom cell - essentially SelectCell with 3 fixed choices",
+        
+        "stage_0_heritage": {
+          "existing_system": "Stage 0 EditableBooleanField for nullable boolean fields (Items, Collections, Collaborators)",
+          "three_state_requirement": "Cultural archives need null state for 'unknown' or 'not applicable' boolean values",
+          "value_mapping": {
+            "true": "Yes",
+            "false": "No",
+            "null": "Not specified"
+          },
+          "ui_pattern": "Material-UI Select dropdown with 3 MenuItem options"
+        },
+        
+        "stage_1_adaptation": {
+          "cell_architecture": "BooleanCellTemplate + BooleanCellView following SelectCell patterns",
+          "fixed_choices": "BOOLEAN_CHOICES constant with 3 options (null, true, false)",
+          "value_storage": {
+            "cell_value": "String ('true', 'false', or '') for ReactGrid compatibility",
+            "cell_booleanValue": "Actual boolean | null for API submission",
+            "cell_text": "Display text ('Yes', 'No', 'Not specified')",
+            "rationale": "ReactGrid Cell interface requires string value, but API expects boolean | null"
+          },
+          "immediate_commit": "Single click commits value (same as SelectCell) - no multi-action needed"
+        },
+        
+        "value_conversion_logic": {
+          "getCompatibleCell_logic": "Handles both boolean and string input values, converts to proper format",
+          "boolean_to_string": {
+            "true": "value='true'",
+            "false": "value='false'",
+            "null": "value=''"
+          },
+          "string_to_boolean": {
+            "'true'": "booleanValue=true",
+            "'false'": "booleanValue=false",
+            "'' or undefined": "booleanValue=null"
+          },
+          "text_generation": "getDisplayText() method converts boolean value to display label",
+          "commit_conversion": "handleSelect converts boolean value to string for ReactGrid storage"
+        },
+        
+        "keyboard_event_handling": {
+          "enter_key": "Commits currently selected value (same as SelectCell)",
+          "escape_key": "Cancels edit, removes from editingCells Set, closes dropdown",
+          "arrow_up_down": "Navigate through 3 choices, preventDefault to avoid ReactGrid navigation",
+          "delete_backspace": "Clears to 'Not specified' (null), removes from editingCells, exits edit mode"
+        },
+        
+        "static_editingCells_pattern": {
+          "usage": "Same as SelectCell - static Set tracks which cells are in edit mode",
+          "initialization": "handleKeyDown adds to Set on Enter/double-click",
+          "cleanup": "handleKeyDown removes from Set on Escape/Delete/Backspace/Enter commit",
+          "purpose": "Prevents stuck-in-edit-mode bugs, enables proper Enter/Escape handling"
+        },
+        
+        "performance_characteristics": {
+          "react_memo_optimization": {
+            "component_memoization": "BooleanCellView wrapped in React.memo with custom comparison function",
+            "comparison_logic": "Only re-renders if isInEditMode, cell.value, cell.text, validationState, or isEdited actually change",
+            "benefit": "When user types in different cell, BooleanCells don't re-render unnecessarily"
+          },
+          "useMemo_for_cellKey": {
+            "implementation": "cellKey calculated with useMemo([cell.value, cell.text])",
+            "why_needed": "cellKey used in Escape handler and static Set operations",
+            "impact": "Prevents unnecessary string concatenation on every render"
+          },
+          "no_api_calls": "BooleanCell is fully client-side - no API calls, no loading states",
+          "minimal_complexity": "Simplest custom cell type - good template for future simple dropdown cells"
+        },
+        
+        "display_mode": {
+          "rendering": "Plain text div with cell.text (Yes/No/Not specified)",
+          "background_color": "getCellBackgroundColor() based on validationState and isEdited",
+          "no_special_formatting": "Shows text label directly"
+        },
+        
+        "edit_mode": {
+          "rendering": "Transparent input + dropdown menu with 3 choices",
+          "dropdown_height": "maxHeight: 150px (shorter than SelectCell since only 3 options)",
+          "choice_order": ["Not specified (null)", "Yes (true)", "No (false)"],
+          "immediate_commit": "Click on choice commits immediately and closes editor",
+          "capture_phase_protection": "onPointerDownCapture and onClickCapture to prevent ReactGrid focus loss"
+        },
+        
+        "model_applicability": {
+          "languoid_model": "No boolean fields currently",
+          "item_model": "permission_to_publish_online (three-state boolean)",
+          "collection_model": "expecting_additions (three-state boolean)",
+          "collaborator_model": "anonymous (three-state boolean)",
+          "common_pattern": "Many nullable boolean fields in cultural archives represent 'unknown' rather than false"
+        },
+        
+        "validation_integration": {
+          "cell_level": "validationState controls background color (red/blue/yellow)",
+          "backend_validation": "Django model BooleanField(null=True, blank=True) accepts boolean | null",
+          "no_special_validation": "Boolean values are inherently valid - no format validation needed",
+          "isEdited_tracking": "Yellow background for edited-but-not-saved cells"
+        },
+        
+        "comparison_to_selectcell": {
+          "similarities": [
+            "Immediate commit on selection",
+            "Transparent input pattern",
+            "Static editingCells Set",
+            "Dropdown positioning and styling",
+            "Keyboard navigation (Enter/Escape/Arrows)",
+            "Performance optimizations (React.memo, useMemo)"
+          ],
+          "differences": [
+            "Fixed 3 choices vs. dynamic choices array",
+            "Value type conversion (boolean ↔ string) vs. string only",
+            "booleanValue property for API submission",
+            "Shorter dropdown (3 items vs. variable)",
+            "Cultural archive rationale (null = unknown) vs. data model choices"
+          ],
+          "implementation_simplicity": "BooleanCell is simplest custom cell - took ~45 minutes to implement after SelectCell patterns established"
+        },
+        
+        "lessons_learned": {
+          "reactgrid_string_requirement": "ReactGrid Cell.value must be string - add separate property for actual type",
+          "stage_0_consistency": "Matching Stage 0 UI patterns (3 choices, labels) ensures user familiarity",
+          "nullable_boolean_importance": "Cultural archives frequently need 'unknown' state - not just true/false",
+          "selectcell_as_template": "SelectCell patterns work perfectly for fixed-choice cells like BooleanCell"
+        },
+        
+        "confidence_level": "high",
+        "status": "documented"
+      },
+      
+      "stringarray_cell_patterns": {
+        "decision_id": "stage1_036",
+        "content": "Patterns specific to StringArrayCell (JSONField string arrays with tag/chip input)",
+        "added_date": "2025-10-19",
+        "source": "StringArrayCell implementation (Phase 4.6)",
+        "builds_on": "MultiSelectCell static state patterns (stage1_033) adapted for plain text strings",
+        "architectural_comparison": "Similar to MultiSelectCell but without API calls - user types plain text strings",
+        
+        "use_case": {
+          "jsonfield_string_arrays": "Django JSONField(default=list) containing plain text strings",
+          "example_fields": [
+            "Languoid.alt_names - Alternative names for languages",
+            "Collaborator.other_names - Other names for collaborators",
+            "Any model field storing arrays of text values"
+          ],
+          "stage_0_limitation": "Currently edited as multiline TextField (not ideal for array structure)",
+          "stage_1_improvement": "Chip-based UI makes array structure visible and editable"
+        },
+        
+        "static_state_management": {
+          "pendingArrays_map": "Map<string, string[]> stores pending string arrays during multi-action editing",
+          "rationale": "Same as MultiSelectCell - React state updates would break focus during add/remove operations",
+          "key_format": "JSON.stringify(cell.value)_cell.text for unique identification",
+          "force_update_pattern": "useState counter triggers re-renders after Map updates without changing component state",
+          "initialization": "handleKeyDown adds cellKey to editingCells, clears stale pendingArrays on Enter/double-click",
+          "cleanup": "handleKeyDown removes from both editingCells Set and pendingArrays Map on Escape/Delete/Backspace"
+        },
+        
+        "chip_ui_patterns": {
+          "display_location": "Chips displayed at top of dropdown in scrollable Box (maxHeight: 120px)",
+          "chip_styling": "Blue background (#1976d2), white text, white delete icon",
+          "chip_removal": "MUI Chip onDelete prop calls handleRemoveString",
+          "capture_phase_protection": "All chip elements need onPointerDownCapture to prevent focus loss",
+          "overflow_handling": "Chips wrap with flexWrap, scrollable if many items",
+          "empty_state": "No chips shown if array is empty - just input field visible"
+        },
+        
+        "text_input_patterns": {
+          "input_component": "Material-UI TextField (outlined, small) for typing new strings",
+          "placeholder": "Type and press Enter to add...",
+          "auto_focus": "TextField gets autoFocus when dropdown opens",
+          "clear_on_add": "Input clears after successful add (setInputValue(''))",
+          "enter_behavior": {
+            "with_text": "Adds text as new chip (calls handleAddString)",
+            "without_text": "Commits entire array and closes editor (calls handleCommit)",
+            "dual_purpose": "Smart Enter key - add OR commit based on input state"
+          }
+        },
+        
+        "validation_logic": {
+          "trim_whitespace": "inputValue.trim() before adding - prevents accidental spaces",
+          "prevent_empty_strings": "if (trimmedValue === '') return; - silently reject empty",
+          "prevent_duplicates": {
+            "check": "currentStrings.some(s => s.toLowerCase() === trimmedValue.toLowerCase())",
+            "case_insensitive": "Prevents \"Name\" and \"name\" from both being added",
+            "silent_rejection": "Duplicate attempts are ignored without error message"
+          },
+          "no_backend_validation": "All validation is client-side - strings are inherently valid if non-empty",
+          "array_validation": "Backend accepts any string[] - no format constraints"
+        },
+        
+        "keyboard_event_handling": {
+          "enter_key_dual_mode": {
+            "with_input_text": "e.preventDefault(), e.stopPropagation(), handleAddString() adds chip",
+            "with_empty_input": "e.preventDefault(), e.stopPropagation(), handleCommit() finalizes array",
+            "smart_behavior": "Single Enter key serves two purposes based on context"
+          },
+          "escape_key": {
+            "approach": "Clean up static state, blur inputs, DON'T preventDefault/stopPropagation",
+            "reason": "Must let Escape bubble to ReactGrid for proper edit mode exit",
+            "cleanup": "Removes from editingCells Set and pendingArrays Map before propagation"
+          },
+          "delete_backspace": "Template handleKeyDown clears array to empty [], removes from tracking"
+        },
+        
+        "display_mode_logic": {
+          "short_arrays": "1-2 items: comma-separated (e.g., \"Name1, Name2\")",
+          "long_arrays": "3+ items: count display (e.g., \"5 items\")",
+          "empty_arrays": "Empty string displayed",
+          "rationale": "Prevents cell from becoming too wide with many items"
+        },
+        
+        "static_getStrings_helper": {
+          "purpose": "Single source of truth for current array state",
+          "logic": "If editing and pendingArrays has key, return Map value; else return cell.value",
+          "usage_points": [
+            "Rendering chips: getStrings().map()",
+            "Adding string: check duplicates in getStrings()",
+            "Removing string: filter from getStrings()",
+            "Committing: read final array from getStrings()"
+          ],
+          "useCallback": "Memoized with [isInEditMode, cellKey, cell.value] dependencies"
+        },
+        
+        "performance_characteristics": {
+          "react_memo_optimization": {
+            "component_memoization": "StringArrayCellView wrapped in React.memo with custom comparison",
+            "comparison_logic": "JSON.stringify for value comparison (arrays need deep comparison)",
+            "benefit": "Prevents re-renders when user edits different cell"
+          },
+          "useMemo_for_cellKey": {
+            "implementation": "cellKey = useMemo(() => JSON.stringify(cell.value)_cell.text, [cell.value, cell.text])",
+            "why_needed": "Used in getStrings, static Map operations, multiple places",
+            "json_stringify": "Necessary for array comparison in key generation"
+          },
+          "useCallback_for_getStrings": {
+            "memoization": "Prevents recreation on every render",
+            "dependencies": "[isInEditMode, cellKey, cell.value]",
+            "impact": "Reduces unnecessary function recreations"
+          },
+          "no_api_calls": "Fully client-side - no network requests, no loading states, instant feedback",
+          "no_debouncing": "No need for debouncing since no API calls"
+        },
+        
+        "interaction_flow": {
+          "add_string": "User types → presses Enter → handleAddString → update static Map → forceUpdate → chip appears → input clears → editor stays open",
+          "remove_string": "User clicks chip X → handleRemoveString → update static Map → forceUpdate → chip disappears → editor stays open",
+          "commit_array": "User presses Enter with empty input → handleCommit → read from static Map → create final cell → onCellChanged(cell, true) → blur inputs → editor closes",
+          "cancel_escape": "User presses Escape → cleanup static state → blur inputs → let Escape propagate → ReactGrid closes editor",
+          "focus_maintained": "TextField maintains focus throughout add/remove operations, no focus loss"
+        },
+        
+        "model_applicability": {
+          "languoid_model": "alt_names (JSONField string array)",
+          "collaborator_model": "other_names (likely similar structure)",
+          "item_model": "Potentially title alternatives or subject keywords if added",
+          "collection_model": "Potentially collection aliases if added",
+          "any_jsonfield_array": "Any model with JSONField(default=list) storing plain text strings"
+        },
+        
+        "comparison_to_multiselectcell": {
+          "similarities": [
+            "Static state management (pendingSelections vs pendingArrays)",
+            "Force update pattern for re-renders",
+            "Multi-action editing (add/remove multiple times)",
+            "Chip-based UI for displaying items",
+            "Capture phase event handlers",
+            "Enter for add/commit, Escape for cancel",
+            "React.memo with custom comparison",
+            "useMemo for cellKey and helper functions"
+          ],
+          "differences": [
+            "No API calls (plain text vs relationship lookups)",
+            "No loading states (instant vs async)",
+            "User types text (no dropdown of options)",
+            "Validation: duplicates/empty (vs invalid IDs)",
+            "Simpler data structure (string[] vs number[])",
+            "Text input instead of search autocomplete",
+            "Dual Enter behavior (add vs commit based on input)"
+          ],
+          "implementation_time": "~60 minutes after MultiSelectCell patterns established"
+        },
+        
+        "help_text_ux": {
+          "display": "Caption text below input: \"Press Enter to add item or commit changes. Press Escape to cancel.\"",
+          "purpose": "Guides users on keyboard interactions",
+          "positioning": "Bottom of dropdown panel",
+          "styling": "Small grey text (0.7rem)"
+        },
+        
+        "lessons_learned": {
+          "multiselectcell_as_template": "MultiSelectCell static state patterns directly applicable to other multi-action cells",
+          "json_stringify_for_arrays": "Must use JSON.stringify for array comparison in cellKey and React.memo",
+          "dual_enter_pattern": "Enter key can intelligently switch behavior based on input state",
+          "no_api_simplification": "Without API calls, cell is much simpler - instant feedback, no loading states",
+          "trimming_is_essential": "Always trim user input to prevent accidental whitespace entries",
+          "case_insensitive_duplicates": "Preventing case-insensitive duplicates improves UX"
+        },
+        
+        "future_enhancements": {
+          "custom_validation": "Could add min/max length per string, regex patterns, etc.",
+          "autocomplete_suggestions": "Could suggest previous values from other rows",
+          "bulk_import": "Could allow pasting comma-separated list",
+          "sorting": "Could add drag-to-reorder for chips",
+          "categories": "Could extend to key-value pairs instead of just strings"
+        },
+        
+        "confidence_level": "high",
+        "status": "documented"
       }
     },
     

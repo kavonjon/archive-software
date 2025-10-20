@@ -261,7 +261,7 @@ const LanguoidCreate: React.FC = () => {
       });
 
       const newLanguoid = await languoidsAPI.create(submitData);
-      navigate(`/languoids/${newLanguoid.id}`);
+      navigate(`/languages/${newLanguoid.id}`);
     } catch (error) {
       console.error('Error creating languoid:', error);
       setSubmitError('Failed to create languoid. Please check your input and try again.');
@@ -271,7 +271,7 @@ const LanguoidCreate: React.FC = () => {
   };
 
   const handleBack = () => {
-    navigate('/languoids');
+    navigate('/languages');
   };
 
   return (

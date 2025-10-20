@@ -182,11 +182,11 @@ const LanguoidsList: React.FC = () => {
   }, [loadLanguoids]);
 
   const handleRowClick = (languoid: Languoid) => {
-    navigate(`/languoids/${languoid.id}`);
+    navigate(`/languages/${languoid.id}`);
   };
 
   const handleCreateClick = () => {
-    navigate('/languoids/create');
+    navigate('/languages/create');
   };
 
   const handleLevelFilterChange = (filterKey: string) => {
@@ -216,7 +216,7 @@ const LanguoidsList: React.FC = () => {
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
-          Languoids
+          Languages
         </Typography>
         {hasEditAccess(authState.user) && (
           <Button
@@ -342,7 +342,7 @@ const LanguoidsList: React.FC = () => {
 
       {/* Results Count */}
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Showing {hierarchicalLanguoids.length} of {totalCount} languoids
+        Showing {hierarchicalLanguoids.length} of {totalCount} languages
       </Typography>
 
       {/* Hierarchical Table/List */}

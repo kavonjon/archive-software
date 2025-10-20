@@ -45,7 +45,9 @@ import { EditableTitlesList } from './EditableTitlesList';
 import { useAuth } from '../../contexts/AuthContext';
 import { hasDeleteAccess } from '../../utils/permissions';
 
-const API_BASE_URL = 'http://localhost:8000/internal/v1';
+const API_BASE_URL = process.env.NODE_ENV === 'development'
+  ? 'http://localhost:8000/internal/v1'
+  : '/internal/v1';
 
 // Date format help component
 const DateFormatHelp: React.FC = () => (

@@ -2,8 +2,11 @@
  * API service layer for making authenticated requests to Django backend
  */
 
-// Base API configuration for separated frontend/backend architecture
-const API_BASE_URL = 'http://localhost:8000/internal/v1';
+// Base API configuration - use relative URLs for same-origin requests (production)
+// or localhost for development
+const API_BASE_URL = process.env.NODE_ENV === 'development' 
+  ? 'http://localhost:8000/internal/v1'
+  : '/internal/v1';
 
 // Types for API responses
 export interface PaginatedResponse<T> {
@@ -380,7 +383,10 @@ export class APIError extends Error {
 
 // Get CSRF token for authenticated requests
 const getCSRFToken = async (): Promise<string> => {
-  const response = await fetch('http://localhost:8000/auth/csrf/', {
+  const csrfUrl = process.env.NODE_ENV === 'development'
+    ? 'http://localhost:8000/auth/csrf/'
+    : '/auth/csrf/';
+  const response = await fetch(csrfUrl, {
     credentials: 'include',
   });
   const data = await response.json();

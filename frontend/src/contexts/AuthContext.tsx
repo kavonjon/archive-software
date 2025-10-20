@@ -98,7 +98,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Get CSRF token
   const getCSRFToken = async (): Promise<string> => {
-    const response = await fetch('http://localhost:8000/auth/csrf/', {
+    const csrfUrl = process.env.NODE_ENV === 'development'
+      ? 'http://localhost:8000/auth/csrf/'
+      : '/auth/csrf/';
+    const response = await fetch(csrfUrl, {
       credentials: 'include',
     });
     const data = await response.json();
@@ -110,7 +113,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       dispatch({ type: 'AUTH_START' });
       
-      const response = await fetch('http://localhost:8000/auth/status/', {
+      const statusUrl = process.env.NODE_ENV === 'development'
+        ? 'http://localhost:8000/auth/status/'
+        : '/auth/status/';
+      const response = await fetch(statusUrl, {
         credentials: 'include',
       });
       
@@ -137,7 +143,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       const csrfToken = await getCSRFToken();
       
-      const response = await fetch('http://localhost:8000/auth/login/', {
+      const loginUrl = process.env.NODE_ENV === 'development'
+        ? 'http://localhost:8000/auth/login/'
+        : '/auth/login/';
+      const response = await fetch(loginUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -167,7 +176,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const csrfToken = await getCSRFToken();
       
-      await fetch('http://localhost:8000/auth/logout/', {
+      const logoutUrl = process.env.NODE_ENV === 'development'
+        ? 'http://localhost:8000/auth/logout/'
+        : '/auth/logout/';
+      await fetch(logoutUrl, {
         method: 'POST',
         headers: {
           'X-CSRFToken': csrfToken,

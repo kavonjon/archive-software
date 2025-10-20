@@ -214,8 +214,8 @@ const MultiSelectCellView: React.FC<MultiSelectCellViewProps> = React.memo(({
     
     setLoading(true);
     try {
-      const baseUrl = 'http://localhost:8000';
-      const url = new URL(cell.relationshipEndpoint, baseUrl);
+      const baseUrl = process.env.NODE_ENV === 'development' ? 'http://localhost:8000' : '';
+      const url = new URL(cell.relationshipEndpoint, baseUrl || window.location.origin);
       if (query) {
         url.searchParams.append('search', query);
       }

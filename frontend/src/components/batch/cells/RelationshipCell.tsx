@@ -181,9 +181,9 @@ const RelationshipCellView: React.FC<{
     setLoading(true);
     try {
       // Build URL with search query
-      // Use Django backend base URL (port 8000), not React dev server (port 3000)
-      const baseUrl = 'http://localhost:8000';
-      const url = new URL(cell.relationshipEndpoint, baseUrl);
+      // Use Django backend base URL for development, relative path for production
+      const baseUrl = process.env.NODE_ENV === 'development' ? 'http://localhost:8000' : '';
+      const url = new URL(cell.relationshipEndpoint, baseUrl || window.location.origin);
       if (query) {
         url.searchParams.append('search', query);
       }

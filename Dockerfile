@@ -1,21 +1,3 @@
-# Stage 1: Build React frontend
-FROM node:18-slim as frontend-builder
-
-WORKDIR /frontend
-
-# Copy package files
-COPY frontend/package*.json ./
-
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy frontend source
-COPY frontend/ ./
-
-# Build React app
-RUN npm run build
-
-# Stage 2: Python application
 FROM python:3.11.4
 
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -32,9 +14,6 @@ COPY app/requirements.txt .
 RUN python3 -m pip install -r requirements.txt
 
 COPY ./app /app
-
-# Copy React build from frontend-builder stage
-COPY --from=frontend-builder /frontend/build /app/static-files/frontend
 
 WORKDIR /app
 

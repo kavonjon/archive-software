@@ -20,9 +20,9 @@ echo "📥 Pulling latest code from git..."
 git pull origin main
 echo ""
 
-# Note: React frontend is now built inside the Dockerfile (multi-stage build),
-# to accommodate TrueNAS Scale deployments
-echo "ℹ️  React frontend will be built during Docker image build"
+# Note: React frontend should be pre-built and committed to repo
+# Run 'npm run build:django' in frontend/ directory before committing
+echo "ℹ️  Using pre-built React frontend from repo"
 echo ""
 
 case $UPDATE_TYPE in

@@ -32,8 +32,10 @@ fi
 # Set Docker environment variable
 export DOCKER_CONTAINER="true"
 
-# Note: React frontend is now built inside the Dockerfile (multi-stage build),
-# to TrueNAS Scale deployments
+# Note: React frontend should be pre-built and committed to repo
+# Run 'npm run build:django' in frontend/ directory before committing
+echo "ℹ️  Using pre-built React frontend from repo"
+echo ""
 
 # Add to deploy.sh before starting Docker
 if [ "$SERVER_ROLE" = "private" ]; then

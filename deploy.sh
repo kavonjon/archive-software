@@ -32,14 +32,8 @@ fi
 # Set Docker environment variable
 export DOCKER_CONTAINER="true"
 
-# Build React frontend
-echo "⚛️  Building React frontend..."
-cd frontend
-npm ci --only=production
-npm run build:django
-cd ..
-echo "✅ React frontend built successfully"
-echo ""
+# Note: React frontend is now built inside the Dockerfile (multi-stage build),
+# to TrueNAS Scale deployments
 
 # Add to deploy.sh before starting Docker
 if [ "$SERVER_ROLE" = "private" ]; then

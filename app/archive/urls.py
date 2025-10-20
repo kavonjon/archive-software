@@ -39,7 +39,20 @@ urlpatterns = [
     path("select2/", include("django_select2.urls")),
     path("", TemplateView.as_view(template_name='home.html')),
     path("no-permission", TemplateView.as_view(template_name='no_permission.html')),
-    path("catalog/", item_index, name="item_index"),
+    
+    # Old Django template routes - accessible at /django/* for comparison during transition
+    path("django/items/", item_index, name="django_item_index"),
+    path("django/collections/", collection_index, name="django_collection_index"),
+    path("django/collaborators/", collaborator_index, name="django_collaborator_index"),
+    path("django/languoids/", languoid_index, name="django_languoid_index"),
+    
+    # Django template routes (commented out - now using React)
+    # path("catalog/", item_index, name="item_index"),
+    # path("collections/", collection_index, name="collection_index"),
+    # path("collaborators/", collaborator_index, name="collaborator_index"),
+    # path("languoids/", languoid_index, name="languoid_index"),
+    
+    # Keep detail/edit routes for Django templates (for now)
     path("catalog/<int:pk>/", item_detail, name="item_detail"),
     path("catalog/<int:pk>/edit/", item_edit, name="item_edit"),
     path("catalog/add/", item_add.as_view(), name="item_add"),
@@ -49,7 +62,8 @@ urlpatterns = [
     path("migrate/list/", item_migrate_list, name="migrate_list"),
     path("api/item-update-migrate/<int:pk>/", ItemUpdateMigrateView.as_view(), name="item_update_migrate"),
     path("api/languoids/", LanguoidListView.as_view(), name="languoids_list"),
-    path("collections/", collection_index, name="collection_index"),
+    # Collections index now uses React - commented out Django template route
+    # path("collections/", collection_index, name="collection_index"),
     path("collections/<int:pk>/", collection_detail, name="collection_detail"),
     path("collections/<int:pk>/edit/", collection_edit, name="collection_edit"),
     path("collections/add/", collection_add.as_view(), name="collection_add"),
@@ -60,7 +74,8 @@ urlpatterns = [
     path("documents/add/", document_add.as_view(), name="document_add"),
     path('documents/<int:pk>/delete/', document_delete.as_view(), name='document_delete'),
     path("documents/<int:parent_pk>/geographic/add/", geographic_add.as_view(), name="geographic_add"),
-    path("languoids/", languoid_index, name="languoid_index"),
+    # Languoids index now uses React (/languages/) - commented out Django template route
+    # path("languoids/", languoid_index, name="languoid_index"),
     path("languoids/<int:pk>/", languoid_detail, name="languoid_detail"),
     path("languoids/<int:pk>/edit/", languoid_edit, name="languoid_edit"),
     path("languoids/add/", languoid_add.as_view(), name="languoids_add"),
@@ -70,7 +85,8 @@ urlpatterns = [
     path("dialects/<int:pk>/edit/", dialect_edit, name="dialect_edit"),
     path("languoids/<int:lang_pk>/dialects/add/", dialect_add.as_view(), name="dialect_add"),
     path('dialects/<int:pk>/delete/', dialect_delete.as_view(), name='dialect_delete'),
-    path("collaborators/", collaborator_index, name="collaborator_index"),
+    # Collaborators index now uses React - commented out Django template route
+    # path("collaborators/", collaborator_index, name="collaborator_index"),
     path("collaborators/<int:pk>/", collaborator_detail, name="collaborator_detail"),
     path("collaborators/<int:pk>/edit/", collaborator_edit, name="collaborator_edit"),
     path("collaborators/add/", collaborator_add.as_view(), name="collaborator_add"),

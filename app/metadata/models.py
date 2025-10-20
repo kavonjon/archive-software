@@ -381,7 +381,7 @@ def validate_date_text(value):
 class Languoid(models.Model):
     LEVELS = (('family', 'Family'),
             ('language', 'Language'),
-            ('dialect', 'dialect'))
+            ('dialect', 'Dialect'))
     glottocode = models.CharField(max_length=8, blank=True, unique=True)
     iso = models.CharField(max_length=32, blank=True)
     name = models.CharField(max_length=255)

@@ -2,7 +2,7 @@
 Internal API for React frontend
 Provides CRUD operations for all core models with proper filtering and serialization
 """
-from rest_framework import viewsets, filters, status, permissions
+from rest_framework import viewsets, filters, status, permissions, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
@@ -293,6 +293,210 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
+    
+    @action(detail=False, methods=['post'], url_path='validate-field')
+    def validate_field(self, request):
+        """
+        Validate a single field value for batch editing
+        
+        POST /internal/v1/languoids/validate-field/
+        Body: {
+            "field_name": "glottocode",
+            "value": "stan1295",
+            "row_id": "draft-123" or 42 (languoid id),
+            "original_value": "stan1295" (optional - value when loaded from DB)
+        }
+        
+        Returns: {
+            "valid": true/false,
+            "error": "error message if invalid"
+        }
+        """
+        field_name = request.data.get('field_name')
+        value = request.data.get('value')
+        row_id = request.data.get('row_id')
+        original_value = request.data.get('original_value')  # New parameter
+        
+        if not field_name:
+            return Response(
+                {'valid': False, 'error': 'field_name is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get the serializer to use its validation methods
+        serializer = self.get_serializer()
+        
+        # Try to validate the field using serializer's field validators
+        try:
+            # Get the field from the serializer
+            if field_name not in serializer.fields:
+                return Response(
+                    {'valid': False, 'error': f'Unknown field: {field_name}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            field = serializer.fields[field_name]
+            
+            # Run field-level validation
+            field.run_validation(value)
+            
+            # Check for field-specific validator methods (e.g., validate_glottocode)
+            validate_method_name = f'validate_{field_name}'
+            if hasattr(serializer, validate_method_name):
+                validate_method = getattr(serializer, validate_method_name)
+                validate_method(value)
+            
+            # Field-specific uniqueness checks
+            if field_name == 'glottocode' and value:
+                # If value equals original_value, it's valid (editing back to self)
+                if original_value is not None and value == original_value:
+                    return Response({'valid': True})
+                
+                # Check for uniqueness (exclude current row if editing)
+                existing = Languoid.objects.filter(glottocode=value)
+                
+                # Exclude the current row being edited
+                if str(row_id).startswith('draft-'):
+                    # Draft row - don't exclude anything (it's a new row)
+                    pass
+                else:
+                    # Existing row - exclude it from uniqueness check
+                    try:
+                        row_id_int = int(row_id) if isinstance(row_id, str) else row_id
+                        existing = existing.exclude(id=row_id_int)
+                    except (ValueError, TypeError):
+                        # If we can't convert to int, skip exclusion
+                        pass
+                
+                if existing.exists():
+                    return Response({
+                        'valid': False,
+                        'error': f'Glottocode "{value}" already exists.'
+                    })
+            
+            return Response({'valid': True})
+            
+        except serializers.ValidationError as e:
+            # Extract error message
+            if isinstance(e.detail, dict):
+                error_msg = str(list(e.detail.values())[0][0]) if e.detail else 'Validation error'
+            elif isinstance(e.detail, list):
+                error_msg = str(e.detail[0])
+            else:
+                error_msg = str(e.detail)
+            
+            return Response({
+                'valid': False,
+                'error': error_msg
+            })
+        except Exception as e:
+            return Response({
+                'valid': False,
+                'error': str(e)
+            })
+    
+    @action(detail=False, methods=['post'], url_path='save-batch')
+    def save_batch(self, request):
+        """
+        Save multiple languoids in a single transaction
+        
+        POST /internal/v1/languoids/save-batch/
+        Body: {
+            "rows": [
+                {
+                    "id": 42 or "draft-uuid",
+                    "name": "English",
+                    "glottocode": "stan1293",
+                    "level": "language",
+                    ...
+                },
+                ...
+            ]
+        }
+        
+        Returns: {
+            "success": true,
+            "saved": [{"id": 42, ...}, ...],
+            "errors": []
+        }
+        """
+        from django.db import transaction
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        rows = request.data.get('rows', [])
+        logger.info(f"save_batch received {len(rows)} rows")
+        logger.info(f"Request data: {request.data}")
+        
+        if not rows:
+            return Response(
+                {'success': False, 'errors': ['No rows provided']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        saved_objects = []
+        errors = []
+        
+        try:
+            with transaction.atomic():
+                for row in rows:
+                    row_id = row.get('id')
+                    is_draft = isinstance(row_id, str) and str(row_id).startswith('draft-')
+                    
+                    try:
+                        if is_draft:
+                            # Create new languoid
+                            logger.info(f"Creating new languoid from draft: {row_id}")
+                            # Remove the draft ID before serialization
+                            row_data = {k: v for k, v in row.items() if k != 'id'}
+                            logger.info(f"Row data for creation: {row_data}")
+                            serializer = self.get_serializer(data=row_data)
+                            serializer.is_valid(raise_exception=True)
+                            instance = serializer.save()
+                            saved_objects.append(instance)
+                        else:
+                            # Update existing languoid
+                            logger.info(f"Updating existing languoid: {row_id}")
+                            try:
+                                instance = Languoid.objects.get(pk=row_id)
+                            except Languoid.DoesNotExist:
+                                errors.append(f"Languoid with ID {row_id} not found")
+                                continue
+                            
+                            serializer = self.get_serializer(instance, data=row, partial=True)
+                            serializer.is_valid(raise_exception=True)
+                            instance = serializer.save()
+                            saved_objects.append(instance)
+                    
+                    except serializers.ValidationError as e:
+                        # Collect validation errors
+                        logger.error(f"Validation error for row {row_id}: {e.detail}")
+                        error_msg = f"Row ID {row_id}: "
+                        if isinstance(e.detail, dict):
+                            error_msg += ", ".join([f"{k}: {v[0]}" if isinstance(v, list) else f"{k}: {v}" 
+                                                   for k, v in e.detail.items()])
+                        else:
+                            error_msg += str(e.detail)
+                        errors.append(error_msg)
+                
+                # If any errors occurred, rollback transaction
+                if errors:
+                    raise Exception("Validation errors occurred")
+                
+                # Serialize saved objects for response
+                response_serializer = self.get_serializer(saved_objects, many=True)
+                return Response({
+                    'success': True,
+                    'saved': response_serializer.data,
+                    'errors': []
+                })
+        
+        except Exception as e:
+            return Response({
+                'success': False,
+                'saved': [],
+                'errors': errors if errors else [str(e)]
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class InternalItemTitleViewSet(viewsets.ModelViewSet):

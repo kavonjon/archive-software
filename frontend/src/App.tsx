@@ -159,7 +159,7 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="/languoids/*" 
+                    path="/languages/*" 
                     element={
                       <ProtectedRoute requireStaff={true}>
                         <LanguoidsPage />

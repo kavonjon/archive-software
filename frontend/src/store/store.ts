@@ -1,4 +1,5 @@
 import { configureStore, createSlice } from '@reduxjs/toolkit';
+import batchSpreadsheetReducer from './batchSpreadsheetSlice';
 
 // Placeholder slice until we add real features
 const appSlice = createSlice({
@@ -12,6 +13,7 @@ const appSlice = createSlice({
 export const store = configureStore({
   reducer: {
     app: appSlice.reducer,
+    batchSpreadsheet: batchSpreadsheetReducer,
   },
 });
 

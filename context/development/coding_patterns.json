@@ -562,37 +562,57 @@
       "status": "active"
     },
     "internal_api_security": {
-      "description": "Security model for internal API endpoints using group-based permissions",
-      "context": "Four user roles with Django Groups: Admin (superuser), Archivist (staff+group), Museum Staff (group only), Read-only (authenticated)",
+      "description": "Strict group-based security model for internal API endpoints requiring explicit group membership",
+      "context": "Four user roles with Django Groups: Admin (superuser), Archivist (staff+group), Museum Staff (group only), Read-Only (group only). Users WITHOUT group assignment are DENIED all access.",
+      "last_updated": "2025-01-20",
       "permission_implementation": {
-        "permission_class": "IsAuthenticatedWithEditAccess",
-        "read_access": "All authenticated users can view data (GET requests)",
-        "write_access": "Staff users OR Archivist/Museum Staff group members can modify data (POST, PUT, PATCH, DELETE)",
+        "permission_class": "IsAuthenticatedWithEditAccess in app/internal_api/views.py",
+        "view_access": "Staff/superuser OR user in 'Archivist', 'Museum Staff', or 'Read-Only' group",
+        "edit_access": "Staff/superuser OR user in 'Archivist' or 'Museum Staff' group",
+        "delete_access": "Superuser OR user in 'Archivist' group",
+        "no_group_behavior": "Authenticated users WITHOUT group assignment receive 403 Forbidden",
         "authentication": "Django session-based authentication with CSRF protection"
       },
       "user_role_mapping": {
-        "administrators": "Django superusers (is_staff=True, is_superuser=True) - full Django admin + API access",
-        "archivists": "Django staff users (is_staff=True) + 'Archivist' group - Django admin + API access",
-        "museum_staff": "Non-staff users (is_staff=False) + 'Museum Staff' group - API access only, NO Django admin",
-        "read_only": "Authenticated users (is_staff=False, no groups) - view-only API access"
+        "administrators": "Django superusers (is_staff=True, is_superuser=True) - full Django admin + API access (view/edit/delete), no group required",
+        "archivists": "Django staff users (is_staff=True) + 'Archivist' group - Django admin + full API access (view/edit/delete)",
+        "museum_staff": "Non-staff users (is_staff=False) + 'Museum Staff' group - API edit access only (view/edit, NO delete, NO Django admin)",
+        "read_only": "Non-staff users (is_staff=False) + 'Read-Only' group - API view-only access (NO edit, NO delete, NO Django admin)",
+        "no_group": "Authenticated but no group - DENIED all API access with 403 Forbidden"
       },
       "api_behavior": {
-        "get_requests": "All authenticated users can list and retrieve data",
-        "post_requests": "Staff users OR Archivist/Museum Staff group members can create new records",
-        "patch_put_requests": "Staff users OR Archivist/Museum Staff group members can update existing records",
-        "delete_requests": "Staff users OR Archivist/Museum Staff group members can delete records",
+        "get_requests": "Users with view access (in any of the three groups OR staff/superuser) can list and retrieve data",
+        "post_requests": "Users with edit access (Archivist or Museum Staff groups OR staff) can create new records",
+        "patch_put_requests": "Users with edit access (Archivist or Museum Staff groups OR staff) can update existing records",
+        "delete_requests": "Users with delete access (Archivist group OR superuser) can delete records",
         "authentication_failure": "Returns 401 Unauthorized for unauthenticated requests",
-        "permission_failure": "Returns 403 Forbidden for unauthorized modification attempts"
+        "permission_failure": "Returns 403 Forbidden for unauthorized access or modification attempts",
+        "no_group_failure": "Returns 403 Forbidden with message indicating group assignment required"
       },
       "frontend_implications": {
-        "read_only_users": "Can view all data, browse items, use search and filters",
-        "editing_users": "Can view and edit all data, use in-place editing, create/delete records",
-        "ui_adaptation": "Frontend should check user.is_staff OR user groups to show/hide edit controls"
+        "read_only_users": "Can view all data, browse items, use search and filters - NO edit/create/delete buttons shown",
+        "museum_staff_users": "Can view and edit all data, use in-place editing, create records - NO delete buttons shown",
+        "archivist_users": "Can view, edit, create, and delete all data - all buttons and controls shown",
+        "no_group_users": "See error message: 'Your account is not assigned to a user group. Please contact an administrator...'",
+        "ui_adaptation": {
+          "hasViewAccess": "Checks for group membership before allowing page access",
+          "hasEditAccess": "Checks for Archivist or Museum Staff group to show/hide edit/create controls",
+          "hasDeleteAccess": "Checks for Archivist group or superuser to show/hide delete buttons"
+        }
       },
       "security_benefits": {
+        "explicit_assignment": "Administrators must consciously assign users to groups - no accidental access",
+        "three_tier_control": "View/edit/delete separation provides granular access control",
         "admin_separation": "Museum Staff cannot access Django admin interface (is_staff=False)",
-        "operational_safety": "Reduces risk of accidental backend database modifications",
-        "role_flexibility": "Easy to add/remove users from Museum Staff group without affecting admin access"
+        "operational_safety": "Museum Staff can edit but not delete, reducing risk of destructive accidents",
+        "role_flexibility": "Easy to add/remove users from groups, three groups cover all common use cases",
+        "clear_error_messages": "Users without groups receive clear instructions on what to do"
+      },
+      "management_commands": {
+        "list_users": "python manage.py manage_user_roles --list-users (shows all users with their groups and access levels)",
+        "add_to_group": "python manage.py manage_user_roles --add-to-group username 'Group Name'",
+        "remove_from_group": "python manage.py manage_user_roles --remove-from-group username 'Group Name'",
+        "set_staff_status": "python manage.py manage_user_roles --set-staff username --staff"
       },
       "confidence_level": "high",
       "status": "active"

@@ -137,7 +137,7 @@ function App() {
                   <Route 
                     path="/items/*" 
                     element={
-                      <ProtectedRoute requireStaff={true}>
+                      <ProtectedRoute>
                         <ItemsPage />
                       </ProtectedRoute>
                     } 
@@ -145,7 +145,7 @@ function App() {
                   <Route 
                     path="/collections/*" 
                     element={
-                      <ProtectedRoute requireStaff={true}>
+                      <ProtectedRoute>
                         <CollectionsPage />
                       </ProtectedRoute>
                     } 
@@ -153,7 +153,7 @@ function App() {
                   <Route 
                     path="/collaborators/*" 
                     element={
-                      <ProtectedRoute requireStaff={true}>
+                      <ProtectedRoute>
                         <CollaboratorsPage />
                       </ProtectedRoute>
                     } 
@@ -161,7 +161,7 @@ function App() {
                   <Route 
                     path="/languages/*" 
                     element={
-                      <ProtectedRoute requireStaff={true}>
+                      <ProtectedRoute>
                         <LanguoidsPage />
                       </ProtectedRoute>
                     } 

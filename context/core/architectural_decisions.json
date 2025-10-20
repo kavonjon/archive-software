@@ -212,30 +212,43 @@
     "security_architecture": {
       "group_based_permission_system": {
         "decision_id": "arch_dec_020",
-        "content": "Decision to implement Django Groups-based permission system that separates operational access from administrative access, allowing Museum Staff full editing capabilities without Django admin access",
+        "content": "Strict Django Groups-based permission system requiring explicit group membership. Users MUST be assigned to Archivist, Museum Staff, or Read-Only group to access the system. Three-tier access model (view/edit/delete) with clear separation between operational and administrative interfaces.",
         "added_date": "2025-01-12",
-        "rationale": "Museum Staff needed full operational capabilities but should not have access to Django admin interface for security and safety reasons. Traditional is_staff approach was too broad and created security risks",
+        "last_updated": "2025-01-20",
+        "rationale": "Museum Staff needed full operational capabilities without Django admin access. Read-Only users needed view access without edit capabilities. Explicit group assignment prevents accidental access and makes permission model obvious to future administrators.",
         "technical_implementation": {
-          "permission_class": "IsAuthenticatedWithEditAccess",
-          "logic": "Staff users OR Archivist/Museum Staff group members can edit data",
-          "admin_separation": "is_staff=False prevents Django admin access while group membership enables API editing"
+          "permission_class": "IsAuthenticatedWithEditAccess in app/internal_api/views.py",
+          "view_access_logic": "Staff/superuser OR user in 'Archivist', 'Museum Staff', or 'Read-Only' group",
+          "edit_access_logic": "Staff/superuser OR user in 'Archivist' or 'Museum Staff' group",
+          "delete_access_logic": "Superuser OR user in 'Archivist' group",
+          "no_group_behavior": "Authenticated users WITHOUT group assignment are DENIED all access",
+          "admin_separation": "is_staff=False prevents Django admin access while group membership enables React app access",
+          "frontend_utilities": "hasViewAccess, hasEditAccess, hasDeleteAccess functions in frontend/src/utils/permissions.ts"
         },
         "alternatives_considered": [
+          "Allow all authenticated users to view (rejected - want explicit group assignment)",
           "Complex role-based permission system (rejected as over-engineered)",
           "Separate staff levels (rejected as confusing)",
           "Custom admin interface (rejected as unnecessary duplication)"
         ],
         "impact": {
-          "security": "Clear separation between operational and administrative interfaces",
-          "usability": "Museum Staff get full functionality without dangerous admin access",
-          "maintenance": "Simple group-based system easy to understand and maintain",
-          "flexibility": "Easy to add/remove users from groups without affecting system access"
+          "security": "Three-tier access control (view/edit/delete) with mandatory group assignment",
+          "usability": "Museum Staff get full editing without dangerous admin or delete access",
+          "maintenance": "Simple group-based system easy to understand - administrators know they must assign groups",
+          "flexibility": "Easy to add/remove users from groups, three groups cover all common use cases",
+          "auditability": "Clear group membership makes access auditing straightforward"
         },
         "user_role_mapping": {
-          "administrators": "is_staff=True, is_superuser=True - Full system access",
-          "archivists": "is_staff=True + Archivist group - Django admin + API access", 
-          "museum_staff": "is_staff=False + Museum Staff group - API access only",
-          "read_only": "is_staff=False, no groups - View-only API access"
+          "administrators": "is_staff=True, is_superuser=True - Full system access (no group required)",
+          "archivists": "is_staff=True + 'Archivist' group - Django admin + full API access including delete", 
+          "museum_staff": "is_staff=False + 'Museum Staff' group - React app edit access only (no admin, no delete)",
+          "read_only": "is_staff=False + 'Read-Only' group - View-only API access (no edit, no delete)",
+          "no_group": "Authenticated but no group - DENIED all access with clear error message"
+        },
+        "error_messages": {
+          "no_group_frontend": "Your account is not assigned to a user group. Please contact an administrator to be added to the Archivist, Museum Staff, or Read-Only group.",
+          "no_group_backend": "403 Forbidden - User must be in a valid group",
+          "read_only_edit_attempt": "403 Forbidden - Read-Only users cannot modify data"
         },
         "confidence_level": "high",
         "status": "active",

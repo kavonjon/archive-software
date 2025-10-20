@@ -1,8 +1,8 @@
 {
   "stage_0_react_migration": {
-    "version": "1.0",
-    "last_updated": "2025-01-04",
-    "conversation_reference": "Detailed Stage 0 planning for React frontend architecture migration",
+    "version": "1.1",
+    "last_updated": "2025-01-20",
+    "conversation_reference": "Detailed Stage 0 planning for React frontend architecture migration + Production deployment implementation",
     
     "stage_overview": {
       "decision_id": "stage0_001",
@@ -40,6 +40,107 @@
         "build_integration": "Separated architecture: React dev server for development, standard build process for production deployment",
         "confidence_level": "high",
         "status": "planned"
+      }
+    },
+    
+    "production_deployment": {
+      "truenas_scale_deployment": {
+        "decision_id": "stage0_prod_001",
+        "content": "React frontend deployment on TrueNAS Scale using Docker Compose with pre-built static files committed to repository",
+        "added_date": "2025-01-20",
+        "deployment_context": "TrueNAS Scale 'Install via YAML' method does not support Node.js build steps, requiring pre-built frontend artifacts",
+        "build_workflow": {
+          "local_build": "npm run build:django in /frontend/ directory",
+          "build_script": "PUBLIC_URL=/static/frontend npm run build && npm run copy-to-django",
+          "output_location": "app/static-files/frontend/ (committed to repository)",
+          "django_collectstatic": "Django's collectstatic command copies to static_volume during container startup"
+        },
+        "url_configuration": {
+          "static_file_paths": "PUBLIC_URL=/static/frontend ensures React references correct paths for CSS/JS",
+          "api_urls": "Environment-aware: localhost:8000 in development, relative URLs (/) in production",
+          "route_handling": "Django urls.py serves ReactAppView for /items/, /collections/, /collaborators/, /languages/ routes",
+          "legacy_access": "Old Django templates accessible at /django/* prefix for developer comparison"
+        },
+        "docker_setup": {
+          "dockerfile": "Single-stage Python image, expects React build artifacts already present in app/static-files/frontend/",
+          "nginx_proxy": "Nginx Proxy Manager on TrueNAS handles HTTPS termination and routes to Django container port 8000",
+          "static_serving": "Django serves React static files through collectstatic volume mount",
+          "cors_not_needed": "Same-origin requests in production (React served by Django), no CORS configuration required"
+        },
+        "deployment_scripts": {
+          "deploy_sh": "Removed npm build commands, added note that frontend must be pre-built",
+          "deploy_update_private_sh": "Removed npm build commands, pulls pre-built frontend from repository",
+          "update_workflow": "git pull → docker-compose build → Django collectstatic runs automatically"
+        },
+        "issues_resolved": {
+          "docker_hub_outages": "Encountered 500/503 errors during Docker Hub registry issues, resolved by waiting",
+          "cors_errors": "React hardcoded localhost:8000 URLs causing CORS errors, fixed with environment-aware URL configuration",
+          "static_file_404s": "React looking for /static/js/ instead of /static/frontend/static/js/, fixed with PUBLIC_URL setting",
+          "missing_dependency": "django-cors-headers referenced but not in requirements.txt, added django-cors-headers==4.3.1"
+        },
+        "confidence_level": "high",
+        "status": "implemented"
+      },
+      
+      "url_routing_implementation": {
+        "decision_id": "stage0_prod_002",
+        "content": "Django URL patterns updated to serve React SPA at primary routes while preserving Django template access at /django/* prefix",
+        "added_date": "2025-01-20",
+        "react_routes": {
+          "root": "/ → ReactAppView (React home page)",
+          "items": "/items/* → ReactAppView",
+          "collections": "/collections/* → ReactAppView",
+          "collaborators": "/collaborators/* → ReactAppView",
+          "languages": "/languages/* → ReactAppView (changed from /languoids/)"
+        },
+        "django_template_routes": {
+          "root": "/django/ → Django home template",
+          "items": "/django/items/ → Django items template",
+          "collections": "/django/collections/ → Django collections template",
+          "collaborators": "/django/collaborators/ → Django collaborators template",
+          "languoids": "/django/languoids/ → Django languoids template"
+        },
+        "rationale": "Developers can compare React and Django template implementations side-by-side during transition",
+        "cleanup_plan": "Remove /django/* routes once React implementation is validated and Django templates are no longer needed",
+        "confidence_level": "high",
+        "status": "implemented"
+      },
+      
+      "environment_aware_api_urls": {
+        "decision_id": "stage0_prod_003",
+        "content": "React API calls use environment-aware URLs to work in both development (cross-origin) and production (same-origin)",
+        "added_date": "2025-01-20",
+        "implementation": {
+          "pattern": "process.env.NODE_ENV === 'development' ? 'http://localhost:8000/...' : '/...'",
+          "files_updated": [
+            "frontend/src/services/api.ts (API_BASE_URL and CSRF token fetch)",
+            "frontend/src/contexts/AuthContext.tsx (auth endpoints)",
+            "frontend/src/components/batch/cells/RelationshipCell.tsx (relationship API calls)",
+            "frontend/src/components/batch/cells/MultiSelectCell.tsx (multiselect API calls)",
+            "frontend/src/components/items/ItemDetail.tsx (item API calls)"
+          ]
+        },
+        "development_behavior": "React on localhost:3000 makes explicit cross-origin requests to Django on localhost:8000",
+        "production_behavior": "React served by Django uses relative URLs (/) resolved by browser to same origin, no CORS needed",
+        "proxy_architecture": "Nginx Proxy Manager → Django container (internal port 8000), browser only sees public domain",
+        "confidence_level": "high",
+        "status": "implemented"
+      },
+      
+      "terminology_updates": {
+        "decision_id": "stage0_prod_004",
+        "content": "Changed user-facing terminology from 'Languoids' to 'Languages' in specific frontend locations",
+        "added_date": "2025-01-20",
+        "changes": {
+          "page_title": "LanguoidsList.tsx title changed to 'Languages'",
+          "navigation": "Navigation.tsx link label changed to 'Languages'",
+          "url_routes": "React routes changed from /languoids to /languages",
+          "django_urls": "Django URL patterns updated from languoids/ to languages/",
+          "preserved": "Filter preset 'All Languoids' kept as-is (internal taxonomy reference)"
+        },
+        "rationale": "More user-friendly terminology while preserving technical accuracy in appropriate contexts",
+        "confidence_level": "high",
+        "status": "implemented"
       }
     },
     

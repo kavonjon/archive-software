@@ -21,21 +21,32 @@ from .serializers import (
 class IsAuthenticatedWithEditAccess(permissions.BasePermission):
     """
     Custom permission for internal API:
-    - All authenticated users can read (GET requests)
+    - Users must be in Archivist, Museum Staff, or Read-Only group (or be staff/superuser) to view (GET)
     - Staff users OR Archivist/Museum Staff groups can modify (POST, PUT, PATCH, DELETE)
     
     This allows Museum Staff (is_staff=False) to edit via React app while blocking Django admin access.
+    Read-Only group members can view but not edit.
     """
     def has_permission(self, request, view):
         # Must be authenticated
         if not request.user or not request.user.is_authenticated:
             return False
+        
+        # Check if user has view access (must be in a group or be staff/superuser)
+        has_view_access = (
+            request.user.is_staff or 
+            request.user.is_superuser or
+            request.user.groups.filter(name__in=['Archivist', 'Museum Staff', 'Read-Only']).exists()
+        )
+        
+        if not has_view_access:
+            return False
             
-        # Allow all authenticated users for read operations
+        # For read operations, view access is sufficient
         if request.method in permissions.SAFE_METHODS:
             return True
             
-        # Allow staff OR specific groups to modify data
+        # For write operations, need edit access (staff OR Archivist/Museum Staff groups)
         return (request.user.is_staff or 
                 request.user.groups.filter(name__in=['Archivist', 'Museum Staff']).exists())
 

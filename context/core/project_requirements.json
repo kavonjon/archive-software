@@ -122,62 +122,99 @@
     
     "user_roles": {
       "decision_id": "user_roles_001",
-      "content": "Group-based permission model with four roles using Django Groups to separate operational access from administrative access. Museum Staff have full editing capabilities but cannot access Django admin interface for security separation",
+      "content": "Strict group-based permission model with four roles using Django Groups. Users MUST be assigned to a group (Archivist, Museum Staff, or Read-Only) to access the system. This ensures explicit permission management and prevents accidental access.",
       "added_date": "2025-01-04",
-      "last_updated": "2025-01-12",
+      "last_updated": "2025-01-20",
       "roles_detail": {
         "administrators": {
           "description": "Django superusers with full system access",
           "is_staff": true,
           "is_superuser": true,
           "groups": [],
+          "group_requirement": "Not required (superuser status grants all access)",
           "django_admin_access": true,
+          "api_view_access": true,
           "api_edit_access": true,
+          "api_delete_access": true,
           "security_level": "highest"
         },
         "archivists": {
-          "description": "Technical staff with Django admin access and full data operations",
+          "description": "Technical staff with Django admin access and full data operations including delete",
           "is_staff": true,
           "is_superuser": false,
           "groups": ["Archivist"],
+          "group_requirement": "REQUIRED - Must be in 'Archivist' group",
           "django_admin_access": true,
+          "api_view_access": true,
           "api_edit_access": true,
-          "security_level": "high"
+          "api_delete_access": true,
+          "security_level": "high",
+          "typical_users": "Senior archivists, technical archivists"
         },
         "museum_staff": {
-          "description": "Operational staff with full editing via React app but no Django admin access",
+          "description": "Operational staff with full editing via React app but no Django admin access or delete permissions",
           "is_staff": false,
           "is_superuser": false,
           "groups": ["Museum Staff"],
+          "group_requirement": "REQUIRED - Must be in 'Museum Staff' group",
           "django_admin_access": false,
+          "api_view_access": true,
           "api_edit_access": true,
+          "api_delete_access": false,
           "security_level": "medium",
-          "rationale": "Prevents accidental backend database modifications while maintaining full operational capabilities"
+          "typical_users": "Curators, collection managers, research assistants, student workers",
+          "rationale": "Prevents accidental backend database modifications and destructive operations while maintaining full operational capabilities"
         },
         "read_only": {
           "description": "View access to all data without modification rights",
           "is_staff": false,
           "is_superuser": false,
-          "groups": [],
+          "groups": ["Read-Only"],
+          "group_requirement": "REQUIRED - Must be in 'Read-Only' group",
           "django_admin_access": false,
+          "api_view_access": true,
           "api_edit_access": false,
-          "security_level": "low"
+          "api_delete_access": false,
+          "security_level": "low",
+          "typical_users": "Researchers, interns, temporary staff"
         }
       },
       "implementation": {
         "method": "Django Groups with custom DRF permission class (IsAuthenticatedWithEditAccess)",
-        "permission_logic": "Staff users OR Archivist/Museum Staff group members can edit data",
-        "admin_separation": "is_staff=False prevents Django admin access while group membership allows API editing"
+        "view_access_logic": "Staff/superuser OR user in 'Archivist', 'Museum Staff', or 'Read-Only' group",
+        "edit_access_logic": "Staff/superuser OR user in 'Archivist' or 'Museum Staff' group",
+        "delete_access_logic": "Superuser OR user in 'Archivist' group",
+        "no_group_behavior": "Authenticated users WITHOUT group assignment are DENIED all access",
+        "admin_separation": "is_staff=False prevents Django admin access while group membership allows React app access",
+        "frontend_implementation": {
+          "hasViewAccess": "Checks staff/superuser OR group membership in ['Archivist', 'Museum Staff', 'Read-Only']",
+          "hasEditAccess": "Checks staff/superuser OR group membership in ['Archivist', 'Museum Staff']",
+          "hasDeleteAccess": "Checks superuser OR group membership in ['Archivist']"
+        },
+        "backend_implementation": {
+          "permission_class": "IsAuthenticatedWithEditAccess in app/internal_api/views.py",
+          "view_check": "Requires group membership before allowing any API access",
+          "edit_check": "Checks for staff status or Archivist/Museum Staff groups for write operations"
+        }
       },
       "security_benefits": [
+        "Explicit group assignment required - no accidental access",
         "Clear separation between operational and administrative interfaces",
         "Reduced risk of accidental backend modifications",
-        "Flexible group-based role management",
-        "Maintains full functionality for operational users"
+        "Three-tier access model (view/edit/delete) provides granular control",
+        "Future administrators easily understand system requires group assignment",
+        "Read-Only group provides safe access for researchers and temporary staff",
+        "Museum Staff can edit but not delete, preventing destructive accidents"
       ],
+      "management_commands": {
+        "list_users": "python manage.py manage_user_roles --list-users",
+        "add_to_group": "python manage.py manage_user_roles --add-to-group username 'Group Name'",
+        "remove_from_group": "python manage.py manage_user_roles --remove-from-group username 'Group Name'",
+        "set_staff_status": "python manage.py manage_user_roles --set-staff username --staff"
+      },
       "confidence_level": "high",
       "status": "active", 
-      "cross_references": ["user_workflows.json", "cultural_context.json", "coding_patterns.json"]
+      "cross_references": ["user_workflows.json", "cultural_context.json", "coding_patterns.json", "architectural_decisions.json"]
     },
     
     "special_collections": {

@@ -37,14 +37,17 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
     path("select2/", include("django_select2.urls")),
-    path("", TemplateView.as_view(template_name='home.html')),
     path("no-permission", TemplateView.as_view(template_name='no_permission.html')),
     
     # Old Django template routes - accessible at /django/* for comparison during transition
+    path("django/", TemplateView.as_view(template_name='home.html'), name="django_home"),
     path("django/items/", item_index, name="django_item_index"),
     path("django/collections/", collection_index, name="django_collection_index"),
     path("django/collaborators/", collaborator_index, name="django_collaborator_index"),
     path("django/languoids/", languoid_index, name="django_languoid_index"),
+    
+    # Root path serves React SPA
+    path("", ReactAppView.as_view(), name='react_home'),
     
     # Django template routes (commented out - now using React)
     # path("catalog/", item_index, name="item_index"),

@@ -81,9 +81,11 @@ cd /Users/kavon/git/archive-software/app
 # Check database credentials
 cat ../.env | grep -E "DBNAME|DBUSER|DBHOST"
 
-# Create dump with timestamp
+# Create dump with timestamp (includes flags for clean cross-instance restore)
 pg_dump -h localhost -U postgres -d postgres \
   -F p --clean --if-exists \
+  --no-owner \
+  --no-privileges \
   -f ~/archive_dev_dump_$(date +%Y%m%d_%H%M%S).sql
 
 # Verify dump file
@@ -95,6 +97,8 @@ head -n 20 ~/archive_dev_dump_*.sql  # Should show PostgreSQL dump header
 - `-F p` - Plain text SQL format (most portable)
 - `--clean` - Include DROP statements before CREATE
 - `--if-exists` - Use IF EXISTS clauses (prevents errors)
+- `--no-owner` - Don't include SET ROLE or ALTER OWNER commands (prevents "role does not exist" errors)
+- `--no-privileges` - Don't include GRANT/REVOKE commands (prevents permission warnings)
 
 ---
 

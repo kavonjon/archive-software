@@ -232,11 +232,10 @@ class LanguoidFilter(FilterSet):
             'name': ['icontains', 'exact'],
             'iso': ['icontains', 'exact'],
             'glottocode': ['icontains', 'exact'],
-            'level': ['exact'],
+            'level_nal': ['exact'],
             'family': ['icontains'],
             'family_id': ['exact'],
             'region': ['icontains'],
-            'alt_name': ['icontains'],
             'tribes': ['icontains'],
         }
         # Remove alt_names from fields since it's a JSONField that needs special handling
@@ -246,14 +245,14 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
     """Internal API for Languoids with hierarchical filtering and sorting"""
     queryset = Languoid.objects.select_related(
         'family_languoid', 'parent_languoid', 'pri_subgroup_languoid', 
-        'sec_subgroup_languoid', 'language_languoid'
-    ).prefetch_related('child_languoids', 'child_dialects_languoids')
+        'sec_subgroup_languoid'
+    ).prefetch_related('child_languoids')
     serializer_class = InternalLanguoidSerializer
     permission_classes = [IsAuthenticatedWithEditAccess]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     filterset_class = LanguoidFilter
-    search_fields = ['name', 'iso', 'glottocode', 'family', 'alt_name', 'region', 'tribes']
-    ordering_fields = ['name', 'iso', 'family', 'level', 'added', 'updated']
+    search_fields = ['name', 'iso', 'glottocode', 'family', 'region', 'tribes']
+    ordering_fields = ['name', 'iso', 'family', 'level_nal', 'added', 'updated']
     ordering = ['family', 'name']  # Default hierarchical ordering
 
     def get_queryset(self):
@@ -275,9 +274,9 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
     def _get_hierarchical_queryset(self, queryset):
         """
         Return queryset ordered hierarchically:
-        1. Families (level='family') ordered by name
-        2. Languages under their families (level='language') 
-        3. Dialects under their languages (level='dialect')
+        1. Families (level_nal='family') ordered by name
+        2. Languages under their families (level_nal='language') 
+        3. Dialects under their languages (level_nal='dialect')
         """
         from django.db.models import Case, When, Value, CharField
         
@@ -285,9 +284,9 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
         # and orders by family hierarchy
         return queryset.annotate(
             hierarchy_order=Case(
-                When(level='family', then=Value('1')),
-                When(level='language', then=Value('2')),
-                When(level='dialect', then=Value('3')),
+                When(level_nal='family', then=Value('1')),
+                When(level_nal='language', then=Value('2')),
+                When(level_nal='dialect', then=Value('3')),
                 default=Value('4'),
                 output_field=CharField()
             )

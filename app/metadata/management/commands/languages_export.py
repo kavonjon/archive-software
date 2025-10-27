@@ -22,7 +22,7 @@ class Command(BaseCommand):
                     'name': languoid.name,
                     'glottocode': '',
                     'iso': languoid.iso,
-                    'alternative_names': languoid.alt_name,
+                    'alternative_names': ', '.join(languoid.alt_names) if languoid.alt_names else '',
                     'family': languoid.family,
                     'subfamily': languoid.pri_subgroup,
                     'subsubfamily': languoid.sec_subgroup,

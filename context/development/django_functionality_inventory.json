@@ -267,6 +267,12 @@
               "Usage counts",
               "Distribution information"
             ]
+          },
+          "data_management": {
+            "import_command": "python manage.py import_languoids",
+            "description": "Bulk import/update from JSON with validation",
+            "comparison_command": "python manage.py compare_languoids_data",
+            "description": "Compare database with JSON file for data migration planning"
           }
         }
       }

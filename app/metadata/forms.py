@@ -19,11 +19,10 @@ class LanguoidForm(ModelForm):
     class Meta:
         model = Languoid
         fields = ['name',
-                  'alt_name',
                   'alt_names',
                   'glottocode',
                   'iso',
-                  'level',
+                  'level_nal',
                   'family',
                   'family_id',
                   'family_abbrev',

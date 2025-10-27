@@ -109,6 +109,12 @@
         "when_to_reference": "Before dependency updates, when adding new integrations, during major refactoring",
         "update_frequency": "When dependencies change, quarterly reviews, before major changes",
         "cross_references": ["technical_debt_registry.json", "architectural_decisions.json"]
+      },
+      "documentation_structure.json": {
+        "purpose": "Documentation organization, conventions, and maintenance",
+        "when_to_reference": "When creating new docs, organizing documentation, planning doc structure",
+        "update_frequency": "When documentation structure changes, when new docs added",
+        "cross_references": ["active_context.json", "deployment_architecture.json"]
       }
     },
     

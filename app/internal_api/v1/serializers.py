@@ -69,7 +69,7 @@ class LanguoidSerializer(serializers.ModelSerializer):
         model = Languoid
         fields = [
             'id', 'iso', 'name', 'family', 'pri_subgroup', 'sec_subgroup',
-            'alt_name', 'alt_names', 'region', 'notes', 'glottocode',
-            'dialects_languoids', 'added', 'updated', 'modified_by'
+            'alt_names', 'region', 'notes', 'glottocode',
+            'added', 'updated', 'modified_by'
         ]
         read_only_fields = ['id', 'added', 'updated']

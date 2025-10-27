@@ -20,7 +20,7 @@
 <div class="container">
     <div class="row mt-2">
         <div class="col-auto">
-            <b>Alternative names:</b> {{ languoid.alt_name }}
+            <b>Alternative names:</b> {{ languoid.alt_names|join:", " }}
         </div>
     </div>
     <div class="row mt-2">
@@ -31,7 +31,7 @@
             <b>Glottocode:</b> {{ languoid.glottocode }}
         </div>
         <div class="col-auto d-inline-block">
-            <b>Level:</b> {{ languoid.level }}
+            <b>Level:</b> {{ languoid.level_nal }}
         </div>
     </div>
     <div class="row mt-2">

@@ -1,0 +1,33 @@
+{
+  "type": "domain_knowledge",
+  "title": "Languoid Data Migration - October 2025",
+  "summary": "Large-scale import of 2418 languoid records from external JSON dataset",
+  "key_points": [
+    "Imported 2418 languoid records from languoids.json file",
+    "Generated 62 pseudo glottocodes for records without real glottocodes (format: XXXX0123)",
+    "Updated 1190 existing records (991 by glottocode match, 199 by name match)",
+    "Created 1228 new records",
+    "7 orphan records left untouched in database",
+    "Handled circular reference validation in parent-child relationships",
+    "Computed parent_languoid and descendents relationships for all records"
+  ],
+  "technical_details": {
+    "import_command": "python manage.py import_languoids",
+    "pseudo_glottocode_algorithm": "4-char name prefix + 0123+ incrementing counter",
+    "field_updates": [
+      "Increased iso field from 32 to 100 characters",
+      "Changed tribes field from CharField(255) to TextField"
+    ],
+    "validation_performed": [
+      "Pre-import conflict detection",
+      "Circular reference validation",
+      "Field length validation",
+      "FK resolution validation"
+    ]
+  },
+  "migration_files": [
+    "0092_alter_languoid_iso_alter_languoid_tribes.py"
+  ],
+  "date": "2027-10-27"
+}
+

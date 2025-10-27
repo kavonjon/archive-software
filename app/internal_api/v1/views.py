@@ -83,6 +83,6 @@ class LanguoidViewSet(viewsets.ModelViewSet):
     serializer_class = LanguoidSerializer
     permission_classes = [IsAuthenticatedStaff]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['name', 'iso', 'family', 'alt_name', 'alt_names']
+    search_fields = ['name', 'iso', 'family', 'alt_names']
     ordering_fields = ['name', 'iso', 'family', 'added', 'updated']
     ordering = ['name']

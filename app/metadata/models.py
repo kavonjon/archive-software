@@ -379,13 +379,21 @@ def validate_date_text(value):
 
 
 class Languoid(models.Model):
-    LEVELS = (('family', 'Family'),
+    LEVELS_GLOTTOLOG = (('family', 'Family'),
+            ('language', 'Language'),
+            ('dialect', 'Dialect'))
+    LEVELS_NAL = (('family', 'Family'),
+            ('subfamily', 'Primary Subfamily'),
+            ('subsubfamily', 'Secondary Subfamily'),
             ('language', 'Language'),
             ('dialect', 'Dialect'))
     glottocode = models.CharField(max_length=8, blank=True, unique=True)
-    iso = models.CharField(max_length=32, blank=True)
+    iso = models.CharField(max_length=100, blank=True)
     name = models.CharField(max_length=255)
-    level = models.CharField(max_length=8, choices=LEVELS)
+    name_abbrev = models.CharField(max_length=255, blank=True, verbose_name='Name abbreviation')
+    name_for_glottocode_on_glottolog = models.CharField(max_length=255, blank=True, verbose_name='Glottolog name')
+    level_nal = models.CharField(max_length=15, choices=LEVELS_NAL)
+    level_glottolog = models.CharField(max_length=15, choices=LEVELS_GLOTTOLOG)
     family = models.CharField(max_length=255, blank=True)
     family_id = models.CharField(max_length=8, blank=True, verbose_name='Family glottocode')
     family_abbrev = models.CharField(max_length=255, blank=True, verbose_name='Family abbreviation')
@@ -399,18 +407,14 @@ class Languoid(models.Model):
     sec_subgroup_abbrev = models.CharField(max_length=255, blank=True, verbose_name='Secondary subgroup abbreviation')
     sec_subgroup_languoid = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='descendant_languoids_of_secondary_subgroup')
     parent_languoid = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_languoids')
-    alt_name = models.CharField(max_length=255, blank=True, verbose_name='Alternate names')
+    descendents = models.ManyToManyField('self', symmetrical=False, related_name='ancestors', blank=True, verbose_name='Descendents')
     alt_names = models.JSONField(default=list, blank=True, null=True, verbose_name='Alternative names')
     region = models.CharField(max_length=255, blank=True)
     longitude = models.DecimalField(max_digits=22, decimal_places=16, blank=True, null=True)
     latitude = models.DecimalField(max_digits=22, decimal_places=16, blank=True, null=True)
     dialects = models.CharField(max_length=255, blank=True)
     dialects_ids = models.CharField(max_length=255, blank=True, verbose_name='Dialect glottocodes')
-    dialects_languoids = models.ManyToManyField('self', verbose_name='Dialects languoids', related_name='parent_language_of_dialect', blank=True)
-    language = models.CharField(max_length=255, blank=True)
-    language_id = models.CharField(max_length=8, blank=True)
-    language_languoid = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_dialects_languoids')
-    tribes = models.CharField(max_length=255, blank=True)
+    tribes = models.TextField(blank=True)
     notes = models.CharField(max_length=255, blank=True)
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -452,7 +456,6 @@ class Collaborator(models.Model):
     uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
     slug = models.CharField(max_length=20, unique=True, blank=True, editable=False)
     anonymous = models.BooleanField(null=True, blank=True)
-    birthdate = models.DateField(null=True, blank=True)
     birthdate = models.CharField(max_length=255, blank=True)
     birthdate_min = models.DateField(null=True, blank=True)
     birthdate_max = models.DateField(null=True, blank=True)

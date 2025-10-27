@@ -263,8 +263,8 @@ const LanguoidDetail: React.FC = () => {
         <Chip
           label={languoid.level_display}
           color={
-            languoid.level === 'family' ? 'primary' :
-            languoid.level === 'language' ? 'success' : 'warning'
+            languoid.level_nal === 'family' ? 'primary' :
+            languoid.level_nal === 'language' ? 'success' : 'warning'
           }
           sx={{ ml: 2 }}
         />
@@ -400,13 +400,13 @@ const LanguoidDetail: React.FC = () => {
                 )}
 
                 <EditableSelectField
-                  fieldName="level"
+                  fieldName="level_nal"
                   label="Level"
-                  value={languoid.level || ''}
+                  value={languoid.level_nal || ''}
                   options={LANGUOID_LEVEL_CHOICES}
-                  isEditing={editingFields.has('level')}
-                  isSaving={savingFields.has('level')}
-                  editValue={editValues.level}
+                  isEditing={editingFields.has('level_nal')}
+                  isSaving={savingFields.has('level_nal')}
+                  editValue={editValues.level_nal}
                   startEditing={startEditing}
                   saveField={saveField}
                   cancelEditing={cancelEditing}

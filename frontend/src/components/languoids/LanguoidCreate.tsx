@@ -30,7 +30,7 @@ interface FormData {
   name: string;
   iso: string;
   glottocode: string;
-  level: string;
+  level_nal: string;
   alt_name: string;
   alt_names: string;
   family: string;
@@ -57,7 +57,7 @@ const initialFormData: FormData = {
   name: '',
   iso: '',
   glottocode: '',
-  level: '',
+  level_nal: '',
   alt_name: '',
   alt_names: '',
   family: '',
@@ -196,8 +196,8 @@ const LanguoidCreate: React.FC = () => {
     if (!formData.name.trim()) {
       newErrors.name = 'Name is required';
     }
-    if (!formData.level) {
-      newErrors.level = 'Level is required';
+    if (!formData.level_nal) {
+      newErrors.level_nal = 'Level is required';
     }
 
     // Glottocode format validation
@@ -348,12 +348,12 @@ const LanguoidCreate: React.FC = () => {
                     }}
                   />
 
-                  <FormControl fullWidth required error={!!errors.level}>
+                  <FormControl fullWidth required error={!!errors.level_nal}>
                     <InputLabel>Level</InputLabel>
                     <Select
-                      value={formData.level}
+                      value={formData.level_nal}
                       label="Level"
-                      onChange={handleInputChange('level')}
+                      onChange={handleInputChange('level_nal')}
                     >
                       {LANGUOID_LEVEL_CHOICES.map((choice) => (
                         <MenuItem key={choice.value} value={choice.value}>
@@ -361,9 +361,9 @@ const LanguoidCreate: React.FC = () => {
                         </MenuItem>
                       ))}
                     </Select>
-                    {errors.level && (
+                    {errors.level_nal && (
                       <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
-                        {errors.level}
+                        {errors.level_nal}
                       </Typography>
                     )}
                   </FormControl>

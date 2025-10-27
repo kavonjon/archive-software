@@ -43,9 +43,8 @@ class LanguoidDetailMetadataSerializer(serializers.Serializer):
     region = serializers.CharField(allow_blank=True)
 
     def get_alternative_names(self, obj):
-        if obj.alt_name:
-            return [name.strip() for name in obj.alt_name.split(',')]
-        return []
+        """Return alt_names list directly"""
+        return obj.alt_names if obj.alt_names else []
 
 class LanguoidListSerializer(serializers.ModelSerializer):
     """List serializer with basic metadata"""

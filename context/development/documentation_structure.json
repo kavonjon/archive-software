@@ -1,0 +1,183 @@
+{
+  "documentation_structure": {
+    "version": "1.0",
+    "last_updated": "2025-10-27",
+    "conversation_reference": "Organized documentation structure creation",
+    
+    "documentation_philosophy": {
+      "decision_id": "docs_001",
+      "content": "Documentation organized by audience and purpose, following industry conventions",
+      "added_date": "2025-10-27",
+      "principles": [
+        "Deployment docs for operators and sysadmins",
+        "Development docs for contributors and developers",
+        "Operations docs for day-to-day maintenance",
+        "README files co-located with relevant code/data"
+      ],
+      "confidence_level": "high",
+      "status": "active"
+    },
+    
+    "directory_structure": {
+      "decision_id": "docs_002",
+      "content": "Three-tier documentation structure under docs/ directory",
+      "added_date": "2025-10-27",
+      "structure": {
+        "docs/": "Root documentation directory with index README",
+        "docs/deployment/": "Deployment guides, setup procedures, infrastructure",
+        "docs/development/": "Development environment, dependencies, contributing",
+        "docs/operations/": "Day-to-day operations, maintenance, troubleshooting"
+      },
+      "rationale": "Follows Django, Python, and DevOps documentation conventions for clarity and discoverability",
+      "confidence_level": "high",
+      "status": "active"
+    },
+    
+    "existing_documentation": {
+      "decision_id": "docs_003",
+      "content": "Inventory of current documentation files and their purposes",
+      "added_date": "2025-10-27",
+      "files": {
+        "docs/README.md": {
+          "purpose": "Documentation index and navigation hub",
+          "audience": "All users - developers, operators, contributors",
+          "content": "Overview, quick links, technology stack, architecture summary"
+        },
+        "docs/deployment/database-operations.md": {
+          "purpose": "Complete guide for database backup and restore on TrueNAS Scale",
+          "audience": "System administrators, operators",
+          "content": "Dump procedures, transfer methods, restore script usage, troubleshooting",
+          "related_scripts": ["deploy-restore-db-private.sh", "init-db.sh"]
+        },
+        "docs/development/dependencies.md": {
+          "purpose": "Required software and packages for development",
+          "audience": "Developers setting up local environment",
+          "content": "Python, PostgreSQL, dependencies list"
+        },
+        "README.md": {
+          "purpose": "Project overview and quick start",
+          "audience": "First-time visitors, evaluators",
+          "content": "Basic install instructions, warnings, Invenio setup (legacy)"
+        },
+        "backup/README.md": {
+          "purpose": "Automated backup system documentation",
+          "audience": "Operators, system administrators",
+          "content": "Backup schedule, retention policy, monitoring",
+          "location_rationale": "Co-located with backup directory for immediate reference"
+        },
+        "frontend/README.md": {
+          "purpose": "React frontend documentation",
+          "audience": "Frontend developers",
+          "content": "Frontend-specific setup and development",
+          "location_rationale": "Co-located with frontend code"
+        },
+        "archive/README.md": {
+          "purpose": "Legacy Invenio documentation",
+          "audience": "Historical reference",
+          "content": "Invenio setup (legacy, inactive)",
+          "status": "Legacy - Invenio component inactive"
+        },
+        "archive/app_data/README.md": {
+          "purpose": "App data configuration documentation",
+          "audience": "Developers working with vocabularies",
+          "content": "Vocabularies configuration",
+          "location_rationale": "Co-located with app data directory"
+        }
+      },
+      "confidence_level": "high",
+      "status": "active"
+    },
+    
+    "documentation_conventions": {
+      "decision_id": "docs_004",
+      "content": "Naming and formatting conventions for documentation files",
+      "added_date": "2025-10-27",
+      "conventions": {
+        "file_naming": "kebab-case for multi-word filenames (e.g., database-operations.md)",
+        "directory_naming": "lowercase single words or kebab-case (e.g., deployment/, development/)",
+        "readme_placement": "README.md in directories for directory-specific documentation",
+        "detailed_guides": "Descriptive names in appropriate subdirectory (e.g., docs/deployment/database-operations.md)",
+        "cross_references": "Use relative paths for internal links, absolute URLs for external"
+      },
+      "markdown_standards": {
+        "headers": "# for title, ## for major sections, ### for subsections",
+        "code_blocks": "Use triple backticks with language specification",
+        "examples": "Provide concrete examples with real commands",
+        "warnings": "Use visual indicators (⚠️, 🚨) for important warnings",
+        "structure": "Include table of contents for docs > 200 lines"
+      },
+      "confidence_level": "high",
+      "status": "active"
+    },
+    
+    "planned_documentation": {
+      "decision_id": "docs_005",
+      "content": "Documentation to be created as project matures",
+      "added_date": "2025-10-27",
+      "high_priority": [
+        "docs/deployment/truenas-scale-setup.md - Initial TrueNAS deployment walkthrough",
+        "docs/deployment/update-procedures.md - Detailed code update guide with examples",
+        "docs/development/setup.md - Complete local development environment setup",
+        "docs/operations/troubleshooting.md - Common issues, error messages, solutions"
+      ],
+      "medium_priority": [
+        "docs/development/architecture.md - Deep dive into system architecture",
+        "docs/development/contributing.md - Contribution guidelines and workflow",
+        "docs/operations/monitoring.md - Performance monitoring and health checks",
+        "docs/operations/security.md - Security best practices and procedures"
+      ],
+      "low_priority": [
+        "docs/api/endpoints.md - API endpoint documentation (if not auto-generated)",
+        "docs/deployment/disaster-recovery.md - Disaster recovery procedures",
+        "docs/operations/performance-tuning.md - Optimization techniques"
+      ],
+      "confidence_level": "medium",
+      "status": "planned"
+    },
+    
+    "documentation_maintenance": {
+      "decision_id": "docs_006",
+      "content": "Process for keeping documentation current and accurate",
+      "added_date": "2025-10-27",
+      "principles": [
+        "Update documentation in same commit as code changes",
+        "Date-stamp major documentation updates",
+        "Review documentation quarterly for accuracy",
+        "Cross-reference related documentation files"
+      ],
+      "review_schedule": {
+        "deployment_docs": "After any infrastructure changes",
+        "development_docs": "After major dependency updates or architecture changes",
+        "operations_docs": "Quarterly or after operational procedure changes"
+      },
+      "confidence_level": "high",
+      "status": "active"
+    },
+    
+    "context_memory_relationship": {
+      "decision_id": "docs_007",
+      "content": "Relationship between context memory and user-facing documentation",
+      "added_date": "2025-10-27",
+      "distinction": {
+        "context_memory": {
+          "purpose": "AI assistant context and architectural decisions",
+          "audience": "AI assistants, lead developers understanding project history",
+          "format": "Structured JSON with decision tracking",
+          "location": "context/",
+          "update_frequency": "Continuously during development"
+        },
+        "user_documentation": {
+          "purpose": "Human-readable guides and procedures",
+          "audience": "Developers, operators, contributors, users",
+          "format": "Markdown with examples and tutorials",
+          "location": "docs/, README files",
+          "update_frequency": "With code changes and procedure updates"
+        }
+      },
+      "cross_references": "Context memory should reference relevant docs/ files for operational procedures",
+      "confidence_level": "high",
+      "status": "active"
+    }
+  }
+}
+

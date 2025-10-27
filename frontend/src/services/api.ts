@@ -253,7 +253,7 @@ export interface Languoid {
   name: string;
   iso: string;
   glottocode: string;
-  level: string;
+  level_nal: string;
   level_display: string;
   
   // Hierarchy - text fields
@@ -434,6 +434,11 @@ export const apiRequest = async <T>(
     }
 
     throw new APIError(errorMessage, response.status, errorData);
+  }
+
+  // For 204 No Content responses (e.g., successful DELETE), return undefined
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return response.json();

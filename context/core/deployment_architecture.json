@@ -291,24 +291,97 @@
       }
     },
     
+    "truenas_scale_deployment": {
+      "deployment_method": {
+        "decision_id": "deploy_013",
+        "content": "TrueNAS Scale 25 custom app deployment via YAML configuration, not standard docker-compose",
+        "added_date": "2025-10-27",
+        "platform": "TrueNAS Scale 25",
+        "deployment_approach": "Custom App via Apps UI with docker-compose.private.yml",
+        "compose_file_path": "/home/truenas_admin/archive-software/docker-compose.private.yml",
+        "container_naming": "TrueNAS prefixes containers with 'ix-archive-software_' (e.g., ix-archive-software_postgres_django_private_1)",
+        "management": "App lifecycle managed through TrueNAS Scale Apps UI, not direct docker-compose commands",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "deployment_scripts": {
+        "decision_id": "deploy_014",
+        "content": "Specialized scripts for TrueNAS Scale deployment operations",
+        "added_date": "2025-10-27",
+        "scripts": {
+          "deploy-update-private.sh": {
+            "purpose": "Update application code on TrueNAS Scale without disrupting data",
+            "process": "Build images locally, tag with ix- prefix, restart via TrueNAS UI",
+            "update_types": {
+              "web": "Code changes only (Django views, templates, business logic)",
+              "all": "Infrastructure changes (Dockerfile, nginx, Celery, dependencies)"
+            },
+            "workflow": "1. Pull git updates, 2. Build containers, 3. Tag for TrueNAS, 4. Stop/Start via UI"
+          },
+          "deploy-restore-db-private.sh": {
+            "purpose": "Restore database dump to running TrueNAS production database",
+            "default_location": "backup/initial_restore.sql (same as init-db.sh)",
+            "features": [
+              "Automatic container discovery with ix- prefix",
+              "Safety backup before restore",
+              "File age detection with 24-hour warning",
+              "Transaction-based restore with validation",
+              "Automatic Django restart and migrations"
+            ],
+            "usage": "./deploy-restore-db-private.sh [dump_file.sql] (defaults to backup/initial_restore.sql)"
+          }
+        },
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "database_operations": {
+        "decision_id": "deploy_015",
+        "content": "Database backup and restore procedures for TrueNAS Scale deployment",
+        "added_date": "2025-10-27",
+        "backup_strategy": {
+          "automated": "Daily backups at 3:00 AM via Celery Beat to backup/dumps/",
+          "retention": "Tiered (30 days daily, 6 months weekly, 2 years monthly)",
+          "manual": "Use deploy-restore-db-private.sh for manual operations"
+        },
+        "restore_strategy": {
+          "recommended": "Manual restore via deploy-restore-db-private.sh (no app deletion needed)",
+          "nuclear_option": "Delete app, place dump as backup/initial_restore.sql, reinstall (init-db.sh auto-restores)",
+          "workflow": "Dev dump → SCP to TrueNAS → Run restore script → Verify"
+        },
+        "documentation": "docs/deployment/database-operations.md",
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
     "current_status": {
       "architecture_definition": {
         "decision_id": "deploy_010",
         "content": "Complete 7-volume dual-deployment architecture defined with detailed processing pipelines",
         "added_date": "2025-01-04",
-        "development_state": "Architecture fully planned, partial implementation, ongoing development of sync processes and virus scanning",
+        "updated_date": "2025-10-27",
+        "development_state": "Architecture fully planned, partial implementation, TrueNAS Scale deployment operational",
         "mvp_components": [
           "All 7 storage volumes",
           "File processing pipeline (steps 1-6, 8)",
           "Database synchronization with checksum detection",
           "Virus scanning architecture",
           "Cross-server file transfer",
-          "Automated cleanup processes"
+          "Automated cleanup processes",
+          "TrueNAS Scale deployment infrastructure",
+          "Database backup/restore automation"
         ],
         "beyond_mvp_components": [
           "Archivist interface for temporary file sharing",
           "Actual temp_storage push mechanism"
         ],
+        "production_deployment": {
+          "private_server": "TrueNAS Scale 25 with custom app deployment",
+          "update_mechanism": "deploy-update-private.sh with image tagging",
+          "database_operations": "deploy-restore-db-private.sh with safety features"
+        },
         "confidence_level": "high",
         "status": "active",
         "cross_references": ["project_requirements.json", "architectural_decisions.json"]

@@ -59,7 +59,7 @@ const LANGUOID_COLUMNS: ColumnConfig[] = [
     width: 100,
   },
   {
-    fieldName: 'level',
+    fieldName: 'level_nal',
     header: 'Level',
     cellType: 'select',
     width: 120,
@@ -186,9 +186,9 @@ const languoidToRow = (languoid: Languoid): SpreadsheetRow => {
     const fieldName = col.fieldName as keyof Languoid;
     let value = languoid[fieldName];
     
-    // For 'level' field, use human-readable display value for text
+    // For 'level_nal' field, use human-readable display value for text
     let displayValue = value?.toString() || '';
-    if (fieldName === 'level' && languoid.level_display) {
+    if (fieldName === 'level_nal' && languoid.level_display) {
       displayValue = languoid.level_display;
     }
     
@@ -292,11 +292,11 @@ const createDraftRow = (): SpreadsheetRow => {
   
   LANGUOID_COLUMNS.forEach(col => {
     // Set default value for level (required field)
-    const defaultValue = col.fieldName === 'level' ? 'language' : null;
+    const defaultValue = col.fieldName === 'level_nal' ? 'language' : null;
     
     // For level field, use human-readable text
     let defaultText = defaultValue?.toString() || '';
-    if (col.fieldName === 'level' && defaultValue) {
+    if (col.fieldName === 'level_nal' && defaultValue) {
       const choice = LANGUOID_LEVEL_CHOICES.find(c => c.value === defaultValue);
       defaultText = choice?.label || defaultValue;
     }
@@ -581,8 +581,8 @@ export const LanguoidBatchEditor: React.FC = () => {
             const cell = row.cells[fieldName];
             const value = cell.value;
             
-            // Always include required fields (name, level)
-            if (fieldName === 'name' || fieldName === 'level') {
+            // Always include required fields (name, level_nal)
+            if (fieldName === 'name' || fieldName === 'level_nal') {
               rowData[fieldName] = value;
             }
             // For optional fields, only include if not null/empty

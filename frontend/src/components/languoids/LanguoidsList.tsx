@@ -101,7 +101,7 @@ const LanguoidsList: React.FC = () => {
         // For multiple levels, we'll filter on the frontend since DRF doesn't support OR queries easily
         // But we can still pass a single level to the backend if it's just one
         if (preset.levels.length === 1) {
-          params.level = preset.levels[0];
+          params.level_nal = preset.levels[0];
         }
       }
 
@@ -110,7 +110,7 @@ const LanguoidsList: React.FC = () => {
         params.search = searchTerm.trim();
       }
       if (levelFilter) {
-        params.level = levelFilter;
+        params.level_nal = levelFilter;
       }
       if (familyFilter.trim()) {
         params.family__icontains = familyFilter.trim();
@@ -125,7 +125,7 @@ const LanguoidsList: React.FC = () => {
       let filteredResults = response.results;
       if (preset && preset.levels.length > 1) {
         filteredResults = response.results.filter(languoid => 
-          preset.levels.includes(languoid.level)
+          preset.levels.includes(languoid.level_nal)
         );
       }
 
@@ -166,7 +166,7 @@ const LanguoidsList: React.FC = () => {
     };
 
     // Start with families (top level)
-    const families = languoids.filter(l => l.level === 'family').sort((a, b) => a.name.localeCompare(b.name));
+    const families = languoids.filter(l => l.level_nal === 'family').sort((a, b) => a.name.localeCompare(b.name));
     families.forEach(family => addLanguoidWithChildren(family, 0));
 
     // Add any orphaned languoids (those without proper parent relationships)
@@ -363,7 +363,7 @@ const LanguoidsList: React.FC = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                   <Chip
                     label={languoid.level_display}
-                    color={LEVEL_COLORS[languoid.level as keyof typeof LEVEL_COLORS]}
+                    color={LEVEL_COLORS[languoid.level_nal as keyof typeof LEVEL_COLORS]}
                     size="small"
                     sx={{ mr: 1 }}
                   />
@@ -433,7 +433,7 @@ const LanguoidsList: React.FC = () => {
                   <TableCell>
                     <Chip
                       label={languoid.level_display}
-                      color={LEVEL_COLORS[languoid.level as keyof typeof LEVEL_COLORS]}
+                      color={LEVEL_COLORS[languoid.level_nal as keyof typeof LEVEL_COLORS]}
                       size="small"
                     />
                   </TableCell>

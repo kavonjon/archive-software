@@ -2311,7 +2311,7 @@ def languoid_index(request):
             xl_row.append(languoid.iso)
             xl_row.append(languoid.glottocode)
             xl_row.append(languoid.name)
-            xl_row.append(languoid.alt_name)
+            xl_row.append(', '.join(languoid.alt_names) if languoid.alt_names else '')
             xl_row.append(languoid.family)
             xl_row.append(languoid.family_abbrev)
             xl_row.append(languoid.family_id)
@@ -4603,8 +4603,14 @@ def ImportView(request):
             import_field(request, 'sec_subgroup_abbrev', ('^Secondary subgroup abbreviation$',), headers, row, return_object, model = "Languoid")
             import_field(request, 'sec_subgroup', ('^Secondary subgroup$',), headers, row, return_object, model = "Languoid")
             sec_subgroup_glottocode_success = import_field(request, 'sec_subgroup_id', ('^Secondary subgroup glottocode$',), headers, row, return_object, model = "Languoid", validate_glottocode="single")
-            import_field(request, 'alt_name', ('^Alternate name\(s\)$',), headers, row, return_object, model = "Languoid")
-            import_field(request, 'alt_name', ('^Alternative name\(s\)$',), headers, row, return_object, model = "Languoid")
+            
+            # Handle alt_names - convert comma-separated string to JSON list
+            alt_names_value = import_field(request, 'alt_names', ('^Alternate name\(s\)$', '^Alternative name\(s\)$'), headers, row, return_object, model = "Languoid", return_value=True)
+            if alt_names_value:
+                # Parse comma-separated string into list
+                names = [name.strip() for name in alt_names_value.split(',') if name.strip()]
+                return_object.alt_names = names
+            
             import_field(request, 'dialects', ('^Dialects$',), headers, row, return_object, model = "Languoid")
             dialect_ids_success = import_field(request, 'dialects_ids', ('^Dialect glottocodes$',), headers, row, return_object, model = "Languoid", validate_glottocode="multiple")
             import_field(request, 'region', ('^Region$',), headers, row, return_object, model = "Languoid")
@@ -4624,7 +4630,7 @@ def ImportView(request):
             if not import_success:
                 continue
 
-            return_object.level = 'Language'
+            return_object.level_nal = 'language'
             return_object.modified_by = request.user.get_username()
             return_object.save()
             messages.success(request, 'Languoid ' + return_object.name + ' (ISO Indicator: ' + return_object.iso + ')' + ' was updated')

@@ -360,8 +360,8 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
         # This matches what the frontend requests: ?page_size=10000&hierarchical=true
         is_full_list = (
             request.query_params.get('page_size') == '10000' and
-            request.query_params.get('hierarchical', 'false').lower() == 'true' and
-            len(request.query_params) == 2  # Only these two params
+            request.query_params.get('hierarchical', 'false').lower() == 'true'
+            # Note: Don't check exact param count - other params like auth tokens may be present
         )
         
         if not is_full_list:
@@ -375,7 +375,13 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
         
         if cached_data is not None:
             logger.info(f"[Cache] Cache hit! Returning {len(cached_data)} languoids from cache")
-            return Response(cached_data)
+            # Wrap cached data in pagination format that frontend expects
+            return Response({
+                'count': len(cached_data),
+                'next': None,
+                'previous': None,
+                'results': cached_data
+            })
         
         # Cache miss - build and cache the response
         logger.warning("[Cache] Cache miss! Building languoid list (this will be slow)...")
@@ -391,7 +397,13 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
         
         logger.info(f"[Cache] Built and cached {len(data)} languoids")
         
-        return Response(data)
+        # Wrap in pagination format
+        return Response({
+            'count': len(data),
+            'next': None,
+            'previous': None,
+            'results': data
+        })
     
     @action(detail=False, methods=['post'], url_path='validate-field')
     def validate_field(self, request):

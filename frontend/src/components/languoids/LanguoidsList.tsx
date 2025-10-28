@@ -124,6 +124,11 @@ const LanguoidsList: React.FC = () => {
 
   // Apply filters on frontend (instant, no API call)
   const filteredLanguoids = useMemo(() => {
+    // Safety check: ensure allLanguoids is defined
+    if (!allLanguoids) {
+      return [];
+    }
+
     let filtered = allLanguoids;
 
     // Apply level preset filter
@@ -175,6 +180,11 @@ const LanguoidsList: React.FC = () => {
 
   // Build hierarchical display with indentation
   const hierarchicalLanguoids = useMemo((): HierarchicalLanguoid[] => {
+    // Safety check: ensure filteredLanguoids is defined
+    if (!filteredLanguoids) {
+      return [];
+    }
+
     const result: HierarchicalLanguoid[] = [];
     const processed = new Set<number>();
 
@@ -319,7 +329,7 @@ const LanguoidsList: React.FC = () => {
   if (loading) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
-        <CircularProgress />
+        <CircularProgress aria-label="Loading languoids" />
       </Container>
     );
   }
@@ -341,7 +351,7 @@ const LanguoidsList: React.FC = () => {
                 '&:hover': { bgcolor: 'action.hover' }
               }}
             >
-              {isRefreshing ? <CircularProgress size={24} /> : <RefreshIcon />}
+              {isRefreshing ? <CircularProgress size={24} aria-label="Refreshing languoids" /> : <RefreshIcon />}
             </IconButton>
           </Tooltip>
           {hasEditAccess(authState.user) && (
@@ -472,7 +482,7 @@ const LanguoidsList: React.FC = () => {
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Showing {pageBreaks[displayPage - 1] + 1}-{pageBreaks[displayPage]} of {hierarchicalLanguoids.length} languoids
           {paginatedLanguoids.length > minPageSize && ` (${paginatedLanguoids.length} on this page)`}
-          {filteredLanguoids.length !== allLanguoids.length && ` • ${allLanguoids.length} total`}
+          {filteredLanguoids && allLanguoids && filteredLanguoids.length !== allLanguoids.length && ` • ${allLanguoids.length} total`}
         </Typography>
       </Box>
 

@@ -508,6 +508,7 @@
           "before": "django.core.cache.backends.locmem.LocMemCache (per-worker, lost on restart)",
           "after": "django.core.cache.backends.redis.RedisCache (shared across workers, persistent)",
           "django_version_note": "Requires Django 4.0+. Django 5.0.14 deployed.",
+          "critical_lesson": "Django 5.0's built-in RedisCache does NOT accept django-redis OPTIONS like CLIENT_CLASS, PARSER_CLASS, CONNECTION_POOL_CLASS_KWARGS. Use minimal config only.",
           "benefits": [
             "Cache shared across all Gunicorn workers",
             "Survives Gunicorn/Django restarts",
@@ -517,9 +518,14 @@
           "configuration": {
             "backend": "django.core.cache.backends.redis.RedisCache",
             "location": "redis://:<password>@redis:6379/0",
+            "key_prefix": "archive",
             "timeout": 600,
-            "max_connections": 50,
-            "key_prefix": "archive"
+            "note": "No OPTIONS dict needed - Django 5.0 handles connection automatically"
+          },
+          "what_not_to_do": {
+            "wrong_config": "OPTIONS with CLIENT_CLASS, PARSER_CLASS, etc. (django-redis specific)",
+            "symptom": "TypeError: AbstractConnection.__init__() got an unexpected keyword argument",
+            "fix": "Remove all OPTIONS - just use BACKEND, LOCATION, KEY_PREFIX, TIMEOUT"
           }
         },
         
@@ -575,14 +581,33 @@
         "5_viewset_cache_integration": {
           "file": "app/internal_api/views.py",
           "method": "InternalLanguoidViewSet.list()",
+          "critical_lessons": [
+            "MUST wrap cached data in DRF pagination format: {count, next, previous, results}",
+            "Cache stores raw array, but API must return paginated response",
+            "Query param check must NOT be overly strict (len==2) - other params may exist"
+          ],
           "logic": [
             "Check if request is for full list (page_size=10000&hierarchical=true)",
             "If yes: Check Redis cache",
-            "If cache hit: Return immediately (< 1 second)",
-            "If cache miss: Build and cache (22 seconds) - rare!",
+            "If cache hit: Wrap in pagination format and return (< 1 second)",
+            "If cache miss: Build, cache, wrap in pagination format (22 seconds)",
             "If no: Use normal pagination (not cached)"
           ],
           "cache_key": "languoid_list_full",
+          "response_format": {
+            "cached_data": "Raw array: [languoid1, languoid2, ...]",
+            "api_response": "Paginated: {count: N, next: null, previous: null, results: [...]}"
+          },
+          "what_not_to_do": {
+            "wrong": "return Response(cached_data) - returns raw array",
+            "symptom": "Frontend shows 'No languoids found' despite 200 response",
+            "fix": "return Response({count: len(data), next: None, previous: None, results: data})"
+          },
+          "query_param_check": {
+            "wrong": "len(request.query_params) == 2 - too strict",
+            "problem": "Breaks if auth tokens or other params present",
+            "correct": "Only check page_size and hierarchical params exist"
+          },
           "logging": "All cache hits/misses logged for monitoring"
         },
         
@@ -728,11 +753,9 @@
           "Redis must be running (already configured in docker-compose.private.yml)",
           "Celery worker must be running (to execute warming task)",
           "Celery Beat must be running (for periodic refresh)",
-          "Run: pipenv install (to install django-redis + hiredis)",
-          "Django 5.0.14+ uses built-in RedisCache backend"
+          "Django 5.0.14+ uses built-in RedisCache backend (no django-redis needed)"
         ],
         "first_deploy": [
-          "Run pipenv install to install django-redis",
           "Restart Django: docker-compose restart web",
           "Django starts and immediately triggers cache warming",
           "Task completes in ~22-30 seconds",
@@ -742,8 +765,39 @@
         "rollback_safe": "If issues arise, can revert to LocMemCache without data loss",
         "troubleshooting": {
           "error_connection_refused": "Error: 'Connection refused' → Check Redis is running: docker ps | grep redis",
-          "error_no_django_redis": "Error: 'No module named django_redis' → Run: pipenv install django-redis",
-          "cache_not_warming": "Check Celery logs: docker-compose logs celery | grep 'Cache Warming'"
+          "cache_not_warming": "Check Celery logs: docker-compose logs celery | grep 'Cache Warming'",
+          "no_languoids_found": "Check if API returns {results: []} not raw array - must wrap in pagination format"
+        }
+      },
+      
+      "implementation_mistakes_and_fixes": {
+        "mistake_1_wrong_cache_options": {
+          "what_we_did_wrong": "Copied django-redis OPTIONS (CLIENT_CLASS, PARSER_CLASS, CONNECTION_POOL_CLASS_KWARGS) into Django 5.0 cache config",
+          "why_it_failed": "Django 5.0's built-in RedisCache doesn't accept these options - they're specific to django-redis package",
+          "symptom": "TypeError: AbstractConnection.__init__() got an unexpected keyword argument 'CLIENT_CLASS'",
+          "fix": "Use minimal config: BACKEND, LOCATION, KEY_PREFIX, TIMEOUT only. No OPTIONS dict.",
+          "lesson": "Don't assume Django 5.0's built-in backend works like third-party packages"
+        },
+        "mistake_2_response_format_mismatch": {
+          "what_we_did_wrong": "Returned cached array directly: Response(cached_data)",
+          "why_it_failed": "Frontend expects DRF pagination format {count, results, next, previous}, not raw array",
+          "symptom": "Frontend shows 'No languoids found' despite backend returning 200 with data",
+          "fix": "Always wrap: Response({count: len(data), next: None, previous: None, results: data})",
+          "lesson": "Cache implementation must preserve API contract - format matters, not just data"
+        },
+        "mistake_3_overly_strict_param_check": {
+          "what_we_did_wrong": "Checked len(request.query_params) == 2 to identify cache-eligible requests",
+          "why_it_failed": "Auth tokens, CSRF tokens, or other params break the exact count check",
+          "symptom": "Cache always bypassed, normal pagination used, page loads slowly",
+          "fix": "Only check required params exist: page_size=10000 and hierarchical=true",
+          "lesson": "Be specific about what matters, not about what doesn't matter"
+        },
+        "mistake_4_frontend_null_safety": {
+          "what_we_did_wrong": "Assumed useMemo results are always defined",
+          "why_it_failed": "During initial render, dependency chain can leave intermediate values undefined",
+          "symptom": "TypeError: can't access property 'filter', filteredLanguoids is undefined",
+          "fix": "Add null checks at start of useMemo: if (!dependency) return []",
+          "lesson": "Defensive programming - always validate inputs to useMemo/useCallback"
         }
       },
       

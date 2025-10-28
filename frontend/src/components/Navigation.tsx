@@ -36,8 +36,10 @@ const Navigation: React.FC = () => {
       { label: 'Items', path: '/items' },
       { label: 'Collections', path: '/collections' },
       { label: 'Collaborators', path: '/collaborators' },
-      { label: 'Languages', path: '/languages' },
-    ] : []),
+      { label: 'Languages', path: '/languoids' },
+    ] : [
+      { label: 'Login', path: '/login' },
+    ]),
   ];
 
   const handleMobileMenuToggle = () => {

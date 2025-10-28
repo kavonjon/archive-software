@@ -597,8 +597,6 @@ class Command(BaseCommand):
         except (InvalidOperation, ValueError):
             languoid.latitude = None
         
-        languoid.dialects = record['dialects'] or ''
-        languoid.dialects_ids = record['dialects_ids'] or ''
         languoid.tribes = record['tribes'] or ''
         languoid.notes = record['notes'] or ''
         languoid.modified_by = modified_by
@@ -713,8 +711,6 @@ class Command(BaseCommand):
             ('sec_subgroup', record.get('sec_subgroup', '')),
             ('sec_subgroup_abbrev', record.get('sec_subgroup_abbrev', '')),
             ('region', record.get('region', '')),
-            ('dialects', record.get('dialects', '')),
-            ('dialects_ids', record.get('dialects_ids', '')),
             ('notes', record.get('notes', '')),
         ]
         

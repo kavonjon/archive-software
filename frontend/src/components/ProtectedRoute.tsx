@@ -1,7 +1,7 @@
 import React, { ReactNode, useEffect } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Box, CircularProgress, Typography, Alert, Container } from '@mui/material';
-import LoginForm from './LoginForm';
 import { focusUtils } from '../utils/accessibility';
 import { hasViewAccess, hasEditAccess } from '../utils/permissions';
 
@@ -12,6 +12,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireEditAccess = false }) => {
   const { state } = useAuth();
+  const location = useLocation();
 
   // Announce authentication state changes to screen readers
   useEffect(() => {
@@ -52,26 +53,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireEditAc
     );
   }
 
-  // Not authenticated
+  // Not authenticated - redirect to login with return path
   if (!state.isAuthenticated) {
-    return (
-      <Box role="main" aria-labelledby="login-required">
-        <Typography 
-          id="login-required" 
-          variant="h2" 
-          sx={{ 
-            position: 'absolute',
-            left: '-10000px',
-            width: '1px',
-            height: '1px',
-            overflow: 'hidden',
-          }}
-        >
-          Login Required
-        </Typography>
-        <LoginForm />
-      </Box>
-    );
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // Authenticated but no group assignment

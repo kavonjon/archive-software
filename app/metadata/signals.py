@@ -3,6 +3,9 @@ from django.dispatch import receiver
 from .models import Languoid, Item, CollaboratorRole
 from .tasks import update_collection_date_ranges
 from .utils import parse_standardized_date
+import logging
+
+logger = logging.getLogger(__name__)
 
 def standardize_date_format(date_str):
     """
@@ -108,18 +111,6 @@ def update_item_date_ranges(sender, instance, **kwargs):
         setattr(instance, min_field, min_date)
         setattr(instance, max_field, max_date)
 
-@receiver(post_save, sender=Languoid)
-def post_save_languoid(sender, instance, **kwargs):
-    updates = {}
-    if not instance.family_abbrev:
-        updates['family_abbrev'] = instance.family
-    if not instance.pri_subgroup_abbrev:
-        updates['pri_subgroup_abbrev'] = instance.pri_subgroup
-    if not instance.sec_subgroup_abbrev:
-        updates['sec_subgroup_abbrev'] = instance.sec_subgroup
-    if updates:
-        Languoid.objects.filter(pk=instance.pk).update(**updates)
-
 @receiver([post_save, post_delete], sender=Item)
 def update_collection_dates_on_item_change(sender, instance, **kwargs):
     """
@@ -168,3 +159,223 @@ def set_citation_author_for_roles(sender, instance, created, **kwargs):
         if 'author' in instance.role or 'performer' in instance.role:
             instance.citation_author = True
             instance.save(update_fields=['citation_author'])
+
+
+# ============================================================================
+# LANGUOID HIERARCHY SIGNALS
+# ============================================================================
+
+def derive_level_nal(languoid):
+    """
+    Derive level_nal from level_glottolog and parent_languoid.
+    
+    Rules:
+    - If level_glottolog is 'dialect' → 'dialect'
+    - If level_glottolog is 'language' → 'language'
+    - If level_glottolog is 'family':
+        - No parent → 'family' (top-level family)
+        - Parent is 'family' → 'subfamily' (primary subfamily)
+        - Parent is 'subfamily' → 'subsubfamily' (secondary subfamily)
+        - Otherwise → 'family' (fallback)
+    """
+    if languoid.level_glottolog == 'dialect':
+        return 'dialect'
+    
+    if languoid.level_glottolog == 'language':
+        return 'language'
+    
+    if languoid.level_glottolog == 'family':
+        if not languoid.parent_languoid:
+            return 'family'  # Top-level family
+        
+        parent = languoid.parent_languoid
+        if parent.level_nal == 'family':
+            return 'subfamily'  # Primary subfamily
+        elif parent.level_nal == 'subfamily':
+            return 'subsubfamily'  # Secondary subfamily
+        else:
+            return 'family'  # Fallback
+    
+    return 'family'  # Default fallback
+
+
+def derive_hierarchy_fks(languoid):
+    """
+    Derive family_languoid, pri_subgroup_languoid, sec_subgroup_languoid
+    from parent_languoid chain.
+    
+    Logic based on parent's level_nal:
+    - Parent is 'family' → family_languoid = parent
+    - Parent is 'subfamily' → pri_subgroup = parent, family = parent.family
+    - Parent is 'subsubfamily' → sec_subgroup = parent, pri_subgroup = parent.pri_subgroup, family = parent.family
+    - Parent is 'language' → inherit all three from parent (for dialects)
+    - Parent is 'dialect' → should not happen (could add validation)
+    """
+    # Clear all hierarchy FKs first
+    languoid.family_languoid = None
+    languoid.pri_subgroup_languoid = None
+    languoid.sec_subgroup_languoid = None
+    
+    if not languoid.parent_languoid:
+        return  # No parent, no hierarchy to derive
+    
+    parent = languoid.parent_languoid
+    parent_level = parent.level_nal
+    
+    if parent_level == 'family':
+        # Parent is a top-level family
+        languoid.family_languoid = parent
+    
+    elif parent_level == 'subfamily':
+        # Parent is a primary subfamily
+        languoid.pri_subgroup_languoid = parent
+        languoid.family_languoid = parent.family_languoid  # Inherit from parent
+    
+    elif parent_level == 'subsubfamily':
+        # Parent is a secondary subfamily
+        languoid.sec_subgroup_languoid = parent
+        languoid.pri_subgroup_languoid = parent.pri_subgroup_languoid  # Inherit
+        languoid.family_languoid = parent.family_languoid  # Inherit
+    
+    elif parent_level == 'language':
+        # This languoid is a dialect - inherit all hierarchy from parent language
+        languoid.family_languoid = parent.family_languoid
+        languoid.pri_subgroup_languoid = parent.pri_subgroup_languoid
+        languoid.sec_subgroup_languoid = parent.sec_subgroup_languoid
+    
+    elif parent_level == 'dialect':
+        # Dialects cannot be parents - log warning
+        logger.warning(f"Invalid parent: dialect '{parent.name}' cannot be parent of '{languoid.name}'")
+
+
+def clear_language_specific_fields(instance, old_instance):
+    """
+    Clear language-specific fields when converting away from language level.
+    Children will be orphaned in the async task.
+    """
+    logger.warning(
+        f"Level change detected for '{instance.name}' (ID: {instance.pk}): "
+        f"language → {instance.level_glottolog}"
+    )
+    
+    # Clear language-specific fields IMMEDIATELY
+    instance.region = ''
+    instance.longitude = None
+    instance.latitude = None
+    instance.tribes = ''
+    instance.notes = ''
+    
+    logger.info(f"Cleared language-specific fields for '{instance.name}'")
+    
+    # Flag for async task to handle children
+    instance._needs_dialect_orphaning = True
+
+
+@receiver(pre_save, sender=Languoid)
+def compute_languoid_derived_fields(sender, instance, **kwargs):
+    """
+    Compute derived fields before save.
+    
+    This handles:
+    1. Detecting level_glottolog changes from 'language' and clearing fields
+    2. Deriving level_nal from level_glottolog and parent
+    3. Defaulting name_abbrev to name if empty
+    4. Deriving family/subgroup FKs from parent_languoid chain
+    """
+    # Get old instance to detect changes
+    old_instance = None
+    if instance.pk:
+        try:
+            old_instance = Languoid.objects.get(pk=instance.pk)
+        except Languoid.DoesNotExist:
+            pass
+    
+    # CRITICAL: Handle level_glottolog change FROM language TO other
+    if old_instance and old_instance.level_glottolog == 'language' and instance.level_glottolog != 'language':
+        clear_language_specific_fields(instance, old_instance)
+    
+    # 1. Derive level_nal from level_glottolog and parent
+    instance.level_nal = derive_level_nal(instance)
+    
+    # 2. Default name_abbrev to name if empty
+    if not instance.name_abbrev:
+        instance.name_abbrev = instance.name
+    
+    # 3. Derive family/subgroup FKs from parent_languoid chain
+    derive_hierarchy_fks(instance)
+
+
+@receiver(post_save, sender=Languoid)
+def schedule_languoid_hierarchy_update(sender, instance, created, **kwargs):
+    """
+    Schedule unified hierarchy update task after save.
+    
+    This handles:
+    - Orphaning dialect children (if level changed from language)
+    - Updating descendents M2M for this languoid and ancestors
+    """
+    # Check if hierarchy fields changed
+    if not created and kwargs.get('update_fields'):
+        hierarchy_fields = {
+            'parent_languoid', 'family_languoid', 
+            'pri_subgroup_languoid', 'sec_subgroup_languoid',
+            'level_nal', 'level_glottolog'
+        }
+        if not hierarchy_fields.intersection(kwargs['update_fields']):
+            # Check if we still need to orphan dialects
+            if not hasattr(instance, '_needs_dialect_orphaning'):
+                return  # No hierarchy changes, skip
+    
+    # Debounce: prevent duplicate tasks
+    from django.core.cache import cache
+    cache_key = f"updating_hierarchy_{instance.pk}"
+    if cache.get(cache_key):
+        return
+    cache.set(cache_key, True, timeout=10)
+    
+    # Extract flags and clean up instance
+    needs_orphaning = hasattr(instance, '_needs_dialect_orphaning')
+    if needs_orphaning:
+        delattr(instance, '_needs_dialect_orphaning')
+    
+    # Schedule SINGLE unified task (Priority 9)
+    from .tasks import update_languoid_hierarchy_task
+    update_languoid_hierarchy_task.apply_async(
+        args=[instance.id, needs_orphaning],
+        priority=9  # Highest priority - user is waiting
+    )
+
+
+@receiver(post_save, sender=Languoid)
+def schedule_cascading_dialect_updates(sender, instance, created, **kwargs):
+    """
+    Schedule delayed async task to cascade hierarchy updates to dialect descendants.
+    Only runs when a family or language changes hierarchy fields.
+    """
+    # Only run for families and languages
+    if instance.level_glottolog not in ['family', 'language']:
+        return
+    
+    # Check if hierarchy fields changed
+    if not created and kwargs.get('update_fields'):
+        hierarchy_fields = {
+            'parent_languoid', 'family_languoid',
+            'pri_subgroup_languoid', 'sec_subgroup_languoid'
+        }
+        if not hierarchy_fields.intersection(kwargs['update_fields']):
+            return
+    
+    # Debounce: prevent duplicate tasks
+    from django.core.cache import cache
+    cache_key = f"cascade_dialects_{instance.pk}"
+    if cache.get(cache_key):
+        return
+    cache.set(cache_key, True, timeout=30)
+    
+    # Schedule DELAYED task (Priority 5)
+    from .tasks import cascade_hierarchy_to_dialects_task
+    cascade_hierarchy_to_dialects_task.apply_async(
+        args=[instance.id],
+        priority=5,  # Medium priority - background work
+        countdown=2  # Wait 2 seconds for Priority 9 task to finish
+    )

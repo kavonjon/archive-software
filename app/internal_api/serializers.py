@@ -464,14 +464,14 @@ class InternalLanguoidSerializer(serializers.ModelSerializer):
     level_display = serializers.CharField(source='get_level_nal_display', read_only=True)
     
     # Parent relationship names for hierarchical display
-    family_name = serializers.CharField(source='family_languoid.name', read_only=True)
-    family_glottocode = serializers.CharField(source='family_languoid.glottocode', read_only=True)
-    parent_name = serializers.CharField(source='parent_languoid.name', read_only=True)
-    parent_glottocode = serializers.CharField(source='parent_languoid.glottocode', read_only=True)
-    pri_subgroup_name = serializers.CharField(source='pri_subgroup_languoid.name', read_only=True)
-    pri_subgroup_glottocode = serializers.CharField(source='pri_subgroup_languoid.glottocode', read_only=True)
-    sec_subgroup_name = serializers.CharField(source='sec_subgroup_languoid.name', read_only=True)
-    sec_subgroup_glottocode = serializers.CharField(source='sec_subgroup_languoid.glottocode', read_only=True)
+    family_name = serializers.CharField(source='family_languoid.name', read_only=True, allow_null=True)
+    family_glottocode = serializers.CharField(source='family_languoid.glottocode', read_only=True, allow_null=True)
+    parent_name = serializers.CharField(source='parent_languoid.name', read_only=True, allow_null=True)
+    parent_glottocode = serializers.CharField(source='parent_languoid.glottocode', read_only=True, allow_null=True)
+    pri_subgroup_name = serializers.CharField(source='pri_subgroup_languoid.name', read_only=True, allow_null=True)
+    pri_subgroup_glottocode = serializers.CharField(source='pri_subgroup_languoid.glottocode', read_only=True, allow_null=True)
+    sec_subgroup_name = serializers.CharField(source='sec_subgroup_languoid.name', read_only=True, allow_null=True)
+    sec_subgroup_glottocode = serializers.CharField(source='sec_subgroup_languoid.glottocode', read_only=True, allow_null=True)
     
     # Child relationship counts for overview display
     child_count = serializers.SerializerMethodField()
@@ -481,16 +481,11 @@ class InternalLanguoidSerializer(serializers.ModelSerializer):
         model = Languoid
         fields = [
             # Basic identifiers
-            'id', 'name', 'iso', 'glottocode', 'level_nal', 'level_display',
-            
-            # Hierarchy - text fields
-            'family', 'family_id', 'family_abbrev',
-            'pri_subgroup', 'pri_subgroup_id', 'pri_subgroup_abbrev',
-            'sec_subgroup', 'sec_subgroup_id', 'sec_subgroup_abbrev',
+            'id', 'name', 'name_abbrev', 'iso', 'glottocode', 'level_nal', 'level_glottolog', 'level_display',
             
             # Hierarchy - relationship fields (IDs for editing)
             'family_languoid', 'pri_subgroup_languoid', 'sec_subgroup_languoid',
-            'parent_languoid',
+            'parent_languoid', 'descendents',
             
             # Hierarchy - relationship names (for display)
             'family_name', 'family_glottocode', 'parent_name', 'parent_glottocode', 
@@ -498,7 +493,7 @@ class InternalLanguoidSerializer(serializers.ModelSerializer):
             
             # Additional information
             'alt_names', 'region', 'latitude', 'longitude',
-            'dialects', 'dialects_ids', 'tribes', 'notes',
+            'tribes', 'notes',
             
             # Calculated fields
             'child_count', 'dialect_count',
@@ -509,8 +504,7 @@ class InternalLanguoidSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'added', 'updated', 'modified_by', 'child_count', 'dialect_count',
             'family_name', 'family_glottocode', 'parent_name', 'parent_glottocode', 
-            'pri_subgroup_name', 'pri_subgroup_glottocode', 'sec_subgroup_name', 'sec_subgroup_glottocode',
-            'language_name', 'language_glottocode'
+            'pri_subgroup_name', 'pri_subgroup_glottocode', 'sec_subgroup_name', 'sec_subgroup_glottocode'
         ]
     
     def get_child_count(self, obj):
@@ -529,30 +523,6 @@ class InternalLanguoidSerializer(serializers.ModelSerializer):
         if value and (len(value) != 8 or not value[-4:].isdigit()):
             raise serializers.ValidationError(
                 'Glottocode must be 8 characters with the last 4 being numeric.'
-            )
-        return value
-    
-    def validate_family_id(self, value):
-        """Validate family glottocode format"""
-        if value and (len(value) != 8 or not value[-4:].isdigit()):
-            raise serializers.ValidationError(
-                'Family glottocode must be 8 characters with the last 4 being numeric.'
-            )
-        return value
-    
-    def validate_pri_subgroup_id(self, value):
-        """Validate primary subgroup glottocode format"""
-        if value and (len(value) != 8 or not value[-4:].isdigit()):
-            raise serializers.ValidationError(
-                'Primary subgroup glottocode must be 8 characters with the last 4 being numeric.'
-            )
-        return value
-    
-    def validate_sec_subgroup_id(self, value):
-        """Validate secondary subgroup glottocode format"""
-        if value and (len(value) != 8 or not value[-4:].isdigit()):
-            raise serializers.ValidationError(
-                'Secondary subgroup glottocode must be 8 characters with the last 4 being numeric.'
             )
         return value
     

@@ -125,23 +125,6 @@
             <div type="button" class="col-auto p-1 m-1 btn btn-sm btn-primary d-none" id="longitude_suggest_accept">Accept suggestion</div>
         </div>
         <div class="row">
-            <div class="col-3"><b>{{ form.dialects.label }}</b></div>
-            <div class="col-auto">{{ form.dialects }}</div>
-        </div>
-        <div class="row">
-            <div class="col-3"><b>{{ form.dialects_ids.label }}</b></div>
-            <div class="col-auto">{{ form.dialects_ids }}</div>
-        </div>
-        <div class="row text-danger">
-            {% if form.dialects_ids.errors %}
-                <ul>
-                    {% for error in form.dialects_ids.errors %}
-                        <li>{{ error }}</li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-        </div>
-        <div class="row">
             <div class="col-3"><b>{{ form.tribes.label }}</b></div>
             <div class="col-auto">{{ form.tribes }}</div>
         </div>

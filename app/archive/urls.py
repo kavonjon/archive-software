@@ -77,12 +77,12 @@ urlpatterns = [
     path("documents/add/", document_add.as_view(), name="document_add"),
     path('documents/<int:pk>/delete/', document_delete.as_view(), name='document_delete'),
     path("documents/<int:parent_pk>/geographic/add/", geographic_add.as_view(), name="geographic_add"),
-    # Languoids index now uses React (/languages/) - commented out Django template route
+    # Languoids index now uses React (/languoids/) - commented out Django template route
     # path("languoids/", languoid_index, name="languoid_index"),
-    path("languoids/<int:pk>/", languoid_detail, name="languoid_detail"),
-    path("languoids/<int:pk>/edit/", languoid_edit, name="languoid_edit"),
+    path("languoids/<str:pk>/", languoid_detail, name="languoid_detail"),
+    path("languoids/<str:pk>/edit/", languoid_edit, name="languoid_edit"),
     path("languoids/add/", languoid_add.as_view(), name="languoids_add"),
-    path('languoids/<int:pk>/delete/', languoid_delete.as_view(), name='languoid_delete'),
+    path('languoids/<str:pk>/delete/', languoid_delete.as_view(), name='languoid_delete'),
     path('languoids/stats/', languoid_stats, name='languoid_stats'),
     path("dialect-instances/<int:pk>/edit/", dialect_instance_edit, name="dialect_instance_edit"),
     path("dialects/<int:pk>/edit/", dialect_edit, name="dialect_edit"),
@@ -110,7 +110,7 @@ urlpatterns = [
     path('collaborators/export-task-status/<str:task_id>/', collaborator_export_task_status, name='collaborator_export_task_status'),
     path('collaborators/download-export/<str:filename>/', download_collaborator_export, name='collaborator_download_export'),
     path('collaborators/cleanup-export/<str:filename>/', cleanup_collaborator_export, name='collaborator_cleanup_export'),
-    path('languages/import/', ImportView, name='import_language'),
+    path('languoids/import/', ImportView, name='import_language'),
     
     # Health checks
     path('celery-health/', celery_health_check, name='celery_health_check'),
@@ -145,8 +145,8 @@ urlpatterns = [
     path('collections/<path:path>/', ReactAppView.as_view(), name='react_collections_detail'),
     path('collaborators/', ReactAppView.as_view(), name='react_collaborators'),
     path('collaborators/<path:path>/', ReactAppView.as_view(), name='react_collaborators_detail'),
-    path('languages/', ReactAppView.as_view(), name='react_languages'),
-    path('languages/<path:path>/', ReactAppView.as_view(), name='react_languages_detail'),
+    path('languoids/', ReactAppView.as_view(), name='react_languoids'),
+    path('languoids/<path:path>/', ReactAppView.as_view(), name='react_languoids_detail'),
 ]
 
 #urlpatterns = path(r'dj/', include(urlpatterns)),  # prepend 'django/' to all URLs

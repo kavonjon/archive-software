@@ -33,17 +33,10 @@ interface FormData {
   level_nal: string;
   alt_name: string;
   alt_names: string;
-  family: string;
-  family_id: string;
-  family_abbrev: string;
-  pri_subgroup: string;
-  pri_subgroup_id: string;
-  pri_subgroup_abbrev: string;
-  sec_subgroup: string;
-  sec_subgroup_id: string;
-  sec_subgroup_abbrev: string;
-  language: string;
-  language_id: string;
+  family_languoid: string;
+  pri_subgroup_languoid: string;
+  sec_subgroup_languoid: string;
+  parent_languoid: string;
   region: string;
   latitude: string;
   longitude: string;
@@ -60,17 +53,10 @@ const initialFormData: FormData = {
   level_nal: '',
   alt_name: '',
   alt_names: '',
-  family: '',
-  family_id: '',
-  family_abbrev: '',
-  pri_subgroup: '',
-  pri_subgroup_id: '',
-  pri_subgroup_abbrev: '',
-  sec_subgroup: '',
-  sec_subgroup_id: '',
-  sec_subgroup_abbrev: '',
-  language: '',
-  language_id: '',
+  family_languoid: '',
+  pri_subgroup_languoid: '',
+  sec_subgroup_languoid: '',
+  parent_languoid: '',
   region: '',
   latitude: '',
   longitude: '',
@@ -218,15 +204,6 @@ const LanguoidCreate: React.FC = () => {
       newErrors.longitude = 'Longitude must be a valid number';
     }
 
-    // Validate glottocode format for related fields
-    const glottocodeFields = ['family_id', 'pri_subgroup_id', 'sec_subgroup_id', 'language_id'];
-    glottocodeFields.forEach(field => {
-      const value = formData[field as keyof FormData];
-      if (value && (value.length !== 8 || !value.slice(-4).match(/^\d{4}$/))) {
-        newErrors[field] = 'Must be 8 characters with the last 4 being numeric';
-      }
-    });
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -261,7 +238,9 @@ const LanguoidCreate: React.FC = () => {
       });
 
       const newLanguoid = await languoidsAPI.create(submitData);
-      navigate(`/languages/${newLanguoid.id}`);
+      // Navigate using glottocode if available, otherwise use ID
+      const identifier = newLanguoid.glottocode || newLanguoid.id;
+      navigate(`/languoids/${identifier}`);
     } catch (error) {
       console.error('Error creating languoid:', error);
       setSubmitError('Failed to create languoid. Please check your input and try again.');
@@ -271,7 +250,7 @@ const LanguoidCreate: React.FC = () => {
   };
 
   const handleBack = () => {
-    navigate('/languages');
+    navigate('/languoids');
   };
 
   return (
@@ -400,58 +379,51 @@ const LanguoidCreate: React.FC = () => {
                 <Divider sx={{ mb: 2 }} />
                 
                 <Stack spacing={3}>
+                  <Alert severity="info">
+                    Hierarchy fields (Family, Primary Subgroup, Secondary Subgroup, Parent) should be set using 
+                    relationship selectors. This form needs to be updated to use autocomplete fields for FK relationships.
+                    For now, these fields are disabled.
+                  </Alert>
+                  
+                  {/* TODO: Replace with EditableRelationshipField pattern or autocomplete selects */}
                   <TextField
                     fullWidth
-                    label="Family"
-                    value={formData.family}
-                    onChange={handleInputChange('family')}
-                    error={!!errors.family}
-                    helperText={errors.family}
+                    label="Family Languoid (ID)"
+                    value={formData.family_languoid}
+                    onChange={handleInputChange('family_languoid')}
+                    error={!!errors.family_languoid}
+                    helperText={errors.family_languoid || 'Enter languoid ID'}
+                    disabled
                   />
 
                   <TextField
                     fullWidth
-                    label="Family Glottocode"
-                    value={formData.family_id}
-                    onChange={handleInputChange('family_id')}
-                    error={!!errors.family_id}
-                    helperText={errors.family_id || 'Format: 8 characters, last 4 numeric'}
+                    label="Primary Subgroup Languoid (ID)"
+                    value={formData.pri_subgroup_languoid}
+                    onChange={handleInputChange('pri_subgroup_languoid')}
+                    error={!!errors.pri_subgroup_languoid}
+                    helperText={errors.pri_subgroup_languoid || 'Enter languoid ID'}
+                    disabled
                   />
 
                   <TextField
                     fullWidth
-                    label="Primary Subgroup"
-                    value={formData.pri_subgroup}
-                    onChange={handleInputChange('pri_subgroup')}
-                    error={!!errors.pri_subgroup}
-                    helperText={errors.pri_subgroup}
+                    label="Secondary Subgroup Languoid (ID)"
+                    value={formData.sec_subgroup_languoid}
+                    onChange={handleInputChange('sec_subgroup_languoid')}
+                    error={!!errors.sec_subgroup_languoid}
+                    helperText={errors.sec_subgroup_languoid || 'Enter languoid ID'}
+                    disabled
                   />
-
+                  
                   <TextField
                     fullWidth
-                    label="Primary Subgroup Glottocode"
-                    value={formData.pri_subgroup_id}
-                    onChange={handleInputChange('pri_subgroup_id')}
-                    error={!!errors.pri_subgroup_id}
-                    helperText={errors.pri_subgroup_id || 'Format: 8 characters, last 4 numeric'}
-                  />
-
-                  <TextField
-                    fullWidth
-                    label="Secondary Subgroup"
-                    value={formData.sec_subgroup}
-                    onChange={handleInputChange('sec_subgroup')}
-                    error={!!errors.sec_subgroup}
-                    helperText={errors.sec_subgroup}
-                  />
-
-                  <TextField
-                    fullWidth
-                    label="Secondary Subgroup Glottocode"
-                    value={formData.sec_subgroup_id}
-                    onChange={handleInputChange('sec_subgroup_id')}
-                    error={!!errors.sec_subgroup_id}
-                    helperText={errors.sec_subgroup_id || 'Format: 8 characters, last 4 numeric'}
+                    label="Parent Languoid (ID)"
+                    value={formData.parent_languoid}
+                    onChange={handleInputChange('parent_languoid')}
+                    error={!!errors.parent_languoid}
+                    helperText={errors.parent_languoid || 'Enter languoid ID'}
+                    disabled
                   />
                 </Stack>
               </CardContent>

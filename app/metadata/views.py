@@ -2312,15 +2312,15 @@ def languoid_index(request):
             xl_row.append(languoid.glottocode)
             xl_row.append(languoid.name)
             xl_row.append(', '.join(languoid.alt_names) if languoid.alt_names else '')
-            xl_row.append(languoid.family)
-            xl_row.append(languoid.family_abbrev)
-            xl_row.append(languoid.family_id)
-            xl_row.append(languoid.pri_subgroup)
-            xl_row.append(languoid.pri_subgroup_abbrev)
-            xl_row.append(languoid.pri_subgroup_id)
-            xl_row.append(languoid.sec_subgroup)
-            xl_row.append(languoid.sec_subgroup_abbrev)
-            xl_row.append(languoid.sec_subgroup_id)
+            xl_row.append(languoid.family_languoid.name if languoid.family_languoid else '')
+            xl_row.append(languoid.family_languoid.name_abbrev if languoid.family_languoid else '')
+            xl_row.append(languoid.family_languoid.glottocode if languoid.family_languoid else '')
+            xl_row.append(languoid.pri_subgroup_languoid.name if languoid.pri_subgroup_languoid else '')
+            xl_row.append(languoid.pri_subgroup_languoid.name_abbrev if languoid.pri_subgroup_languoid else '')
+            xl_row.append(languoid.pri_subgroup_languoid.glottocode if languoid.pri_subgroup_languoid else '')
+            xl_row.append(languoid.sec_subgroup_languoid.name if languoid.sec_subgroup_languoid else '')
+            xl_row.append(languoid.sec_subgroup_languoid.name_abbrev if languoid.sec_subgroup_languoid else '')
+            xl_row.append(languoid.sec_subgroup_languoid.glottocode if languoid.sec_subgroup_languoid else '')
 
             dialects_in_languoid = Dialect.objects.filter(language=languoid).values_list('name', flat=True).order_by('name')
 
@@ -2360,7 +2360,19 @@ def languoid_index(request):
 
 @login_required
 def languoid_detail(request, pk):
-    qs = Languoid.objects.get(pk=pk)
+    # Support lookup by glottocode or ID
+    try:
+        # Try glottocode first if it's not numeric
+        if not pk.isdigit():
+            qs = Languoid.objects.get(glottocode=pk)
+        else:
+            qs = Languoid.objects.get(pk=pk)
+    except Languoid.DoesNotExist:
+        # If glottocode fails, try ID as fallback
+        try:
+            qs = Languoid.objects.get(pk=pk)
+        except (Languoid.DoesNotExist, ValueError):
+            raise Http404("Languoid not found")
 
     dialect_info = Dialect.objects.filter(language=qs).order_by('name')
 
@@ -2379,7 +2391,14 @@ def languoid_detail(request, pk):
 @login_required
 @user_passes_test(is_member_of_archivist, login_url='/no-permission', redirect_field_name=None)
 def languoid_edit(request, pk):
-    qs = get_object_or_404(Languoid, id=pk)
+    # Support lookup by glottocode or ID
+    try:
+        if not pk.isdigit():
+            qs = get_object_or_404(Languoid, glottocode=pk)
+        else:
+            qs = get_object_or_404(Languoid, id=pk)
+    except:
+        qs = get_object_or_404(Languoid, id=pk)
     glcodes = []
     languoids = []
     if request.method == "POST":
@@ -3236,8 +3255,6 @@ def import_field(request, model_field, human_fields, headers, row, object_instan
                         messages.warning(request, object_instance_name + " was not added/updated (all changes were reverted): " + stripped_human_field + " has an invalid value")
                         return False
                 setattr(object_instance, model_field, model_field_value)
-                if model_field == 'family':
-                    print('family after: ' + str(object_instance.family))
                 try:
                     object_instance.clean()
                 except:
@@ -3260,8 +3277,6 @@ def import_field(request, model_field, human_fields, headers, row, object_instan
                     automate_glottocode('pri_subgroup_id', 'pri_subgroup', object_instance)
                 elif human_fields[0] == '^Secondary subgroup glottocode$':
                     automate_glottocode('sec_subgroup_id', 'sec_subgroup', object_instance)
-                elif human_fields[0] == '^Dialect glottocodes$':
-                    automate_glottocode('dialects_ids', 'dialects', object_instance)
     return True
 
 
@@ -3927,8 +3942,8 @@ def ImportView(request):
     elif re.search('collaborators', url_path, flags=re.I):
         template = 'import_collaborator.html'
     else:
-        ## redirect to the language page (disable import) while I am converting to glottocodes
-        return redirect('/languages/')
+        ## redirect to the languoid page (disable import) while I am converting to glottocodes
+        return redirect('/languoids/')
         template = 'import_language.html'
 
     prompt_message = 'Order of CSV should be...'
@@ -4611,8 +4626,6 @@ def ImportView(request):
                 names = [name.strip() for name in alt_names_value.split(',') if name.strip()]
                 return_object.alt_names = names
             
-            import_field(request, 'dialects', ('^Dialects$',), headers, row, return_object, model = "Languoid")
-            dialect_ids_success = import_field(request, 'dialects_ids', ('^Dialect glottocodes$',), headers, row, return_object, model = "Languoid", validate_glottocode="multiple")
             import_field(request, 'region', ('^Region$',), headers, row, return_object, model = "Languoid")
             latitude_success = import_field(request, 'latitude', ('^Latitude$',), headers, row, return_object, model = "Languoid", validate_coord=True)
             longitude_success = import_field(request, 'longitude', ('^Longitude$',), headers, row, return_object, model = "Languoid", validate_coord=True)
@@ -4623,7 +4636,6 @@ def ImportView(request):
                                 family_glottocode_success and
                                 pri_subgroup_glottocode_success and
                                 sec_subgroup_glottocode_success and
-                                dialect_ids_success and
                                 latitude_success and
                                 longitude_success )
 

@@ -11,6 +11,7 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { focusUtils, formUtils } from '../utils/accessibility';
 
@@ -18,10 +19,15 @@ const LoginForm: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const { state, login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const formRef = useRef<HTMLFormElement>(null);
   const usernameRef = useRef<HTMLInputElement>(null);
+
+  // Get the redirect path from location state, or default to items
+  const from = (location.state as any)?.from?.pathname || '/items';
 
   // Focus management
   useEffect(() => {
@@ -49,6 +55,8 @@ const LoginForm: React.FC = () => {
     const success = await login(username, password);
     if (success) {
       focusUtils.announce('Login successful. Redirecting...', 'polite');
+      // Redirect to the page they were trying to access, or to items
+      navigate(from, { replace: true });
     }
   };
 

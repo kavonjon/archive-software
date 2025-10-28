@@ -4,7 +4,7 @@ import logging
 from django.conf import settings
 from celery import shared_task
 from datetime import datetime, timedelta
-from metadata.models import Collection, Item
+from metadata.models import Collection, Item, Languoid
 from django.db.models import Min, Max
 from .utils import parse_standardized_date
 from .models import File
@@ -619,4 +619,181 @@ def generate_collaborator_export(self, user_id, filter_params):
         return {
             'success': False,
             'error': str(e)
-        } 
+        }
+
+
+# ============================================================================
+# LANGUOID HIERARCHY TASKS
+# ============================================================================
+
+def get_all_ancestors(languoid, visited=None):
+    """
+    Get all ancestors (parent, grandparent, etc.) with circular ref protection.
+    """
+    if visited is None:
+        visited = set()
+    
+    ancestors = []
+    current = languoid.parent_languoid
+    
+    while current and current.id not in visited:
+        visited.add(current.id)
+        ancestors.append(current)
+        current = current.parent_languoid
+    
+    return ancestors
+
+
+def get_all_descendents(languoid, visited=None):
+    """
+    Recursively get all descendents at all levels, with circular reference protection.
+    """
+    if visited is None:
+        visited = set()
+    
+    if languoid.id in visited:
+        return []
+    
+    visited.add(languoid.id)
+    descendents = []
+    
+    # Get direct children
+    children = Languoid.objects.filter(parent_languoid=languoid)
+    
+    for child in children:
+        if child.id not in visited:
+            descendents.append(child)
+            descendents.extend(get_all_descendents(child, visited))
+    
+    return descendents
+
+
+@shared_task(bind=True, max_retries=3)
+def update_languoid_hierarchy_task(self, languoid_id, needs_orphaning=False):
+    """
+    UNIFIED TASK: Update hierarchy relationships for a languoid.
+    
+    This handles:
+    1. Orphaning dialect children (if level changed from language)
+    2. Updating descendents M2M for this languoid and ancestors
+    
+    Priority 9 (highest) - user is waiting for tree to update.
+    
+    Args:
+        languoid_id: The languoid that was saved
+        needs_orphaning: True if level changed from language to other
+    """
+    try:
+        languoid = Languoid.objects.select_related(
+            'parent_languoid',
+            'parent_languoid__parent_languoid',
+            'parent_languoid__parent_languoid__parent_languoid'
+        ).get(id=languoid_id)
+        
+        results = {
+            'languoid_name': languoid.name,
+            'orphaned_dialects': 0,
+            'updated_descendents': 0
+        }
+        
+        # STEP 1: Orphan dialect children if needed
+        if needs_orphaning:
+            logger.warning(
+                f"Orphaning dialects for '{languoid.name}' "
+                f"(level changed from language)"
+            )
+            
+            dialect_children = Languoid.objects.filter(
+                parent_languoid=languoid,
+                level_glottolog='dialect'
+            )
+            
+            orphaned_names = []
+            for dialect in dialect_children:
+                dialect.parent_languoid = None
+                # Save with specific update_fields to trigger hierarchy recalc
+                dialect.save(update_fields=[
+                    'parent_languoid',
+                    'family_languoid',
+                    'pri_subgroup_languoid',
+                    'sec_subgroup_languoid'
+                ])
+                orphaned_names.append(dialect.name)
+                results['orphaned_dialects'] += 1
+            
+            if orphaned_names:
+                logger.info(f"Orphaned {len(orphaned_names)} dialects: {', '.join(orphaned_names[:5])}")
+                if len(orphaned_names) > 5:
+                    logger.info(f"  ... and {len(orphaned_names) - 5} more")
+        
+        # STEP 2: Update descendents M2M for this languoid and all ancestors
+        ancestors = get_all_ancestors(languoid)
+        ancestors.append(languoid)
+        
+        for ancestor in ancestors:
+            descendents = get_all_descendents(ancestor)
+            ancestor.descendents.set(descendents)
+            results['updated_descendents'] += 1
+        
+        logger.info(
+            f"Updated hierarchy for '{languoid.name}': "
+            f"{results['orphaned_dialects']} dialects orphaned, "
+            f"{results['updated_descendents']} languoids updated"
+        )
+        
+        return results
+        
+    except Languoid.DoesNotExist:
+        logger.error(f"Languoid {languoid_id} not found")
+        return None
+    except Exception as e:
+        logger.error(f"Error updating hierarchy: {e}")
+        import traceback
+        traceback.print_exc()
+        raise self.retry(exc=e, countdown=2 ** self.request.retries)
+
+
+@shared_task(bind=True, max_retries=3)
+def cascade_hierarchy_to_dialects_task(self, languoid_id):
+    """
+    PRIORITY 2: Cascade hierarchy changes to all dialect descendants.
+    This runs AFTER the unified hierarchy task completes.
+    
+    When a family or language changes hierarchy fields, all descendant dialects
+    need to update their hierarchy FKs by re-saving.
+    """
+    try:
+        languoid = Languoid.objects.prefetch_related('descendents').get(id=languoid_id)
+        
+        # Find all dialect descendants
+        dialect_descendants = []
+        for descendent in languoid.descendents.all():
+            if descendent.level_glottolog == 'dialect':
+                dialect_descendants.append(descendent)
+        
+        if not dialect_descendants:
+            logger.info(f"No dialect descendants to cascade for '{languoid.name}'")
+            return 0
+        
+        logger.info(f"Cascading hierarchy to {len(dialect_descendants)} dialects from '{languoid.name}'")
+        
+        # Update each dialect's hierarchy FKs
+        # Save triggers pre_save signal → derive_hierarchy_fks()
+        updated_count = 0
+        for dialect in dialect_descendants:
+            dialect.save(update_fields=[
+                'family_languoid',
+                'pri_subgroup_languoid', 
+                'sec_subgroup_languoid'
+            ])
+            updated_count += 1
+        
+        logger.info(f"Cascaded hierarchy updates to {updated_count} dialects")
+        return updated_count
+        
+    except Languoid.DoesNotExist:
+        logger.error(f"Languoid {languoid_id} not found")
+        return None
+    except Exception as e:
+        logger.error(f"Error cascading to dialects: {e}")
+        raise self.retry(exc=e, countdown=2 ** self.request.retries)

@@ -10,9 +10,17 @@ export type { EditableSelectFieldProps, SelectOption } from './EditableSelectFie
 
 export { EditableMultiSelectField } from './EditableMultiSelectField';
 export type { EditableMultiSelectFieldProps } from './EditableMultiSelectField';
+export { EditableMultiRelationshipField } from './EditableMultiRelationshipField';
+export type { EditableMultiRelationshipFieldProps } from './EditableMultiRelationshipField';
 
 export { EditableBooleanField } from './EditableBooleanField';
 export type { EditableBooleanFieldProps } from './EditableBooleanField';
+
+export { EditableJsonArrayField } from './EditableJsonArrayField';
+export type { EditableJsonArrayFieldProps } from './EditableJsonArrayField';
+
+export { EditableRelationshipField } from './EditableRelationshipField';
+export type { EditableRelationshipFieldProps, RelationshipOption } from './EditableRelationshipField';
 
 // Re-export existing common components
 export { DateFormatHelp } from './DateFormatHelp';

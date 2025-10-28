@@ -23,33 +23,17 @@ class LanguoidForm(ModelForm):
                   'glottocode',
                   'iso',
                   'level_nal',
-                  'family',
-                  'family_id',
-                  'family_abbrev',
-                  'pri_subgroup',
-                  'pri_subgroup_id',
-                  'pri_subgroup_abbrev',
-                  'sec_subgroup',
-                  'sec_subgroup_id',
-                  'sec_subgroup_abbrev',
+                  'family_languoid',
+                  'pri_subgroup_languoid',
+                  'sec_subgroup_languoid',
+                  'parent_languoid',
                   'region',
                   'latitude',
                   'longitude',
-                  'dialects',
-                  'dialects_ids',
                   'tribes',
                   'notes']
     def clean_glottocode(self):
         return self.validate_glottocode_field('glottocode')
-
-    def clean_family_id(self):
-        return self.validate_glottocode_field('family_id', "Family glottocode")
-
-    def clean_pri_subgroup_id(self):
-        return self.validate_glottocode_field('pri_subgroup_id', "Primary subgroup glottocode")
-
-    def clean_sec_subgroup_id(self):
-        return self.validate_glottocode_field('sec_subgroup_id', "Secondary subgroup glottocode")
     
     def validate_glottocode_field(self, field_name, display_name=None):
         field_value = self.cleaned_data.get(field_name)
@@ -64,23 +48,6 @@ class LanguoidForm(ModelForm):
             raise ValidationError(f'{display_name.capitalize()} must be a string of 8 characters and the last 4 characters must be numeric.')
 
         return field_value
-    
-    def clean_dialects_ids(self):
-        dialects_ids = self.cleaned_data.get('dialects_ids')
-
-        # If the field value is blank, return it without validation
-        if not dialects_ids:
-            return dialects_ids
-
-        # Split the field value by comma and strip spaces
-        glottocodes = [code.strip() for code in dialects_ids.split(',')]
-
-        # Validate each glottocode
-        for glottocode in glottocodes:
-            if len(glottocode) != 8 or not re.match(r'^.*\d{4}$', glottocode):
-                raise ValidationError('Dialect glottocodes must be a comma separated list of strings of text with 8 characters and the last 4 characters must be numeric.')
-
-        return dialects_ids
     
     def save(self, commit=True, *args, **kwargs):
         modified_by = kwargs.pop('modified_by', None)

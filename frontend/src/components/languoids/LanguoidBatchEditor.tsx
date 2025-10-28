@@ -114,15 +114,9 @@ const LANGUOID_COLUMNS: ColumnConfig[] = [
     width: 300,
   },
   {
-    fieldName: 'alt_name',
-    header: 'Alternate Name',
-    cellType: 'text',
-    width: 200,
-  },
-  {
     fieldName: 'alt_names',
     header: 'Alternate Names',
-    cellType: 'stringarray',
+    cellType: 'text',
     width: 250,
   },
   {
@@ -198,7 +192,6 @@ const languoidToRow = (languoid: Languoid): SpreadsheetRow => {
       'pri_subgroup_languoid': { nameField: 'pri_subgroup_name', glottocodeField: 'pri_subgroup_glottocode' },
       'sec_subgroup_languoid': { nameField: 'sec_subgroup_name', glottocodeField: 'sec_subgroup_glottocode' },
       'parent_languoid': { nameField: 'parent_name', glottocodeField: 'parent_glottocode' },
-      'language_languoid': { nameField: 'language_name', glottocodeField: 'language_glottocode' },
     };
     
     if (relationshipFields[fieldName]) {
@@ -208,43 +201,14 @@ const languoidToRow = (languoid: Languoid): SpreadsheetRow => {
       value = formatted.actualValue;
     }
     
-    // For M2M fields (dialects_languoids), handle array of IDs and display as comma-separated names
-    if (fieldName === 'dialects_languoids') {
-      if (Array.isArray(value) && value.length > 0) {
-        // Value is array of IDs or objects
-        const ids: number[] = [];
-        const names: string[] = [];
-        
-        value.forEach((item: any) => {
-          if (typeof item === 'object' && item !== null) {
-            // Full object returned
-            ids.push(item.id);
-            const name = item.name || 'Unknown';
-            const glottocode = item.glottocode;
-            names.push(glottocode ? `${name} (${glottocode})` : name);
-          } else if (typeof item === 'number') {
-            // Just ID
-            ids.push(item);
-          }
-        });
-        
-        value = ids;
-        displayValue = names.length > 0 ? names.join(', ') : `${ids.length} selected`;
-      } else {
-        value = null;
-        displayValue = '';
-      }
-    }
-    
-    // For StringArray fields (alt_names), ensure value is array and format display
+    // For JSON array fields (alt_names), display as comma-separated and store as string
     if (fieldName === 'alt_names') {
       if (Array.isArray(value) && value.length > 0) {
-        // Keep value as string array
-        // Display as comma-separated for short arrays, or count for long arrays
-        displayValue = value.length <= 2 ? value.join(', ') : `${value.length} items`;
+        displayValue = value.join(', ');
+        // Keep the array as-is for storage
       } else {
-        value = [];
         displayValue = '';
+        value = [];
       }
     }
     

@@ -99,7 +99,7 @@
           "Collaborator management (/collaborators/ - people CRUD)",
           "Language management (/languoids/ - language CRUD)",
           "Document management (/documents/ - legacy file management)",
-          "Import interfaces (/catalog/import/, /collaborators/import/, /languages/import/)",
+          "Import interfaces (/catalog/import/, /collaborators/import/, /languoids/import/)",
           "Export functionality (Excel exports, metadata exports)"
         ],
         "navigation": "Bootstrap-based navigation menu with dropdowns",

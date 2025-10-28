@@ -58,7 +58,7 @@
         "url_configuration": {
           "static_file_paths": "PUBLIC_URL=/static/frontend ensures React references correct paths for CSS/JS",
           "api_urls": "Environment-aware: localhost:8000 in development, relative URLs (/) in production",
-          "route_handling": "Django urls.py serves ReactAppView for /items/, /collections/, /collaborators/, /languages/ routes",
+          "route_handling": "Django urls.py serves ReactAppView for /items/, /collections/, /collaborators/, /languoids/ routes",
           "legacy_access": "Old Django templates accessible at /django/* prefix for developer comparison"
         },
         "docker_setup": {
@@ -91,7 +91,7 @@
           "items": "/items/* → ReactAppView",
           "collections": "/collections/* → ReactAppView",
           "collaborators": "/collaborators/* → ReactAppView",
-          "languages": "/languages/* → ReactAppView (changed from /languoids/)"
+          "languoids": "/languoids/* → ReactAppView"
         },
         "django_template_routes": {
           "root": "/django/ → Django home template",
@@ -129,16 +129,17 @@
       
       "terminology_updates": {
         "decision_id": "stage0_prod_004",
-        "content": "Changed user-facing terminology from 'Languoids' to 'Languages' in specific frontend locations",
+        "content": "Frontend terminology uses 'Languages' in user-facing text while URLs use /languoids to match the model name",
         "added_date": "2025-01-20",
+        "updated_date": "2025-10-28",
         "changes": {
-          "page_title": "LanguoidsList.tsx title changed to 'Languages'",
-          "navigation": "Navigation.tsx link label changed to 'Languages'",
-          "url_routes": "React routes changed from /languoids to /languages",
-          "django_urls": "Django URL patterns updated from languoids/ to languages/",
+          "page_title": "LanguoidsList.tsx title displays 'Languages' for user-friendliness",
+          "navigation": "Navigation.tsx link label displays 'Languages'",
+          "url_routes": "React routes use /languoids to match the model name for consistency with backend",
+          "django_urls": "Django URL patterns use languoids/ to match model naming convention",
           "preserved": "Filter preset 'All Languoids' kept as-is (internal taxonomy reference)"
         },
-        "rationale": "More user-friendly terminology while preserving technical accuracy in appropriate contexts",
+        "rationale": "URLs should match model names for developer clarity and API consistency, while UI labels can be more user-friendly",
         "confidence_level": "high",
         "status": "implemented"
       }

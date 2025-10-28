@@ -233,8 +233,7 @@ class LanguoidFilter(FilterSet):
             'iso': ['icontains', 'exact'],
             'glottocode': ['icontains', 'exact'],
             'level_nal': ['exact'],
-            'family': ['icontains'],
-            'family_id': ['exact'],
+            'level_glottolog': ['exact'],
             'region': ['icontains'],
             'tribes': ['icontains'],
         }
@@ -242,7 +241,12 @@ class LanguoidFilter(FilterSet):
 
 
 class InternalLanguoidViewSet(viewsets.ModelViewSet):
-    """Internal API for Languoids with hierarchical filtering and sorting"""
+    """Internal API for Languoids with hierarchical filtering and sorting
+    
+    Supports lookup by both ID and glottocode:
+    - GET /internal/v1/languoids/123/ (numeric ID)
+    - GET /internal/v1/languoids/cher1273/ (glottocode)
+    """
     queryset = Languoid.objects.select_related(
         'family_languoid', 'parent_languoid', 'pri_subgroup_languoid', 
         'sec_subgroup_languoid'
@@ -251,9 +255,41 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedWithEditAccess]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     filterset_class = LanguoidFilter
-    search_fields = ['name', 'iso', 'glottocode', 'family', 'region', 'tribes']
-    ordering_fields = ['name', 'iso', 'family', 'level_nal', 'added', 'updated']
-    ordering = ['family', 'name']  # Default hierarchical ordering
+    search_fields = ['name', 'iso', 'glottocode', 'region', 'tribes']
+    ordering_fields = ['name', 'iso', 'level_nal', 'added', 'updated']
+    ordering = ['name']  # Default ordering by name
+    lookup_field = 'pk'  # Can be either ID or glottocode
+    
+    def get_object(self):
+        """
+        Override to support lookup by both glottocode and ID
+        Tries glottocode first (if it matches format), then falls back to ID
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        identifier = self.kwargs[lookup_url_kwarg]
+        
+        # Try glottocode first if it looks like a glottocode (8 chars, last 4 numeric)
+        # or if it's clearly not a numeric ID
+        if not identifier.isdigit():
+            try:
+                obj = queryset.get(glottocode=identifier)
+                self.check_object_permissions(self.request, obj)
+                return obj
+            except Languoid.DoesNotExist:
+                pass
+        
+        # Fall back to ID lookup
+        try:
+            obj = queryset.get(pk=identifier)
+            self.check_object_permissions(self.request, obj)
+            return obj
+        except (Languoid.DoesNotExist, ValueError):
+            pass
+        
+        # If neither worked, raise 404
+        from rest_framework.exceptions import NotFound
+        raise NotFound(f'Languoid with identifier "{identifier}" not found.')
 
     def get_queryset(self):
         """Enhanced queryset with hierarchical ordering support"""
@@ -281,7 +317,7 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
         from django.db.models import Case, When, Value, CharField
         
         # Create ordering that puts families first, then languages, then dialects
-        # and orders by family hierarchy
+        # and orders by family hierarchy using FK relationships
         return queryset.annotate(
             hierarchy_order=Case(
                 When(level_nal='family', then=Value('1')),
@@ -292,9 +328,9 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
             )
         ).order_by(
             'hierarchy_order',
-            'family',  # Group by family name
-            'pri_subgroup',  # Then by primary subgroup
-            'sec_subgroup',  # Then by secondary subgroup
+            'family_languoid__name',  # Group by family name via FK
+            'pri_subgroup_languoid__name',  # Then by primary subgroup via FK
+            'sec_subgroup_languoid__name',  # Then by secondary subgroup via FK
             'name'  # Finally by name
         )
 
@@ -508,6 +544,87 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
                 'errors': errors if errors else [str(e)]
             }, status=status.HTTP_400_BAD_REQUEST)
 
+
+    
+    @action(detail=True, methods=['get'], url_path='descendants-tree')
+    def descendants_tree(self, request, pk=None):
+        """
+        Get hierarchical tree of all descendants for a languoid
+        
+        GET /internal/v1/languoids/{id}/descendants-tree/
+        
+        Returns: [
+            {
+                "id": 1,
+                "name": "Malayo-Polynesian",
+                "glottocode": "mala1545",
+                "level_nal": "subfamily",
+                "level_display": "Primary Subfamily",
+                "children": [...]
+            }
+        ]
+        """
+        languoid = self.get_object()
+        
+        def build_tree(parent_id):
+            """Recursively build tree structure from parent-child relationships"""
+            children = Languoid.objects.filter(
+                parent_languoid_id=parent_id
+            ).select_related(
+                'parent_languoid'
+            ).order_by('name')
+            
+            tree = []
+            for child in children:
+                node = {
+                    'id': child.id,
+                    'name': child.name,
+                    'glottocode': child.glottocode,
+                    'level_nal': child.level_nal,
+                    'level_display': child.get_level_nal_display(),
+                    'children': build_tree(child.id)  # Recursive call
+                }
+                tree.append(node)
+            
+            return tree
+        
+        descendants = build_tree(languoid.id)
+        
+        return Response(descendants)
+    
+    @action(detail=False, methods=['get'], url_path='last-modified')
+    def last_modified(self, request):
+        """
+        Get the timestamp of the most recently modified languoid.
+        Used for cache invalidation on the frontend.
+        
+        GET /internal/v1/languoids/last-modified/
+        
+        Returns: {
+            "last_modified": "2025-10-28T12:34:56.789Z",
+            "count": 1234
+        }
+        """
+        from django.db.models import Max, Count
+        
+        # Get the most recent update timestamp
+        result = Languoid.objects.aggregate(
+            last_modified=Max('updated'),
+            count=Count('id')
+        )
+        
+        last_modified = result.get('last_modified')
+        count = result.get('count', 0)
+        
+        # If no languoids exist, return current time
+        if last_modified is None:
+            from django.utils import timezone
+            last_modified = timezone.now()
+        
+        return Response({
+            'last_modified': last_modified.isoformat(),
+            'count': count
+        })
 
 class InternalItemTitleViewSet(viewsets.ModelViewSet):
     """Nested API for ItemTitles under Items - used by React frontend"""

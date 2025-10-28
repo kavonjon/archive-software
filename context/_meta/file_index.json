@@ -115,6 +115,31 @@
         "when_to_reference": "When creating new docs, organizing documentation, planning doc structure",
         "update_frequency": "When documentation structure changes, when new docs added",
         "cross_references": ["active_context.json", "deployment_architecture.json"]
+      },
+      "stage_0_react_migration.json": {
+        "purpose": "React frontend architecture migration details and patterns",
+        "when_to_reference": "When working on React components, routing, or frontend architecture",
+        "update_frequency": "When new React patterns established, when frontend architecture evolves",
+        "cross_references": ["coding_patterns.json", "active_context.json"]
+      },
+      "languoid-list-optimization.json": {
+        "purpose": "Languoid-specific list page optimizations (frontend filtering, smart pagination, hierarchical display)",
+        "when_to_reference": "When working on languoid list features, understanding hierarchical display patterns",
+        "update_frequency": "When languoid list features change",
+        "cross_references": ["coding_patterns.json", "glottocode-url-implementation.json"],
+        "warning": "Patterns are LANGUOID-SPECIFIC and should NOT be applied to other models without approval"
+      },
+      "glottocode-url-implementation.json": {
+        "purpose": "Using glottocodes instead of IDs in URLs for languoids",
+        "when_to_reference": "When working on languoid URLs, understanding hybrid identifier lookup patterns",
+        "update_frequency": "When URL patterns change or extended to other models",
+        "cross_references": ["languoid-list-optimization.json", "stage_0_react_migration.json"]
+      },
+      "login-ux-improvements.json": {
+        "purpose": "Login flow and homepage UX for unauthenticated users",
+        "when_to_reference": "When working on authentication, navigation, or homepage",
+        "update_frequency": "When login flow or authentication UX changes",
+        "cross_references": ["stage_0_react_migration.json", "coding_patterns.json", "project_requirements.json"]
       }
     },
     

@@ -1,0 +1,250 @@
+{
+  "glottocode_url_implementation": {
+    "version": "1.0",
+    "date_implemented": "2025-10-28",
+    "conversation_reference": "URL routing improvements - using glottocodes instead of IDs",
+    
+    "overview": {
+      "scope": "Migrated languoid URLs from numeric IDs to glottocodes for better readability and stability",
+      "motivation": "Glottocodes are standardized linguistic identifiers that are more meaningful and stable than auto-incremented IDs",
+      "url_pattern_before": "/languoids/1206",
+      "url_pattern_after": "/languoids/cher1273",
+      "fallback_support": "Numeric IDs still work as fallback for languoids without glottocodes"
+    },
+    
+    "technical_implementation": {
+      "strategy": "Hybrid approach - try glottocode first, fall back to ID",
+      "benefits": [
+        "Human-readable URLs (e.g., /languoids/cher1273)",
+        "Stable identifiers (glottocodes rarely change)",
+        "SEO-friendly (descriptive URLs)",
+        "External linking compatibility (matches Glottolog standard)",
+        "Bookmarkable with meaningful identifiers",
+        "Backward compatible with ID-based URLs"
+      ]
+    },
+    
+    "changes_implemented": {
+      "1_django_url_patterns": {
+        "change_id": "glottocode_url_001",
+        "file": "app/archive/urls.py",
+        "description": "Changed URL patterns from <int:pk> to <str:pk> to accept both glottocodes and IDs",
+        "patterns_updated": [
+          "path('languoids/<str:pk>/', languoid_detail)",
+          "path('languoids/<str:pk>/edit/', languoid_edit)",
+          "path('languoids/<str:pk>/delete/', languoid_delete)"
+        ],
+        "status": "completed"
+      },
+      
+      "2_django_template_views": {
+        "change_id": "glottocode_url_002",
+        "file": "app/metadata/views.py",
+        "description": "Updated languoid_detail and languoid_edit views to handle glottocode lookups",
+        "lookup_logic": "Try glottocode first if not numeric, fall back to ID",
+        "functions_updated": [
+          "languoid_detail(request, pk)",
+          "languoid_edit(request, pk)"
+        ],
+        "status": "completed"
+      },
+      
+      "3_django_internal_api": {
+        "change_id": "glottocode_url_003",
+        "file": "app/internal_api/views.py",
+        "description": "Overrode get_object() in InternalLanguoidViewSet to support both lookup methods",
+        "implementation": {
+          "method": "get_object()",
+          "logic": [
+            "Check if identifier is numeric",
+            "If non-numeric, try glottocode lookup first",
+            "Fall back to ID lookup if glottocode fails",
+            "Raise 404 if both fail"
+          ],
+          "api_examples": [
+            "GET /internal/v1/languoids/cher1273/ (glottocode)",
+            "GET /internal/v1/languoids/1206/ (ID)"
+          ]
+        },
+        "status": "completed"
+      },
+      
+      "4_react_navigation": {
+        "change_id": "glottocode_url_004",
+        "description": "Updated React components to use glottocode in navigation when available",
+        "files_modified": [
+          "frontend/src/components/languoids/LanguoidsList.tsx",
+          "frontend/src/components/languoids/LanguoidCreate.tsx"
+        ],
+        "implementation": {
+          "pattern": "const identifier = languoid.glottocode || languoid.id;",
+          "rationale": "Prefer glottocode but fall back to ID for languoids without glottocodes"
+        },
+        "status": "completed"
+      },
+      
+      "5_url_update_on_edit": {
+        "change_id": "glottocode_url_005",
+        "file": "frontend/src/components/languoids/LanguoidDetail.tsx",
+        "description": "Added logic to update browser URL when user changes glottocode",
+        "implementation": {
+          "location": "saveField() function",
+          "trigger": "After successful glottocode field update",
+          "navigation": "navigate(`/languoids/${finalValue}`, { replace: true })",
+          "replace_flag": "true - prevents old URL from appearing in browser history"
+        },
+        "user_experience": "URL updates seamlessly without page reload, back button still works correctly",
+        "status": "completed"
+      },
+      
+      "6_api_type_signatures": {
+        "change_id": "glottocode_url_006",
+        "file": "frontend/src/services/api.ts",
+        "description": "Updated API method type signatures to accept string | number for identifier parameter",
+        "methods_updated": [
+          "languoidsAPI.get(id: string | number)",
+          "languoidsAPI.patch(id: string | number, data)",
+          "languoidsAPI.delete(id: string | number)",
+          "languoidsAPI.getDescendantsTree(id: string | number)"
+        ],
+        "rationale": "Allows passing glottocodes (strings) or IDs (numbers) to all API methods",
+        "status": "completed"
+      },
+      
+      "7_detail_component_fix": {
+        "change_id": "glottocode_url_007",
+        "file": "frontend/src/components/languoids/LanguoidDetail.tsx",
+        "description": "Removed parseInt() call that was converting glottocodes to NaN",
+        "bug_fixed": "languoidsAPI.get(parseInt(id)) → languoidsAPI.get(id)",
+        "issue": "parseInt('cher1273') returns NaN, causing API 404 errors",
+        "solution": "Pass id parameter directly - backend handles both glottocode and numeric ID strings",
+        "status": "completed"
+      }
+    },
+    
+    "handling_edge_cases": {
+      "missing_glottocodes": {
+        "scenario": "Some languoids may not have glottocodes",
+        "solution": "Fall back to ID in URLs and API lookups",
+        "user_impact": "Seamless - users don't notice the difference"
+      },
+      
+      "glottocode_changes": {
+        "scenario": "User edits glottocode on detail page",
+        "solution": "URL updates automatically using navigate() with replace: true",
+        "user_impact": "URL stays in sync with data, back button works correctly"
+      },
+      
+      "old_bookmarks": {
+        "scenario": "Users have bookmarked ID-based URLs",
+        "solution": "ID lookups still work as fallback",
+        "user_impact": "Old bookmarks continue to function"
+      },
+      
+      "duplicate_glottocodes": {
+        "scenario": "Database unique constraint prevents duplicates",
+        "solution": "Validation prevents saving duplicate glottocodes",
+        "user_impact": "Error message shown before save"
+      }
+    },
+    
+    "patterns_established": {
+      "hybrid_identifier_lookup": {
+        "pattern": "Support multiple identifier types (glottocode, ID) with fallback chain",
+        "detection_method": "Check if identifier is numeric using isdigit()",
+        "lookup_order": ["glottocode (if non-numeric)", "ID (fallback)"],
+        "reusability": "Could be applied to other models with stable external identifiers"
+      },
+      
+      "url_synchronization": {
+        "pattern": "Update browser URL when key identifier changes",
+        "react_router_method": "navigate(newUrl, { replace: true })",
+        "timing": "After successful API update",
+        "benefit": "URL always reflects current resource state"
+      }
+    },
+    
+    "testing_scenarios": {
+      "navigation_from_list": {
+        "test": "Click languoid in list view",
+        "expected": "Navigate to /languoids/{glottocode} (or ID if no glottocode)"
+      },
+      
+      "direct_url_access": {
+        "tests": [
+          { "url": "/languoids/cher1273", "expected": "Load languoid by glottocode" },
+          { "url": "/languoids/1206", "expected": "Load languoid by ID" },
+          { "url": "/languoids/invalid123", "expected": "404 error" }
+        ]
+      },
+      
+      "glottocode_edit": {
+        "test": "Edit glottocode field on detail page",
+        "steps": [
+          "Navigate to /languoids/cher1273",
+          "Change glottocode to stan1295",
+          "Save field"
+        ],
+        "expected": "URL updates to /languoids/stan1295 without reload"
+      },
+      
+      "create_new_languoid": {
+        "test": "Create new languoid with glottocode",
+        "expected": "Navigate to /languoids/{new_glottocode} after creation"
+      },
+      
+      "create_without_glottocode": {
+        "test": "Create new languoid without glottocode",
+        "expected": "Navigate to /languoids/{new_id} after creation"
+      }
+    },
+    
+    "api_compatibility": {
+      "internal_api": {
+        "endpoint": "/internal/v1/languoids/{identifier}/",
+        "supports": ["glottocode", "numeric ID"],
+        "method": "GET, PUT, PATCH, DELETE"
+      },
+      
+      "public_api": {
+        "note": "Public API (app/api/) may need similar updates if glottocode lookups are desired",
+        "current_status": "Not updated in this implementation",
+        "recommendation": "Consider adding glottocode support to public API for external consumers"
+      }
+    },
+    
+    "glottocode_characteristics": {
+      "format": "8 characters, last 4 must be numeric (e.g., cher1273)",
+      "database_constraint": "Unique, but nullable (blank=True)",
+      "validation": "Django form and DRF serializer validation enforces format",
+      "pseudo_codes": "System generates pseudo-codes for nocode entries (e.g., NALx1234)",
+      "stability": "Glottocodes rarely change once assigned"
+    },
+    
+    "files_modified": [
+      "app/archive/urls.py",
+      "app/metadata/views.py",
+      "app/internal_api/views.py",
+      "frontend/src/components/languoids/LanguoidsList.tsx",
+      "frontend/src/components/languoids/LanguoidCreate.tsx",
+      "frontend/src/components/languoids/LanguoidDetail.tsx",
+      "frontend/src/services/api.ts"
+    ],
+    
+    "context_updates": [
+      "context/development/glottocode-url-implementation.json (this file)"
+    ],
+    
+    "related_context": [
+      "context/development/languoid-list-optimization.json (languoid list improvements)",
+      "context/development/stage_0_react_migration.json (URL routing patterns)",
+      "context/development/coding_patterns.json (API and component patterns)",
+      "context/development/login-ux-improvements.json (navigation updates)"
+    ],
+    
+    "confidence_level": "high",
+    "status": "completed",
+    "ready_for_testing": true
+  }
+}
+

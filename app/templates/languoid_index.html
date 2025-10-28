@@ -201,7 +201,7 @@
 
     async _fetchLanguages() {
       const headers = { 'Content-Type': 'application/json' };
-      return fetch(`/api/languages/`, { headers })
+      return fetch(`/api/v1/languoids/`, { headers })
         .then(res => res.json())
         .then(data => {
           this.languoids = data;

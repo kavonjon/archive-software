@@ -251,42 +251,32 @@ export interface Languoid {
   // Basic identifiers
   id: number;
   name: string;
+  name_abbrev: string;
   iso: string;
   glottocode: string;
   level_nal: string;
+  level_glottolog: string;
   level_display: string;
-  
-  // Hierarchy - text fields
-  family: string;
-  family_id: string;
-  family_abbrev: string;
-  pri_subgroup: string;
-  pri_subgroup_id: string;
-  pri_subgroup_abbrev: string;
-  sec_subgroup: string;
-  sec_subgroup_id: string;
-  sec_subgroup_abbrev: string;
-  language: string;
-  language_id: string;
   
   // Hierarchy - relationship fields (IDs for editing)
   family_languoid: number | null;
   pri_subgroup_languoid: number | null;
   sec_subgroup_languoid: number | null;
   parent_languoid: number | null;
-  language_languoid: number | null;
-  dialects_languoids: number[];
+  descendents: number[]; // M2M field - array of languoid IDs
   
   // Hierarchy - relationship names (for display)
   family_name: string | null;
+  family_glottocode: string | null;
   parent_name: string | null;
+  parent_glottocode: string | null;
   pri_subgroup_name: string | null;
+  pri_subgroup_glottocode: string | null;
   sec_subgroup_name: string | null;
-  language_name: string | null;
+  sec_subgroup_glottocode: string | null;
   
   // Additional information
-  alt_name: string;
-  alt_names: string;
+  alt_names: string[]; // JSONField array
   region: string;
   latitude: number | null;
   longitude: number | null;
@@ -305,8 +295,26 @@ export interface Languoid {
   modified_by: string;
 }
 
+// Tree node structure for hierarchical descendants display
+export interface LanguoidTreeNode {
+  id: number;
+  name: string;
+  glottocode: string;
+  level_nal: string;
+  level_display: string;
+  children: LanguoidTreeNode[];
+}
+
 // Choice field options for Languoids
 export const LANGUOID_LEVEL_CHOICES = [
+  { value: 'family', label: 'Family' },
+  { value: 'subfamily', label: 'Primary Subfamily' },
+  { value: 'subsubfamily', label: 'Secondary Subfamily' },
+  { value: 'language', label: 'Language' },
+  { value: 'dialect', label: 'Dialect' }
+];
+
+export const LANGUOID_LEVEL_GLOTTOLOG_CHOICES = [
   { value: 'family', label: 'Family' },
   { value: 'language', label: 'Language' },
   { value: 'dialect', label: 'Dialect' }
@@ -596,7 +604,7 @@ export const languoidsAPI = {
     return apiRequest<PaginatedResponse<Languoid>>(`/languoids/${queryString}`);
   },
 
-  get: (id: number): Promise<Languoid> => {
+  get: (id: string | number): Promise<Languoid> => {
     return apiRequest<Languoid>(`/languoids/${id}/`);
   },
 
@@ -614,17 +622,25 @@ export const languoidsAPI = {
     });
   },
 
-  patch: (id: number, data: Partial<Languoid>): Promise<Languoid> => {
+  patch: (id: string | number, data: Partial<Languoid>): Promise<Languoid> => {
     return apiRequest<Languoid>(`/languoids/${id}/`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
 
-  delete: (id: number): Promise<void> => {
+  delete: (id: string | number): Promise<void> => {
     return apiRequest<void>(`/languoids/${id}/`, {
       method: 'DELETE',
     });
+  },
+
+  getDescendantsTree: (id: string | number): Promise<LanguoidTreeNode[]> => {
+    return apiRequest<LanguoidTreeNode[]>(`/languoids/${id}/descendants-tree/`);
+  },
+
+  getLastModified: (): Promise<{ last_modified: string; count: number }> => {
+    return apiRequest<{ last_modified: string; count: number }>('/languoids/last-modified/');
   },
 
   saveBatch: (rows: any[]): Promise<{ success: boolean; saved: Languoid[]; errors: string[] }> => {

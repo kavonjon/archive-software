@@ -5,6 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { Provider } from 'react-redux';
 import { store } from './store/store';
 import { AuthProvider } from './contexts/AuthContext';
+import { LanguoidCacheProvider } from './contexts/LanguoidCacheContext';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -16,6 +17,7 @@ import LanguoidsPage from './pages/LanguoidsPage';
 // Components
 import Navigation from './components/Navigation';
 import ProtectedRoute from './components/ProtectedRoute';
+import LoginForm from './components/LoginForm';
 
 // Accessibility testing (development only)
 if (process.env.NODE_ENV === 'development') {
@@ -93,8 +95,9 @@ function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <AuthProvider>
-          <Router>
-            <div className="App">
+          <LanguoidCacheProvider>
+            <Router>
+              <div className="App">
               {/* Skip link for keyboard navigation */}
               <a 
                 href="#main-content" 
@@ -134,6 +137,7 @@ function App() {
               >
                 <Routes>
                   <Route path="/" element={<HomePage />} />
+                  <Route path="/login" element={<LoginForm />} />
                   <Route 
                     path="/items/*" 
                     element={
@@ -159,7 +163,7 @@ function App() {
                     } 
                   />
                   <Route 
-                    path="/languages/*" 
+                    path="/languoids/*" 
                     element={
                       <ProtectedRoute>
                         <LanguoidsPage />
@@ -170,6 +174,7 @@ function App() {
               </main>
             </div>
           </Router>
+          </LanguoidCacheProvider>
         </AuthProvider>
       </ThemeProvider>
     </Provider>

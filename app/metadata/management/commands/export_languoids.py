@@ -85,8 +85,6 @@ class Command(BaseCommand):
                 'region': languoid.region,
                 'longitude': float(languoid.longitude) if languoid.longitude else None,
                 'latitude': float(languoid.latitude) if languoid.latitude else None,
-                'dialects': languoid.dialects,
-                'dialects_ids': languoid.dialects_ids,
                 'tribes': languoid.tribes,
                 'notes': languoid.notes,
                 'added': languoid.added.isoformat() if languoid.added else None,

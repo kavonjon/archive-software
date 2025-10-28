@@ -141,7 +141,7 @@
             "purpose": "Legacy document management (transitioning to Files model)"
           },
           "import_export": {
-            "paths": ["/catalog/import/", "/collaborators/import/", "/languages/import/"],
+            "paths": ["/catalog/import/", "/collaborators/import/", "/languoids/import/"],
             "endpoints": ["ImportView", "document_upload"],
             "purpose": "Data import workflows for staff"
           }

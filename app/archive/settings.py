@@ -384,13 +384,33 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'metadata.tasks.cleanup_temp_files',
         'schedule': crontab(hour='*/6', minute=0),  # Run every 6 hours
     },
+    'warm-languoid-list-cache': {
+        'task': 'metadata.tasks.warm_languoid_list_cache',
+        'schedule': crontab(minute='*/9'),  # Run every 9 minutes
+        'options': {
+            'priority': 5,  # Medium priority - background maintenance
+        }
+    },
 }
 
-# Cache configuration for django-select2
+# Cache configuration
+# Using Redis for shared cache across Gunicorn workers and persistence
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'PARSER_CLASS': 'redis.connection.HiredisParser',
+            'CONNECTION_POOL_CLASS_KWARGS': {
+                'max_connections': 50,
+                'retry_on_timeout': True,
+            },
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'SOCKET_TIMEOUT': 5,
+        },
+        'KEY_PREFIX': 'archive',
+        'TIMEOUT': 600,  # Default 10 minutes
     }
 }
 

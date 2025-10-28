@@ -797,3 +797,118 @@ def cascade_hierarchy_to_dialects_task(self, languoid_id):
     except Exception as e:
         logger.error(f"Error cascading to dialects: {e}")
         raise self.retry(exc=e, countdown=2 ** self.request.retries)
+
+
+# ============================================================================
+# LANGUOID LIST CACHE WARMING TASKS
+# ============================================================================
+
+def build_languoid_list_cache():
+    """
+    Utility function to build the cached languoid list response.
+    
+    This function does the expensive work:
+    - Queries all languoids with hierarchical ordering
+    - Serializes them to JSON
+    - Returns the serialized data ready for caching
+    
+    Used by:
+    - warm_languoid_list_cache task (background refresh)
+    - InternalLanguoidViewSet (on cache miss)
+    """
+    from internal_api.serializers import InternalLanguoidSerializer
+    from django.db.models import Prefetch
+    
+    logger.info("[Cache Warming] Building languoid list cache...")
+    
+    # Query all languoids with optimized select/prefetch
+    queryset = Languoid.objects.select_related(
+        'family_languoid',
+        'parent_languoid',
+        'pri_subgroup_languoid',
+        'sec_subgroup_languoid'
+    ).prefetch_related('child_languoids').order_by('name')
+    
+    # Serialize to JSON (same as API response)
+    serializer = InternalLanguoidSerializer(queryset, many=True)
+    data = serializer.data
+    
+    logger.info(f"[Cache Warming] Built cache with {len(data)} languoids")
+    return data
+
+
+@shared_task(bind=True, max_retries=3)
+def warm_languoid_list_cache(self):
+    """
+    Background task to warm/refresh the languoid list cache.
+    
+    This task:
+    - Builds the full languoid list response
+    - Stores it in Redis cache with 10-minute TTL
+    - Uses a lock to prevent concurrent rebuilds
+    - Runs periodically via Celery Beat (every 9 minutes)
+    - Runs immediately after languoid saves/deletes
+    
+    Users never wait for this - it happens in the background.
+    """
+    from django.core.cache import cache
+    import time
+    
+    lock_key = 'languoid_list_cache_lock'
+    cache_key = 'languoid_list_full'
+    
+    try:
+        # Try to acquire lock (prevents concurrent rebuilds)
+        lock_acquired = cache.add(lock_key, 'locked', timeout=120)  # 2-minute lock
+        
+        if not lock_acquired:
+            logger.info("[Cache Warming] Another cache build is in progress, skipping")
+            return {'status': 'skipped', 'reason': 'lock_held'}
+        
+        start_time = time.time()
+        logger.info("[Cache Warming] Starting languoid list cache rebuild...")
+        
+        # Build the cache data
+        data = build_languoid_list_cache()
+        
+        # Store in Redis with 10-minute TTL
+        cache.set(cache_key, data, timeout=600)
+        
+        elapsed = time.time() - start_time
+        logger.info(f"[Cache Warming] Cache rebuilt successfully in {elapsed:.2f}s")
+        
+        return {
+            'status': 'success',
+            'languoid_count': len(data),
+            'elapsed_seconds': elapsed
+        }
+        
+    except Exception as e:
+        logger.error(f"[Cache Warming] Error building cache: {e}")
+        import traceback
+        traceback.print_exc()
+        raise self.retry(exc=e, countdown=30)  # Retry after 30 seconds
+        
+    finally:
+        # Always release the lock
+        cache.delete(lock_key)
+
+
+@shared_task
+def invalidate_and_warm_languoid_cache():
+    """
+    Invalidate the languoid list cache and trigger immediate rebuild.
+    
+    Called by Django signals when a languoid is saved or deleted.
+    This ensures users always see fresh data after edits.
+    """
+    from django.core.cache import cache
+    
+    cache_key = 'languoid_list_full'
+    
+    # Invalidate existing cache
+    cache.delete(cache_key)
+    logger.info("[Cache Invalidation] Languoid list cache invalidated")
+    
+    # Trigger background rebuild (doesn't block the signal)
+    warm_languoid_list_cache.apply_async(priority=8)

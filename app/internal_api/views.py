@@ -340,6 +340,59 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
         context['request'] = self.request
         return context
     
+    def list(self, request, *args, **kwargs):
+        """
+        Override list to use cached response for the full languoid list.
+        
+        This method:
+        - Checks if request is for full list with hierarchical ordering
+        - Returns cached response if available (< 1 second)
+        - Falls back to building and caching if cache miss (~22 seconds)
+        - Works seamlessly with background cache warming
+        """
+        from django.core.cache import cache
+        from rest_framework.response import Response
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        # Only cache the full list with hierarchical ordering
+        # This matches what the frontend requests: ?page_size=10000&hierarchical=true
+        is_full_list = (
+            request.query_params.get('page_size') == '10000' and
+            request.query_params.get('hierarchical', 'false').lower() == 'true' and
+            len(request.query_params) == 2  # Only these two params
+        )
+        
+        if not is_full_list:
+            # Not the full list request, use normal pagination
+            logger.debug("[Cache] Not full list request, using normal pagination")
+            return super().list(request, *args, **kwargs)
+        
+        # Try to get from cache
+        cache_key = 'languoid_list_full'
+        cached_data = cache.get(cache_key)
+        
+        if cached_data is not None:
+            logger.info(f"[Cache] Cache hit! Returning {len(cached_data)} languoids from cache")
+            return Response(cached_data)
+        
+        # Cache miss - build and cache the response
+        logger.warning("[Cache] Cache miss! Building languoid list (this will be slow)...")
+        
+        # Import the utility function from tasks
+        from metadata.tasks import build_languoid_list_cache
+        
+        # Build the cache data
+        data = build_languoid_list_cache()
+        
+        # Store in cache with 10-minute TTL
+        cache.set(cache_key, data, timeout=600)
+        
+        logger.info(f"[Cache] Built and cached {len(data)} languoids")
+        
+        return Response(data)
+    
     @action(detail=False, methods=['post'], url_path='validate-field')
     def validate_field(self, request):
         """

@@ -379,3 +379,19 @@ def schedule_cascading_dialect_updates(sender, instance, created, **kwargs):
         priority=5,  # Medium priority - background work
         countdown=2  # Wait 2 seconds for Priority 9 task to finish
     )
+
+
+@receiver(post_save, sender=Languoid)
+@receiver(post_delete, sender=Languoid)
+def invalidate_languoid_list_cache(sender, instance, **kwargs):
+    """
+    Invalidate and rebuild the languoid list cache when any languoid is saved or deleted.
+    
+    This ensures users always see fresh data after edits.
+    The cache rebuild happens in the background via Celery.
+    """
+    from .tasks import invalidate_and_warm_languoid_cache
+    
+    # Trigger cache invalidation + background rebuild
+    # Priority 8 = High (user just made an edit, wants fresh data soon)
+    invalidate_and_warm_languoid_cache.apply_async(priority=8)

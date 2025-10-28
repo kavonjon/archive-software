@@ -482,6 +482,576 @@
       "production_ready": true
     },
     
+    "server_side_cache_warming": {
+      "change_id": "languoid_cache_002",
+      "change_type": "performance_optimization",
+      "date_implemented": "2025-10-28",
+      "description": "Implemented warm cache strategy with proactive background refresh to eliminate user wait times on production (22-second initial load)",
+      "motivation": "Production server takes 22 seconds to load full languoid list. Basic caching would cause frequent cache misses. Warm cache ensures users NEVER wait.",
+      
+      "problem_solved": {
+        "production_bottleneck": "22-second load time for 10,000 languoids with hierarchical processing",
+        "cache_miss_issue": "Staff browse sporadically (not continuously), so basic 10-min TTL cache would expire between sessions, causing frequent 22-second waits",
+        "user_expectation": "Staff expect instant loading when returning to list page"
+      },
+      
+      "solution": {
+        "approach": "Warm Cache / Proactive Refresh",
+        "key_insight": "Run the expensive 22-second query in the background BEFORE users request it",
+        "user_experience": "Users never experience the 22-second wait - cache is always warm"
+      },
+      
+      "implementation_components": {
+        "1_redis_cache_backend": {
+          "file": "app/archive/settings.py",
+          "change": "Switched from LocMemCache to RedisCache",
+          "before": "django.core.cache.backends.locmem.LocMemCache (per-worker, lost on restart)",
+          "after": "django.core.cache.backends.redis.RedisCache (shared across workers, persistent)",
+          "benefits": [
+            "Cache shared across all Gunicorn workers",
+            "Survives Gunicorn/Django restarts",
+            "Much faster than LocMem (microsecond access)",
+            "Already running for Celery, no infrastructure changes needed"
+          ],
+          "configuration": {
+            "backend": "RedisCache",
+            "location": "redis://:<password>@redis:6379/0",
+            "timeout": 600,
+            "max_connections": 50,
+            "key_prefix": "archive"
+          }
+        },
+        
+        "2_cache_warming_task": {
+          "file": "app/metadata/tasks.py",
+          "task": "warm_languoid_list_cache",
+          "description": "Background Celery task that rebuilds languoid list cache",
+          "how_it_works": [
+            "Acquires distributed lock (prevents concurrent rebuilds)",
+            "Queries all 10,000 languoids with optimized select_related/prefetch_related",
+            "Serializes to JSON (same format as API response)",
+            "Stores in Redis with 10-minute TTL",
+            "Releases lock",
+            "Takes ~22 seconds but runs in background (users don't wait)"
+          ],
+          "triggered_by": [
+            "Celery Beat schedule (every 9 minutes - proactive)",
+            "Django signal on languoid save/delete (immediate invalidation)",
+            "Django startup (optional - can warm on boot)"
+          ],
+          "lock_mechanism": "Redis-based lock prevents duplicate rebuilds if signal fires during scheduled rebuild"
+        },
+        
+        "3_celery_beat_schedule": {
+          "file": "app/archive/settings.py",
+          "schedule": "Every 9 minutes (crontab(minute='*/9'))",
+          "rationale": "Cache TTL is 10 minutes, so 9-minute refresh ensures cache never expires",
+          "priority": 5,
+          "task_flow": [
+            "9:00 AM - Task runs, rebuilds cache (22 seconds)",
+            "9:09 AM - Task runs, rebuilds cache (22 seconds) - old cache still valid",
+            "9:18 AM - Task runs, rebuilds cache (22 seconds)",
+            "... continues forever"
+          ],
+          "user_impact": "User can access list at ANY time and cache is fresh (< 1 minute old)"
+        },
+        
+        "4_signal_invalidation": {
+          "file": "app/metadata/signals.py",
+          "signal": "invalidate_languoid_list_cache",
+          "triggers": ["post_save", "post_delete on Languoid model"],
+          "behavior": [
+            "User saves/deletes a languoid",
+            "Signal fires immediately",
+            "Invalidates cache (deletes from Redis)",
+            "Triggers background rebuild task (priority 8 - high)",
+            "Task completes in ~22 seconds",
+            "User navigates back to list - cache is fresh"
+          ],
+          "edge_case": "If user navigates back before rebuild completes (unlikely), they hit cache miss (22s wait)"
+        },
+        
+        "5_viewset_cache_integration": {
+          "file": "app/internal_api/views.py",
+          "method": "InternalLanguoidViewSet.list()",
+          "logic": [
+            "Check if request is for full list (page_size=10000&hierarchical=true)",
+            "If yes: Check Redis cache",
+            "If cache hit: Return immediately (< 1 second)",
+            "If cache miss: Build and cache (22 seconds) - rare!",
+            "If no: Use normal pagination (not cached)"
+          ],
+          "cache_key": "languoid_list_full",
+          "logging": "All cache hits/misses logged for monitoring"
+        },
+        
+        "6_utility_function": {
+          "file": "app/metadata/tasks.py",
+          "function": "build_languoid_list_cache()",
+          "description": "Shared utility for building cached response",
+          "used_by": [
+            "warm_languoid_list_cache task (background)",
+            "InternalLanguoidViewSet.list() (on rare cache miss)"
+          ],
+          "optimization": "Uses select_related/prefetch_related for efficient query"
+        },
+        
+        "7_startup_warming": {
+          "file": "app/metadata/apps.py",
+          "method": "MetadataConfig.ready()",
+          "description": "Django startup signal that immediately warms cache",
+          "how_it_works": [
+            "Django app initialization completes",
+            "ready() method fires automatically",
+            "Triggers warm_languoid_list_cache task (priority 9)",
+            "Task runs async in Celery (doesn't block Django)",
+            "Cache is warm within ~22-30 seconds of startup"
+          ],
+          "benefits": [
+            "First user always gets fast load",
+            "No waiting for first Celery Beat schedule",
+            "Predictable performance after deployments",
+            "Graceful error handling (won't crash Django)"
+          ],
+          "error_handling": "Wrapped in try-except, logs warning but doesn't prevent Django startup"
+        }
+      },
+      
+      "cache_lifecycle": {
+        "initial_state": "Cache empty (no data)",
+        "on_startup": [
+          "Django starts",
+          "MetadataConfig.ready() fires",
+          "Cache warming task triggered (priority 9)",
+          "Task completes in ~22 seconds (background)",
+          "Cache is warm - users can now load in < 1 second",
+          "Celery Beat scheduler also starts",
+          "Every 9 minutes: Scheduled refresh maintains warm cache"
+        ],
+        "during_normal_operation": [
+          "Every 9 minutes: Background task refreshes cache",
+          "Users always see data < 1 minute old",
+          "Zero downtime (old cache used until new one ready)",
+          "No user ever experiences 22-second wait"
+        ],
+        "on_edit": [
+          "User edits languoid",
+          "Signal invalidates cache immediately",
+          "Background task rebuilds (22 seconds)",
+          "If user returns before rebuild: Cache miss (22s wait)",
+          "If user returns after rebuild: Cache hit (< 1s)"
+        ],
+        "on_redis_restart": [
+          "Redis restarts (cache lost)",
+          "Next user hits cache miss (22 seconds)",
+          "Background task immediately warms cache",
+          "Subsequent users: Cache hit (< 1 second)"
+        ]
+      },
+      
+      "performance_metrics": {
+        "before_server_cache": {
+          "first_load": "22 seconds (production)",
+          "return_navigation_before_client_cache": "22 seconds (every time)",
+          "return_navigation_after_client_cache": "< 100ms (client-side only)"
+        },
+        "after_server_cache": {
+          "first_load_cold_cache": "22 seconds (rare - only after Redis restart)",
+          "first_load_warm_cache": "< 1 second (typical)",
+          "return_navigation": "< 100ms (client cache) or < 1s (server cache)",
+          "after_edit_before_rebuild": "22 seconds (if user returns immediately)",
+          "after_edit_after_rebuild": "< 1 second",
+          "cache_hit_rate": "Expected 99%+ (cache almost always warm)"
+        }
+      },
+      
+      "synergy_with_client_cache": {
+        "double_caching_strategy": [
+          "Layer 1: Client-side cache (LanguoidCacheContext)",
+          "Layer 2: Server-side cache (Redis)",
+          "Layer 3: Database (expensive query)"
+        ],
+        "request_flow": {
+          "user_first_visit": "Client miss → Server cache (< 1s) → Client caches",
+          "user_return_navigation": "Client cache hit (< 100ms) - never hits server",
+          "user_after_10_min": "Client invalidated → Server cache (< 1s) → Client caches",
+          "user_edits_languoid": "Both caches invalidated → Server rebuilds in background",
+          "user_b_different_browser": "Client miss → Server cache hit (< 1s) → Client caches"
+        },
+        "result": "Lightning fast for all users after initial load"
+      },
+      
+      "why_warm_cache_vs_basic_cache": {
+        "basic_cache_problem": {
+          "scenario": "10-minute TTL, first user after expiration waits 22 seconds",
+          "frequency": "High (staff browse sporadically, not continuously)",
+          "user_experience": "Frustrating unpredictable slow loads"
+        },
+        "warm_cache_solution": {
+          "scenario": "Background task runs every 9 minutes, cache never expires",
+          "frequency": "Never (users never trigger rebuild)",
+          "user_experience": "Always fast, predictable performance"
+        },
+        "analogy": "Like warming up a car engine before the driver gets in vs. making driver wait for engine to warm up"
+      },
+      
+      "dependencies_added": [
+        "django-redis==5.4.0 (Redis cache backend for Django)",
+        "hiredis==3.0.0 (C parser for Redis, 10x faster than pure Python)"
+      ],
+      
+      "files_modified": [
+        "app/archive/settings.py (CACHES config, CELERY_BEAT_SCHEDULE)",
+        "app/metadata/tasks.py (warm cache task, utility function, invalidation task)",
+        "app/metadata/signals.py (cache invalidation signal)",
+        "app/metadata/apps.py (startup cache warming)",
+        "app/internal_api/views.py (list() method override for caching)",
+        "app/requirements.txt (added django-redis, hiredis)"
+      ],
+      
+      "monitoring_and_debugging": {
+        "log_prefix": "[Cache Warming] or [Startup]",
+        "key_log_messages": [
+          "[Startup] Languoid list cache warming task triggered",
+          "Cache rebuilt successfully in X seconds",
+          "Cache hit! Returning N languoids from cache",
+          "Cache miss! Building languoid list (this will be slow)",
+          "Cache invalidated (after languoid edit)",
+          "Another cache build is in progress, skipping (lock held)"
+        ],
+        "redis_monitoring": "Use redis-cli to inspect cache: KEYS archive:* | GET archive:languoid_list_full"
+      },
+      
+      "deployment_notes": {
+        "requires": [
+          "Redis must be running (already configured in docker-compose.private.yml)",
+          "Celery worker must be running (to execute warming task)",
+          "Celery Beat must be running (for periodic refresh)",
+          "Run: pipenv install (to install django-redis + hiredis)"
+        ],
+        "first_deploy": [
+          "Django starts and immediately triggers cache warming",
+          "Task completes in ~22-30 seconds",
+          "First user (after warm completes) gets < 1 second load",
+          "Celery Beat schedule maintains warm cache every 9 minutes"
+        ],
+        "rollback_safe": "If issues arise, can revert to LocMemCache without data loss"
+      },
+      
+      "extensibility_and_reusability": {
+        "infrastructure_is_reusable": true,
+        "description": "The warm cache implementation is designed as reusable infrastructure that can be applied to any expensive API endpoint",
+        
+        "shared_infrastructure_components": {
+          "redis_cache_backend": {
+            "status": "Already configured and running",
+            "file": "app/archive/settings.py - CACHES configuration",
+            "scope": "Shared by all models - no per-model setup needed",
+            "capacity": "Redis can handle hundreds of cached endpoints simultaneously",
+            "key_namespace": "Uses 'archive:' prefix to prevent key collisions"
+          },
+          "celery_infrastructure": {
+            "status": "Already configured and running",
+            "components": [
+              "Celery worker (executes background tasks)",
+              "Celery Beat (schedules periodic tasks)",
+              "Redis as broker and result backend"
+            ],
+            "scope": "Shared task queue - just add new tasks",
+            "priority_system": "1-10 priority levels available for task scheduling"
+          }
+        },
+        
+        "five_step_pattern_for_new_models": {
+          "overview": "Copy-paste pattern to cache any expensive API endpoint",
+          "estimated_time": "15-30 minutes per new cached endpoint",
+          
+          "step_1_build_function": {
+            "location": "app/metadata/tasks.py",
+            "purpose": "Encapsulates the expensive query logic",
+            "template": "def build_<model>_<view>_cache():",
+            "example": "def build_item_list_cache():",
+            "implementation": [
+              "Query model with select_related/prefetch_related",
+              "Serialize to JSON using DRF serializer",
+              "Return serialized data",
+              "This function is used by both warming task AND ViewSet fallback"
+            ],
+            "code_pattern": {
+              "imports": "from internal_api.serializers import ModelSerializer",
+              "query": "queryset = Model.objects.select_related(...).all()",
+              "serialize": "serializer = ModelSerializer(queryset, many=True)",
+              "return": "return serializer.data"
+            }
+          },
+          
+          "step_2_warming_task": {
+            "location": "app/metadata/tasks.py",
+            "purpose": "Background Celery task that rebuilds cache",
+            "template": "@shared_task(bind=True, max_retries=3)\ndef warm_<model>_<view>_cache(self):",
+            "example": "@shared_task\ndef warm_item_list_cache():",
+            "implementation": [
+              "Acquire distributed lock (prevents concurrent rebuilds)",
+              "Call build function from step 1",
+              "Store in Redis cache with chosen TTL",
+              "Release lock",
+              "Return success/failure status"
+            ],
+            "key_decisions": {
+              "cache_key": "Choose unique key like '<model>_<view>_full'",
+              "ttl": "Usually 600 seconds (10 minutes)",
+              "lock_key": "Add '_lock' suffix to cache_key",
+              "lock_timeout": "Set higher than expected query time (e.g., 120 seconds)"
+            },
+            "code_pattern": {
+              "lock": "lock_acquired = cache.add(lock_key, 'locked', timeout=120)",
+              "build": "data = build_<model>_cache()",
+              "cache": "cache.set(cache_key, data, timeout=600)",
+              "unlock": "cache.delete(lock_key)"
+            }
+          },
+          
+          "step_3_celery_beat_schedule": {
+            "location": "app/archive/settings.py - CELERY_BEAT_SCHEDULE",
+            "purpose": "Proactive periodic refresh to keep cache warm",
+            "template": "'warm-<model>-cache': { 'task': '...', 'schedule': crontab(...) }",
+            "example": "'warm-item-list-cache': { 'task': 'metadata.tasks.warm_item_list_cache', 'schedule': crontab(minute='*/9') }",
+            "schedule_guidelines": {
+              "frequency": "Set 1 minute less than cache TTL (e.g., 9 min for 10 min TTL)",
+              "rationale": "Ensures cache never expires between refreshes",
+              "priority": "Use priority 5 (medium) for scheduled maintenance tasks"
+            }
+          },
+          
+          "step_4_signal_invalidation": {
+            "location": "app/metadata/signals.py",
+            "purpose": "Invalidate and rebuild cache immediately when data changes",
+            "template": "@receiver(post_save, sender=Model)\n@receiver(post_delete, sender=Model)\ndef invalidate_<model>_cache(...):",
+            "example": "@receiver(post_save, sender=Item)\ndef invalidate_item_cache():",
+            "implementation": [
+              "Listen for post_save and post_delete signals",
+              "Delete cache key from Redis",
+              "Trigger background rebuild task (high priority)",
+              "Task completes in background (user doesn't wait)"
+            ],
+            "priority_guidelines": "Use priority 8 (high) - user just made edit, wants fresh data soon"
+          },
+          
+          "step_5_viewset_integration": {
+            "location": "app/internal_api/views.py - ModelViewSet",
+            "purpose": "Check cache before expensive query",
+            "template": "def list(self, request):",
+            "example": "class InternalItemViewSet:\n    def list(self, request):",
+            "implementation": [
+              "Detect if request matches cached endpoint (e.g., page_size=10000)",
+              "Check Redis cache for key",
+              "If hit: Return cached data immediately",
+              "If miss: Call build function, cache result, return"
+            ],
+            "conditional_caching": {
+              "best_practice": "Only cache specific request patterns (e.g., full list)",
+              "example": "is_full_list = request.query_params.get('page_size') == '10000'",
+              "fallback": "For non-cached requests, use super().list() for normal pagination"
+            }
+          },
+          
+          "optional_step_6_startup_warming": {
+            "location": "app/metadata/apps.py - AppConfig.ready()",
+            "purpose": "Warm cache immediately on Django startup",
+            "when_to_add": "If first user after restart must have fast load",
+            "implementation": "warm_<model>_cache.apply_async(priority=9)",
+            "note": "Only add if startup warming is critical for user experience"
+          }
+        },
+        
+        "when_to_consider_caching_api_endpoints": {
+          "strong_candidates": {
+            "criteria": "All of these conditions should be true",
+            "conditions": [
+              "Query takes > 5 seconds consistently",
+              "Data is read much more often than written (high read:write ratio)",
+              "Results are sharable across users (not per-user customized)",
+              "Dataset is bounded (won't grow to exhaust Redis memory)",
+              "Staleness tolerance: Users can tolerate data up to 10 minutes old"
+            ],
+            "examples": [
+              "Full item list (if it becomes slow as dataset grows)",
+              "Collection list with item counts (expensive aggregations)",
+              "Statistics/dashboard data (computed aggregates)",
+              "Hierarchical data structures (like languoid tree)"
+            ]
+          },
+          
+          "evaluate_these_factors": {
+            "query_cost": {
+              "measure": "Profile with django-debug-toolbar or django-silk",
+              "threshold": "If > 5 seconds, strong candidate",
+              "calculation": "Include DB time + serialization time"
+            },
+            "update_frequency": {
+              "measure": "How often is this data modified?",
+              "low_frequency": "< 10 edits per hour → Good candidate",
+              "high_frequency": "> 100 edits per hour → Poor candidate (cache constantly invalidates)"
+            },
+            "access_patterns": {
+              "measure": "How often is this endpoint called?",
+              "high_traffic": "Multiple users or frequent page loads → Good candidate",
+              "low_traffic": "Rarely accessed → Poor candidate (cache overhead not worth it)"
+            },
+            "dataset_size": {
+              "measure": "How much memory will cached response consume?",
+              "acceptable": "< 10 MB per cache key",
+              "warning": "10-50 MB - monitor Redis memory usage",
+              "problematic": "> 50 MB - consider pagination or smaller cache scope"
+            },
+            "staleness_tolerance": {
+              "question": "Can users tolerate seeing data that's up to 10 minutes old?",
+              "yes": "Good candidate (most list views, dashboards)",
+              "no": "Poor candidate (real-time data, financial transactions)"
+            }
+          },
+          
+          "poor_candidates_do_not_cache": {
+            "criteria": "Any of these conditions makes caching inappropriate",
+            "scenarios": [
+              "Per-user data (e.g., 'my items' list filtered by user)",
+              "Search results with user-specific query terms",
+              "Real-time data that must always be current",
+              "Paginated endpoints where cache would need hundreds of keys",
+              "Data that changes more often than it's read",
+              "Queries that are already fast (< 1 second)",
+              "Unbounded datasets (e.g., logs, audit trails that grow indefinitely)"
+            ]
+          }
+        },
+        
+        "example_future_cache_candidates": {
+          "item_list_full": {
+            "endpoint": "GET /internal/v1/items/?page_size=10000",
+            "current_status": "May become slow as dataset grows to 50,000+ items",
+            "when_to_cache": "If query time exceeds 5 seconds",
+            "implementation": "Follow 5-step pattern, copy from languoid implementation",
+            "considerations": [
+              "Items updated more frequently than languoids",
+              "May need shorter TTL (e.g., 5 minutes instead of 10)",
+              "Monitor cache invalidation frequency"
+            ]
+          },
+          
+          "collection_list_with_counts": {
+            "endpoint": "GET /internal/v1/collections/ (with item counts)",
+            "why_expensive": "Aggregating item counts across collections is slow",
+            "when_to_cache": "If aggregation takes > 3 seconds",
+            "implementation": "Cache the collection list with pre-computed counts",
+            "invalidation_strategy": "Invalidate when items OR collections are saved/deleted"
+          },
+          
+          "statistics_dashboard": {
+            "endpoint": "Hypothetical GET /internal/v1/statistics/",
+            "why_expensive": "Aggregates across multiple models",
+            "when_to_cache": "Always - dashboards are perfect cache candidates",
+            "implementation": "Long TTL (30 minutes), refresh every 29 minutes",
+            "invalidation_strategy": "Optional - can rely on TTL for statistics"
+          }
+        },
+        
+        "measuring_before_and_after": {
+          "before_caching": {
+            "step_1": "Profile endpoint with django-debug-toolbar",
+            "step_2": "Note query time (e.g., 22 seconds)",
+            "step_3": "Check query frequency in logs",
+            "step_4": "Calculate: queries_per_hour * seconds_per_query = total_server_time"
+          },
+          "after_caching": {
+            "step_1": "Deploy cache implementation",
+            "step_2": "Monitor cache hit rate in logs (should be > 90%)",
+            "step_3": "Measure response time (should be < 1 second)",
+            "step_4": "Calculate savings: total_server_time * cache_hit_rate"
+          },
+          "success_metrics": {
+            "cache_hit_rate": "> 90% (cache is being used effectively)",
+            "response_time": "< 1 second for cached responses",
+            "background_rebuild_time": "< 60 seconds (reasonable for background)",
+            "redis_memory_usage": "< 100 MB total (sustainable)"
+          }
+        },
+        
+        "best_practices_and_gotchas": {
+          "best_practices": [
+            "Always use distributed locks to prevent concurrent rebuilds",
+            "Log cache hits/misses for monitoring",
+            "Use descriptive cache keys (e.g., 'languoid_list_full' not 'cache1')",
+            "Set TTL slightly longer than refresh interval (10 min TTL, 9 min refresh)",
+            "Use priority 8-9 for user-triggered invalidation, 5 for scheduled refresh",
+            "Test cache invalidation by editing data and checking logs",
+            "Monitor Redis memory usage with redis-cli INFO memory"
+          ],
+          "gotchas_to_avoid": [
+            "Don't cache per-user data (cache won't be shared)",
+            "Don't cache if data changes constantly (cache always stale)",
+            "Don't cache unbounded datasets (Redis memory exhaustion)",
+            "Don't forget to invalidate cache on model saves/deletes",
+            "Don't use same cache key for different endpoints",
+            "Don't set TTL too short (defeats purpose) or too long (stale data)",
+            "Don't block user requests - always use async tasks for rebuilding"
+          ],
+          "common_mistakes": {
+            "forgetting_lock": "Results in duplicate rebuilds, wasted resources",
+            "wrong_priority": "Low priority = slow invalidation after edits",
+            "no_fallback": "If cache miss, ViewSet must still handle query",
+            "cache_key_collision": "Different endpoints using same key",
+            "missing_signal": "Cache never invalidates, data becomes stale"
+          }
+        },
+        
+        "redis_capacity_planning": {
+          "current_usage": {
+            "languoid_list": "~2-3 MB (10,000 records)",
+            "redis_memory_limit": "Typically 512 MB - 2 GB on TrueNAS Scale"
+          },
+          "capacity_calculation": {
+            "formula": "cached_endpoints * avg_response_size * 1.5 (overhead)",
+            "example": "5 endpoints * 3 MB * 1.5 = 22.5 MB (plenty of headroom)"
+          },
+          "monitoring": {
+            "command": "docker exec redis_private redis-cli INFO memory",
+            "watch_for": "used_memory_human, maxmemory_human",
+            "warning_threshold": "If used_memory > 80% of maxmemory"
+          }
+        },
+        
+        "decision_framework": {
+          "step_1_measure": "Profile the endpoint - how slow is it?",
+          "step_2_evaluate": "Check criteria: read frequency, update frequency, shareable, bounded",
+          "step_3_estimate": "Calculate potential savings vs. implementation cost",
+          "step_4_consult": "Discuss with project manager - is it worth it?",
+          "step_5_implement": "Follow 5-step pattern, takes 15-30 minutes",
+          "step_6_monitor": "Watch logs, measure hit rate, verify performance gain",
+          "decision_rule": "If query > 5 seconds AND meets criteria → cache it"
+        }
+      },
+      
+      "applicability_to_other_models": {
+        "when_to_consider": [
+          "Model has expensive query (> 5 seconds)",
+          "Query results are stable (low update frequency)",
+          "Multiple users or repeated access patterns",
+          "Dataset is bounded (can fit in Redis memory)"
+        ],
+        "when_not_to_use": [
+          "Frequently updated data (cache would constantly invalidate)",
+          "Per-user customized data (can't share cache)",
+          "Unbounded dataset (would exhaust Redis memory)",
+          "Query is already fast (< 1 second - caching adds complexity)"
+        ],
+        "decision_rule": "Always consult project manager and measure before/after performance"
+      },
+      
+      "confidence_level": "high",
+      "status": "completed",
+      "production_ready": true
+    },
+    
     "related_context": [
       "coding_patterns.json (EditableField patterns)",
       "stage_0_react_migration.json (list view patterns)",

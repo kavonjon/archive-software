@@ -395,6 +395,7 @@ CELERY_BEAT_SCHEDULE = {
 
 # Cache configuration
 # Using Redis for shared cache across Gunicorn workers and persistence
+# Django 4.0+ has built-in RedisCache backend
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',

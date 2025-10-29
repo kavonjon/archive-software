@@ -238,6 +238,18 @@ const LanguoidDetail: React.FC = () => {
           { fieldName: 'Notes', value: languoid.notes }
         ];
 
+        // Add dialects (descendants) if they exist
+        if (descendantsTree.length > 0) {
+          // Format dialects as "name (glottocode)"
+          const dialectsList = descendantsTree
+            .map(node => `${node.name} (${node.glottocode})`)
+            .join(', ');
+          languageSpecificFields.push({
+            fieldName: 'Dialects',
+            value: dialectsList
+          });
+        }
+
         // Filter to only fields that have non-empty values
         const fieldsWithData = languageSpecificFields.filter(field => {
           const value = field.value;

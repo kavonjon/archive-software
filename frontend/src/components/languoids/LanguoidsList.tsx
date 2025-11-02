@@ -30,6 +30,7 @@ import {
   useMediaQuery,
   Pagination,
   Tooltip,
+  Checkbox,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -37,11 +38,17 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   Refresh as RefreshIcon,
+  CheckBox as CheckBoxIcon,
+  CheckBoxOutlineBlank as CheckBoxOutlineBlankIcon,
+  IndeterminateCheckBox as IndeterminateCheckBoxIcon,
 } from '@mui/icons-material';
 import { languoidsAPI, type Languoid, LANGUOID_LEVEL_CHOICES } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguoidCache } from '../../contexts/LanguoidCacheContext';
 import { hasEditAccess } from '../../utils/permissions';
+import BatchEditButton, { type BatchEditMode } from './BatchEditButton';
+import BatchEditWarningDialog, { type WarningConfig } from './BatchEditWarningDialog';
+import ExportButton, { type ExportMode } from './ExportButton';
 
 // Level filter presets
 const LEVEL_FILTER_PRESETS = [
@@ -90,6 +97,56 @@ const LanguoidsList: React.FC = () => {
   // Display pagination state (frontend only)
   const [displayPage, setDisplayPage] = useState(1);
   const minPageSize = 50; // Minimum items per page
+
+  // Selection state (persists during session, cleared on tab close)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => {
+    const saved = sessionStorage.getItem('languoid-selected-ids');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
+
+  // Persist selections to sessionStorage on every change
+  useEffect(() => {
+    sessionStorage.setItem('languoid-selected-ids', JSON.stringify(Array.from(selectedIds)));
+  }, [selectedIds]);
+
+  // Batch edit mode state (persists across sessions in localStorage)
+  const [batchEditMode, setBatchEditMode] = useState<BatchEditMode>(() => {
+    return (localStorage.getItem('languoid-batch-edit-mode') as BatchEditMode) || 'filtered';
+  });
+
+  // Warning dialog state
+  const [showWarning, setShowWarning] = useState(false);
+  const [warningConfig, setWarningConfig] = useState<WarningConfig | null>(null);
+  const [pendingBatchConfig, setPendingBatchConfig] = useState<{ mode: BatchEditMode; ids: number[] } | null>(null);
+
+  // Warning suppression (persists across sessions in localStorage)
+  const [suppressWarning, setSuppressWarning] = useState<boolean>(() => {
+    return localStorage.getItem('languoid-batch-suppress-warning') === 'true';
+  });
+
+  // Export state
+  const [exportMode, setExportMode] = useState<ExportMode>(() => {
+    return (localStorage.getItem('languoid-export-mode') as ExportMode) || 'filtered';
+  });
+  
+  // Export status: 'idle' | 'preparing' | 'ready'
+  const [exportStatus, setExportStatus] = useState<'idle' | 'preparing' | 'ready'>(() => {
+    return (sessionStorage.getItem('languoid-export-status') as 'idle' | 'preparing' | 'ready') || 'idle';
+  });
+  
+  // Store export ID and filename for async exports
+  const [exportId, setExportId] = useState<string | null>(() => {
+    return sessionStorage.getItem('languoid-export-id');
+  });
+  const [exportFilename, setExportFilename] = useState<string | null>(() => {
+    return sessionStorage.getItem('languoid-export-filename');
+  });
+  
+  // Poll interval ref for cleanup
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Track if we've already started polling restoration (to avoid duplicate intervals)
+  const hasStartedPollingRef = useRef<boolean>(false);
 
   // Load ALL languoids using cache
   const loadLanguoids = useCallback(async () => {
@@ -233,6 +290,475 @@ const LanguoidsList: React.FC = () => {
     return result;
   }, [filteredLanguoids, selectedLevelFilter]);
 
+  // Helper: Get all descendant IDs for hierarchical selection
+  const getDescendantIds = useCallback((languoidId: number, allLanguoidsArray: Languoid[]): number[] => {
+    const children = allLanguoidsArray.filter(l => l.parent_languoid === languoidId);
+    const descendantIds = children.map(c => c.id);
+    
+    children.forEach(child => {
+      descendantIds.push(...getDescendantIds(child.id, allLanguoidsArray));
+    });
+    
+    return descendantIds;
+  }, []);
+
+  // Handle checkbox click for individual languoid (with hierarchical auto-select)
+  const handleCheckboxClick = useCallback((event: React.MouseEvent, languoid: HierarchicalLanguoid) => {
+    event.stopPropagation(); // Prevent row click
+    
+    const isCurrentlySelected = selectedIds.has(languoid.id);
+    const descendantIds = getDescendantIds(languoid.id, allLanguoids);
+    const idsToToggle = [languoid.id, ...descendantIds];
+    
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (isCurrentlySelected) {
+        // Deselect this languoid and all its descendants
+        idsToToggle.forEach(id => newSet.delete(id));
+      } else {
+        // Select this languoid and all its descendants
+        idsToToggle.forEach(id => newSet.add(id));
+      }
+      return newSet;
+    });
+  }, [selectedIds, allLanguoids, getDescendantIds]);
+
+  // Handle "Select All Filtered" checkbox
+  const handleSelectAllFiltered = useCallback(() => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      hierarchicalLanguoids.forEach(languoid => {
+        newSet.add(languoid.id);
+      });
+      return newSet;
+    });
+  }, [hierarchicalLanguoids]);
+
+  // Handle "Deselect All" button
+  const handleDeselectAll = useCallback(() => {
+    setSelectedIds(new Set());
+    sessionStorage.removeItem('languoid-selected-ids');
+  }, []);
+
+  // Calculate select-all checkbox state (checked, indeterminate, or unchecked)
+  const selectAllCheckboxState = useMemo(() => {
+    if (hierarchicalLanguoids.length === 0) return 'unchecked';
+    
+    const filteredIds = hierarchicalLanguoids.map(l => l.id);
+    const selectedFilteredIds = filteredIds.filter(id => selectedIds.has(id));
+    
+    if (selectedFilteredIds.length === 0) return 'unchecked';
+    if (selectedFilteredIds.length === filteredIds.length) return 'checked';
+    return 'indeterminate';
+  }, [hierarchicalLanguoids, selectedIds]);
+
+  // Helper: Determine if advanced filters are applied (beyond just preset)
+  const hasAdvancedFilters = useMemo(() => {
+    return !!(searchTerm || levelFilter || familyFilter || regionFilter);
+  }, [searchTerm, levelFilter, familyFilter, regionFilter]);
+
+  // Helper: Get warning configuration if needed
+  const getWarningConfig = useCallback((
+    mode: BatchEditMode,
+    count: number,
+  ): WarningConfig | null => {
+    // No warning for empty mode
+    if (mode === 'empty') return null;
+    
+    // No warning for <= 100 items
+    if (count <= 100) return null;
+    
+    // Large dataset warnings (>100) with advanced filters
+    if (count > 100 && hasAdvancedFilters) {
+      return { 
+        type: mode === 'filtered' ? 'large-filtered' : 'large-selected', 
+        count, 
+        mode 
+      };
+    }
+    
+    // Preset-only warning (no advanced filters, >100 items)
+    if (mode === 'filtered' && !hasAdvancedFilters && count > 100) {
+      // Map preset key to warning preset type
+      const presetMap: Record<string, 'all' | 'languages' | 'dialects' | 'languages_dialects' | 'families'> = {
+        'all': 'all',
+        'languages': 'languages',
+        'dialects': 'dialects',
+        'languages_dialects': 'languages_dialects',
+        'families': 'families',
+      };
+      
+      return { 
+        type: 'all-preset', 
+        count, 
+        preset: presetMap[selectedLevelFilter] || 'all',
+        mode 
+      };
+    }
+    
+    // Also show preset warning for large-selected if no advanced filters
+    if (mode === 'selected' && !hasAdvancedFilters && count > 100) {
+      return {
+        type: 'large-selected',
+        count,
+        mode
+      };
+    }
+    
+    return null;
+  }, [hasAdvancedFilters, selectedLevelFilter]);
+
+  // Execute batch edit navigation
+  const executeBatchEdit = useCallback((mode: BatchEditMode, ids: number[]) => {
+    // Save batch configuration to sessionStorage
+    const batchConfig = {
+      mode,
+      ids,
+      timestamp: Date.now(),
+    };
+    
+    console.log('[LanguoidsList] executeBatchEdit called with:', { mode, idsCount: ids.length });
+    console.log('[LanguoidsList] Saving to sessionStorage:', batchConfig);
+    
+    sessionStorage.setItem('languoid-batch-config', JSON.stringify(batchConfig));
+    
+    // Verify it was saved
+    const savedConfig = sessionStorage.getItem('languoid-batch-config');
+    console.log('[LanguoidsList] Verified saved config:', savedConfig);
+    
+    // Save current list state for back button restoration
+    sessionStorage.setItem('languoid-list-scroll', window.scrollY.toString());
+    sessionStorage.setItem('languoid-list-filters', JSON.stringify({
+      selectedLevelFilter,
+      searchTerm,
+      levelFilter,
+      familyFilter,
+      regionFilter,
+      displayPage,
+    }));
+    
+    console.log('[LanguoidsList] Navigating to /languoids/batch');
+    // Navigate to batch editor
+    navigate('/languoids/batch');
+  }, [navigate, selectedLevelFilter, searchTerm, levelFilter, familyFilter, regionFilter, displayPage]);
+
+  // Handle batch edit button execution
+  const handleBatchEdit = useCallback((mode: BatchEditMode) => {
+    // Determine count and IDs to load
+    let count = 0;
+    let idsToLoad: number[] = [];
+    
+    if (mode === 'filtered') {
+      count = hierarchicalLanguoids.length;
+      idsToLoad = hierarchicalLanguoids.map(l => l.id);
+    } else if (mode === 'selected') {
+      count = selectedIds.size;
+      idsToLoad = Array.from(selectedIds);
+    }
+    
+    // Check if we need to show warning
+    const warningConfigToShow = getWarningConfig(mode, count);
+    
+    if (warningConfigToShow && !suppressWarning) {
+      // Show warning dialog
+      setWarningConfig(warningConfigToShow);
+      setPendingBatchConfig({ mode, ids: idsToLoad });
+      setShowWarning(true);
+      return;
+    }
+    
+    // No warning needed, proceed directly
+    executeBatchEdit(mode, idsToLoad);
+  }, [hierarchicalLanguoids, selectedIds, getWarningConfig, suppressWarning, executeBatchEdit]);
+
+  // Handle warning dialog continue
+  const handleWarningContinue = useCallback((suppressFuture: boolean) => {
+    if (suppressFuture) {
+      localStorage.setItem('languoid-batch-suppress-warning', 'true');
+      setSuppressWarning(true);
+    }
+    
+    setShowWarning(false);
+    
+    // Execute the pending batch edit
+    if (pendingBatchConfig) {
+      executeBatchEdit(pendingBatchConfig.mode, pendingBatchConfig.ids);
+      setPendingBatchConfig(null);
+    }
+  }, [pendingBatchConfig, executeBatchEdit]);
+
+  // Handle warning dialog cancel
+  const handleWarningCancel = useCallback(() => {
+    setShowWarning(false);
+    setPendingBatchConfig(null);
+  }, []);
+
+  // Persist export mode to localStorage
+  useEffect(() => {
+    localStorage.setItem('languoid-export-mode', exportMode);
+  }, [exportMode]);
+  
+  // Persist export status and ID to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('languoid-export-status', exportStatus);
+    if (exportId) {
+      sessionStorage.setItem('languoid-export-id', exportId);
+    } else {
+      sessionStorage.removeItem('languoid-export-id');
+    }
+    if (exportFilename) {
+      sessionStorage.setItem('languoid-export-filename', exportFilename);
+    } else {
+      sessionStorage.removeItem('languoid-export-filename');
+    }
+  }, [exportStatus, exportId, exportFilename]);
+  
+  // Cleanup poll interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      // Reset the polling restoration flag on unmount
+      hasStartedPollingRef.current = false;
+    };
+  }, []);
+  
+  // Restore polling on mount if export is in progress
+  useEffect(() => {
+    console.log('[EXPORT DEBUG] Restoration effect running', {
+      hasStartedPolling: hasStartedPollingRef.current,
+      exportStatus,
+      exportId,
+      hasInterval: !!pollIntervalRef.current
+    });
+    
+    // Only run restoration logic once when component mounts
+    if (hasStartedPollingRef.current) {
+      console.log('[EXPORT DEBUG] Already started polling, skipping');
+      return;
+    }
+    
+    if (exportStatus === 'preparing' && exportId && !pollIntervalRef.current) {
+      console.log('[EXPORT DEBUG] Starting polling restoration for export:', exportId);
+      hasStartedPollingRef.current = true;
+      
+      // IMMEDIATELY check status first (in case export finished while we were away)
+      const checkStatusImmediately = async () => {
+        try {
+          console.log('[EXPORT DEBUG] Checking status immediately on mount');
+          const status = await languoidsAPI.exportStatus(exportId);
+          console.log('[EXPORT DEBUG] Immediate status check result:', status);
+          
+          if (status.status === 'completed') {
+            console.log('[EXPORT DEBUG] Export already completed! Updating to ready state');
+            setExportStatus('ready');
+            setExportFilename(status.filename || `languoids_export_${exportId}.xlsx`);
+            return true; // Signal that export is complete
+          }
+          return false; // Export still in progress
+        } catch (err) {
+          console.error('[EXPORT DEBUG] Error checking status immediately:', err);
+          return false;
+        }
+      };
+      
+      // Check immediately, then start polling if needed
+      checkStatusImmediately().then((isComplete) => {
+        if (isComplete) {
+          console.log('[EXPORT DEBUG] Export complete, not starting polling');
+          return; // Don't start polling if already complete
+        }
+        
+        console.log('[EXPORT DEBUG] Export still in progress, starting polling interval');
+        // Start polling interval for ongoing export
+        pollIntervalRef.current = setInterval(async () => {
+          console.log('[EXPORT DEBUG] Polling export status for:', exportId);
+          try {
+            const status = await languoidsAPI.exportStatus(exportId);
+            console.log('[EXPORT DEBUG] Export status:', status);
+            
+            if (status.status === 'completed') {
+              // Stop polling
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+                pollIntervalRef.current = null;
+              }
+              
+              console.log('[EXPORT DEBUG] Export completed, updating to ready state');
+              // Update state to 'ready'
+              setExportStatus('ready');
+              setExportFilename(status.filename || `languoids_export_${exportId}.xlsx`);
+            }
+          } catch (pollErr) {
+            console.error('[EXPORT DEBUG] Error polling export status:', pollErr);
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            setError('Failed to check export status. Please try again.');
+            setExportStatus('idle');
+            setExportId(null);
+          }
+        }, 2000);
+      });
+    } else {
+      console.log('[EXPORT DEBUG] Not starting polling - conditions not met');
+    }
+  }, [exportStatus, exportId, exportFilename]); // Include dependencies so we get current values
+
+  // Execute export (download file or start async export)
+  const executeExport = useCallback(async (mode: ExportMode, ids: number[]) => {
+    try {
+      setExportStatus('preparing');
+      setError(null);
+
+      // Call export API
+      const result = await languoidsAPI.export(mode, ids);
+
+      // Check if result is async or synchronous
+      if (typeof result === 'object' && 'async' in result && result.async) {
+        // ASYNC EXPORT - Store ID and start polling
+        const newExportId = result.export_id;
+        setExportId(newExportId);
+        
+        // Start polling for completion
+        const startPolling = () => {
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+          }
+          
+          pollIntervalRef.current = setInterval(async () => {
+            try {
+              const status = await languoidsAPI.exportStatus(newExportId);
+              
+              if (status.status === 'completed') {
+                // Stop polling
+                if (pollIntervalRef.current) {
+                  clearInterval(pollIntervalRef.current);
+                  pollIntervalRef.current = null;
+                }
+                
+                // Update state to 'ready'
+                setExportStatus('ready');
+                setExportFilename(status.filename || `languoids_export_${newExportId}.xlsx`);
+              }
+            } catch (pollErr) {
+              console.error('Error polling export status:', pollErr);
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+                pollIntervalRef.current = null;
+              }
+              setError('Failed to check export status. Please try again.');
+              setExportStatus('idle');
+              setExportId(null);
+            }
+          }, 2000); // Poll every 2 seconds
+          
+          // Set timeout to stop polling after 5 minutes
+          setTimeout(() => {
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            if (exportStatus === 'preparing') {
+              setError('Export took too long. Please try again with fewer items.');
+              setExportStatus('idle');
+              setExportId(null);
+            }
+          }, 300000); // 5 minutes
+        };
+        
+        startPolling();
+        
+      } else {
+        // SYNCHRONOUS EXPORT - Direct download
+        const blob = result as Blob;
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        
+        // Generate filename with timestamp
+        const now = new Date();
+        const timestamp = now.toISOString().replace(/:/g, '-').substring(0, 19);
+        link.download = `languoids_export_${timestamp}.xlsx`;
+        
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+        
+        // Cleanup
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        setExportStatus('idle');
+      }
+      
+    } catch (err: any) {
+      console.error('Error exporting languoids:', err);
+      setError(err.message || 'Failed to export languoids. Please try again.');
+      setExportStatus('idle');
+      setExportId(null);
+    }
+  }, [exportStatus]);
+
+  // Handle downloading a ready export
+  const handleDownloadReady = useCallback(async () => {
+    if (!exportId || !exportFilename) return;
+    
+    try {
+      // Download the completed export
+      const blob = await languoidsAPI.exportDownload(exportId);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = exportFilename;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      // Reset export state after download
+      setExportStatus('idle');
+      setExportId(null);
+      setExportFilename(null);
+    } catch (err: any) {
+      console.error('Error downloading export:', err);
+      setError(err.message || 'Failed to download export. Please try again.');
+      setExportStatus('idle');
+      setExportId(null);
+      setExportFilename(null);
+    }
+  }, [exportId, exportFilename]);
+
+  // Handle export button execution
+  const handleExport = useCallback((mode: ExportMode) => {
+    // If export is ready, download it immediately
+    if (exportStatus === 'ready' && exportId && exportFilename) {
+      handleDownloadReady();
+      return;
+    }
+    
+    // Determine count and IDs to export
+    let count = 0;
+    let idsToExport: number[] = [];
+    
+    if (mode === 'filtered') {
+      count = hierarchicalLanguoids.length;
+      idsToExport = hierarchicalLanguoids.map(l => l.id);
+    } else if (mode === 'selected') {
+      count = selectedIds.size;
+      idsToExport = Array.from(selectedIds);
+    }
+    
+    // Start export directly (no warning)
+    executeExport(mode, idsToExport);
+  }, [hierarchicalLanguoids, selectedIds, exportStatus, exportId, exportFilename, executeExport, handleDownloadReady]);
+
   // Smart pagination: calculate page breaks at family boundaries
   const { paginatedLanguoids, pageBreaks, totalPages } = useMemo(() => {
     if (hierarchicalLanguoids.length === 0) {
@@ -291,6 +817,28 @@ const LanguoidsList: React.FC = () => {
     loadLanguoids();
   }, [loadLanguoids]);
 
+  // Restore scroll position and filters when returning from batch editor
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem('languoid-list-scroll');
+    const savedFilters = sessionStorage.getItem('languoid-list-filters');
+    
+    if (savedScroll) {
+      window.scrollTo(0, parseInt(savedScroll));
+      sessionStorage.removeItem('languoid-list-scroll');
+    }
+    
+    if (savedFilters) {
+      const filters = JSON.parse(savedFilters);
+      setSelectedLevelFilter(filters.selectedLevelFilter);
+      setSearchTerm(filters.searchTerm);
+      setLevelFilter(filters.levelFilter);
+      setFamilyFilter(filters.familyFilter);
+      setRegionFilter(filters.regionFilter);
+      setDisplayPage(filters.displayPage);
+      sessionStorage.removeItem('languoid-list-filters');
+    }
+  }, []);
+
   const handleRowClick = (languoid: Languoid) => {
     // Use glottocode for URL if available, otherwise fall back to ID
     const identifier = languoid.glottocode || languoid.id;
@@ -338,9 +886,21 @@ const LanguoidsList: React.FC = () => {
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Languages
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography variant="h4" component="h1">
+            Languages
+          </Typography>
+          {/* Selection indicator */}
+          {selectedIds.size > 0 && (
+            <Chip
+              label={`${selectedIds.size} selected`}
+              color="primary"
+              size="medium"
+              onDelete={handleDeselectAll}
+              deleteIcon={<CheckBoxIcon />}
+            />
+          )}
+        </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Tooltip title="Refresh list data">
             <IconButton
@@ -355,16 +915,43 @@ const LanguoidsList: React.FC = () => {
             </IconButton>
           </Tooltip>
           {hasEditAccess(authState.user) && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleCreateClick}
-            >
-              Add Languoid
-            </Button>
+            <>
+              <ExportButton
+                mode={exportMode}
+                exportStatus={exportStatus}
+                onModeChange={setExportMode}
+                onExecute={handleExport}
+                selectedCount={selectedIds.size}
+                filteredCount={hierarchicalLanguoids.length}
+                disabled={loading}
+              />
+              <BatchEditButton
+                mode={batchEditMode}
+                onModeChange={setBatchEditMode}
+                onExecute={handleBatchEdit}
+                selectedCount={selectedIds.size}
+                filteredCount={hierarchicalLanguoids.length}
+                totalCount={allLanguoids.length}
+              />
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleCreateClick}
+              >
+                Add Languoid
+              </Button>
+            </>
           )}
         </Box>
       </Box>
+
+      {/* Batch Edit Warning Dialog */}
+      <BatchEditWarningDialog
+        open={showWarning}
+        config={warningConfig}
+        onCancel={handleWarningCancel}
+        onContinue={handleWarningContinue}
+      />
 
       {/* Prominent Level Filter Bar */}
       <Card sx={{ mb: 3 }}>
@@ -494,29 +1081,44 @@ const LanguoidsList: React.FC = () => {
             <Card 
               key={languoid.id}
               sx={{ 
-                cursor: 'pointer',
                 ml: languoid.indentLevel * 2, // Indent for hierarchy
-                '&:hover': { bgcolor: 'action.hover' }
               }}
-              onClick={() => handleRowClick(languoid)}
             >
               <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <Chip
-                    label={languoid.level_display}
-                    color={LEVEL_COLORS[languoid.level_nal as keyof typeof LEVEL_COLORS]}
-                    size="small"
-                    sx={{ mr: 1 }}
+                <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                  {/* Checkbox */}
+                  <Checkbox
+                    checked={selectedIds.has(languoid.id)}
+                    onClick={(e) => handleCheckboxClick(e, languoid)}
+                    icon={<CheckBoxOutlineBlankIcon />}
+                    checkedIcon={<CheckBoxIcon />}
+                    sx={{ mt: -1, mr: 1 }}
                   />
-                  <Typography variant="h6" sx={{ flex: 1 }}>
-                    {languoid.name}
-                  </Typography>
-                </Box>
-                
+                  {/* Card content - clickable */}
+                  <Box 
+                    sx={{ 
+                      flex: 1, 
+                      cursor: 'pointer',
+                      '&:hover': { opacity: 0.8 }
+                    }}
+                    onClick={() => handleRowClick(languoid)}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Chip
+                        label={languoid.level_display}
+                        color={LEVEL_COLORS[languoid.level_nal as keyof typeof LEVEL_COLORS]}
+                        size="small"
+                        sx={{ mr: 1 }}
+                      />
+                      <Typography variant="h6" sx={{ flex: 1 }}>
+                        {languoid.name}
+                      </Typography>
+                    </Box>
+                    
                 <Stack spacing={1}>
                   {languoid.iso && (
                     <Typography variant="body2" color="text.secondary">
-                      ISO: {languoid.iso}
+                      ISO: {languoid.iso.length > 6 ? `${languoid.iso.substring(0, 6)}...` : languoid.iso}
                     </Typography>
                   )}
                   {languoid.glottocode && (
@@ -524,17 +1126,19 @@ const LanguoidsList: React.FC = () => {
                       Glottocode: {languoid.glottocode}
                     </Typography>
                   )}
-                  {languoid.family_name && (
-                    <Typography variant="body2" color="text.secondary">
-                      Family: {languoid.family_name}
-                    </Typography>
-                  )}
-                  {languoid.region && (
-                    <Typography variant="body2" color="text.secondary">
-                      Region: {languoid.region}
-                    </Typography>
-                  )}
-                </Stack>
+                      {languoid.family_name && (
+                        <Typography variant="body2" color="text.secondary">
+                          Family: {languoid.family_name}
+                        </Typography>
+                      )}
+                      {languoid.region && (
+                        <Typography variant="body2" color="text.secondary">
+                          Region: {languoid.region}
+                        </Typography>
+                      )}
+                    </Stack>
+                  </Box>
+                </Box>
               </CardContent>
             </Card>
           ))}
@@ -545,6 +1149,25 @@ const LanguoidsList: React.FC = () => {
           <Table>
             <TableHead>
               <TableRow>
+                <TableCell padding="checkbox">
+                  <Tooltip title={selectAllCheckboxState === 'checked' ? 'Deselect all filtered' : 'Select all filtered'}>
+                    <Checkbox
+                      checked={selectAllCheckboxState === 'checked'}
+                      indeterminate={selectAllCheckboxState === 'indeterminate'}
+                      onChange={() => {
+                        if (selectAllCheckboxState === 'checked') {
+                          handleDeselectAll();
+                        } else {
+                          handleSelectAllFiltered();
+                        }
+                      }}
+                      disabled={hierarchicalLanguoids.length === 0}
+                      icon={<CheckBoxOutlineBlankIcon />}
+                      checkedIcon={<CheckBoxIcon />}
+                      indeterminateIcon={<IndeterminateCheckBoxIcon />}
+                    />
+                  </Tooltip>
+                </TableCell>
                 <TableCell>Name</TableCell>
                 <TableCell>Level</TableCell>
                 <TableCell>ISO</TableCell>
@@ -562,6 +1185,14 @@ const LanguoidsList: React.FC = () => {
                   sx={{ cursor: 'pointer' }}
                   onClick={() => handleRowClick(languoid)}
                 >
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      checked={selectedIds.has(languoid.id)}
+                      onClick={(e) => handleCheckboxClick(e, languoid)}
+                      icon={<CheckBoxOutlineBlankIcon />}
+                      checkedIcon={<CheckBoxIcon />}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       {/* Hierarchical indentation */}
@@ -578,7 +1209,11 @@ const LanguoidsList: React.FC = () => {
                       size="small"
                     />
                   </TableCell>
-                  <TableCell>{languoid.iso || '—'}</TableCell>
+                  <TableCell>
+                    {languoid.iso 
+                      ? (languoid.iso.length > 6 ? `${languoid.iso.substring(0, 6)}...` : languoid.iso)
+                      : '—'}
+                  </TableCell>
                   <TableCell>{languoid.glottocode || '—'}</TableCell>
                   <TableCell>{languoid.family_name || '—'}</TableCell>
                   <TableCell>{languoid.region || '—'}</TableCell>

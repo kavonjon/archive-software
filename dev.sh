@@ -63,12 +63,12 @@ cd app
 if [ "$SERVER_ROLE" = "public" ]; then
     # Use spawn method on macOS for Celery
     CELERY_WORKER_CONCURRENCY=${CELERY_WORKER_CONCURRENCY:-4}
-    pipenv run celery -A archive worker -Q public,common --loglevel=info --concurrency=$CELERY_WORKER_CONCURRENCY -P prefork &
+    pipenv run celery -A archive worker -Q celery,public,common --loglevel=info --concurrency=$CELERY_WORKER_CONCURRENCY -P prefork &
     pipenv run celery -A archive beat --loglevel=info &
 else
     # Use spawn method on macOS for Celery
     CELERY_WORKER_CONCURRENCY=${CELERY_WORKER_CONCURRENCY:-4}
-    pipenv run celery -A archive worker -Q private,common --loglevel=info --concurrency=$CELERY_WORKER_CONCURRENCY -P prefork &
+    pipenv run celery -A archive worker -Q celery,private,common --loglevel=info --concurrency=$CELERY_WORKER_CONCURRENCY -P prefork &
     pipenv run celery -A archive beat --loglevel=info &
 fi
 

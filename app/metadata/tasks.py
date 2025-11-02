@@ -669,19 +669,21 @@ def get_all_descendents(languoid, visited=None):
 
 
 @shared_task(bind=True, max_retries=3)
-def update_languoid_hierarchy_task(self, languoid_id, needs_orphaning=False):
+def update_languoid_hierarchy_task(self, languoid_id, needs_orphaning=False, old_parent_id=None):
     """
     UNIFIED TASK: Update hierarchy relationships for a languoid.
     
     This handles:
     1. Orphaning dialect children (if level changed from language)
-    2. Updating descendents M2M for this languoid and ancestors
+    2. Updating descendents M2M for this languoid and NEW parent's ancestors
+    3. Updating descendents M2M for OLD parent's ancestors (if parent changed)
     
     Priority 9 (highest) - user is waiting for tree to update.
     
     Args:
         languoid_id: The languoid that was saved
         needs_orphaning: True if level changed from language to other
+        old_parent_id: ID of old parent if parent_languoid changed
     """
     try:
         languoid = Languoid.objects.select_related(
@@ -734,6 +736,40 @@ def update_languoid_hierarchy_task(self, languoid_id, needs_orphaning=False):
             descendents = get_all_descendents(ancestor)
             ancestor.descendents.set(descendents)
             results['updated_descendents'] += 1
+        
+        # STEP 3: Update OLD parent's ancestor chain (if parent changed)
+        if old_parent_id:
+            try:
+                old_parent = Languoid.objects.select_related(
+                    'parent_languoid',
+                    'parent_languoid__parent_languoid',
+                    'parent_languoid__parent_languoid__parent_languoid'
+                ).get(id=old_parent_id)
+                
+                logger.info(
+                    f"Parent changed for '{languoid.name}': "
+                    f"updating old parent '{old_parent.name}' ancestor chain"
+                )
+                
+                # Get old parent + all its ancestors
+                old_ancestors = get_all_ancestors(old_parent)
+                old_ancestors.append(old_parent)
+                
+                # Recalculate descendents for each (they lost the moved subtree)
+                for old_ancestor in old_ancestors:
+                    descendents = get_all_descendents(old_ancestor)
+                    old_ancestor.descendents.set(descendents)
+                    results['updated_descendents'] += 1
+                
+                logger.info(
+                    f"Updated old parent chain: {len(old_ancestors)} languoids "
+                    f"(removed '{languoid.name}' and its subtree)"
+                )
+            except Languoid.DoesNotExist:
+                logger.warning(
+                    f"Old parent {old_parent_id} not found for '{languoid.name}' "
+                    f"(may have been deleted)"
+                )
         
         logger.info(
             f"Updated hierarchy for '{languoid.name}': "
@@ -796,6 +832,108 @@ def cascade_hierarchy_to_dialects_task(self, languoid_id):
         return None
     except Exception as e:
         logger.error(f"Error cascading to dialects: {e}")
+        raise self.retry(exc=e, countdown=2 ** self.request.retries)
+
+
+# ============================================================================
+# BATCH-OPTIMIZED LANGUOID HIERARCHY TASKS
+# ============================================================================
+
+@shared_task(bind=True, max_retries=3)
+def recalculate_ancestor_descendents_task(self, ancestor_ids):
+    """
+    BATCH-OPTIMIZED: Recalculate descendents M2M for multiple ancestors at once.
+    
+    This task processes a deduplicated list of ancestors that were affected
+    by a batch save operation, eliminating redundant recalculations.
+    
+    Args:
+        ancestor_ids: List of languoid IDs whose descendents need recalculation
+    
+    Returns:
+        Number of ancestors updated
+    """
+    try:
+        logger.info(f"[BATCH] Recalculating descendents for {len(ancestor_ids)} ancestors")
+        
+        updated_count = 0
+        for ancestor_id in ancestor_ids:
+            try:
+                ancestor = Languoid.objects.get(id=ancestor_id)
+                descendents = get_all_descendents(ancestor)
+                ancestor.descendents.set(descendents)
+                updated_count += 1
+            except Languoid.DoesNotExist:
+                logger.warning(f"[BATCH] Ancestor {ancestor_id} not found (may have been deleted)")
+                continue
+        
+        logger.info(f"[BATCH] Updated descendents for {updated_count}/{len(ancestor_ids)} ancestors")
+        return updated_count
+        
+    except Exception as e:
+        logger.error(f"[BATCH] Error recalculating ancestor descendents: {e}")
+        import traceback
+        traceback.print_exc()
+        raise self.retry(exc=e, countdown=2 ** self.request.retries)
+
+
+@shared_task(bind=True, max_retries=3)
+def orphan_dialects_batch_task(self, languoid_ids):
+    """
+    BATCH-OPTIMIZED: Orphan dialects for multiple languoids that changed from language level.
+    
+    Args:
+        languoid_ids: List of languoid IDs that changed from language to other level
+    
+    Returns:
+        Total number of dialects orphaned
+    """
+    try:
+        logger.info(f"[BATCH] Orphaning dialects for {len(languoid_ids)} languoids")
+        
+        total_orphaned = 0
+        for languoid_id in languoid_ids:
+            try:
+                languoid = Languoid.objects.get(id=languoid_id)
+                
+                dialect_children = Languoid.objects.filter(
+                    parent_languoid=languoid,
+                    level_glottolog='dialect'
+                )
+                
+                orphaned_names = []
+                for dialect in dialect_children:
+                    dialect.parent_languoid = None
+                    # Set batch flag to prevent individual signals
+                    dialect._skip_async_tasks = True
+                    dialect.save(update_fields=[
+                        'parent_languoid',
+                        'family_languoid',
+                        'pri_subgroup_languoid',
+                        'sec_subgroup_languoid'
+                    ])
+                    orphaned_names.append(dialect.name)
+                    total_orphaned += 1
+                
+                if orphaned_names:
+                    logger.info(
+                        f"[BATCH] Orphaned {len(orphaned_names)} dialects for '{languoid.name}': "
+                        f"{', '.join(orphaned_names[:5])}"
+                    )
+                    if len(orphaned_names) > 5:
+                        logger.info(f"  ... and {len(orphaned_names) - 5} more")
+                        
+            except Languoid.DoesNotExist:
+                logger.warning(f"[BATCH] Languoid {languoid_id} not found")
+                continue
+        
+        logger.info(f"[BATCH] Total orphaned dialects: {total_orphaned}")
+        return total_orphaned
+        
+    except Exception as e:
+        logger.error(f"[BATCH] Error orphaning dialects: {e}")
+        import traceback
+        traceback.print_exc()
         raise self.retry(exc=e, countdown=2 ** self.request.retries)
 
 
@@ -912,3 +1050,171 @@ def invalidate_and_warm_languoid_cache():
     
     # Trigger background rebuild (doesn't block the signal)
     warm_languoid_list_cache.apply_async(priority=8)
+
+
+# ============================================================================
+# LANGUOID EXPORT TASKS
+# ============================================================================
+
+@shared_task(bind=True, max_retries=3)
+def generate_languoid_export_task(self, export_id, mode, ids):
+    """
+    Background task to generate languoid export for large datasets.
+    
+    Args:
+        export_id: Unique identifier for this export (used for filename and tracking)
+        mode: 'filtered' | 'selected'
+        ids: List of languoid IDs to export
+    
+    Returns:
+        dict with status, filename, and error info
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    from datetime import datetime
+    from django.core.files.storage import default_storage
+    from django.core.files.base import ContentFile
+    from django.conf import settings
+    import os
+    
+    logger.info(f"[EXPORT TASK] Starting export {export_id}: {len(ids)} languoids")
+    
+    try:
+        # Fetch languoids with optimized queries
+        queryset = Languoid.objects.filter(id__in=ids).select_related(
+            'parent_languoid',
+            'family_languoid',
+            'pri_subgroup_languoid',
+            'sec_subgroup_languoid'
+        )
+        
+        languoids = list(queryset)
+        logger.info(f"[EXPORT TASK] Found {len(languoids)} languoids")
+        
+        # Sort languoids by hierarchy (tree structure)
+        languoid_dict = {l.id: l for l in languoids}
+        
+        def get_sort_key(languoid):
+            """Generate hierarchical sort key"""
+            path = []
+            current = languoid
+            visited = set()
+            
+            while current:
+                if current.id in visited:
+                    break
+                visited.add(current.id)
+                path.insert(0, current.name.lower() if current.name else '')
+                
+                if current.parent_languoid and current.parent_languoid.id in languoid_dict:
+                    current = languoid_dict[current.parent_languoid.id]
+                elif current.parent_languoid:
+                    path.insert(0, current.parent_languoid.name.lower() if current.parent_languoid.name else '')
+                    break
+                else:
+                    break
+            
+            return tuple(path)
+        
+        languoids.sort(key=get_sort_key)
+        
+        # Create workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Languoids"
+        
+        # Define headers
+        headers = [
+            'Name', 'Name Abbreviation', 'Glottocode', 'ISO 639-3',
+            'Level (Glottolog)', 'Level (NAL)',
+            'Parent Languoid', 'Parent Languoid Abbreviation', 'Parent Languoid Glottocode',
+            'Family', 'Family Abbreviation', 'Family Glottocode',
+            'Primary Subfamily', 'Primary Subfamily Abbreviation', 'Primary Subfamily Glottocode',
+            'Secondary Subfamily', 'Secondary Subfamily Abbreviation', 'Secondary Subfamily Glottocode',
+            'Alternate Names', 'Region', 'Longitude', 'Latitude', 'Tribes', 'Notes',
+        ]
+        
+        # Write header row with styling
+        header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+        header_font = Font(bold=True, color='FFFFFF')
+        
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_num)
+            cell.value = header
+            cell.fill = header_fill
+            cell.font = header_font
+        
+        # Helper function for safe values
+        def safe_value(value):
+            if value is None:
+                return ''
+            if isinstance(value, (list, tuple)):
+                return ', '.join(str(v) for v in value)
+            if isinstance(value, bool):
+                return 'Yes' if value else 'No'
+            return str(value)
+        
+        # Write data rows
+        for row_num, languoid in enumerate(languoids, 2):
+            ws.cell(row=row_num, column=1).value = safe_value(languoid.name)
+            ws.cell(row=row_num, column=2).value = safe_value(languoid.name_abbrev)
+            ws.cell(row=row_num, column=3).value = safe_value(languoid.glottocode)
+            ws.cell(row=row_num, column=4).value = safe_value(languoid.iso)
+            ws.cell(row=row_num, column=5).value = languoid.get_level_glottolog_display() if languoid.level_glottolog else ''
+            ws.cell(row=row_num, column=6).value = languoid.get_level_nal_display() if languoid.level_nal else ''
+            
+            # Parent Languoid
+            ws.cell(row=row_num, column=7).value = languoid.parent_languoid.name if languoid.parent_languoid else ''
+            ws.cell(row=row_num, column=8).value = safe_value(languoid.parent_languoid.name_abbrev) if languoid.parent_languoid else ''
+            ws.cell(row=row_num, column=9).value = safe_value(languoid.parent_languoid.glottocode) if languoid.parent_languoid else ''
+            
+            # Family
+            ws.cell(row=row_num, column=10).value = languoid.family_languoid.name if languoid.family_languoid else ''
+            ws.cell(row=row_num, column=11).value = safe_value(languoid.family_languoid.name_abbrev) if languoid.family_languoid else ''
+            ws.cell(row=row_num, column=12).value = safe_value(languoid.family_languoid.glottocode) if languoid.family_languoid else ''
+            
+            # Primary Subfamily
+            ws.cell(row=row_num, column=13).value = languoid.pri_subgroup_languoid.name if languoid.pri_subgroup_languoid else ''
+            ws.cell(row=row_num, column=14).value = safe_value(languoid.pri_subgroup_languoid.name_abbrev) if languoid.pri_subgroup_languoid else ''
+            ws.cell(row=row_num, column=15).value = safe_value(languoid.pri_subgroup_languoid.glottocode) if languoid.pri_subgroup_languoid else ''
+            
+            # Secondary Subfamily
+            ws.cell(row=row_num, column=16).value = languoid.sec_subgroup_languoid.name if languoid.sec_subgroup_languoid else ''
+            ws.cell(row=row_num, column=17).value = safe_value(languoid.sec_subgroup_languoid.name_abbrev) if languoid.sec_subgroup_languoid else ''
+            ws.cell(row=row_num, column=18).value = safe_value(languoid.sec_subgroup_languoid.glottocode) if languoid.sec_subgroup_languoid else ''
+            
+            # Other fields
+            ws.cell(row=row_num, column=19).value = safe_value(languoid.alt_names)
+            ws.cell(row=row_num, column=20).value = safe_value(languoid.region)
+            ws.cell(row=row_num, column=21).value = str(languoid.longitude) if languoid.longitude else ''
+            ws.cell(row=row_num, column=22).value = str(languoid.latitude) if languoid.latitude else ''
+            ws.cell(row=row_num, column=23).value = safe_value(languoid.tribes)
+            ws.cell(row=row_num, column=24).value = safe_value(languoid.notes)
+        
+        # Auto-size columns
+        for col_num in range(1, len(headers) + 1):
+            ws.column_dimensions[ws.cell(row=1, column=col_num).column_letter].width = 20
+        
+        # Save to media/exports directory
+        exports_dir = os.path.join(settings.MEDIA_ROOT, 'exports')
+        os.makedirs(exports_dir, exist_ok=True)
+        
+        filename = f'languoids_export_{export_id}.xlsx'
+        file_path = os.path.join(exports_dir, filename)
+        
+        # Save workbook
+        wb.save(file_path)
+        
+        logger.info(f"[EXPORT TASK] Successfully generated export: {filename}")
+        
+        return {
+            'status': 'success',
+            'filename': filename,
+            'count': len(languoids)
+        }
+        
+    except Exception as e:
+        logger.error(f"[EXPORT TASK] Error generating export {export_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise self.retry(exc=e, countdown=30)

@@ -1,9 +1,9 @@
 {
   "data_model_understanding": {
-    "version": "1.0",
-    "last_updated": "2025-01-04",
-    "conversation_reference": "Initial context memory system setup discussion",
-    "note": "Initial population - needs expansion with detailed model analysis",
+    "version": "1.1",
+    "last_updated": "2025-10-29",
+    "conversation_reference": "Languoid hierarchy implementation and parent change fix",
+    "note": "Expanded with comprehensive languoid hierarchy documentation. Other models still need detailed analysis.",
     
     "core_entities": {
       "item": {
@@ -39,11 +39,157 @@
       
       "languoid": {
         "decision_id": "model_004",
-        "content": "Languages with dialect information for linguistic heritage documentation",
+        "content": "Languages with dialect information for linguistic heritage documentation, organized in a hierarchical tree structure",
         "added_date": "2025-01-04",
-        "characteristics": ["Language names", "Dialect variations"],
-        "relationships": ["Related to Collaborators (native/other)", "Related to Documents", "Related to Items"],
-        "confidence_level": "medium",
+        "updated_date": "2025-10-29",
+        "characteristics": [
+          "Language names and glottocodes (external identifier)",
+          "Hierarchical structure (Family → Subfamily → Language → Dialect)",
+          "Level classification (level_glottolog: family/language/dialect)",
+          "Derived hierarchy fields (level_nal, family_languoid, pri_subgroup_languoid, sec_subgroup_languoid)",
+          "Cached descendents M2M for efficient tree queries"
+        ],
+        "relationships": [
+          "Related to Collaborators (native/other)",
+          "Related to Documents",
+          "Related to Items",
+          "Self-referential: parent_languoid FK (tree structure)",
+          "Self-referential: descendents M2M (cached for performance)"
+        ],
+        "hierarchy_architecture": {
+          "description": "Complex hierarchical system with automatic field derivation and cascading updates",
+          "single_source_of_truth": "parent_languoid FK is the ONLY user-editable hierarchy field - all others are derived",
+          "level_structure": {
+            "level_glottolog": "User-specified classification (family/language/dialect) - determines detail page layout and available fields",
+            "level_nal": "Automatically derived granular level (family/subfamily/subsubfamily/language/dialect) based on level_glottolog and parent's level_nal"
+          },
+          "derived_fields": {
+            "name_abbrev": "Defaults to name if empty",
+            "level_nal": "Derived from level_glottolog + parent's level_nal",
+            "family_languoid": "FK to top-level family ancestor",
+            "pri_subgroup_languoid": "FK to primary subfamily ancestor",
+            "sec_subgroup_languoid": "FK to secondary subsubfamily ancestor",
+            "descendents": "M2M to all descendants in subtree (cached for performance)"
+          },
+          "derivation_logic": {
+            "family_to_subfamily_transition": "A 'family' type languoid with a 'family' parent becomes 'subfamily', with 'subfamily' parent becomes 'subsubfamily'",
+            "hierarchy_fks_from_parent_chain": {
+              "parent_is_family": "family_languoid = parent",
+              "parent_is_subfamily": "pri_subgroup_languoid = parent, family_languoid = parent.family_languoid",
+              "parent_is_subsubfamily": "sec_subgroup_languoid = parent, pri_subgroup_languoid = parent.pri_subgroup_languoid, family_languoid = parent.family_languoid",
+              "parent_is_language": "Inherit all three FKs from parent (for dialects)"
+            }
+          },
+          "level_change_rules": {
+            "from_language_to_other": {
+              "orphan_dialects": "Set parent_languoid = None for all dialect children",
+              "discard_fields": "Clear region, longitude, latitude, tribes, notes (language-specific fields)",
+              "trigger": "pre_save signal sets _needs_dialect_orphaning flag, post_save Celery task performs orphaning"
+            }
+          }
+        },
+        "signal_and_task_architecture": {
+          "description": "Three-signal pattern for automatic field derivation and hierarchy maintenance",
+          "pre_save_signal": {
+            "name": "compute_languoid_derived_fields",
+            "file": "app/metadata/signals.py",
+            "responsibilities": [
+              "Detect level_glottolog changes from 'language' → set _needs_dialect_orphaning flag, clear language-specific fields",
+              "Detect parent_languoid changes → store _old_parent_id for descendents M2M update",
+              "Derive level_nal from level_glottolog and parent",
+              "Default name_abbrev to name if empty",
+              "Derive hierarchy FKs (family_languoid, pri_subgroup_languoid, sec_subgroup_languoid) from parent chain"
+            ],
+            "timing": "BEFORE save - modifies instance fields synchronously"
+          },
+          "post_save_signal_1": {
+            "name": "schedule_languoid_hierarchy_update",
+            "file": "app/metadata/signals.py",
+            "responsibilities": [
+              "Extract _needs_dialect_orphaning flag from instance",
+              "Extract _old_parent_id from instance (if parent changed)",
+              "Schedule update_languoid_hierarchy_task (Priority 9 - highest)"
+            ],
+            "debouncing": "10-second cache key to prevent duplicate task scheduling",
+            "timing": "AFTER save - triggers async task"
+          },
+          "post_save_signal_2": {
+            "name": "schedule_cascading_dialect_updates",
+            "file": "app/metadata/signals.py",
+            "responsibilities": [
+              "Schedule cascade_hierarchy_to_dialects_task for family/language hierarchy changes (Priority 5, 3-second delay)"
+            ],
+            "debouncing": "10-second cache key to prevent duplicate task scheduling",
+            "timing": "AFTER save - triggers delayed async task"
+          },
+          "post_save_signal_3": {
+            "name": "invalidate_languoid_list_cache",
+            "file": "app/metadata/signals.py",
+            "responsibilities": [
+              "Invalidate Redis cache for languoid list (Priority 8)",
+              "Trigger immediate cache rebuild via invalidate_and_warm_languoid_cache task"
+            ],
+            "timing": "AFTER save/delete - triggers cache refresh"
+          },
+          "celery_task_1": {
+            "name": "update_languoid_hierarchy_task",
+            "file": "app/metadata/tasks.py",
+            "priority": 9,
+            "max_retries": 3,
+            "responsibilities": [
+              "STEP 1: Orphan dialect children (if _needs_dialect_orphaning flag set)",
+              "STEP 2: Update descendents M2M for languoid and NEW parent's ancestor chain",
+              "STEP 3: Update descendents M2M for OLD parent's ancestor chain (if parent changed)"
+            ],
+            "critical_fix_2025_10_29": "Added STEP 3 to prevent stale descendents references in old parent chain when subtree is moved",
+            "helper_functions": [
+              "get_all_ancestors(languoid) → List[Languoid]: Traverses parent_languoid chain upward",
+              "get_all_descendents(languoid, visited=None) → List[Languoid]: Recursively finds all children"
+            ]
+          },
+          "celery_task_2": {
+            "name": "cascade_hierarchy_to_dialects_task",
+            "file": "app/metadata/tasks.py",
+            "priority": 5,
+            "delay": "3 seconds",
+            "max_retries": 3,
+            "responsibilities": [
+              "Find all dialect descendants (recursively)",
+              "Update their family_languoid, pri_subgroup_languoid, sec_subgroup_languoid FKs based on new parent hierarchy"
+            ],
+            "rationale": "Delayed task to avoid race conditions with immediate hierarchy updates"
+          },
+          "celery_task_3": {
+            "name": "invalidate_and_warm_languoid_cache",
+            "file": "app/metadata/tasks.py",
+            "priority": 8,
+            "responsibilities": [
+              "Invalidate languoid list cache in Redis",
+              "Rebuild cache immediately via warm_languoid_list_cache task"
+            ]
+          }
+        },
+        "parent_change_descendents_update": {
+          "problem": "When a languoid's parent_languoid changes (moving a subtree), only the NEW parent's ancestor chain had its descendents M2M updated. The OLD parent's ancestor chain retained stale references to the moved subtree.",
+          "example_bug": {
+            "initial_tree": "FamilyA → SubfamilyA1 → LanguageA1a; FamilyB (empty)",
+            "action": "Move LanguageA1a from SubfamilyA1 to FamilyB",
+            "before_fix": "FamilyA.descendents=[SubfamilyA1, LanguageA1a] (STALE), SubfamilyA1.descendents=[LanguageA1a] (STALE), FamilyB.descendents=[LanguageA1a] (correct)",
+            "after_fix": "FamilyA.descendents=[SubfamilyA1] (correct), SubfamilyA1.descendents=[] (correct), FamilyB.descendents=[LanguageA1a] (correct)"
+          },
+          "solution_implemented": "2025-10-29",
+          "solution_steps": [
+            "1. pre_save signal: When parent_languoid changes, store old parent ID in instance._old_parent_id",
+            "2. post_save signal: Extract _old_parent_id and pass to Celery task as third argument",
+            "3. Celery task STEP 3: If old_parent_id provided, fetch old parent, get its ancestor chain, recalculate descendents M2M for each (removing moved subtree)"
+          ],
+          "files_modified": [
+            "app/metadata/signals.py (compute_languoid_derived_fields, schedule_languoid_hierarchy_update)",
+            "app/metadata/tasks.py (update_languoid_hierarchy_task)"
+          ],
+          "impact": "Frontend languoid detail page Descendants Tree now correctly reflects hierarchy after parent changes. List page hierarchical display is accurate. Cache automatically invalidated/rebuilt."
+        },
+        "confidence_level": "high",
         "status": "active"
       },
       

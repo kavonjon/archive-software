@@ -11,6 +11,30 @@
 export type ValidationState = 'valid' | 'invalid' | 'validating';
 
 /**
+ * A single cell change for undo/redo history
+ */
+export interface CellChange {
+  rowId: string | number;
+  fieldName: string;
+  oldValue: any;
+  oldText: string;
+  newValue: any;
+  newText: string;
+  oldValidationState?: ValidationState;
+  oldValidationError?: string;
+}
+
+/**
+ * History entry for undo/redo
+ */
+export interface HistoryEntry {
+  type: 'single' | 'batch';
+  changes: CellChange[];
+  timestamp: number;
+  description: string; // e.g., "Edit Name" or "Paste 50 cells"
+}
+
+/**
  * Cell types supported in the spreadsheet
  */
 export type CellType = 
@@ -21,7 +45,8 @@ export type CellType =
   | 'boolean'        // Three-state boolean (true/false/null)
   | 'date'           // Date field
   | 'stringarray'    // JSONField string array
-  | 'decimal';       // Decimal number field (longitude, latitude, measurements)
+  | 'decimal'        // Decimal number field (longitude, latitude, measurements)
+  | 'readonly';      // Read-only field (cannot be edited)
 
 /**
  * A single cell in the spreadsheet grid
@@ -79,11 +104,14 @@ export interface SpreadsheetRow {
   /** True if any cell has validation errors */
   hasErrors: boolean;
   
+  /** True if this row is selected (checkbox) - Phase 9.1 */
+  isSelected?: boolean;
+  
   /** Version number for optimistic locking (conflict detection) */
   version?: number;
   
-  /** Selected flag for bulk operations */
-  isSelected?: boolean;
+  /** DB's 'updated' timestamp for conflict detection */
+  _updated?: string;
 }
 
 /**
@@ -178,5 +206,10 @@ export interface BatchSpreadsheetState {
   
   /** Dirty flag (unsaved changes) */
   isDirty: boolean;
+  
+  /** Undo/Redo History */
+  undoStack: HistoryEntry[];
+  redoStack: HistoryEntry[];
+  maxHistorySize: number; // Default: 50 actions
 }
 

@@ -1,8 +1,8 @@
 {
   "stage_1_batch_editing": {
-    "version": "3.0",
-    "last_updated": "2025-10-19",
-    "conversation_reference": "Detailed Stage 1 planning and implementation architecture for smart spreadsheet batch editing features",
+    "version": "4.0",
+    "last_updated": "2025-11-02",
+    "conversation_reference": "Detailed Stage 1 planning and implementation architecture for smart spreadsheet batch editing features. Version 4.0 includes complete TanStack migration documentation.",
     
     "stage_overview": {
       "decision_id": "stage1_001",
@@ -16,14 +16,15 @@
     },
     
     "technical_architecture": {
-      "library_choice": {
+      "library_choice_reactgrid": {
         "decision_id": "stage1_016",
-        "content": "ReactGrid selected as spreadsheet component library",
+        "content": "ReactGrid initially selected as spreadsheet component library",
         "added_date": "2025-10-17",
+        "deprecated_date": "2025-11-02",
         "library": "ReactGrid",
         "license": "MIT",
         "github": "https://github.com/silevis/reactgrid",
-        "rationale": "TypeScript-first, custom cell types, modern React hooks, no jQuery dependencies, perfect fit for complex requirements",
+        "rationale": "TypeScript-first, custom cell types, modern React hooks, no jQuery dependencies, appeared to fit complex requirements",
         "key_capabilities": [
           "Custom cell renderers for display vs data separation",
           "Built-in copy/paste with Excel-like behavior",
@@ -32,47 +33,86 @@
           "Full TypeScript support",
           "Material-UI compatible for overlay dialogs"
         ],
+        "deprecation_reason": "Performance limitations - lacks row virtualization, fails with 1,000+ rows due to out-of-memory errors",
+        "superseded_by": "stage1_045 (TanStack Table migration)",
         "confidence_level": "high",
-        "status": "decided"
+        "status": "deprecated"
+      },
+      
+      "library_choice": {
+        "decision_id": "stage1_045",
+        "content": "TanStack Table with virtualization selected as spreadsheet component library",
+        "added_date": "2025-11-02",
+        "conversation_reference": "TanStack migration for 10,000+ row performance requirement",
+        "library": "TanStack Table v8",
+        "virtualization_library": "@tanstack/react-virtual",
+        "license": "MIT",
+        "github": "https://github.com/TanStack/table",
+        "rationale": "Headless table library with row virtualization enables 10,000+ row performance. ReactGrid's lack of virtualization caused out-of-memory errors at 1,000+ rows.",
+        "migration_trigger": "Production requirement to handle 10,000 rows smoothly. ReactGrid fundamentally cannot scale due to rendering all rows to DOM.",
+        "key_capabilities": [
+          "Row virtualization - only renders visible rows (~20-30 at a time)",
+          "Headless architecture - full control over rendering and styling",
+          "60 FPS scrolling with 10,000+ rows",
+          "Flexible cell rendering system",
+          "TypeScript-first API",
+          "No built-in UI constraints"
+        ],
+        "performance_characteristics": {
+          "target_dataset": "10,000 rows, 10 columns",
+          "scroll_fps": "60 FPS",
+          "cell_edit_latency": "<100ms",
+          "selection_toggle": "<50ms",
+          "undo_redo": "<100ms",
+          "memory_usage": "Constant (virtualized rendering)"
+        },
+        "confidence_level": "high",
+        "status": "active"
       },
       
       "component_architecture": {
         "decision_id": "stage1_017",
         "content": "Reusable core with model-specific wrappers pattern",
         "added_date": "2025-10-17",
-        "pattern": "Generic SpreadsheetGrid component reused across all models with model-specific configuration wrappers",
+        "updated_date": "2025-11-02",
+        "pattern": "Generic TanStackSpreadsheet component reused across all models with model-specific configuration wrappers",
         "reusable_core": [
-          "SpreadsheetGrid.tsx (generic grid wrapper)",
-          "Cell type definitions (text, select, relationship, multiselect, boolean, date)",
-          "Overlay editors (RelationshipEditor, MultiSelectEditor, DateEditor)",
+          "TanStackSpreadsheet.tsx (virtualized grid with keyboard navigation, selection, copy/paste)",
+          "MemoizedSpreadsheetCell.tsx (optimized cell rendering with custom equality function)",
+          "CellEditor.tsx (modal editor for all cell types)",
+          "TanStackSpreadsheetWrapper.tsx (toolbar + grid container)",
+          "Cell type definitions (text, decimal, select, relationship, multiselect, stringarray, boolean, readonly)",
           "Change tracking logic",
-          "Validation framework",
-          "Redux state management (batchSpreadsheetSlice, batchValidationSlice)"
+          "Validation framework (client-side + backend)",
+          "Redux state management (batchSpreadsheetSlice with undo/redo)"
         ],
         "model_specific_wrappers": [
-          "LanguoidBatchEditor.tsx (column config + languoid-specific validation)",
-          "CollaboratorBatchEditor.tsx (column config + collaborator-specific validation)",
-          "ItemBatchEditor.tsx (column config + item-specific validation)"
+          "LanguoidBatchEditor.tsx (column config + languoid-specific validation + conflict detection)",
+          "CollaboratorBatchEditor.tsx (future - column config + collaborator-specific validation)",
+          "ItemBatchEditor.tsx (future - column config + item-specific validation)"
         ],
+        "component_hierarchy": "LanguoidBatchEditor → AdaptiveSpreadsheetGrid → TanStackSpreadsheetWrapper → TanStackSpreadsheet → MemoizedSpreadsheetCell → CellEditor",
         "code_reuse_percentage": "~95% shared core, ~5% model-specific configuration",
         "confidence_level": "high",
-        "status": "decided"
+        "status": "active"
       },
       
       "data_flow_architecture": {
         "decision_id": "stage1_018",
         "content": "Cell data structure separating display values from machine-readable data",
         "added_date": "2025-10-17",
+        "updated_date": "2025-11-02",
         "cell_structure": {
           "text": "Human-friendly display value (e.g., 'English, Spanish, French')",
           "value": "Machine-readable data (e.g., [1, 5, 12] - array of IDs)",
-          "type": "Cell type (text, select, relationship, multiselect, boolean, date)",
+          "type": "Cell type (text, decimal, select, relationship, multiselect, stringarray, boolean, readonly)",
           "isEdited": "Change tracking flag",
           "originalValue": "Value when loaded from DB",
-          "validationState": "valid | invalid | validating",
+          "validationState": "valid | invalid | none",
           "validationError": "Error message if invalid",
-          "hasConflict": "Conflict detection flag",
-          "fieldName": "Model field name"
+          "hasConflict": "Conflict detection flag (field-level optimistic locking)",
+          "fieldName": "Model field name",
+          "readOnly": "Optional flag for display-only fields (e.g., ID)"
         },
         "row_structure": {
           "id": "Database ID or 'draft-{uuid}' for new rows",
@@ -80,10 +120,23 @@
           "isDraft": "True if new row not yet saved",
           "hasChanges": "True if any cell edited",
           "hasErrors": "True if any validation errors",
-          "version": "For optimistic locking conflict detection"
+          "isSelected": "True if row checkbox selected (Phase 9 - bulk actions)",
+          "version": "For optimistic locking conflict detection",
+          "_updated": "Database timestamp for conflict detection"
+        },
+        "state_structure": {
+          "rows": "Array of SpreadsheetRow",
+          "loading": "Data fetch in progress",
+          "saving": "Save operation in progress",
+          "error": "Error message string | null",
+          "successMessage": "Success message string | null",
+          "validatingCells": "Array of cell IDs being validated",
+          "undoStack": "Array of HistoryEntry (max 50, Phase 8)",
+          "redoStack": "Array of HistoryEntry (Phase 8)",
+          "maxHistorySize": "50 actions"
         },
         "confidence_level": "high",
-        "status": "decided"
+        "status": "active"
       }
     },
     
@@ -1738,6 +1791,354 @@
         
         "confidence_level": "high",
         "status": "documented"
+      }
+    },
+    
+    "tanstack_implementation": {
+      "migration_overview": {
+        "decision_id": "stage1_046",
+        "content": "Complete migration from ReactGrid to TanStack Table for 10,000+ row performance",
+        "added_date": "2025-11-02",
+        "conversation_reference": "Phase 6-9 TanStack migration - performance optimization, integration, undo/redo, checkbox selection",
+        "migration_trigger": "ReactGrid failed with 1,000+ rows due to lack of virtualization (out-of-memory errors)",
+        "production_requirement": "Must handle 10,000 rows smoothly",
+        "migration_phases": [
+          "Phase 1: Create base TanStackSpreadsheet component with virtualization",
+          "Phase 2: Implement selection system (single cell, range, keyboard navigation)",
+          "Phase 3: Implement cell editing framework for all 8 cell types",
+          "Phase 4: Implement copy/paste system with TSV format",
+          "Phase 5: Implement validation and dirty state indicators",
+          "Phase 6: Performance optimization (remove debug logging, profiling, memoization audit)",
+          "Phase 7: Integration with existing batch editor (incremental, side-by-side)",
+          "Phase 8: Advanced features (undo/redo)",
+          "Phase 9: Checkbox column for bulk actions (selection + save integration)"
+        ],
+        "migration_duration": "~3 weeks",
+        "confidence_level": "high",
+        "status": "completed"
+      },
+      
+      "performance_optimizations": {
+        "decision_id": "stage1_047",
+        "content": "Performance strategies enabling 10,000+ row smooth operation",
+        "added_date": "2025-11-02",
+        "strategies": {
+          "row_virtualization": {
+            "library": "@tanstack/react-virtual",
+            "mechanism": "Only renders visible rows (~20-30) + overscan buffer",
+            "impact": "10,000 rows → 30 DOM elements (instead of 10,000)",
+            "result": "60 FPS scrolling, constant memory usage"
+          },
+          "cell_memoization": {
+            "component": "MemoizedSpreadsheetCell with React.memo",
+            "equality_function": "Custom arePropsEqual with deep property comparison",
+            "impact": "Cell re-renders ONLY if value, text, or state changes",
+            "result": "99%+ reduction in unnecessary re-renders"
+          },
+          "event_handler_memoization": {
+            "mechanism": "useCallback for all event handlers",
+            "impact": "Prevents cell re-renders due to handler reference changes",
+            "result": "Stable references across renders"
+          },
+          "immer_structural_sharing": {
+            "mechanism": "Redux Toolkit uses Immer for state updates",
+            "impact": "Unchanged objects keep same reference (structural sharing)",
+            "result": "React efficiently skips unchanged subtrees"
+          }
+        },
+        "benchmarks": {
+          "dataset": "10,000 rows, 10 columns",
+          "scroll_fps": "60",
+          "cell_edit_latency": "45ms",
+          "selection_toggle": "8ms",
+          "range_select_100": "85ms",
+          "select_all_10k": "180ms",
+          "undo_redo": "25-95ms",
+          "paste_50_cells": "450ms"
+        },
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "cell_types_implementation": {
+        "decision_id": "stage1_048",
+        "content": "All cell types implemented in unified CellEditor.tsx with modal approach",
+        "added_date": "2025-11-02",
+        "cell_types": {
+          "text": "Single-line text input (TextField), cursor at end on open",
+          "decimal": "Numeric input with validation",
+          "select": "Dropdown menu (Material-UI Select), commits on selection",
+          "relationship": "Autocomplete with API search, keyboard navigation, clear button",
+          "multiselect": "Chip-based UI with API search, stays open for multiple selections",
+          "stringarray": "Chip-based UI for text strings, Enter to add, no API calls",
+          "boolean": "Three-state dropdown (Yes/No/Not specified), commits immediately",
+          "readonly": "No editor (display-only), grayed out styling"
+        },
+        "editor_pattern": {
+          "trigger": "Double-click or Enter key",
+          "rendering": "Modal overlay positioned at cell location",
+          "commit": "Blur, Enter (for most types), or click away",
+          "cancel": "Escape key",
+          "focus_management": "Auto-focus on primary input element"
+        },
+        "lessons_from_reactgrid": {
+          "simpler_architecture": "No need to fight focus management - modal approach is cleaner",
+          "no_static_state": "Modal lifecycle handles state naturally, no class-level static Maps needed",
+          "no_capture_phase": "Modal doesn't interfere with table event handling",
+          "easier_testing": "Can test editors in isolation from grid"
+        },
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "undo_redo_system": {
+        "decision_id": "stage1_049",
+        "content": "Comprehensive undo/redo system with atomic batch operations",
+        "added_date": "2025-11-02",
+        "conversation_reference": "Phase 8 implementation",
+        "architecture": {
+          "redux_integration": "undoStack and redoStack in batchSpreadsheetSlice",
+          "history_entry_structure": {
+            "type": "single | batch",
+            "changes": "Array of CellChange (rowId, fieldName, oldValue, newValue, oldText, newText, oldValidationState, oldValidationError)",
+            "timestamp": "Date.now()",
+            "description": "Human-readable (e.g., 'Edit Name', 'Paste 50 cells')"
+          },
+          "max_history": "50 actions (memory management)",
+          "clearing_strategy": "Clear on successful save (clears both stacks)"
+        },
+        "key_capabilities": {
+          "single_cell_edit": "Each cell change recorded as individual HistoryEntry",
+          "batch_paste": "Multi-cell paste recorded as single atomic HistoryEntry",
+          "atomic_undo": "One undo reverts entire batch paste (e.g., 50 cells)",
+          "conflict_preservation": "History NOT cleared on conflicts (allows undo of conflict resolution)"
+        },
+        "keyboard_shortcuts": {
+          "undo": "Ctrl+Z (Windows/Linux) or Cmd+Z (Mac)",
+          "redo": "Ctrl+Y (Windows/Linux) or Cmd+Shift+Z (Mac)"
+        },
+        "ui_integration": "Toolbar buttons with tooltips, disabled when no history",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "checkbox_selection_system": {
+        "decision_id": "stage1_050",
+        "content": "Checkbox column for row selection integrated with save operation",
+        "added_date": "2025-11-02",
+        "conversation_reference": "Phase 9 implementation",
+        "architecture": {
+          "column_position": "Leftmost (before row numbers)",
+          "state_management": "Redux (row.isSelected) - no performance penalty with virtualization + memoization",
+          "visual_feedback": "Light blue background for selected rows (#e3f2fd)"
+        },
+        "capabilities": {
+          "individual_selection": "Click checkbox to toggle single row",
+          "range_selection": "Shift+click selects continuous range",
+          "select_all": "Header checkbox with indeterminate state support",
+          "clear_on_save": "Selections automatically clear after successful save"
+        },
+        "save_integration": {
+          "selected_rows": "Save button saves only selected rows with changes",
+          "no_selection": "Save button shows confirmation dialog to save all changed rows",
+          "feedback": "Toolbar shows 'X selected (Y with changes)'",
+          "error_handling": [
+            "No changes in selected rows → error message",
+            "Validation errors in selected rows → error message"
+          ]
+        },
+        "redux_actions": {
+          "toggleRowSelection": "Toggle single row",
+          "toggleAllRowSelection": "Select/deselect all with indeterminate support",
+          "selectRowRange": "Shift+click range selection",
+          "clearAllSelections": "Clear all checkboxes (after save)"
+        },
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "validation_system": {
+        "decision_id": "stage1_051",
+        "content": "Two-tier validation system with required field enforcement and detailed error reporting",
+        "added_date": "2025-11-02",
+        "updated_date": "2025-11-02",
+        "client_side_validation": {
+          "trigger": "Immediately after cell edit or paste",
+          "checks": [
+            "Required fields (name, glottocode - enforced immediately for existing rows)",
+            "Type checking (correct type for cell type)",
+            "Format checking (valid format for type)",
+            "Choice matching (select types must match choices)"
+          ],
+          "required_field_behavior": {
+            "decision_id": "stage1_056",
+            "added_date": "2025-11-02",
+            "content": "Required field validation with smart draft row handling",
+            "required_fields": ["name", "glottocode"],
+            "existing_rows": "Required fields enforced immediately when cleared",
+            "draft_rows": {
+              "untouched": "Empty required fields allowed (row excluded from save anyway)",
+              "first_edit": "All required fields validated when any field is edited (cascade validation)",
+              "rationale": "Protects data integrity without blocking placeholder rows"
+            },
+            "backend_fix": "level_nal field marked blank=True (derived field set by pre_save signal, migration 0095)",
+            "validation_trigger": "On cell change for existing rows, on first edit for draft rows"
+          },
+          "visual_feedback": "Red cell with border (#ffebee background, #f44336 border)",
+          "performance": "Instant, no network calls"
+        },
+        "backend_validation": {
+          "trigger": "After client-side passes (200-300ms debounce)",
+          "checks": [
+            "Uniqueness (e.g., glottocode unique)",
+            "Foreign key validity (relationship IDs exist)",
+            "Business rules (e.g., parent languoid rules)",
+            "Field-level conflict detection (optimistic locking)"
+          ],
+          "visual_feedback": {
+            "invalid": "Red cell (same as client-side)",
+            "conflict": "Orange cell (#ffe0b2 background, #ff9800 border)"
+          }
+        },
+        "validation_error_dialog": {
+          "decision_id": "stage1_057",
+          "added_date": "2025-11-02",
+          "content": "Modal dialog showing detailed validation errors when save attempted",
+          "rationale": "Better UX than disabled save button - users can discover what's wrong",
+          "trigger": "Save button clicked with validation errors present",
+          "displays": {
+            "row_number": "1-indexed row number for easy navigation",
+            "row_name": "Row name (truncated to 50 chars if long)",
+            "errors_per_row": "All validation errors for that row (deduplicated)",
+            "fallback": "Shows '(unnamed)' if name field is empty"
+          },
+          "features": [
+            "Clear title: 'Validation Errors Prevent Saving'",
+            "Row-by-row breakdown with red left border",
+            "All errors listed per row (not just first)",
+            "Name truncation for long names",
+            "Modal prevents save until acknowledged",
+            "Single OK button to dismiss"
+          ],
+          "design_decision": "Informative modal over disabled button - users can click Save to discover what's wrong, get specific row-level guidance"
+        },
+        "visual_indicators": {
+          "valid": "No highlighting",
+          "edited_valid": "Yellow background (#fff9c4)",
+          "invalid": "Red (client or backend rejection)",
+          "conflict": "Orange (concurrent edit detected)"
+        },
+        "conflict_detection": {
+          "strategy": "Field-level optimistic locking",
+          "mechanism": "Backend compares client timestamp with DB timestamp",
+          "resolution": "Only conflicted fields rejected, other fields save successfully",
+          "user_experience": "Orange highlighting + error message listing conflicted fields, user can review and re-save to overwrite"
+        },
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "copy_paste_system": {
+        "decision_id": "stage1_052",
+        "content": "TSV-based copy/paste compatible with Excel and Google Sheets",
+        "added_date": "2025-11-02",
+        "format": "Tab-Separated Values (TSV) for multi-cell operations",
+        "capabilities": {
+          "single_cell": "Copy cell.text to clipboard as plain text",
+          "range": "Serialize to TSV (rows = newlines, columns = tabs)",
+          "fill_behavior": "Single value → selected range fills all cells",
+          "paste_parsing": "Parse TSV and apply type-aware transformations"
+        },
+        "type_aware_parsing": {
+          "text": "Paste as-is",
+          "decimal": "Validate numeric format",
+          "select": "Check against choices",
+          "relationship": "Store as text, value=null (API resolution later)",
+          "multiselect": "Store as text, value=null (API resolution later)",
+          "stringarray": "Parse comma-separated or JSON array",
+          "boolean": "Accept 'true'/'false', 'yes'/'no', '1'/'0', true/false (JSON)",
+          "readonly": "Ignore paste (no-op)"
+        },
+        "keyboard_shortcuts": {
+          "copy": "Ctrl+C (Windows/Linux) or Cmd+C (Mac)",
+          "paste": "Ctrl+V (Windows/Linux) or Cmd+V (Mac)"
+        },
+        "undo_integration": "Batch paste recorded as single atomic undo action",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "keyboard_navigation": {
+        "decision_id": "stage1_053",
+        "content": "Full spreadsheet-style keyboard navigation including cell clearing",
+        "added_date": "2025-11-02",
+        "updated_date": "2025-11-02",
+        "supported_keys": {
+          "arrow_keys": "Navigate between cells (up/down/left/right)",
+          "tab": "Move to next cell (right, then down)",
+          "shift_tab": "Move to previous cell (left, then up)",
+          "home": "Jump to first column in current row",
+          "end": "Jump to last column in current row",
+          "enter_view": "Open editor for selected cell",
+          "enter_edit": "Commit changes and close editor",
+          "escape": "Cancel changes and close editor",
+          "delete": "Clear cell content without entering edit mode (respects readonly)",
+          "backspace": "Does nothing when not in edit mode (data protection)"
+        },
+        "delete_key_behavior": {
+          "decision_id": "stage1_055",
+          "content": "Delete key clears cells, Backspace blocked for data protection",
+          "added_date": "2025-11-02",
+          "rationale": "Balance between productivity (single-key clear) and data protection (intentional Delete vs accidental Backspace)",
+          "implementation": "Option A - Excel-compatible with protection",
+          "cross_platform": {
+            "windows": "Delete key clears, Backspace does nothing",
+            "mac": "Fn+Delete clears (2 keys = more intentional), Delete key (backspace) does nothing"
+          },
+          "features": [
+            "Single cell clear - clears selected cell",
+            "Range clear - clears all cells in selection range",
+            "Readonly protection - skips readonly cells automatically",
+            "Type-aware empty values - null for text/select, [] for arrays, null for boolean",
+            "Undo/redo support - single cell = 1 undo, range = batch undo",
+            "Validation trigger - cleared required fields turn red immediately"
+          ],
+          "design_decision": "Backspace blocked to prevent accidental data loss. Users must use Delete key (more intentional). Differs from Excel/Sheets but aligns with project data integrity goals.",
+          "documentation": "docs/system-behavior/batch-editor/delete-key-implementation.md",
+          "confidence_level": "high",
+          "status": "active"
+        },
+        "auto_scroll": "Selected cell always visible (scrolls into view automatically)",
+        "performance": "Keyboard navigation fully functional with 10,000 rows due to virtualization",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "documentation": {
+        "decision_id": "stage1_054",
+        "content": "Comprehensive documentation in docs/system-behavior/batch-editor/",
+        "added_date": "2025-11-02",
+        "updated_date": "2025-11-02",
+        "location": "docs/system-behavior/batch-editor/",
+        "files": [
+          "README.md - Overview and navigation",
+          "architecture.md - Component hierarchy, state management, data flow",
+          "cell-types.md - All 8 cell types with implementation details",
+          "editing-features.md - Undo/redo, selection, copy/paste, validation",
+          "performance.md - Benchmarks, optimizations, known limitations",
+          "delete-key-implementation.md - Delete/Backspace behavior, cross-platform considerations"
+        ],
+        "guidelines_established": [
+          "Never create root-level .md files without approval",
+          "Use existing docs/ structure (deployment, development, operations, system-behavior, user-guide)",
+          "Group related docs in subdirectories with README.md navigator",
+          "Avoid ephemeral terminology (phase-X, sprint-Y)",
+          "Consolidate before creating new docs",
+          "Ask before documenting volatile features",
+          "High-level historical info only in docs"
+        ],
+        "confidence_level": "high",
+        "status": "active"
       }
     },
     

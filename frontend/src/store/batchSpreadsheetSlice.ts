@@ -5,7 +5,7 @@
  */
 
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { BatchSpreadsheetState, SpreadsheetRow, SpreadsheetCell } from '../types/spreadsheet';
+import { BatchSpreadsheetState, SpreadsheetRow, SpreadsheetCell, HistoryEntry, CellChange } from '../types/spreadsheet';
 
 const initialState: BatchSpreadsheetState = {
   modelName: null,
@@ -16,6 +16,9 @@ const initialState: BatchSpreadsheetState = {
   successMessage: null,
   validatingCells: [],
   isDirty: false,
+  undoStack: [],
+  redoStack: [],
+  maxHistorySize: 50,
 };
 
 const batchSpreadsheetSlice = createSlice({
@@ -54,7 +57,6 @@ const batchSpreadsheetSlice = createSlice({
     // Update a single cell
     updateCell: (state, action: PayloadAction<{ rowId: string | number; fieldName: string; cell: Partial<SpreadsheetCell> }>) => {
       const { rowId, fieldName, cell } = action.payload;
-      console.log('Redux updateCell:', { rowId, fieldName, cell });
       
       // Find row - handle both string and number IDs
       const row = state.rows.find(r => {
@@ -63,8 +65,38 @@ const batchSpreadsheetSlice = createSlice({
       });
       
       if (row && row.cells[fieldName]) {
-        console.log('Before update:', row.cells[fieldName]);
         const currentCell = row.cells[fieldName];
+        
+        // Record history BEFORE making changes
+        const historyChange: CellChange = {
+          rowId,
+          fieldName,
+          oldValue: currentCell.value,
+          oldText: currentCell.text,
+          newValue: cell.value !== undefined ? cell.value : currentCell.value,
+          newText: cell.text !== undefined ? cell.text : currentCell.text,
+          oldValidationState: currentCell.validationState,
+          oldValidationError: currentCell.validationError,
+        };
+        
+        // Only record if value actually changed
+        if (historyChange.oldValue !== historyChange.newValue || 
+            historyChange.oldText !== historyChange.newText) {
+          state.undoStack.push({
+            type: 'single',
+            changes: [historyChange],
+            timestamp: Date.now(),
+            description: `Edit ${fieldName}`,
+          });
+          
+          // Limit stack size
+          if (state.undoStack.length > state.maxHistorySize) {
+            state.undoStack.shift(); // Remove oldest
+          }
+          
+          // Clear redo stack (new change invalidates redo)
+          state.redoStack = [];
+        }
         
         // Update cell properties
         row.cells[fieldName] = {
@@ -79,23 +111,14 @@ const batchSpreadsheetSlice = createSlice({
         // Set isEdited based on comparison with original
         updatedCell.isEdited = valueChanged;
         
-        console.log('After update:', {
-          cell: updatedCell,
-          valueChanged,
-          currentValue: updatedCell.value,
-          originalValue: updatedCell.originalValue
-        });
-        
         // Update row's hasChanges based on whether ANY cell differs from original
         row.hasChanges = Object.values(row.cells).some(c => c.value !== c.originalValue);
         
-        // Update global isDirty state
-        state.isDirty = state.rows.some(r => r.hasChanges);
+        // NOTE: isDirty computation removed from hot path for performance
+        // It will be computed on-demand when needed (e.g., before refresh)
         
         // Update row error state
         row.hasErrors = Object.values(row.cells).some(c => c.validationState === 'invalid');
-      } else {
-        console.log('Row or cell not found!', { rowExists: !!row, cellExists: row?.cells[fieldName] });
       }
     },
     
@@ -116,35 +139,13 @@ const batchSpreadsheetSlice = createSlice({
     // Add a new draft row
     addDraftRow: (state, action: PayloadAction<SpreadsheetRow>) => {
       state.rows.push(action.payload);
-      state.isDirty = true;
+      // Note: isDirty will be computed on-demand when needed
     },
     
     // Remove a row
     removeRow: (state, action: PayloadAction<string | number>) => {
       state.rows = state.rows.filter(r => r.id !== action.payload);
-      state.isDirty = state.rows.some(r => r.hasChanges);
-    },
-    
-    // Toggle row selection
-    toggleRowSelection: (state, action: PayloadAction<string | number>) => {
-      const row = state.rows.find(r => r.id === action.payload);
-      if (row) {
-        row.isSelected = !row.isSelected;
-      }
-    },
-    
-    // Select all rows
-    selectAllRows: (state) => {
-      state.rows.forEach(row => {
-        row.isSelected = true;
-      });
-    },
-    
-    // Deselect all rows
-    deselectAllRows: (state) => {
-      state.rows.forEach(row => {
-        row.isSelected = false;
-      });
+      // Note: isDirty will be computed on-demand when needed
     },
     
     // Update row after successful save
@@ -157,7 +158,6 @@ const batchSpreadsheetSlice = createSlice({
         state.rows[index] = {
           ...newRow,
           hasChanges: false,
-          isSelected: false,
         };
         
         // Update original values for all cells
@@ -166,9 +166,205 @@ const batchSpreadsheetSlice = createSlice({
           cell.isEdited = false;
         });
         
-        // Recalculate global isDirty state
-        state.isDirty = state.rows.some(r => r.hasChanges);
+        // Note: isDirty will be computed on-demand when needed
       }
+    },
+    
+    // Batch update multiple cells (for paste operations)
+    batchUpdateCells: (state, action: PayloadAction<{ 
+      changes: Array<{ rowId: string | number; fieldName: string; cell: Partial<SpreadsheetCell> }>;
+      description: string;
+    }>) => {
+      const { changes, description } = action.payload;
+      const historyChanges: CellChange[] = [];
+      
+      // Apply each change and record history
+      changes.forEach(({ rowId, fieldName, cell }) => {
+        const row = state.rows.find(r => r.id.toString() === rowId.toString());
+        
+        if (row && row.cells[fieldName]) {
+          const currentCell = row.cells[fieldName];
+          
+          // Record history BEFORE making changes
+          const historyChange: CellChange = {
+            rowId,
+            fieldName,
+            oldValue: currentCell.value,
+            oldText: currentCell.text,
+            newValue: cell.value !== undefined ? cell.value : currentCell.value,
+            newText: cell.text !== undefined ? cell.text : currentCell.text,
+            oldValidationState: currentCell.validationState,
+            oldValidationError: currentCell.validationError,
+          };
+          
+          // Only record if value actually changed
+          if (historyChange.oldValue !== historyChange.newValue || 
+              historyChange.oldText !== historyChange.newText) {
+            historyChanges.push(historyChange);
+          }
+          
+          // Update cell properties
+          row.cells[fieldName] = {
+            ...currentCell,
+            ...cell,
+          };
+          
+          // Determine if cell is actually edited by comparing to originalValue
+          const updatedCell = row.cells[fieldName];
+          const valueChanged = updatedCell.value !== updatedCell.originalValue;
+          
+          // Set isEdited based on comparison with original
+          updatedCell.isEdited = valueChanged;
+          
+          // Update row's hasChanges based on whether ANY cell differs from original
+          row.hasChanges = Object.values(row.cells).some(c => c.value !== c.originalValue);
+          
+          // Update row error state
+          row.hasErrors = Object.values(row.cells).some(c => c.validationState === 'invalid');
+        }
+      });
+      
+      // Record batch history if any changes were made
+      if (historyChanges.length > 0) {
+        state.undoStack.push({
+          type: 'batch',
+          changes: historyChanges,
+          timestamp: Date.now(),
+          description,
+        });
+        
+        // Limit stack size
+        if (state.undoStack.length > state.maxHistorySize) {
+          state.undoStack.shift(); // Remove oldest
+        }
+        
+        // Clear redo stack (new change invalidates redo)
+        state.redoStack = [];
+      }
+    },
+    
+    // Undo last action
+    undo: (state) => {
+      if (state.undoStack.length === 0) return;
+      
+      const entry = state.undoStack.pop()!;
+      
+      // Revert all changes in the entry
+      entry.changes.forEach(change => {
+        const row = state.rows.find(r => r.id.toString() === change.rowId.toString());
+        
+        if (row && row.cells[change.fieldName]) {
+          const cell = row.cells[change.fieldName];
+          
+          // Revert to old values
+          cell.value = change.oldValue;
+          cell.text = change.oldText;
+          cell.validationState = change.oldValidationState || 'valid';
+          cell.validationError = change.oldValidationError;
+          
+          // Recalculate isEdited
+          cell.isEdited = cell.value !== cell.originalValue;
+          
+          // Update row's hasChanges
+          row.hasChanges = Object.values(row.cells).some(c => c.value !== c.originalValue);
+          
+          // Update row error state
+          row.hasErrors = Object.values(row.cells).some(c => c.validationState === 'invalid');
+        }
+      });
+      
+      // Push to redo stack
+      state.redoStack.push(entry);
+      
+      // Limit redo stack size
+      if (state.redoStack.length > state.maxHistorySize) {
+        state.redoStack.shift();
+      }
+    },
+    
+    // Redo last undone action
+    redo: (state) => {
+      if (state.redoStack.length === 0) return;
+      
+      const entry = state.redoStack.pop()!;
+      
+      // Reapply all changes in the entry
+      entry.changes.forEach(change => {
+        const row = state.rows.find(r => r.id.toString() === change.rowId.toString());
+        
+        if (row && row.cells[change.fieldName]) {
+          const cell = row.cells[change.fieldName];
+          
+          // Reapply new values
+          cell.value = change.newValue;
+          cell.text = change.newText;
+          
+          // Recalculate isEdited
+          cell.isEdited = cell.value !== cell.originalValue;
+          
+          // Note: We don't restore validation state on redo, 
+          // it will be recomputed if needed
+          
+          // Update row's hasChanges
+          row.hasChanges = Object.values(row.cells).some(c => c.value !== c.originalValue);
+          
+          // Update row error state
+          row.hasErrors = Object.values(row.cells).some(c => c.validationState === 'invalid');
+        }
+      });
+      
+      // Push back to undo stack
+      state.undoStack.push(entry);
+      
+      // Limit undo stack size
+      if (state.undoStack.length > state.maxHistorySize) {
+        state.undoStack.shift();
+      }
+    },
+    
+    // Clear history (called after save)
+    clearHistory: (state) => {
+      state.undoStack = [];
+      state.redoStack = [];
+    },
+    
+    // Toggle row selection (checkbox)
+    toggleRowSelection: (state, action: PayloadAction<string | number>) => {
+      const row = state.rows.find(r => r.id.toString() === action.payload.toString());
+      if (row) {
+        row.isSelected = !row.isSelected;
+      }
+    },
+    
+    // Toggle all row selection (select all / deselect all)
+    toggleAllRowSelection: (state) => {
+      const allSelected = state.rows.every(r => r.isSelected);
+      state.rows.forEach(r => {
+        r.isSelected = !allSelected;
+      });
+    },
+    
+    // Select range of rows (for Shift+click)
+    selectRowRange: (state, action: PayloadAction<{ startId: string | number; endId: string | number }>) => {
+      const { startId, endId } = action.payload;
+      const startIndex = state.rows.findIndex(r => r.id.toString() === startId.toString());
+      const endIndex = state.rows.findIndex(r => r.id.toString() === endId.toString());
+      
+      if (startIndex !== -1 && endIndex !== -1) {
+        const minIndex = Math.min(startIndex, endIndex);
+        const maxIndex = Math.max(startIndex, endIndex);
+        
+        for (let i = minIndex; i <= maxIndex; i++) {
+          state.rows[i].isSelected = true;
+        }
+      }
+    },
+    
+    // Clear all selections
+    clearAllSelections: (state) => {
+      state.rows.forEach(r => {
+        r.isSelected = false;
+      });
     },
     
     // Clear all changes (reset to original)
@@ -211,13 +407,18 @@ export const {
   setError,
   setSuccessMessage,
   updateCell,
+  batchUpdateCells,
+  undo,
+  redo,
+  clearHistory,
+  toggleRowSelection,
+  toggleAllRowSelection,
+  selectRowRange,
+  clearAllSelections,
   addValidatingCell,
   removeValidatingCell,
   addDraftRow,
   removeRow,
-  toggleRowSelection,
-  selectAllRows,
-  deselectAllRows,
   updateRowAfterSave,
   clearChanges,
   resetSpreadsheet,

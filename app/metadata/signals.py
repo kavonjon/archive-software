@@ -290,6 +290,11 @@ def compute_languoid_derived_fields(sender, instance, **kwargs):
         except Languoid.DoesNotExist:
             pass
     
+    # Track old parent for descendents M2M update
+    if old_instance and old_instance.parent_languoid != instance.parent_languoid:
+        # Store old parent ID for post-save task to update old ancestor chain
+        instance._old_parent_id = old_instance.parent_languoid.id if old_instance.parent_languoid else None
+    
     # CRITICAL: Handle level_glottolog change FROM language TO other
     if old_instance and old_instance.level_glottolog == 'language' and instance.level_glottolog != 'language':
         clear_language_specific_fields(instance, old_instance)
@@ -313,7 +318,14 @@ def schedule_languoid_hierarchy_update(sender, instance, created, **kwargs):
     This handles:
     - Orphaning dialect children (if level changed from language)
     - Updating descendents M2M for this languoid and ancestors
+    
+    BATCH MODE: Skips task scheduling if _skip_async_tasks flag is set.
     """
+    # BATCH MODE: Skip individual task scheduling
+    if hasattr(instance, '_skip_async_tasks') and instance._skip_async_tasks:
+        logger.debug(f"Skipping async tasks for '{instance.name}' (batch mode)")
+        return
+    
     # Check if hierarchy fields changed
     if not created and kwargs.get('update_fields'):
         hierarchy_fields = {
@@ -338,10 +350,14 @@ def schedule_languoid_hierarchy_update(sender, instance, created, **kwargs):
     if needs_orphaning:
         delattr(instance, '_needs_dialect_orphaning')
     
+    old_parent_id = getattr(instance, '_old_parent_id', None)
+    if old_parent_id is not None:
+        delattr(instance, '_old_parent_id')
+    
     # Schedule SINGLE unified task (Priority 9)
     from .tasks import update_languoid_hierarchy_task
     update_languoid_hierarchy_task.apply_async(
-        args=[instance.id, needs_orphaning],
+        args=[instance.id, needs_orphaning, old_parent_id],
         priority=9  # Highest priority - user is waiting
     )
 
@@ -351,7 +367,13 @@ def schedule_cascading_dialect_updates(sender, instance, created, **kwargs):
     """
     Schedule delayed async task to cascade hierarchy updates to dialect descendants.
     Only runs when a family or language changes hierarchy fields.
+    
+    BATCH MODE: Skips task scheduling if _skip_async_tasks flag is set.
     """
+    # BATCH MODE: Skip individual task scheduling
+    if hasattr(instance, '_skip_async_tasks') and instance._skip_async_tasks:
+        return
+    
     # Only run for families and languages
     if instance.level_glottolog not in ['family', 'language']:
         return
@@ -389,7 +411,13 @@ def invalidate_languoid_list_cache(sender, instance, **kwargs):
     
     This ensures users always see fresh data after edits.
     The cache rebuild happens in the background via Celery.
+    
+    BATCH MODE: Skips cache invalidation if _skip_async_tasks flag is set.
     """
+    # BATCH MODE: Skip individual cache invalidation
+    if hasattr(instance, '_skip_async_tasks') and instance._skip_async_tasks:
+        return
+    
     from .tasks import invalidate_and_warm_languoid_cache
     
     # Trigger cache invalidation + background rebuild

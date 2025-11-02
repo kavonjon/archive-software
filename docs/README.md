@@ -35,6 +35,17 @@ Guides and references for development environment setup and contributing to the 
 
 ---
 
+### 🎛️ System Behavior
+
+Technical documentation of system logic, algorithms, and processing workflows.
+
+- **[System Behavior](system-behavior/system-behavior.md)** - Technical documentation of system internals
+  - Languoid hierarchy and automatic signal processing
+  - **[Batch Editor](system-behavior/batch-editor/)** - Bulk data editing subsystem (TanStack + Redux)
+- **[ADR: TanStack Migration](system-behavior/adr-tanstack-migration.md)** - Architecture Decision Record
+
+---
+
 ### ⚙️ Operations
 
 Day-to-day operational procedures and maintenance tasks.

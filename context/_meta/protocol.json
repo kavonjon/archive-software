@@ -185,6 +185,146 @@
       
       "confidence_level": "high",
       "status": "active"
+    },
+    
+    "end_user_documentation_protocol": {
+      "decision_id": "protocol_007",
+      "content": "Protocol for creating and maintaining end-user documentation (user guides and system behavior docs)",
+      "added_date": "2025-10-29",
+      "conversation_reference": "End-user documentation requirement discussion",
+      
+      "fundamental_rule": {
+        "never_proactive": "AI assistants NEVER create or update end-user documentation proactively",
+        "explicit_request_only": "Documentation work only proceeds when PM explicitly requests it",
+        "rationale": "Documentation is a deliberate deliverable requiring PM control over timing, scope, and quality"
+      },
+      
+      "creation_protocol": {
+        "trigger_phrases": [
+          "Create user documentation for [feature/section]",
+          "Write user guide for [workflow]",
+          "Document system behavior for [component]",
+          "Add end-user docs for [feature]"
+        ],
+        "required_clarifications": [
+          "Which documentation type? (user guide vs system behavior)",
+          "Which features/sections to cover?",
+          "Target audience level? (beginner, intermediate, advanced)",
+          "Include screenshots/diagrams?",
+          "Cross-reference related sections?"
+        ],
+        "execution_steps": [
+          "Confirm scope and audience with PM",
+          "Draft documentation in specified location (docs/user-guide/ or docs/system-behavior/)",
+          "Include all required sections per documentation type",
+          "Add cross-references to related documentation",
+          "Present draft to PM for review and approval",
+          "Iterate based on PM feedback"
+        ]
+      },
+      
+      "survey_protocol": {
+        "trigger_phrases": [
+          "Survey user documentation for accuracy",
+          "Check if documentation is up to date",
+          "Review end-user docs for completeness",
+          "Audit system behavior documentation"
+        ],
+        "survey_types": {
+          "accuracy_check": {
+            "question": "Is existing documentation still correct given recent code changes?",
+            "method": "Compare documented behavior against current codebase",
+            "output": "List of inaccurate sections with specific discrepancies"
+          },
+          "completeness_check": {
+            "question": "Are there new features missing from documentation?",
+            "method": "Identify features implemented since last doc update",
+            "output": "List of undocumented features with suggested sections"
+          },
+          "staleness_check": {
+            "question": "Are there deprecated features still documented?",
+            "method": "Identify documented features no longer in codebase",
+            "output": "List of stale documentation sections to remove/update"
+          }
+        },
+        "survey_output_format": {
+          "structure": "Organized report by documentation section",
+          "priority_levels": "Critical (breaks user workflow), High (misleading), Medium (outdated), Low (cosmetic)",
+          "recommendations": "Specific suggested changes for each identified issue",
+          "cross_impact": "Note if one change affects multiple documentation sections"
+        },
+        "execution_approval": {
+          "never_automatic_updates": "Survey identifies issues but NEVER makes automatic updates",
+          "pm_review_required": "PM reviews survey results and approves specific changes",
+          "incremental_updates": "PM may approve updates incrementally by priority level"
+        }
+      },
+      
+      "documentation_types": {
+        "user_guide": {
+          "location": "docs/user-guide/",
+          "audience": "Museum staff, archivists, researchers",
+          "focus": "How to use the system - actions, workflows, procedures",
+          "includes": "Screenshots, step-by-step instructions, role-specific guides",
+          "excludes": "Code details, implementation specifics, technical architecture"
+        },
+        "system_behavior": {
+          "location": "docs/system-behavior/",
+          "audience": "Technical users, sysadmins, developers understanding internals",
+          "focus": "How the system works - logic, algorithms, processing workflows",
+          "includes": "Pseudocode, data flow diagrams, state transitions, business rules",
+          "excludes": "UI navigation, user actions, deployment procedures",
+          "style": "Similar to architectural clarifications during development"
+        }
+      },
+      
+      "quality_standards": {
+        "user_guide_standards": [
+          "Every user action must have clear step-by-step instructions",
+          "Screenshots for complex UI interactions",
+          "Common pitfalls and troubleshooting tips",
+          "Role-specific callouts (Archivist-only, Museum Staff, etc.)",
+          "Cross-references to related workflows"
+        ],
+        "system_behavior_standards": [
+          "Pseudocode-level descriptions (not actual code)",
+          "Clear state transitions and data flow",
+          "Explicit assumptions and constraints",
+          "Edge cases and error handling",
+          "Cross-references to code files for implementation details"
+        ],
+        "general_standards": [
+          "Clear, concise writing",
+          "Organized by feature/task, not by code structure",
+          "Table of contents for docs > 200 lines",
+          "Date-stamped with last update",
+          "Version-specific notes when relevant"
+        ]
+      },
+      
+      "integration_with_development": {
+        "code_changes_triggering_surveys": [
+          "New user-facing features added",
+          "Existing features significantly modified",
+          "User workflows changed",
+          "Permissions or access control altered",
+          "System behavior logic updated (signals, tasks, algorithms)"
+        ],
+        "conversation_end_checklist_addition": "Did we implement features requiring user documentation updates?",
+        "proactive_flagging": "AI may FLAG that documentation might need updates, but NEVER creates updates without explicit PM request"
+      },
+      
+      "benefits": [
+        "User self-service reduces support burden",
+        "Clear onboarding for new staff",
+        "System behavior clarity for technical users",
+        "Knowledge preservation as team changes",
+        "Reduced ambiguity about system operations"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["project_requirements.json::end_user_documentation", "documentation_structure.json"]
     }
   }
 }

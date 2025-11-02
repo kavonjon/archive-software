@@ -1,8 +1,8 @@
 {
   "documentation_structure": {
-    "version": "1.0",
-    "last_updated": "2025-10-27",
-    "conversation_reference": "Organized documentation structure creation",
+    "version": "1.1",
+    "last_updated": "2025-10-29",
+    "conversation_reference": "Added end-user documentation types and protocols",
     
     "documentation_philosophy": {
       "decision_id": "docs_001",
@@ -20,15 +20,18 @@
     
     "directory_structure": {
       "decision_id": "docs_002",
-      "content": "Three-tier documentation structure under docs/ directory",
+      "content": "Five-tier documentation structure under docs/ directory",
       "added_date": "2025-10-27",
+      "updated_date": "2025-10-29",
       "structure": {
         "docs/": "Root documentation directory with index README",
         "docs/deployment/": "Deployment guides, setup procedures, infrastructure",
         "docs/development/": "Development environment, dependencies, contributing",
-        "docs/operations/": "Day-to-day operations, maintenance, troubleshooting"
+        "docs/operations/": "Day-to-day operations, maintenance, troubleshooting",
+        "docs/user-guide/": "End-user documentation for museum staff, archivists, researchers using the system",
+        "docs/system-behavior/": "Technical documentation of system logic, algorithms, and processing workflows"
       },
-      "rationale": "Follows Django, Python, and DevOps documentation conventions for clarity and discoverability",
+      "rationale": "Follows Django, Python, and DevOps documentation conventions for clarity and discoverability. Separates user-facing docs from technical/operational docs.",
       "confidence_level": "high",
       "status": "active"
     },
@@ -177,6 +180,103 @@
       "cross_references": "Context memory should reference relevant docs/ files for operational procedures",
       "confidence_level": "high",
       "status": "active"
+    },
+    
+    "end_user_documentation_types": {
+      "decision_id": "docs_008",
+      "content": "Two distinct types of end-user documentation with different audiences and purposes",
+      "added_date": "2025-10-29",
+      "conversation_reference": "End-user documentation requirement integration",
+      
+      "user_guide": {
+        "purpose": "Document all user actions and workflows for system users",
+        "location": "docs/user-guide/",
+        "audience": "Museum staff, archivists, researchers using the system",
+        "focus": "HOW TO USE the system",
+        "content_organization": {
+          "by_role": "Separate sections for Archivist, Museum Staff, Read-Only users",
+          "by_task": "Common workflows grouped together (e.g., 'Creating Items', 'Managing Collections')",
+          "by_feature": "Feature-specific guides (e.g., 'Batch Editing', 'Search and Filtering')"
+        },
+        "required_sections": [
+          "Getting Started (login, navigation, permissions)",
+          "Managing Items (create, edit, search, export)",
+          "Managing Collections",
+          "Managing Collaborators",
+          "Managing Languoids",
+          "Batch Editing Workflows",
+          "Search and Filtering Techniques",
+          "File Upload and Management",
+          "Export and Reporting",
+          "Troubleshooting Common Issues"
+        ],
+        "formatting_requirements": {
+          "step_by_step": "Every action must have numbered steps",
+          "screenshots": "Include screenshots for complex UI interactions",
+          "callouts": "Role-specific notes (e.g., 'Archivist-only feature')",
+          "cross_references": "Link to related sections",
+          "troubleshooting": "Common pitfalls and solutions"
+        },
+        "example_structure": "## Creating a New Item\n\n**Permissions Required:** Museum Staff or Archivist\n\n1. Navigate to...\n2. Click the...\n3. Fill in required fields...\n\n[Screenshot]\n\n**Troubleshooting:** If you see error X, ...",
+        "status": "planned",
+        "creation_trigger": "PM explicitly requests user guide documentation"
+      },
+      
+      "system_behavior_documentation": {
+        "purpose": "Document system logic and behavior at technical-conceptual level",
+        "location": "docs/system-behavior/",
+        "audience": "Technical users, sysadmins, developers understanding system internals",
+        "focus": "HOW THE SYSTEM WORKS internally",
+        "content_organization": {
+          "by_component": "One file per major system component (e.g., 'Languoid Hierarchy', 'Permission System')",
+          "by_process": "End-to-end workflows (e.g., 'File Ingestion Pipeline', 'Database Sync Process')",
+          "by_algorithm": "Complex logic descriptions (e.g., 'Hierarchy Derivation', 'Access Control Rules')"
+        },
+        "required_sections": [
+          "Languoid Hierarchy System (field derivation, signals, tasks)",
+          "Permission and Access Control Logic",
+          "File Processing Pipeline",
+          "Database Synchronization Rules",
+          "Cache Invalidation and Refresh Behavior",
+          "Batch Editing Validation Logic",
+          "Search and Filtering Implementation",
+          "Export Generation Process",
+          "Celery Task Processing Workflows",
+          "Signal and Post-Save Operations"
+        ],
+        "formatting_requirements": {
+          "pseudocode": "Use pseudocode-level descriptions (not actual code)",
+          "state_transitions": "Clear diagrams or descriptions of state changes",
+          "data_flow": "Describe data transformations and movements",
+          "assumptions": "Explicit statements of assumptions and constraints",
+          "edge_cases": "Document edge cases and error handling",
+          "cross_references": "Link to code files for implementation details"
+        },
+        "example_structure": "## Languoid Parent Change: Descendents Update\n\n**What happens:** When a languoid's parent changes, the system must update the `descendents` M2M field for both old and new ancestor chains.\n\n**Steps:**\n1. pre_save signal detects parent change, stores old_parent_id\n2. post_save signal passes old_parent_id to async task\n3. Celery task:\n   - Updates NEW parent chain (adds moved subtree)\n   - Updates OLD parent chain (removes moved subtree)\n\n**Implementation:** See `app/metadata/signals.py` and `app/metadata/tasks.py`",
+        "style_note": "Similar to architectural clarifications provided during development discussions",
+        "status": "planned",
+        "creation_trigger": "PM explicitly requests system behavior documentation"
+      },
+      
+      "creation_and_maintenance_protocol": {
+        "never_proactive": "Documentation is NEVER created automatically - PM must explicitly request it",
+        "explicit_trigger_required": "PM must say 'create user documentation' or 'document system behavior for X'",
+        "survey_mechanism": "PM can request documentation surveys to identify outdated/missing sections",
+        "survey_does_not_update": "Surveys only report issues - PM must approve updates explicitly",
+        "integration_with_development": "When implementing features, AI may FLAG that docs might need updates, but NEVER creates docs automatically",
+        "cross_reference": "See protocol.json::end_user_documentation_protocol for complete workflow"
+      },
+      
+      "distinction_from_other_docs": {
+        "vs_developer_docs": "Developer docs (docs/development/) are for code contributors. User guide is for system users. System behavior is for understanding internals without diving into code.",
+        "vs_deployment_docs": "Deployment docs (docs/deployment/) are for infrastructure setup. End-user docs assume system is running.",
+        "vs_operations_docs": "Operations docs (docs/operations/) are for system maintenance. System behavior docs explain application logic, not infrastructure.",
+        "vs_context_memory": "Context memory tracks AI decision history. End-user docs are polished deliverables for humans."
+      },
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["project_requirements.json::end_user_documentation", "protocol.json::end_user_documentation_protocol"]
     }
   }
 }

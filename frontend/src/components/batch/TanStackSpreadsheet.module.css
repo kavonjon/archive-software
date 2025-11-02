@@ -1,0 +1,463 @@
+/**
+ * TanStackSpreadsheet Styles
+ * Phase 1.2: Spreadsheet Visual Styling
+ */
+
+/* ============================================================================
+   Container
+   ============================================================================ */
+
+.spreadsheetContainer {
+  width: 100%;
+  position: relative;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+.tableContainer {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  position: relative;
+}
+
+/* ============================================================================
+   Table Structure
+   ============================================================================ */
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed; /* Fixed column widths, no auto-sizing */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  font-size: 14px;
+  color: #333;
+}
+
+/* ============================================================================
+   Header
+   ============================================================================ */
+
+.thead {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: #f5f5f5;
+}
+
+.headerRow {
+  height: 40px;
+}
+
+.th {
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid #ddd;
+  border-right: 1px solid #e0e0e0;
+  background-color: #f5f5f5;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.th:last-child {
+  border-right: none;
+}
+
+/* ============================================================================
+   Body
+   ============================================================================ */
+
+.tbody {
+  background-color: #ffffff;
+}
+
+.row {
+  transition: background-color 0.1s ease;
+}
+
+.row:hover {
+  background-color: #f9f9f9;
+}
+
+.td {
+  padding: 0;
+  border-bottom: 1px solid #eee;
+  border-right: 1px solid #eee;
+  background-color: #ffffff;
+  vertical-align: middle;
+  height: 40px;
+  overflow: visible; /* Allow cell editors to overflow */
+  position: relative; /* For absolute positioning of dropdowns */
+}
+
+.td:last-child {
+  border-right: none;
+}
+
+/* ============================================================================
+   Cells
+   ============================================================================ */
+
+.rowNumberCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 8px;
+  font-weight: 500;
+  color: #666;
+  background-color: #fafafa;
+  user-select: none;
+}
+
+/* Checkbox column (Phase 9.1) */
+.checkboxCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 8px;
+  background-color: #fafafa;
+  user-select: none;
+}
+
+.checkboxCell input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  margin: 0;
+}
+
+.checkboxCell input[type="checkbox"]:hover {
+  transform: scale(1.1);
+}
+
+/* Selected row styling (Phase 9.1) */
+.row.selected {
+  background-color: #e3f2fd; /* Light blue */
+}
+
+.row.selected:hover {
+  background-color: #bbdefb; /* Slightly darker blue on hover */
+}
+
+.dataCell {
+  position: relative;
+  height: 100%;
+  min-height: 40px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  user-select: none; /* Prevent text selection during clicks/drags */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.dataCell:hover {
+  background-color: #f0f7ff;
+}
+
+/* Selected state */
+.dataCell.selected {
+  outline: 2px solid #1976d2;
+  outline-offset: -2px;
+  z-index: 10;
+}
+
+/* Range selection state (Phase 2.2) */
+.dataCell.inRange {
+  background-color: #e3f2fd;
+  outline: 1px solid #90caf9;
+  outline-offset: -1px;
+  z-index: 5;
+}
+
+/* Selected cell within a range gets priority */
+.dataCell.selected.inRange {
+  outline: 2px solid #1976d2;
+  outline-offset: -2px;
+  z-index: 10;
+}
+
+/* Editing state */
+.dataCell.editing {
+  z-index: 20;
+  overflow: visible; /* Allow dropdowns to overflow */
+}
+
+/* ============================================================================
+   Cell Display & Editor
+   ============================================================================ */
+
+.cellDisplay {
+  padding: 8px 12px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cellEditor {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+.cellInput {
+  width: 100%;
+  height: 100%;
+  padding: 8px 12px;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: inherit;
+  background-color: #ffffff;
+  user-select: text; /* Allow text selection in edit mode */
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+.cellInput:focus {
+  outline: none;
+}
+
+/* ============================================================================
+   States & Indicators
+   ============================================================================ */
+
+/* Dirty/changed cells */
+.dataCell[data-changed="true"] {
+  background-color: #fffacd;
+}
+
+.dataCell[data-changed="true"]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 8px 8px 0;
+  border-color: transparent #ff9800 transparent transparent;
+}
+
+/* Validation error cells */
+.dataCell[data-error="true"] {
+  outline: 2px solid #d32f2f;
+  outline-offset: -2px;
+}
+
+.dataCell[data-error="true"]::before {
+  content: '⚠';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 12px;
+  color: #d32f2f;
+}
+
+/* Read-only cells */
+.dataCell[data-readonly="true"] {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+/* Readonly cell styling (Phase 3.7) */
+.dataCell.readonly {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  color: #666;
+}
+
+.dataCell.readonly:hover {
+  background-color: #f5f5f5;
+}
+
+.dataCell.readonly.selected {
+  outline: 2px solid #9e9e9e;
+  outline-offset: -2px;
+}
+
+/* ============================================================================
+   Phase 5: Validation & Dirty State Styling
+   ============================================================================ */
+
+/* Edited/dirty cells (Phase 5.2) */
+.dataCell.edited {
+  background-color: #fff9c4; /* Light yellow */
+}
+
+.dataCell.edited::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 8px 8px 0;
+  border-color: transparent #ff9800 transparent transparent;
+}
+
+/* Invalid cells (Phase 5.1) */
+.dataCell.invalid {
+  background-color: #ffebee; /* Light red */
+}
+
+.dataCell.invalid::before {
+  content: '⚠';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 14px;
+  color: #d32f2f;
+  z-index: 1;
+}
+
+/* Validating cells (Phase 5.1) */
+.dataCell.validating {
+  background-color: #e3f2fd; /* Light blue */
+}
+
+.dataCell.validating::before {
+  content: '⏳';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 12px;
+  color: #1976d2;
+  z-index: 1;
+}
+
+/* Priority: Invalid state overrides edited state */
+.dataCell.invalid.edited {
+  background-color: #ffebee; /* Red takes priority */
+}
+
+.dataCell.invalid.edited::after {
+  /* Remove the orange triangle for invalid cells */
+  display: none;
+}
+
+/* Conflict state (orange) - takes priority over edited/invalid */
+.dataCell.conflict {
+  background-color: #ffe0b2; /* Light orange */
+}
+
+.dataCell.conflict::before {
+  content: '⚠';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  font-size: 14px;
+  color: #ff9800; /* Orange */
+  font-weight: bold;
+}
+
+.dataCell.conflict::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 8px 8px 0;
+  border-color: transparent #ff9800 transparent transparent; /* Orange triangle */
+}
+
+/* ============================================================================
+   Debug Info
+   ============================================================================ */
+
+.debugInfo {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #ffffff;
+  padding: 4px 8px;
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-size: 11px;
+  z-index: 1000;
+  border-top: 1px solid #666;
+}
+
+/* ============================================================================
+   Responsive
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .table {
+    font-size: 12px;
+  }
+  
+  .th,
+  .cellDisplay {
+    padding: 6px 8px;
+  }
+  
+  .row {
+    height: 36px;
+  }
+  
+  .td {
+    height: 36px;
+  }
+}
+
+/* ============================================================================
+   Accessibility
+   ============================================================================ */
+
+.dataCell:focus-visible {
+  outline: 3px solid #1976d2;
+  outline-offset: -3px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .dataCell.selected {
+    outline-width: 3px;
+  }
+  
+  .th {
+    border-bottom-width: 3px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .dataCell,
+  .row {
+    transition: none;
+  }
+}
+
+/* Screen reader only (for aria-live announcements) */
+.srOnly {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* Focus indicators for keyboard navigation */
+.dataCell:focus {
+  outline: 2px solid #1976d2;
+  outline-offset: -2px;
+  z-index: 10;
+}
+

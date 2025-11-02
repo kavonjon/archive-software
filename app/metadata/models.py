@@ -392,7 +392,7 @@ class Languoid(models.Model):
     name = models.CharField(max_length=255)
     name_abbrev = models.CharField(max_length=255, blank=True, verbose_name='Name abbreviation')
     name_for_glottocode_on_glottolog = models.CharField(max_length=255, blank=True, verbose_name='Glottolog name')
-    level_nal = models.CharField(max_length=15, choices=LEVELS_NAL)
+    level_nal = models.CharField(max_length=15, choices=LEVELS_NAL, blank=True)
     level_glottolog = models.CharField(max_length=15, choices=LEVELS_GLOTTOLOG)
     family_languoid = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='descendant_languoids_of_family')
     pri_subgroup_languoid = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='descendant_languoids_of_primary_subgroup')

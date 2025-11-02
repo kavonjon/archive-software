@@ -530,6 +530,77 @@
       "confidence_level": "high",
       "status": "active",
       "cross_references": ["stage_0_react_migration.json", "user_workflows.json", "accessibility_compliance"]
+    },
+    
+    "end_user_documentation": {
+      "decision_id": "docs_req_001",
+      "content": "Comprehensive end-user documentation requirement covering user actions and system behavior",
+      "added_date": "2025-10-29",
+      "documentation_types": {
+        "user_guide": {
+          "purpose": "Document all user actions and workflows",
+          "audience": "Museum staff, archivists, researchers using the system",
+          "content_coverage": [
+            "Step-by-step instructions for all user actions",
+            "Screenshots and visual guides for UI interactions",
+            "Role-specific workflows (Archivist, Museum Staff, Read-Only)",
+            "Common tasks and procedures",
+            "Search and filtering techniques",
+            "Batch editing workflows",
+            "File upload and management",
+            "Export and reporting procedures",
+            "Troubleshooting common user issues"
+          ],
+          "format": "Markdown with screenshots, organized by user role and task type",
+          "location": "docs/user-guide/"
+        },
+        "system_behavior_documentation": {
+          "purpose": "Document system logic and behavior at technical-conceptual level",
+          "audience": "Technical users, system administrators, developers understanding system internals",
+          "content_coverage": [
+            "Pseudocode-level descriptions of system operations",
+            "Data flow and state transitions",
+            "Automatic field derivation logic",
+            "Signal and task processing workflows",
+            "Cache invalidation and refresh behavior",
+            "Permission and access control logic",
+            "File processing pipelines",
+            "Database synchronization rules",
+            "Hierarchy calculation algorithms",
+            "Business logic and validation rules"
+          ],
+          "format": "Markdown with pseudocode, diagrams, and conceptual explanations",
+          "location": "docs/system-behavior/",
+          "example_content": "Similar to architectural clarifications provided during development (e.g., 'What should happen when languoid parent changes: Step 1..., Step 2..., Step 3...')"
+        }
+      },
+      "documentation_creation_protocol": {
+        "trigger": "Project manager explicitly requests documentation creation or updates",
+        "never_automatic": "Documentation is NEVER created proactively by AI assistants",
+        "explicit_request_required": "PM must explicitly say 'create/update user documentation' or 'create/update system behavior documentation'",
+        "scope_clarification": "PM specifies which features/sections to document in each request"
+      },
+      "documentation_maintenance_protocol": {
+        "survey_trigger": "Project manager explicitly requests documentation surveys",
+        "survey_types": [
+          "Accuracy check: Is existing documentation still correct given code changes?",
+          "Completeness check: Are there new features missing from documentation?",
+          "Staleness check: Are there deprecated features still documented?"
+        ],
+        "survey_output": "AI provides list of documentation sections needing updates with specific reasons",
+        "update_execution": "Updates only proceed after PM reviews survey results and approves specific changes"
+      },
+      "relationship_to_other_docs": {
+        "vs_developer_docs": "Developer docs (docs/development/) focus on code contribution, local setup, architecture. End-user docs focus on using the application.",
+        "vs_deployment_docs": "Deployment docs (docs/deployment/) focus on infrastructure setup. End-user docs assume system is already running.",
+        "vs_operations_docs": "Operations docs (docs/operations/) focus on maintenance and troubleshooting at infrastructure level. System behavior docs focus on application logic.",
+        "vs_context_memory": "Context memory is for AI decision tracking. End-user docs are for human consumption and learning."
+      },
+      "priority": "medium",
+      "rationale": "Comprehensive documentation enables user self-service, reduces support burden, and provides clarity on system internals for technical users",
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["documentation_structure.json", "protocol.json", "user_workflows.json"]
     }
   }
 }

@@ -649,6 +649,51 @@ export const languoidsAPI = {
       body: JSON.stringify({ rows }),
     });
   },
+
+  export: async (mode: 'filtered' | 'selected', ids: number[]): Promise<Blob | { async: true; export_id: string; count: number }> => {
+    const csrfToken = await getCSRFToken();
+    const response = await fetch(`${API_BASE_URL}/languoids/export/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      credentials: 'include',
+      body: JSON.stringify({ mode, ids }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Export failed' }));
+      throw new Error(error.detail || 'Export failed');
+    }
+
+    // Check if response is JSON (async export) or blob (file download)
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      // Async export
+      const data = await response.json();
+      return data;
+    } else {
+      // Synchronous export - return blob
+      return response.blob();
+    }
+  },
+
+  exportStatus: async (exportId: string): Promise<{ status: string; filename?: string }> => {
+    return apiRequest<{ status: string; filename?: string }>(`/languoids/export-status/${exportId}/`);
+  },
+
+  exportDownload: async (exportId: string): Promise<Blob> => {
+    const response = await fetch(`${API_BASE_URL}/languoids/export-download/${exportId}/`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Export download failed');
+    }
+
+    return response.blob();
+  },
 };
 
 // Item Titles API - nested under items

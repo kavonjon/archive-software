@@ -147,6 +147,7 @@ urlpatterns = [
     path('collaborators/<path:path>/', ReactAppView.as_view(), name='react_collaborators_detail'),
     path('languoids/', ReactAppView.as_view(), name='react_languoids'),
     path('languoids/<path:path>/', ReactAppView.as_view(), name='react_languoids_detail'),
+    path('user-guide/', ReactAppView.as_view(), name='react_user_guide'),
 ]
 
 #urlpatterns = path(r'dj/', include(urlpatterns)),  # prepend 'django/' to all URLs

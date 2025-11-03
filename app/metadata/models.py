@@ -454,9 +454,10 @@ class Collaborator(models.Model):
     deathdate_min = models.DateField(null=True, blank=True)
     deathdate_max = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=255, blank=True) # old name: sex, need to import
-    name = models.CharField(max_length=255, blank=True)
-    firstname = models.CharField(max_length=255, blank=True)
-    lastname = models.CharField(max_length=255, blank=True)
+    full_name = models.CharField(max_length=255, blank=True)
+    first_names = models.CharField(max_length=255, blank=True)
+    last_names = models.CharField(max_length=255, blank=True)
+    name_suffix = models.CharField(max_length=255, blank=True)
     native_languages = models.ManyToManyField(Languoid, through='DialectInstance', through_fields=('collaborator_native', 'language'), verbose_name="Native/First languages", related_name='collaborator_native_languages', blank=True)
     nickname = models.CharField(max_length=255, blank=True)
     origin = models.CharField(max_length=255, blank=True)
@@ -470,7 +471,7 @@ class Collaborator(models.Model):
 #    class Meta:
 #        ordering = ['name']
     def __str__(self):
-        return self.name
+        return self.full_name
     def clean(self):
         # Import our good standardization function from signals
         from .signals import standardize_date_format
@@ -483,20 +484,6 @@ class Collaborator(models.Model):
             encoded = base58.b58encode(self.uuid.bytes).decode()[:10]
             self.slug = f"{encoded[:5]}-{encoded[5:10]}"
         super().save(*args, **kwargs)
-
-class CollaboratorName(models.Model):
-    first_name = models.CharField(max_length=255)
-    last_name = models.CharField(max_length=255, blank=True)
-    suffix = models.CharField(max_length=255, blank=True)
-    primary = models.BooleanField(default=True)
-    collaborator = models.ForeignKey('Collaborator', related_name='collaborator_names', on_delete=models.CASCADE)
-    added = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
-    modified_by = models.CharField(max_length=255)
-    class Meta:
-        ordering = ['collaborator', 'first_name']
-    def __str__(self):
-        return self.first_name
 
 class Geographic(models.Model):
     lat = models.DecimalField(max_digits=22, decimal_places=16, verbose_name="latitude")
@@ -802,7 +789,7 @@ class File(models.Model):
             'access_level': self.access_level,
             'creation_date': self.creation_date,
             'languages': [lang.name for lang in self.language.all()],
-            'collaborators': [collab.name for collab in self.collaborator.all()]
+            'collaborators': [collab.full_name for collab in self.collaborator.all()]
         }
 
 class Document(models.Model):

@@ -164,7 +164,7 @@ class InternalItemSerializer(serializers.ModelSerializer):
     
     def get_collaborator_names(self, obj):
         """Get simple list of collaborator names"""
-        return [collab.name for collab in obj.collaborator.all()]
+        return [collab.full_name for collab in obj.collaborator.all()]
     
     def get_genre_display(self, obj):
         """Get human-readable genre labels for MultiSelectField"""
@@ -338,7 +338,7 @@ class InternalCollaboratorSerializer(serializers.ModelSerializer):
         fields = [
             # Core identity fields
             'id', 'uuid', 'slug', 'collaborator_id',
-            'name', 'firstname', 'lastname', 'nickname', 'other_names',
+            'full_name', 'first_names', 'last_names', 'name_suffix', 'nickname', 'other_names',
             
             # Privacy and display
             'anonymous', 'anonymous_display', 'display_name', 'privacy_notice',
@@ -378,14 +378,14 @@ class InternalCollaboratorSerializer(serializers.ModelSerializer):
         
         if has_privileged_access:
             # Privileged users see full name regardless of anonymous status
-            if obj.firstname and obj.lastname:
-                return f"{obj.firstname} {obj.lastname}"
-            elif obj.name:
-                return obj.name
-            elif obj.firstname:
-                return obj.firstname
-            elif obj.lastname:
-                return obj.lastname
+            if obj.first_names and obj.last_names:
+                return f"{obj.first_names} {obj.last_names}"
+            elif obj.full_name:
+                return obj.full_name
+            elif obj.first_names:
+                return obj.first_names
+            elif obj.last_names:
+                return obj.last_names
             else:
                 return f"Collaborator {obj.collaborator_id}"
         else:

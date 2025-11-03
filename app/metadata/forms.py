@@ -76,9 +76,10 @@ class CollaboratorForm(ModelForm):
     class Meta:
         model = Collaborator
         fields = ['collaborator_id',
-                  'name',
-                  'firstname',
-                  'lastname',
+                  'full_name',
+                  'first_names',
+                  'last_names',
+                  'name_suffix',
                   'nickname',
                   'other_names',
                   'anonymous',
@@ -112,7 +113,7 @@ class GeographicForm(ModelForm):
         fields = ['lat', 'long']
 
 class ItemForm(ModelForm):
-    collaborator = forms.ModelMultipleChoiceField(Collaborator.objects.order_by('name'), required=False)
+    collaborator = forms.ModelMultipleChoiceField(Collaborator.objects.order_by('full_name'), required=False)
     class Meta:
         model = Item
         fields = ['catalog_number',
@@ -323,7 +324,7 @@ class Csv_format_type(forms.Form):
                              widget=forms.RadioSelect)
 
 class DocumentForm(ModelForm):
-    collaborator = forms.ModelMultipleChoiceField(Collaborator.objects.order_by('name'), required=False)
+    collaborator = forms.ModelMultipleChoiceField(Collaborator.objects.order_by('full_name'), required=False)
     class Meta:
         model = Document
         fields = ['filename',

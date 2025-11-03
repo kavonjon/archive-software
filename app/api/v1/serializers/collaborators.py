@@ -18,17 +18,17 @@ class CollaboratorListSerializer(serializers.ModelSerializer):
         """Combine first and last name for display, or use 'Anonymous [slug]' if anonymous"""
         if obj.anonymous:
             return f"Anonymous {obj.slug}"
-        if obj.firstname and obj.lastname:
-            return f"{obj.firstname} {obj.lastname}"
-        return obj.firstname or obj.lastname or obj.name
+        if obj.first_names and obj.last_names:
+            return f"{obj.first_names} {obj.last_names}"
+        return obj.first_names or obj.last_names or obj.full_name
 
     def get_firstname(self, obj):
         """Return 'Anonymous' if anonymous, otherwise return firstname"""
-        return 'Anonymous' if obj.anonymous else obj.firstname
+        return 'Anonymous' if obj.anonymous else obj.first_names
 
     def get_lastname(self, obj):
         """Return slug if anonymous, otherwise return lastname"""
-        return obj.slug if obj.anonymous else obj.lastname
+        return obj.slug if obj.anonymous else obj.last_names
 
     def get_languages(self, obj):
         """Combine native and other languages"""
@@ -78,17 +78,17 @@ class CollaboratorDetailSerializer(serializers.ModelSerializer):
         """Combine first and last name for display, or use 'Anonymous [slug]' if anonymous"""
         if obj.anonymous:
             return f"Anonymous {obj.slug}"
-        if obj.firstname and obj.lastname:
-            return f"{obj.firstname} {obj.lastname}"
-        return obj.firstname or obj.lastname or obj.name
+        if obj.first_names and obj.last_names:
+            return f"{obj.first_names} {obj.last_names}"
+        return obj.first_names or obj.last_names or obj.full_name
 
     def get_firstname(self, obj):
         """Return 'Anonymous' if anonymous, otherwise return firstname"""
-        return 'Anonymous' if obj.anonymous else obj.firstname
+        return 'Anonymous' if obj.anonymous else obj.first_names
 
     def get_lastname(self, obj):
         """Return slug if anonymous, otherwise return lastname"""
-        return obj.slug if obj.anonymous else obj.lastname
+        return obj.slug if obj.anonymous else obj.last_names
 
     def get_nickname(self, obj):
         """Return blank if anonymous, otherwise return nickname"""
@@ -138,9 +138,9 @@ class CollaboratorSerializer(serializers.ModelSerializer):
 
     def get_name(self, obj):
         """Combine first and last name for display"""
-        if obj.firstname and obj.lastname:
-            return f"{obj.firstname} {obj.lastname}"
-        return obj.firstname or obj.lastname or obj.name
+        if obj.first_names and obj.last_names:
+            return f"{obj.first_names} {obj.last_names}"
+        return obj.first_names or obj.last_names or obj.full_name
 
     def get_roles(self, obj):
         """Get roles for this collaborator on the current item"""

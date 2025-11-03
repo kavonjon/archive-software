@@ -713,7 +713,7 @@ const ItemCreate: React.FC<ItemCreateProps> = ({
                     <Autocomplete
                       multiple
                       options={collaborators}
-                      getOptionLabel={(option) => option.name}
+                      getOptionLabel={(option) => option.display_name}
                       value={collaborators.filter(collab => formData.collaborator.includes(collab.id))}
                       onChange={(_, newValue) => {
                         handleFieldChange('collaborator', newValue.map(collab => collab.id));
@@ -729,7 +729,7 @@ const ItemCreate: React.FC<ItemCreateProps> = ({
                         value.map((option, index) => (
                           <Chip
                             variant="outlined"
-                            label={option.name}
+                            label={option.display_name}
                             {...getTagProps({ index })}
                             key={option.id}
                           />

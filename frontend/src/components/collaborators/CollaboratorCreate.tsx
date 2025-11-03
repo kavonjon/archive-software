@@ -31,9 +31,10 @@ import { DateFormatHelp } from '../common';
 interface CollaboratorFormData {
   // Core identity fields
   collaborator_id: string;
-  name: string;
-  firstname: string;
-  lastname: string;
+  full_name: string;
+  first_names: string;
+  last_names: string;
+  name_suffix: string;
   nickname: string;
   other_names: string;
   
@@ -69,9 +70,10 @@ const CollaboratorCreate: React.FC<CollaboratorCreateProps> = ({
   const [formData, setFormData] = useState<CollaboratorFormData>({
     // Core identity fields
     collaborator_id: '',
-    name: '',
-    firstname: '',
-    lastname: '',
+    full_name: '',
+    first_names: '',
+    last_names: '',
+    name_suffix: '',
     nickname: '',
     other_names: '',
     
@@ -231,9 +233,10 @@ const CollaboratorCreate: React.FC<CollaboratorCreateProps> = ({
       // Prepare data for submission
       const submitData: Partial<Collaborator> = {
         collaborator_id: parseInt(formData.collaborator_id, 10),
-        name: formData.name.trim() || undefined,
-        firstname: formData.firstname.trim() || undefined,
-        lastname: formData.lastname.trim() || undefined,
+        full_name: formData.full_name.trim() || undefined,
+        first_names: formData.first_names.trim() || undefined,
+        last_names: formData.last_names.trim() || undefined,
+        name_suffix: formData.name_suffix.trim() || undefined,
         nickname: formData.nickname.trim() || undefined,
         other_names: formData.other_names.trim() || undefined,
         anonymous: formData.anonymous,
@@ -359,42 +362,50 @@ const CollaboratorCreate: React.FC<CollaboratorCreateProps> = ({
                     
                     <TextField
                       label="Full Name"
-                      value={formData.name}
-                      onChange={handleFieldChange('name')}
+                      value={formData.full_name}
+                      onChange={handleFieldChange('full_name')}
                       fullWidth
                       helperText="Complete name as it should appear"
                     />
                     
                     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
                       <TextField
-                        label="First Name"
-                        value={formData.firstname}
-                        onChange={handleFieldChange('firstname')}
+                        label="First Name(s)"
+                        value={formData.first_names}
+                        onChange={handleFieldChange('first_names')}
                         fullWidth
                       />
                       <TextField
-                        label="Last Name"
-                        value={formData.lastname}
-                        onChange={handleFieldChange('lastname')}
+                        label="Last Name(s)"
+                        value={formData.last_names}
+                        onChange={handleFieldChange('last_names')}
                         fullWidth
                       />
                     </Box>
                     
                     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
                       <TextField
+                        label="Name Suffix"
+                        value={formData.name_suffix}
+                        onChange={handleFieldChange('name_suffix')}
+                        fullWidth
+                        helperText="e.g., Jr., Sr., III"
+                      />
+                      <TextField
                         label="Nickname"
                         value={formData.nickname}
                         onChange={handleFieldChange('nickname')}
                         fullWidth
                       />
-                      <TextField
-                        label="Other Names"
-                        value={formData.other_names}
-                        onChange={handleFieldChange('other_names')}
-                        fullWidth
-                        helperText="Alternative names or spellings"
-                      />
                     </Box>
+                    
+                    <TextField
+                      label="Other Names"
+                      value={formData.other_names}
+                      onChange={handleFieldChange('other_names')}
+                      fullWidth
+                      helperText="Alternative names or spellings"
+                    />
                   </Stack>
                 </CardContent>
               </Card>

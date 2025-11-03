@@ -424,7 +424,7 @@ const CollaboratorDetail: React.FC = () => {
                 <Typography variant="h6">
                   {collaborator.anonymous 
                     ? `Anonymous ${collaborator.collaborator_id}`
-                    : collaborator.name || `${collaborator.firstname || ''} ${collaborator.lastname || ''}`.trim() || 'No name provided'
+                    : collaborator.full_name || `${collaborator.first_names || ''} ${collaborator.last_names || ''}`.trim() || 'No name provided'
                   }
                 </Typography>
               </Box>
@@ -519,9 +519,10 @@ const CollaboratorDetail: React.FC = () => {
                     )}
                   </Box>
                 )}
-                {renderEditableField('name', 'Full Name')}
-                {renderEditableField('firstname', 'First Name')}
-                {renderEditableField('lastname', 'Last Name')}
+                {renderEditableField('full_name', 'Full Name')}
+                {renderEditableField('first_names', 'First Name(s)')}
+                {renderEditableField('last_names', 'Last Name(s)')}
+                {renderEditableField('name_suffix', 'Name Suffix')}
                 {renderEditableField('nickname', 'Nickname')}
                 {renderEditableField('other_names', 'Other Names')}
                 

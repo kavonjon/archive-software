@@ -102,7 +102,7 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
       const params: Record<string, string | number> = {
         page: currentPage + 1, // API uses 1-based pagination
         page_size: rowsPerPage,
-        ordering: 'lastname,firstname,name,collaborator_id', // Explicit ordering by last name
+        ordering: 'last_names,first_names,full_name,collaborator_id', // Explicit ordering by last name
       };
       
       // Add non-empty filters

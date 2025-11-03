@@ -209,9 +209,10 @@ export interface Collaborator {
   uuid: string;
   slug: string;
   collaborator_id: number;
-  name: string;
-  firstname: string;
-  lastname: string;
+  full_name: string;
+  first_names: string;
+  last_names: string;
+  name_suffix: string;
   nickname: string;
   other_names: string;
   

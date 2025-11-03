@@ -2,6 +2,7 @@ SECRET_KEY=""
 DEBUG=True
 SERVER_ROLE="private"
 ALLOWED_HOSTS=localhost,django,127.0.0.1
+CSRF_TRUSTED_ORIGINS=https://example.university.edu
 DBNAME="postgres"
 DBUSER="postgres"
 DBPASS="hello"

@@ -448,13 +448,20 @@ CORS_ALLOWED_HEADERS = [
 # =============================================================================
 
 # Allow React dev server origins for CSRF validation
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+# Also allow production domains from environment variable
+if deploy:
+    # In production, read from environment variable
+    csrf_origins_str = os.getenv('CSRF_TRUSTED_ORIGINS', '')
+    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins_str.split(',') if origin.strip()]
+else:
+    # In development, use localhost
+    CSRF_TRUSTED_ORIGINS = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
 # Allow CSRF cookies to be sent from React dev server
 CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_SECURE = not DEBUG  # True in production with HTTPS, False in development
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

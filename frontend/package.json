@@ -41,7 +41,7 @@
     "prebuild": "mkdir -p public/docs && cp -r ../docs/user-guide public/docs/",
     "build": "react-scripts build",
     "build:django": "PUBLIC_URL=/static/frontend npm run build && npm run copy-to-django",
-    "copy-to-django": "rm -rf ../app/static-files/frontend && mkdir -p ../app/static-files/frontend && cp -r build/* ../app/static-files/frontend/",
+    "copy-to-django": "rm -rf ../app/static-files/frontend && mkdir -p ../app/static-files/frontend && cp -r build/* ../app/static-files/frontend/ && mkdir -p ../app/static-files/frontend/docs && cp -r ../docs/user-guide ../app/static-files/frontend/docs/",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

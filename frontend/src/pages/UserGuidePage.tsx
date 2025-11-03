@@ -37,39 +37,42 @@ export const UserGuidePage = () => {
       try {
         setLoading(true);
         
+        // Determine the base path for markdown files
+        // In development: PUBLIC_URL is empty, so we use /docs/user-guide
+        // In production: PUBLIC_URL is /static/frontend, so we use /static/frontend/docs/user-guide
+        const basePath = process.env.PUBLIC_URL ? `${process.env.PUBLIC_URL}/docs/user-guide` : '/docs/user-guide';
+        
         // Import all markdown files
-        // Note: In Create React App, we need to use require() for dynamic imports
-        // or use raw-loader with explicit imports
         const sections = [
           {
             id: 'getting-started',
             title: 'Getting Started',
-            content: await fetch('/docs/user-guide/getting-started.md').then(r => r.text())
+            content: await fetch(`${basePath}/getting-started.md`).then(r => r.text())
           },
           {
             id: 'editing-languoids',
             title: 'Editing Languoids',
-            content: await fetch('/docs/user-guide/editing-languoids.md').then(r => r.text())
+            content: await fetch(`${basePath}/editing-languoids.md`).then(r => r.text())
           },
           {
             id: 'batch-editor',
             title: 'Batch Editor Overview',
-            content: await fetch('/docs/user-guide/batch-editor/overview.md').then(r => r.text())
+            content: await fetch(`${basePath}/batch-editor/overview.md`).then(r => r.text())
           },
           {
             id: 'languoid-batch',
             title: 'Batch Editing Languoids',
-            content: await fetch('/docs/user-guide/batch-editor/languoid-batch.md').then(r => r.text())
+            content: await fetch(`${basePath}/batch-editor/languoid-batch.md`).then(r => r.text())
           },
           {
             id: 'importing-data',
             title: 'Importing Data',
-            content: await fetch('/docs/user-guide/batch-editor/importing-data.md').then(r => r.text())
+            content: await fetch(`${basePath}/batch-editor/importing-data.md`).then(r => r.text())
           },
           {
             id: 'keyboard-shortcuts',
             title: 'Keyboard Shortcuts',
-            content: await fetch('/docs/user-guide/batch-editor/keyboard-shortcuts.md').then(r => r.text())
+            content: await fetch(`${basePath}/batch-editor/keyboard-shortcuts.md`).then(r => r.text())
           },
         ];
 

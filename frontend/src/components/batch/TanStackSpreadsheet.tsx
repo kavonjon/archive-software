@@ -7,7 +7,7 @@
  * Phase 1.1: Base Component with Virtualization
  */
 
-import React, { useRef, useMemo, useCallback, useState, useEffect } from 'react';
+import React, { useRef, useMemo, useCallback, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -126,6 +126,11 @@ const deserializeCellFromClipboard = (text: string, targetCellType?: CellType): 
 // Types
 // ============================================================================
 
+export interface TanStackSpreadsheetHandle {
+  /** Scroll to a specific row by ID */
+  scrollToRow: (rowId: string | number) => void;
+}
+
 export interface TanStackSpreadsheetProps {
   /** Array of rows to display */
   rows: SpreadsheetRow[];
@@ -144,6 +149,9 @@ export interface TanStackSpreadsheetProps {
   
   /** Optional: Callback when all rows selection is toggled */
   onToggleAllSelection?: () => void;
+  
+  /** Optional: Callback when file is dropped for import */
+  onFileDrop?: (file: File) => void;
   
   /** Model name (for context/debugging) */
   modelName: string;
@@ -164,17 +172,20 @@ interface CellPosition {
 // TanStackSpreadsheet Component
 // ============================================================================
 
-export const TanStackSpreadsheet: React.FC<TanStackSpreadsheetProps> = ({
+export const TanStackSpreadsheet = forwardRef<TanStackSpreadsheetHandle, TanStackSpreadsheetProps>(({
   rows,
   columns,
   onCellChange,
   onBatchCellChange,
   onToggleRowSelection,
   onToggleAllSelection,
+  onFileDrop,
   modelName,
   height = 600,
   debug = false,
-}) => {
+}, ref) => {
+  // Drag and drop state
+  const [isDragging, setIsDragging] = useState(false);
   // ============================================================================
   // Refs & State
   // ============================================================================
@@ -480,6 +491,22 @@ export const TanStackSpreadsheet: React.FC<TanStackSpreadsheetProps> = ({
   const paddingTop = virtualRows.length > 0 ? virtualRows[0]?.start || 0 : 0;
   const paddingBottom =
     virtualRows.length > 0 ? totalSize - (virtualRows[virtualRows.length - 1]?.end || 0) : 0;
+  
+  // ============================================================================
+  // Imperative Handle (for parent components to call methods)
+  // ============================================================================
+  
+  useImperativeHandle(ref, () => ({
+    scrollToRow: (rowId: string | number) => {
+      const rowIndex = rows.findIndex(r => r.id.toString() === rowId.toString());
+      if (rowIndex !== -1) {
+        rowVirtualizer.scrollToIndex(rowIndex, {
+          align: 'start',
+          behavior: 'smooth',
+        });
+      }
+    },
+  }), [rows, rowVirtualizer]);
   
   // ============================================================================
   // Mouse Drag Selection Handler
@@ -816,8 +843,16 @@ export const TanStackSpreadsheet: React.FC<TanStackSpreadsheetProps> = ({
             case 'boolean':
               emptyValue = null; // "Not specified" for boolean
               break;
+            case 'relationship':
+              emptyValue = null; // Foreign keys can be null
+              break;
+            case 'text':
+            case 'decimal':
+            case 'select':
+              emptyValue = ''; // Django CharField expects empty string, not null
+              break;
             default:
-              emptyValue = null;
+              emptyValue = '';
           }
           
           changes.push({
@@ -1061,6 +1096,55 @@ export const TanStackSpreadsheet: React.FC<TanStackSpreadsheetProps> = ({
   }, [selectedCell, editingCell, rows.length, columns, selectionAnchor, selectionRange, handleCopy, handlePaste]);
   
   // ============================================================================
+  // Drag and Drop Handlers
+  // ============================================================================
+  
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Only show overlay if dragging files
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    }
+  }, []);
+  
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Only hide overlay if leaving the container (not child elements)
+    if (e.currentTarget === e.target) {
+      setIsDragging(false);
+    }
+  }, []);
+  
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    const validExtensions = ['.xlsx', '.xls', '.csv'];
+    const hasValidExtension = validExtensions.some(ext => 
+      file.name.toLowerCase().endsWith(ext)
+    );
+    
+    if (!hasValidExtension) {
+      // Let the parent handle the error
+      return;
+    }
+    
+    // Call the parent's file drop handler
+    if (onFileDrop) {
+      onFileDrop(file);
+    }
+  }, [onFileDrop]);
+  
+  // ============================================================================
   // Render
   // ============================================================================
   
@@ -1069,6 +1153,9 @@ export const TanStackSpreadsheet: React.FC<TanStackSpreadsheetProps> = ({
       className={styles.spreadsheetContainer}
       style={{ height: typeof height === 'number' ? `${height}px` : height }}
       role="application"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
       aria-label={`${modelName} spreadsheet with ${rows.length} rows`}
     >
       {/* Screen reader announcements */}
@@ -1165,9 +1252,69 @@ export const TanStackSpreadsheet: React.FC<TanStackSpreadsheetProps> = ({
           </small>
         </div>
       )}
+      
+      {/* Drag and Drop Overlay */}
+      {isDragging && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(25, 118, 210, 0.08)',
+            border: '4px dashed',
+            borderColor: 'primary.main',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1500,
+            pointerEvents: 'none',
+          }}
+        >
+          <Box sx={{ textAlign: 'center' }}>
+            <svg 
+              width="80" 
+              height="80" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2"
+              style={{ color: '#1976d2', marginBottom: '16px' }}
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <Box 
+              component="div" 
+              sx={{ 
+                fontSize: '1.5rem', 
+                fontWeight: 'bold', 
+                color: 'primary.main',
+                mb: 1 
+              }}
+            >
+              Drop file to import
+            </Box>
+            <Box 
+              component="div" 
+              sx={{ 
+                fontSize: '0.875rem', 
+                color: 'text.secondary' 
+              }}
+            >
+              Supports Excel (.xlsx, .xls) and CSV (.csv)
+            </Box>
+          </Box>
+        </Box>
+      )}
     </Box>
   );
-};
+});
+
+// Add display name for better debugging
+TanStackSpreadsheet.displayName = 'TanStackSpreadsheet';
 
 export default TanStackSpreadsheet;
 

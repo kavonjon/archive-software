@@ -16,8 +16,8 @@ import { CellEditor } from './CellEditor';
 import styles from './TanStackSpreadsheet.module.css';
 
 interface MemoizedSpreadsheetCellProps {
-  /** The cell data */
-  cell: SpreadsheetCell;
+  /** The cell data (may be undefined during row updates) */
+  cell: SpreadsheetCell | undefined;
   
   /** Column configuration */
   columnConfig: ColumnConfig;
@@ -83,6 +83,11 @@ function arePropsEqual(
   prevProps: MemoizedSpreadsheetCellProps,
   nextProps: MemoizedSpreadsheetCellProps
 ): boolean {
+  // If either cell is undefined, check if they're both undefined
+  if (!prevProps.cell || !nextProps.cell) {
+    return prevProps.cell === nextProps.cell; // Only skip if both are undefined
+  }
+  
   // Check if cell data changed (most important check)
   // We need to do a deep comparison for cell changes
   const cellChanged = 
@@ -135,6 +140,19 @@ const MemoizedSpreadsheetCellComponent: React.FC<MemoizedSpreadsheetCellProps> =
   editingCell,
   debug = false,
 }) => {
+  // Handle undefined cell (can happen during row updates)
+  if (!cell) {
+    return (
+      <div 
+        role="gridcell"
+        className={styles.dataCell}
+        aria-label="Loading..."
+      >
+        <div className={styles.cellDisplay}></div>
+      </div>
+    );
+  }
+  
   // Phase 5: Validation and dirty state
   const isInvalid = cell.validationState === 'invalid';
   const isValidating = cell.validationState === 'validating';

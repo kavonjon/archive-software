@@ -5,11 +5,13 @@
  * Adds toolbar with buttons for save, refresh, add row, etc.
  */
 
-import React from 'react';
-import { Box, Paper, Toolbar, Button, Typography, CircularProgress, IconButton, Tooltip } from '@mui/material';
-import { Add as AddIcon, Save as SaveIcon, Refresh as RefreshIcon, Undo as UndoIcon, Redo as RedoIcon } from '@mui/icons-material';
-import { TanStackSpreadsheet } from './TanStackSpreadsheet';
+import React, { useRef } from 'react';
+import { Box, Paper, Toolbar, Button, Typography, CircularProgress, IconButton, Tooltip, Snackbar, Alert, Fade } from '@mui/material';
+import { Add as AddIcon, Save as SaveIcon, Refresh as RefreshIcon, Undo as UndoIcon, Redo as RedoIcon, UploadFile as UploadFileIcon } from '@mui/icons-material';
+import { TanStackSpreadsheet, TanStackSpreadsheetHandle } from './TanStackSpreadsheet';
 import { SpreadsheetRow, ColumnConfig } from '../../types/spreadsheet';
+import { useImportSpreadsheet } from '../../hooks/useImportSpreadsheet';
+import { InfoIconLink } from '../common/InfoIconLink';
 
 interface TanStackSpreadsheetWrapperProps {
   /** Rows of data */
@@ -83,6 +85,66 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
   canRedo = false,
   modelName,
 }) => {
+  // Import functionality
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const spreadsheetRef = useRef<TanStackSpreadsheetHandle>(null);
+  const { processFile, isImporting, importProgress, importError, clearImportError } = useImportSpreadsheet();
+  const [showImportSuccess, setShowImportSuccess] = React.useState(false);
+  const [importSuccessMessage, setImportSuccessMessage] = React.useState('');
+  
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+  
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const result = await processFile(file);
+      
+      if (result) {
+        // Success!
+        const totalAffected = result.newRows.length + result.modifiedRows.length + result.unchangedRows.length;
+        setImportSuccessMessage(`Imported ${totalAffected} row${totalAffected !== 1 ? 's' : ''}`);
+        setShowImportSuccess(true);
+        
+        // Phase 9: Auto-scroll to first affected row
+        const firstAffectedId = result.modifiedRows[0]?.rowId || result.newRows[0]?.id;
+        if (firstAffectedId && spreadsheetRef.current) {
+          // Small delay to allow Redux state to update and rows to render
+          setTimeout(() => {
+            spreadsheetRef.current?.scrollToRow(firstAffectedId);
+          }, 100);
+        }
+      }
+      
+      // Reset input so same file can be imported again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+  
+  // Handle drag-and-drop file
+  const handleFileDrop = async (file: File) => {
+    const result = await processFile(file);
+    
+    if (result) {
+      // Success!
+      const totalAffected = result.newRows.length + result.modifiedRows.length + result.unchangedRows.length;
+      setImportSuccessMessage(`Imported ${totalAffected} row${totalAffected !== 1 ? 's' : ''}`);
+      setShowImportSuccess(true);
+      
+      // Phase 9: Auto-scroll to first affected row
+      const firstAffectedId = result.modifiedRows[0]?.rowId || result.newRows[0]?.id;
+      if (firstAffectedId && spreadsheetRef.current) {
+        // Small delay to allow Redux state to update and rows to render
+        setTimeout(() => {
+          spreadsheetRef.current?.scrollToRow(firstAffectedId);
+        }, 100);
+      }
+    }
+  };
+  
   // Count rows with changes
   const changedRowsCount = rows.filter(row => row.hasChanges).length;
   const hasChanges = changedRowsCount > 0;
@@ -200,13 +262,33 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
           <Button
             startIcon={<AddIcon />}
             onClick={onAddRow}
-            disabled={loading || saving}
+            disabled={loading || saving || isImporting}
             variant="outlined"
             size="small"
           >
             Add Row
           </Button>
         )}
+        
+        {/* Import Spreadsheet Button */}
+        <Button
+          startIcon={<UploadFileIcon />}
+          onClick={handleUploadClick}
+          disabled={loading || saving || isImporting}
+          variant="outlined"
+          size="small"
+        >
+          Import Spreadsheet
+        </Button>
+        
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
         
         {onRefresh && (
           <Button
@@ -221,30 +303,67 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
         )}
         
         {onSave && (
-          <Button
-            startIcon={<SaveIcon />}
-            onClick={onSave}
-            disabled={loading || saving || !hasChanges}
-            variant="contained"
-            size="small"
-          >
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Button>
+          <>
+            <Button
+              startIcon={<SaveIcon />}
+              onClick={onSave}
+              disabled={loading || saving || !hasChanges}
+              variant="contained"
+              size="small"
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+            <InfoIconLink anchor="languoid-batch" tooltip="Learn about batch editing languoids" />
+          </>
         )}
       </Toolbar>
       
       {/* Spreadsheet */}
-      <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+      <Box sx={{ flexGrow: 1, overflow: 'hidden', position: 'relative' }}>
         <TanStackSpreadsheet
+          ref={spreadsheetRef}
           rows={rows}
           columns={columns}
           onCellChange={handleCellChange}
           onBatchCellChange={handleBatchCellChange}
           onToggleRowSelection={onToggleRowSelection}
           onToggleAllSelection={onToggleAllSelection}
+          onFileDrop={handleFileDrop}
           modelName={modelName}
           height="100%"
         />
+        
+        {/* Import Loading Overlay */}
+        {isImporting && importProgress && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 2000,
+            }}
+          >
+            <Box sx={{ textAlign: 'center' }}>
+              <CircularProgress size={48} />
+              {importProgress.message && (
+                <Typography variant="body1" sx={{ mt: 2 }}>
+                  {importProgress.message}
+                </Typography>
+              )}
+              {importProgress.percentage !== undefined && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  {importProgress.percentage}%
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        )}
       </Box>
       
       {/* Loading overlay */}
@@ -266,6 +385,32 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
           <CircularProgress size={60} />
         </Box>
       )}
+      
+      {/* Import Success Snackbar */}
+      <Snackbar
+        open={showImportSuccess}
+        autoHideDuration={4000}
+        onClose={() => setShowImportSuccess(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        TransitionComponent={Fade}
+      >
+        <Alert severity="success" variant="filled" onClose={() => setShowImportSuccess(false)}>
+          {importSuccessMessage}
+        </Alert>
+      </Snackbar>
+      
+      {/* Import Error Snackbar */}
+      <Snackbar
+        open={!!importError}
+        autoHideDuration={5000}
+        onClose={clearImportError}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        TransitionComponent={Fade}
+      >
+        <Alert severity="error" variant="filled" onClose={clearImportError}>
+          {importError}
+        </Alert>
+      </Snackbar>
     </Paper>
   );
 };

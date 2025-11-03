@@ -1,8 +1,8 @@
 {
   "documentation_structure": {
-    "version": "1.1",
-    "last_updated": "2025-10-29",
-    "conversation_reference": "Added end-user documentation types and protocols",
+    "version": "2.0",
+    "last_updated": "2025-11-03",
+    "conversation_reference": "Updated user guide section with complete implementation details for in-app documentation system",
     
     "documentation_philosophy": {
       "decision_id": "docs_001",
@@ -193,33 +193,188 @@
         "location": "docs/user-guide/",
         "audience": "Museum staff, archivists, researchers using the system",
         "focus": "HOW TO USE the system",
+        "implementation_status": "Active - rendered in-app at /user-guide with contextual help links",
+        
+        "technical_implementation": {
+          "architecture": "Single-page React component with markdown source files",
+          "rendering": "ReactMarkdown with Material-UI styling",
+          "navigation": "Sticky TOC sidebar with smooth scrolling to sections",
+          "deep_linking": "Anchor links to specific sections (e.g., /user-guide#batch-editor)",
+          "contextual_help": "InfoIconLink component places help icons throughout UI",
+          "build_automation": "npm prestart/prebuild scripts copy markdown from docs/ to public/",
+          "single_source_principle": "Markdown files in docs/user-guide/ are authoritative source",
+          "implementation_reference": "stage_1_batch_editing.json::user_guide_system (decision stage1_064)"
+        },
+        
+        "file_organization_principles": {
+          "separation_by_edit_type": "Single-edit content separate from batch-edit content",
+          "model_specific_structure": "Each model has top-level single-edit guide AND batch editor subsection",
+          "common_vs_specific": "General features in overview, model-specific in subsections",
+          "scalability": "Structure supports adding new models without reorganization",
+          "naming_convention": "kebab-case (editing-languoids.md, languoid-batch.md)"
+        },
+        
         "content_organization": {
-          "by_role": "Separate sections for Archivist, Museum Staff, Read-Only users",
-          "by_task": "Common workflows grouped together (e.g., 'Creating Items', 'Managing Collections')",
-          "by_feature": "Feature-specific guides (e.g., 'Batch Editing', 'Search and Filtering')"
+          "single_edit_guides": {
+            "purpose": "Teach data model and individual record editing",
+            "location": "docs/user-guide/editing-{model}.md",
+            "structure": [
+              "Data model overview (What is a {Model}?)",
+              "Field descriptions with types and validation",
+              "Relationships and hierarchies",
+              "Validation rules",
+              "Single-edit workflows (create, update)",
+              "Common tasks"
+            ],
+            "example": "docs/user-guide/editing-languoids.md"
+          },
+          "batch_edit_guides": {
+            "purpose": "Teach batch-specific features and bulk operations",
+            "location": "docs/user-guide/batch-editor/{model}-batch.md",
+            "structure": [
+              "Batch-specific features (hierarchical display, bulk ops)",
+              "Importing spreadsheets (recognized columns, ignored columns)",
+              "Model-specific requirements (e.g., parent-child save order)",
+              "Common batch tasks",
+              "Validation in batch mode",
+              "Performance tips"
+            ],
+            "example": "docs/user-guide/batch-editor/languoid-batch.md"
+          },
+          "general_batch_guide": {
+            "purpose": "Universal batch editing features (keyboard nav, selection, validation)",
+            "location": "docs/user-guide/batch-editor/overview.md"
+          },
+          "supplementary_guides": {
+            "getting_started": "docs/user-guide/getting-started.md - Navigation, basic workflows",
+            "importing_data": "docs/user-guide/batch-editor/importing-data.md - Formats, troubleshooting",
+            "keyboard_shortcuts": "docs/user-guide/batch-editor/keyboard-shortcuts.md - Cross-platform reference"
+          }
         },
-        "required_sections": [
-          "Getting Started (login, navigation, permissions)",
-          "Managing Items (create, edit, search, export)",
-          "Managing Collections",
-          "Managing Collaborators",
-          "Managing Languoids",
-          "Batch Editing Workflows",
-          "Search and Filtering Techniques",
-          "File Upload and Management",
-          "Export and Reporting",
-          "Troubleshooting Common Issues"
+        
+        "current_implemented_sections": [
+          "Getting Started (navigation, basic workflows)",
+          "Editing Languoids (single-edit, all fields, validation rules)",
+          "Batch Editor Overview (keyboard nav, selection, validation)",
+          "Batch Editing Languoids (hierarchical display, import details)",
+          "Importing Data (general import guide)",
+          "Keyboard Shortcuts (complete reference)"
         ],
-        "formatting_requirements": {
-          "step_by_step": "Every action must have numbered steps",
-          "screenshots": "Include screenshots for complex UI interactions",
-          "callouts": "Role-specific notes (e.g., 'Archivist-only feature')",
-          "cross_references": "Link to related sections",
-          "troubleshooting": "Common pitfalls and solutions"
+        
+        "future_sections_to_add": [
+          "Editing Items (single-edit workflows)",
+          "Editing Collaborators (single-edit workflows)",
+          "Batch Editing Items (batch-editor/item-batch.md)",
+          "Batch Editing Collaborators (batch-editor/collaborator-batch.md)"
+        ],
+        
+        "markdown_conventions": {
+          "headings": {
+            "h1": "Main section title (one per file, maps to section anchor ID)",
+            "h2": "Major subsections (appear in TOC)",
+            "h3": "Minor subsections (appear in TOC)",
+            "principle": "Descriptive headings that work out of context (TOC shows them)"
+          },
+          "formatting": {
+            "code_inline": "Use backticks for field names, values (e.g., `glottocode`, `Parent Languoid`)",
+            "code_blocks": "Use for CSV examples, workflows, step-by-step instructions",
+            "emphasis": "**Bold** for critical warnings, *italic* for UI elements",
+            "lists": "Bullet points for features, numbered for sequential steps",
+            "tables": "For field lists, keyboard shortcuts, comparisons"
+          },
+          "writing_style": {
+            "voice": "Direct, instructional, friendly",
+            "audience": "Museum staff with varying technical skill",
+            "examples": "Always include concrete examples with real field names",
+            "warnings": "Use ⚠️ or **Important** for critical information",
+            "tips": "Use **Tip** or **Note** for helpful but optional info"
+          }
         },
-        "example_structure": "## Creating a New Item\n\n**Permissions Required:** Museum Staff or Archivist\n\n1. Navigate to...\n2. Click the...\n3. Fill in required fields...\n\n[Screenshot]\n\n**Troubleshooting:** If you see error X, ...",
-        "status": "planned",
-        "creation_trigger": "PM explicitly requests user guide documentation"
+        
+        "contextual_help_integration": {
+          "component": "InfoIconLink (frontend/src/components/common/InfoIconLink.tsx)",
+          "usage_pattern": "<InfoIconLink anchor=\"section-id\" tooltip=\"Description\" />",
+          "placement_strategy": "Next to buttons/features needing explanation",
+          "behavior": "Opens user guide in current tab at specific section",
+          "current_integrations": [
+            "TanStackSpreadsheetWrapper - next to Save button, links to #languoid-batch"
+          ]
+        },
+        
+        "maintenance_workflow": {
+          "updating_existing": [
+            "1. Edit markdown in docs/user-guide/",
+            "2. Restart dev server (triggers prestart hook) or run npm start",
+            "3. Refresh browser to see changes"
+          ],
+          "adding_new_model_documentation": [
+            "1. Create docs/user-guide/editing-{model}.md (single-edit guide)",
+            "2. Create docs/user-guide/batch-editor/{model}-batch.md (batch guide)",
+            "3. Add both sections to UserGuidePage.tsx sections array",
+            "4. Add InfoIconLink to model's batch editor wrapper component",
+            "5. Document recognized/ignored columns for spreadsheet import"
+          ],
+          "testing_checklist": [
+            "Test anchor links from InfoIconLink components",
+            "Verify TOC generates correctly with new sections",
+            "Check mobile view (TOC should hide)",
+            "Test scroll behavior with hash in URL",
+            "Verify markdown renders correctly (code blocks, tables)"
+          ]
+        },
+        
+        "build_automation": {
+          "package_json_hooks": {
+            "prestart": "mkdir -p public/docs && cp -r ../docs/user-guide public/docs/",
+            "prebuild": "mkdir -p public/docs && cp -r ../docs/user-guide public/docs/"
+          },
+          "gitignore": "frontend/public/docs/ (build artifact, not version controlled)",
+          "principle": "Markdown in docs/ is source of truth, public/docs/ is generated",
+          "cra_constraint": "Create React App cannot import files outside src/, must fetch from public/"
+        },
+        
+        "model_specific_import_documentation_requirements": {
+          "critical_details_to_document": [
+            "Recognized columns (editable in batch editor)",
+            "Ignored columns (calculated/derivative fields)",
+            "Special column requirements (e.g., glottocode vs name)",
+            "Parent-child save order for hierarchical data",
+            "Mixed hierarchy support",
+            "Update vs create behavior (matching logic)"
+          ],
+          "example": "languoid-batch.md documents that 'Parent Languoid Glottocode' is read, but 'Parent Languoid' (name) is ignored"
+        },
+        
+        "react_implementation_details": {
+          "main_component": "frontend/src/pages/UserGuidePage.tsx",
+          "features": [
+            "Fetches markdown files at page load",
+            "Stores sections with IDs for anchors",
+            "ReactMarkdown with custom Material-UI components",
+            "Auto-generates TOC from headings",
+            "Smooth scroll with retry logic (400ms + retry)",
+            "scrollMarginTop: 80px for sticky nav clearance"
+          ],
+          "scroll_behavior": "Retry mechanism ensures content rendered before scrolling"
+        },
+        
+        "design_decisions": {
+          "single_page_design": "Better UX for Ctrl+F search, no page loads",
+          "markdown_format": "Easy to edit, version controlled, non-technical can contribute",
+          "automated_copy": "Maintains DRY principle within CRA constraints",
+          "separate_files": "Maintainable sizes, clear ownership, parallel editing"
+        },
+        
+        "known_limitations": {
+          "no_builtin_search": "Users must use browser Ctrl+F",
+          "no_version_history_ui": "Use git for history",
+          "cra_public_requirement": "Must copy to public/, won't work if not copied",
+          "no_images_yet": "Image support not implemented (would need public/docs/)"
+        },
+        
+        "status": "active",
+        "creation_trigger": "Implemented during Stage 1 batch editor development",
+        "confidence_level": "high"
       },
       
       "system_behavior_documentation": {

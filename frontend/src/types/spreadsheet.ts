@@ -28,10 +28,11 @@ export interface CellChange {
  * History entry for undo/redo
  */
 export interface HistoryEntry {
-  type: 'single' | 'batch';
+  type: 'single' | 'batch' | 'import';
   changes: CellChange[];
   timestamp: number;
   description: string; // e.g., "Edit Name" or "Paste 50 cells"
+  addedRowIds?: Array<string | number>; // Track rows added during import for undo
 }
 
 /**

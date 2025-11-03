@@ -946,16 +946,21 @@ def build_languoid_list_cache():
     Utility function to build the cached languoid list response.
     
     This function does the expensive work:
-    - Queries all languoids with hierarchical ordering
+    - Queries all languoids
+    - Sorts them in tree order (depth-first: parent → all descendants → next sibling)
     - Serializes them to JSON
     - Returns the serialized data ready for caching
+    
+    Tree ordering ensures:
+    - Top-level items (families with no parent) appear first, alphabetically
+    - All descendants appear immediately below their parent
+    - Siblings are sorted alphabetically
     
     Used by:
     - warm_languoid_list_cache task (background refresh)
     - InternalLanguoidViewSet (on cache miss)
     """
     from internal_api.serializers import InternalLanguoidSerializer
-    from django.db.models import Prefetch
     
     logger.info("[Cache Warming] Building languoid list cache...")
     
@@ -965,13 +970,61 @@ def build_languoid_list_cache():
         'parent_languoid',
         'pri_subgroup_languoid',
         'sec_subgroup_languoid'
-    ).prefetch_related('child_languoids').order_by('name')
+    ).prefetch_related('child_languoids')
+    
+    # Get all languoids as a list for tree building
+    all_languoids = list(queryset)
+    
+    # Build a map for quick parent → children lookup
+    children_map = {}
+    for languoid in all_languoids:
+        parent_id = languoid.parent_languoid_id
+        if parent_id not in children_map:
+            children_map[parent_id] = []
+        children_map[parent_id].append(languoid)
+    
+    # Sort children alphabetically (by name) for each parent
+    for parent_id in children_map:
+        children_map[parent_id].sort(key=lambda l: l.name.lower())
+    
+    # Find top-level items (those without a parent)
+    top_level = [l for l in all_languoids if l.parent_languoid_id is None]
+    top_level.sort(key=lambda l: l.name.lower())
+    
+    # Depth-first tree traversal: add parent, then all descendants recursively
+    result = []
+    processed = set()
+    
+    def add_languoid_with_children(languoid):
+        """Recursively add languoid and all its descendants in tree order"""
+        if languoid.id in processed:
+            return
+        
+        processed.add(languoid.id)
+        result.append(languoid)
+        
+        # Add all direct children (already sorted alphabetically)
+        children = children_map.get(languoid.id, [])
+        for child in children:
+            add_languoid_with_children(child)
+    
+    # Process all top-level items and their descendants
+    for languoid in top_level:
+        add_languoid_with_children(languoid)
+    
+    # Add any orphaned items (shouldn't happen, but handle gracefully)
+    orphans = [l for l in all_languoids if l.id not in processed]
+    if orphans:
+        logger.warning(f"[Cache Warming] Found {len(orphans)} orphaned languoids")
+        orphans.sort(key=lambda l: l.name.lower())
+        for orphan in orphans:
+            add_languoid_with_children(orphan)
     
     # Serialize to JSON (same as API response)
-    serializer = InternalLanguoidSerializer(queryset, many=True)
+    serializer = InternalLanguoidSerializer(result, many=True)
     data = serializer.data
     
-    logger.info(f"[Cache Warming] Built cache with {len(data)} languoids")
+    logger.info(f"[Cache Warming] Built cache with {len(data)} languoids in tree order")
     return data
 
 
@@ -1131,7 +1184,7 @@ def generate_languoid_export_task(self, export_id, mode, ids):
             'Family', 'Family Abbreviation', 'Family Glottocode',
             'Primary Subfamily', 'Primary Subfamily Abbreviation', 'Primary Subfamily Glottocode',
             'Secondary Subfamily', 'Secondary Subfamily Abbreviation', 'Secondary Subfamily Glottocode',
-            'Alternate Names', 'Region', 'Longitude', 'Latitude', 'Tribes', 'Notes',
+            'Alternate Names', 'Region', 'Latitude', 'Longitude', 'Tribes', 'Notes',
         ]
         
         # Write header row with styling
@@ -1186,8 +1239,8 @@ def generate_languoid_export_task(self, export_id, mode, ids):
             # Other fields
             ws.cell(row=row_num, column=19).value = safe_value(languoid.alt_names)
             ws.cell(row=row_num, column=20).value = safe_value(languoid.region)
-            ws.cell(row=row_num, column=21).value = str(languoid.longitude) if languoid.longitude else ''
-            ws.cell(row=row_num, column=22).value = str(languoid.latitude) if languoid.latitude else ''
+            ws.cell(row=row_num, column=21).value = str(languoid.latitude) if languoid.latitude else ''
+            ws.cell(row=row_num, column=22).value = str(languoid.longitude) if languoid.longitude else ''
             ws.cell(row=row_num, column=23).value = safe_value(languoid.tribes)
             ws.cell(row=row_num, column=24).value = safe_value(languoid.notes)
         

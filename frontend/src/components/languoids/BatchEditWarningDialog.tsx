@@ -66,7 +66,7 @@ const BatchEditWarningDialog: React.FC<BatchEditWarningDialogProps> = ({
         case 'all':
           return {
             title: 'Load All Languoids?',
-            body: `You are about to load all languoids (${count} total) into the batch editor. This will likely be slow.`,
+            body: `You are about to load all languoids (${count} total) into the batch editor.`,
             suggestions: [
               'Applying advanced filters',
               'Selecting specific items with checkboxes',
@@ -76,7 +76,7 @@ const BatchEditWarningDialog: React.FC<BatchEditWarningDialogProps> = ({
         case 'languages':
           return {
             title: 'Load All Languages?',
-            body: `You are about to load all languages (${count} total) into the batch editor. This will likely be slow.`,
+            body: `You are about to load all languages (${count} total) into the batch editor.`,
             suggestions: [
               'Applying advanced filters',
               'Selecting specific items with checkboxes',
@@ -86,7 +86,7 @@ const BatchEditWarningDialog: React.FC<BatchEditWarningDialogProps> = ({
         case 'dialects':
           return {
             title: 'Load All Dialects?',
-            body: `You are about to load all dialects (${count} total) into the batch editor. This will likely be slow.`,
+            body: `You are about to load all dialects (${count} total) into the batch editor.`,
             suggestions: [
               'Applying advanced filters',
               'Selecting specific items with checkboxes',
@@ -96,7 +96,7 @@ const BatchEditWarningDialog: React.FC<BatchEditWarningDialogProps> = ({
         case 'languages_dialects':
           return {
             title: 'Load All Languages & Dialects?',
-            body: `You are about to load all languages and dialects (${count} total) into the batch editor. This will likely be slow.`,
+            body: `You are about to load all languages and dialects (${count} total) into the batch editor.`,
             suggestions: [
               'Applying advanced filters',
               'Selecting specific items with checkboxes',
@@ -106,7 +106,7 @@ const BatchEditWarningDialog: React.FC<BatchEditWarningDialogProps> = ({
         case 'families':
           return {
             title: 'Load All Families?',
-            body: `You are about to load all families (${count} total) into the batch editor. This will likely be slow.`,
+            body: `You are about to load all families (${count} total) into the batch editor.`,
             suggestions: [
               'Applying advanced filters',
               'Selecting specific items with checkboxes',

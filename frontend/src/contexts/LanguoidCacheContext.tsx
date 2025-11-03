@@ -34,6 +34,8 @@ interface LanguoidCacheContextType {
   
   // Cache operations
   getLanguoids: () => Promise<Languoid[]>;
+  getByGlottocode: (glottocode: string) => Promise<Languoid | null>;
+  getByName: (name: string) => Promise<Languoid | null>;
   invalidateCache: () => void;
   refreshCache: () => Promise<Languoid[]>;
 }
@@ -186,6 +188,24 @@ export const LanguoidCacheProvider: React.FC<LanguoidCacheProviderProps> = ({ ch
   }, [cache, isCacheValid, fetchAndCache]);
 
   /**
+   * Get languoid by glottocode from cache
+   * Ensures cache is loaded before lookup
+   */
+  const getByGlottocode = useCallback(async (glottocode: string): Promise<Languoid | null> => {
+    const languoids = await getLanguoids(); // Ensures cache is loaded
+    return languoids.find(l => l.glottocode === glottocode) || null;
+  }, [getLanguoids]);
+
+  /**
+   * Get languoid by name from cache (exact match, case-sensitive)
+   * Ensures cache is loaded before lookup
+   */
+  const getByName = useCallback(async (name: string): Promise<Languoid | null> => {
+    const languoids = await getLanguoids(); // Ensures cache is loaded
+    return languoids.find(l => l.name === name) || null;
+  }, [getLanguoids]);
+
+  /**
    * Manually invalidate cache (clear it)
    */
   const invalidateCache = useCallback(() => {
@@ -208,6 +228,8 @@ export const LanguoidCacheProvider: React.FC<LanguoidCacheProviderProps> = ({ ch
     isLoading,
     error,
     getLanguoids,
+    getByGlottocode,
+    getByName,
     invalidateCache,
     refreshCache,
   };

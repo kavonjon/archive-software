@@ -25,3 +25,5 @@ export type { EditableRelationshipFieldProps, RelationshipOption } from './Edita
 // Re-export existing common components
 export { DateFormatHelp } from './DateFormatHelp';
 export { DateInterpretationFeedback } from './DateInterpretationFeedback';
+export { InfoIconLink } from './InfoIconLink';
+export type { InfoIconLinkProps } from './InfoIconLink';

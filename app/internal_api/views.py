@@ -1015,8 +1015,8 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
                 'Secondary Subfamily Glottocode',
                 'Alternate Names',
                 'Region',
-                'Longitude',
                 'Latitude',
+                'Longitude',
                 'Tribes',
                 'Notes',
             ]
@@ -1075,8 +1075,8 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
                 # Other fields
                 ws.cell(row=row_num, column=19).value = safe_value(languoid.alt_names)
                 ws.cell(row=row_num, column=20).value = safe_value(languoid.region)
-                ws.cell(row=row_num, column=21).value = str(languoid.longitude) if languoid.longitude else ''
-                ws.cell(row=row_num, column=22).value = str(languoid.latitude) if languoid.latitude else ''
+                ws.cell(row=row_num, column=21).value = str(languoid.latitude) if languoid.latitude else ''
+                ws.cell(row=row_num, column=22).value = str(languoid.longitude) if languoid.longitude else ''
                 ws.cell(row=row_num, column=23).value = safe_value(languoid.tribes)
                 ws.cell(row=row_num, column=24).value = safe_value(languoid.notes)
             

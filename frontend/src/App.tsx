@@ -13,6 +13,7 @@ import ItemsPage from './pages/ItemsPage';
 import CollectionsPage from './pages/CollectionsPage';
 import CollaboratorsPage from './pages/CollaboratorsPage';
 import LanguoidsPage from './pages/LanguoidsPage';
+import { UserGuidePage } from './pages/UserGuidePage';
 
 // Components
 import Navigation from './components/Navigation';
@@ -138,6 +139,7 @@ function App() {
                 <Routes>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/login" element={<LoginForm />} />
+                  <Route path="/user-guide" element={<UserGuidePage />} />
                   <Route 
                     path="/items/*" 
                     element={

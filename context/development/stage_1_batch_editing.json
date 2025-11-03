@@ -1,8 +1,8 @@
 {
   "stage_1_batch_editing": {
-    "version": "4.0",
-    "last_updated": "2025-11-02",
-    "conversation_reference": "Detailed Stage 1 planning and implementation architecture for smart spreadsheet batch editing features. Version 4.0 includes complete TanStack migration documentation.",
+    "version": "5.1",
+    "last_updated": "2025-11-03",
+    "conversation_reference": "Detailed Stage 1 planning and implementation architecture for smart spreadsheet batch editing features. Version 5.1 adds comprehensive user guide system documentation with organizational principles and maintenance workflows.",
     
     "stage_overview": {
       "decision_id": "stage1_001",
@@ -2137,6 +2137,878 @@
           "Ask before documenting volatile features",
           "High-level historical info only in docs"
         ],
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "bulk_import_system": {
+        "decision_id": "stage1_056",
+        "content": "Excel/CSV bulk import with smart row reconciliation and validation",
+        "added_date": "2025-11-03",
+        "conversation_reference": "Bulk import feature - Excel/CSV upload with FK resolution, duplicate detection, validation",
+        "rationale": "Enable users to perform bulk ingests leveraging the batch editor's full validation suite, avoiding direct database imports that bypass validation",
+        
+        "feature_overview": {
+          "upload_methods": [
+            "Upload button (file picker dialog)",
+            "Drag and drop directly onto spreadsheet"
+          ],
+          "supported_formats": [
+            ".xlsx (Excel 2007+)",
+            ".xls (Excel 97-2003)",
+            ".csv (Comma-separated values)"
+          ],
+          "file_limits": {
+            "max_file_size": "10 MB",
+            "soft_row_limit": "1000 rows (warning dialog)",
+            "rationale": "Balance between usability and performance/memory constraints"
+          }
+        },
+        
+        "column_mapping_strategy": {
+          "algorithm": "Case-insensitive, trim whitespace, replace underscores with spaces",
+          "example": "Parent_Languoid_Glottocode → parent languoid glottocode (matches batch editor column)",
+          "implementation": "frontend/src/services/importColumnMapper.ts",
+          "ignore_unrecognized_columns": true,
+          "ignore_derivative_columns": true,
+          "critical_lesson": "ALL batch editor columns must be in IMPORT_COLUMN_MAP. Missing columns = changes not detected/applied (bug discovered during testing).",
+          "complete_column_coverage": [
+            "name", "name_abbrev", "glottocode", "iso",
+            "level_glottolog", "alt_names", "parent_languoid",
+            "region", "longitude", "latitude", "tribes", "notes"
+          ]
+        },
+        
+        "smart_row_reconciliation": {
+          "decision_id": "stage1_057",
+          "content": "Import determines whether to update existing DB row, modify existing spreadsheet row, or create new draft",
+          "added_date": "2025-11-03",
+          "priority_order": [
+            "1. If glottocode matches existing DB object → Load that object, apply spreadsheet changes to it",
+            "2. If glottocode matches existing spreadsheet row → Modify that row with spreadsheet changes",
+            "3. Otherwise → Create new draft row"
+          ],
+          "duplicate_detection": {
+            "primary_key": "glottocode",
+            "name_conflict_detection": "If new row has name matching existing languoid but no glottocode match → Orange cell warning",
+            "orange_validation": "Uses existing orange cell infrastructure (same as concurrent edit conflicts)"
+          },
+          "change_detection": {
+            "only_apply_actual_changes": "Compare spreadsheet value to current value, only update if different",
+            "comparison_logic": "Type-aware comparisons (e.g., string arrays compare as sets, ignoring order)",
+            "implementation": "frontend/src/services/importValueParsers.ts::areCellValuesEqual()"
+          }
+        },
+        
+        "value_parsing_system": {
+          "decision_id": "stage1_058",
+          "content": "Type-aware parsing of spreadsheet cell values to batch editor cell format",
+          "added_date": "2025-11-03",
+          "critical_importance": "Incorrect parsing = validation errors, data loss, or failed saves",
+          
+          "text_fields": {
+            "cell_types": ["text"],
+            "parsing": "Trim whitespace",
+            "empty_value": "'' (empty string)",
+            "critical_lesson": "Django CharField(blank=True) expects empty string '', NOT null. Using null causes validation errors."
+          },
+          
+          "decimal_fields": {
+            "cell_types": ["decimal"],
+            "parsing": "Convert to string (e.g., '42.5')",
+            "storage_format": "String in both value and text fields",
+            "empty_value": "'' (empty string)",
+            "rationale": "Backend expects string, frontend displays string. Consistent representation."
+          },
+          
+          "select_fields": {
+            "cell_types": ["select"],
+            "parsing": "Fuzzy match to choices (case-insensitive), store machine value",
+            "example": "'lang' → 'language', 'dial' → 'dialect'",
+            "display": "Use get_FIELD_display() for human-readable label",
+            "empty_value": "'' (empty string)"
+          },
+          
+          "relationship_fields": {
+            "cell_types": ["relationship"],
+            "parsing": "Lookup glottocode → ID using LanguoidCache",
+            "cache_strategy": "In-memory cache lookup (LanguoidCache loads all languoids at batch editor mount)",
+            "value": "Foreign key ID (integer) if found, null if not",
+            "text": "'Name (glottocode)' format for display",
+            "empty_value": "null",
+            "critical_lesson": "LanguoidCache already contains ALL languoids (page_size: 10000) in sessionStorage. No additional API calls needed for FK lookups during import."
+          },
+          
+          "multiselect_fields": {
+            "cell_types": ["multiselect"],
+            "parsing": "Parse comma-separated glottocodes, lookup each → ID using LanguoidCache",
+            "value": "Array of IDs [1, 2, 3]",
+            "text": "'Name1 (code1), Name2 (code2)'",
+            "empty_value": "[] (empty array)",
+            "future_use": "Currently no M2M fields in languoid batch editor, but pattern ready for other models"
+          },
+          
+          "stringarray_fields": {
+            "cell_types": ["stringarray"],
+            "parsing": "Parse comma-separated list OR JSON array",
+            "value": "Array of strings ['item1', 'item2']",
+            "text": "'item1, item2' (comma-space separated)",
+            "comparison": "Set-based comparison (order-independent)",
+            "empty_value": "[] (empty array)",
+            "critical_lesson": "Django JSONField expects array, not comma-separated string. Frontend must parse before sending to backend."
+          },
+          
+          "implementation_files": [
+            "frontend/src/services/importValueParsers.ts - Parsing and comparison logic",
+            "frontend/src/services/importTransformer.ts - Row reconciliation using parsers",
+            "frontend/src/contexts/LanguoidCacheContext.tsx - In-memory FK cache"
+          ]
+        },
+        
+        "import_orchestration": {
+          "hook": "frontend/src/hooks/useImportSpreadsheet.ts",
+          "flow": [
+            "1. File validation (size, format, column recognition)",
+            "2. Parse file (xlsx library)",
+            "3. Transform data (smart row reconciliation + value parsing)",
+            "4. Dispatch single Redux action (importSpreadsheetChanges)",
+            "5. Trigger validation for all affected cells",
+            "6. Auto-check all affected rows",
+            "7. Auto-scroll to first affected row",
+            "8. Show success/error snackbar"
+          ],
+          "single_undo_action": {
+            "critical_decision": "Entire import = single undoable action",
+            "rationale": "Users expect 'undo import' to revert ALL changes, not 250 separate undos",
+            "implementation": "Redux action 'importSpreadsheetChanges' creates one HistoryEntry of type 'import'",
+            "overflow_protection": "Gracefully skip history if import size > maxHistorySize (prevents memory overflow)",
+            "undo_behavior": "Reverts all cell changes AND removes any draft rows that were added",
+            "redo_limitation": "Currently only redoes cell changes, not full row re-addition (acceptable tradeoff)"
+          },
+          "validation_strategy": {
+            "validate_all_immediately": "All imported cells validated on import (Option A)",
+            "rationale": "Users expect full feedback after uploading a carefully prepared spreadsheet",
+            "spinner_cursor": "Global spinner cursor during FK lookups and validation (no banner message)",
+            "performance": "Leverages existing bulk validation infrastructure from paste operations"
+          }
+        },
+        
+        "auto_checkbox_behavior": {
+          "affected_rows": [
+            "New draft rows created by import",
+            "Existing spreadsheet rows modified by import",
+            "Existing spreadsheet rows in import file but unchanged"
+          ],
+          "rationale": "Makes it clear which rows were processed by import. User can easily save all imported changes by clicking Save.",
+          "unchanged_rows_tracked": "ImportResult.unchangedRows array explicitly tracks these for checkbox selection"
+        },
+        
+        "critical_debugging_lessons": {
+          "missing_columns_in_mapper": {
+            "symptom": "Changes to certain fields not detected or applied during import",
+            "root_cause": "IMPORT_COLUMN_MAP was missing several batch editor fields (name_abbrev, region, latitude, longitude, tribes, notes)",
+            "lesson": "IMPORT_COLUMN_MAP must include ALL batch editor fields. Even if not in typical exports, users may add them manually.",
+            "verification": "When adding batch editor to new model, audit IMPORT_COLUMN_MAP against ALL column definitions in model-specific editor"
+          },
+          
+          "draft_row_id_format": {
+            "symptom": "400 error on save: 'Field id expected a number but got UUID'",
+            "root_cause": "Backend expects draft row IDs in format 'draft-{uuid}', but import was creating plain UUIDs",
+            "lesson": "Always prefix draft row IDs with 'draft-' when creating new rows",
+            "implementation": "id: `draft-${uuidv4()}`"
+          },
+          
+          "sequential_order_matching": {
+            "symptom": "Saved draft rows disappeared from batch editor",
+            "root_cause": "Trying to match saved languoids to draft rows by name (unreliable, especially if names normalized by backend)",
+            "lesson": "Backend processes rows in order sent and returns saved objects in same order. Match by sequential order, not by name.",
+            "implementation": "Iterate through editedRows and match to response.saved sequentially"
+          },
+          
+          "partial_row_construction": {
+            "symptom": "When importing existing row into empty batch editor, unchanged cells appeared yellow (edited)",
+            "root_cause": "importTransformer.ts::languoidToSpreadsheetRow() only created 7 cells, missing 6 fields (name_abbrev, region, longitude, latitude, tribes, notes)",
+            "lesson": "When converting DB object to SpreadsheetRow, ALL cells must be created with correct isEdited and originalValue. Missing cells → implicitly added later with incorrect state.",
+            "fix": "Ensure languoidToSpreadsheetRow creates all 13 cells matching structure from languoidToRow in model-specific editor",
+            "verification": "When implementing for new model, compare cell creation in transformer to cell creation in model-specific editor"
+          },
+          
+          "empty_value_consistency": {
+            "symptom": "Empty optional text fields marked invalid after import or Delete key",
+            "root_cause": "Django CharField(blank=True) expects '' for empty, but code was sending null",
+            "lesson": "Empty value must match Django field expectation: '' for CharField, null for ForeignKey/Boolean, [] for JSONField",
+            "two_locations_fixed": [
+              "1. Delete key handler in TanStackSpreadsheet.tsx",
+              "2. Default value parser in importTransformer.ts"
+            ],
+            "type_mapping": {
+              "text/decimal/select": "'' (empty string)",
+              "relationship/boolean": "null",
+              "stringarray/multiselect": "[] (empty array)"
+            }
+          },
+          
+          "draft_row_isedited_logic": {
+            "symptom": "Empty optional cells in new imported rows appeared yellow (edited)",
+            "root_cause": "isEdited = value !== originalValue. For draft rows, originalValue = null, but empty string '' !== null",
+            "lesson": "For draft rows, isEdited should be true only if value is non-empty. Empty optional fields should not be marked edited.",
+            "implementation": "Redux reducer uses isEmpty() helper for draft rows",
+            "haschanges_logic": "For draft rows, hasChanges = true only if ANY cell has non-empty value"
+          },
+          
+          "celery_worker_code_caching": {
+            "symptom": "Export column order changes not reflected in downloaded files",
+            "root_cause": "Export handled by Celery background task. Worker process caches Python code in memory.",
+            "lesson": "Changes to Celery task code require worker restart to take effect",
+            "two_code_locations": [
+              "1. app/internal_api/views.py - Small synchronous exports",
+              "2. app/metadata/tasks.py - Large async exports (Celery)"
+            ],
+            "fix_procedure": "Update both files, then restart Celery worker"
+          }
+        },
+        
+        "ui_visual_feedback": {
+          "drag_drop_overlay": "Visual indicator when file dragged over spreadsheet",
+          "spinner_cursor": "Global cursor during import processing (file parsing, FK lookups, validation)",
+          "success_snackbar": "Auto-dismiss after 5s, shows count of affected rows",
+          "error_snackbar": "Auto-dismiss after 5s with close button, shows specific error",
+          "smooth_fade": "Uses Material-UI Fade transition for snackbars",
+          "auto_scroll": "Scrolls to first affected row (new or modified) using imperative scrollToRow() method"
+        },
+        
+        "reusability_for_other_models": {
+          "what_is_reusable": [
+            "Column mapping strategy (importColumnMapper.ts)",
+            "File parsing logic (fileParser.ts)",
+            "Type-aware value parsers (importValueParsers.ts)",
+            "Import orchestration hook pattern (useImportSpreadsheet.ts)",
+            "UI components (upload button, drag/drop overlay, snackbars)",
+            "Single undo action pattern",
+            "Validation integration",
+            "Auto-checkbox behavior"
+          ],
+          "what_must_be_customized": {
+            "import_column_map": "Model-specific field names and mappings",
+            "cache_context": "Model-specific FK lookup cache (e.g., CollaboratorCache for collaborators)",
+            "row_reconciliation_key": "Model-specific unique identifier (e.g., glottocode for languoid, email for collaborator)",
+            "value_parsers": "Model-specific FK lookups (but pattern remains same)",
+            "languoidToSpreadsheetRow": "Model-specific DB object → SpreadsheetRow conversion"
+          },
+          "implementation_checklist": [
+            "1. Create IMPORT_COLUMN_MAP with ALL batch editor fields",
+            "2. Implement model-specific cache with getByPrimaryKey() and getByName() methods",
+            "3. Customize transformImportData() reconciliation logic for model's unique identifier",
+            "4. Implement modelToSpreadsheetRow() creating ALL cells with correct isEdited/originalValue",
+            "5. Test with: new rows, existing rows with changes, existing rows without changes, empty batch editor vs populated",
+            "6. Verify draft row ID format ('draft-{uuid}')",
+            "7. Verify empty value types match Django field expectations",
+            "8. Verify sequential order matching for saved rows",
+            "9. Test with Celery worker restart if export functionality affected"
+          ]
+        },
+        
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "validation_and_conflict_detection": {
+        "decision_id": "stage1_059",
+        "content": "Multi-layered validation system with real-time feedback and conflict resolution",
+        "added_date": "2025-11-03",
+        "conversation_reference": "Validation framework, required field validation, concurrent edit detection, field-level conflicts",
+        
+        "validation_layers": {
+          "client_side_validation": {
+            "timing": "Immediate feedback during/after cell edit",
+            "purpose": "Provide instant feedback without waiting for API roundtrip",
+            "rules": [
+              "Required fields (name, glottocode) - cannot be empty",
+              "Type checking - decimal format, valid choices for select",
+              "Format checking - stringarray parsing, boolean values",
+              "Self-reference prevention - languoid cannot be its own parent"
+            ],
+            "limitations": "Cannot validate unique constraints or complex business logic",
+            "implementation": "LanguoidBatchEditor.tsx::validateCell()"
+          },
+          
+          "backend_validation": {
+            "timing": "Async after client validation passes",
+            "purpose": "Database-level validation (unique constraints, complex business rules)",
+            "trigger": "Debounced API call after cell edit",
+            "api_endpoint": "/api/internal/batch-languoid/validate-cell/",
+            "returns": "validationState ('valid'|'invalid') and validationError message",
+            "performance": "Batched for multi-cell paste operations"
+          },
+          
+          "save_time_validation": {
+            "timing": "Before committing transaction to database",
+            "purpose": "Final integrity check and conflict detection",
+            "checks": [
+              "All modified cells valid",
+              "No concurrent edit conflicts (field-level optimistic locking)",
+              "Required fields present",
+              "Foreign key references exist"
+            ],
+            "rollback": "Transaction rolled back if any validation fails"
+          }
+        },
+        
+        "validation_states": {
+          "valid": {
+            "color": "Default (white background)",
+            "description": "Cell value passed all validation checks"
+          },
+          "invalid": {
+            "color": "Red background (#ffebee)",
+            "icon": "Error icon (❌) with tooltip showing error message",
+            "description": "Cell value failed validation",
+            "examples": [
+              "Required field is empty",
+              "Decimal field contains non-numeric characters",
+              "Select value not in choices",
+              "Languoid cannot be its own parent"
+            ]
+          },
+          "validating": {
+            "color": "Default (no special styling during validation)",
+            "cursor": "Spinner cursor (global, for bulk operations)",
+            "description": "Backend validation in progress",
+            "performance_note": "No per-cell spinner to avoid visual noise with 10,000 rows"
+          }
+        },
+        
+        "cell_state_visual_indicators": {
+          "isEdited_yellow": {
+            "color": "Yellow background (#fff9c4)",
+            "description": "Cell value differs from originalValue (unsaved changes)",
+            "applies_to": "Existing rows only (not draft rows with empty optional fields)"
+          },
+          "hasConflict_orange": {
+            "color": "Orange background (#ffe0b2)",
+            "icon": "Warning icon (⚠️) with tooltip",
+            "description": "Concurrent edit detected OR name matches existing languoid",
+            "user_action_required": "Review conflict, decide whether to overwrite or revert",
+            "auto_resolve": "Orange clears when user edits cell again (becomes yellow)"
+          },
+          "priority_order": "Red (invalid) > Orange (conflict) > Yellow (edited) > White (unchanged)"
+        },
+        
+        "required_field_validation": {
+          "decision_id": "stage1_060",
+          "content": "Special handling for required fields in new vs existing rows",
+          "added_date": "2025-11-03",
+          "required_fields": ["name", "glottocode"],
+          "new_draft_rows": {
+            "behavior": "Empty required fields are valid if row is untouched (hasChanges = false)",
+            "rationale": "Newly added empty rows shouldn't immediately show as invalid. User hasn't interacted yet.",
+            "validation_trigger": "Required field validation activates once user edits ANY cell in that row"
+          },
+          "existing_rows": {
+            "behavior": "Required fields always validated (should never be empty for existing DB objects)",
+            "assumption": "Backend enforces required constraints on save"
+          },
+          "save_button_behavior": {
+            "disabled_if": "false (button never disabled - allow user to attempt save)",
+            "validation_error_dialog": "If checked rows have hasErrors = true, show modal with detailed error list",
+            "error_dialog_content": [
+              "Row number",
+              "Row name (for identification)",
+              "List of specific field errors with messages"
+            ],
+            "user_experience": "Users see exactly which rows/fields are blocking save, can fix and retry"
+          }
+        },
+        
+        "concurrent_edit_detection": {
+          "decision_id": "stage1_061",
+          "content": "Field-level optimistic locking with partial save support",
+          "added_date": "2025-11-03",
+          "strategy": "Optimistic locking with conflict resolution",
+          
+          "how_it_works": {
+            "1_load_row": "Frontend stores row._updated timestamp from DB",
+            "2_user_edits": "User makes changes in Tab 1",
+            "3_concurrent_edit": "Meanwhile, another user (Tab 2) edits same row and saves",
+            "4_tab1_saves": "Tab 1 sends: edited cells + original _updated timestamp",
+            "5_backend_check": "Backend compares _updated timestamp - if different, conflict detected",
+            "6_field_level_check": "Backend determines which specific fields were edited by both tabs",
+            "7_partial_save": "Non-conflicting fields are saved successfully",
+            "8_conflict_response": "Backend returns: which fields had conflicts, current DB values for those fields",
+            "9_frontend_update": "Frontend marks conflicting cells orange, updates other cells to saved values"
+          },
+          
+          "field_level_conflicts": {
+            "scenario_1": "Tab 1 edits field A, Tab 2 edits field B → Both save successfully",
+            "scenario_2": "Tab 1 edits field A, Tab 2 edits field A → Tab 2's save marks field A orange (conflict)",
+            "scenario_3": "Tab 1 edits A+B, Tab 2 edits B+C → Tab 2 saves A and C, B marked orange",
+            "advantage": "Maximizes successful partial saves, minimizes data loss from concurrent edits"
+          },
+          
+          "user_resolution_flow": {
+            "1_see_orange_cell": "User sees orange cell with conflict warning tooltip",
+            "2_review_options": "Tooltip shows: current DB value vs their attempted value",
+            "3_decide": "User decides: keep DB value (cancel edit) or overwrite (edit again)",
+            "4_edit_again": "If user edits cell, it turns yellow (conflict acknowledged, attempting overwrite)",
+            "5_save_again": "On next save, if no new conflict, the edit goes through"
+          },
+          
+          "critical_implementation_details": {
+            "preserve_conflict_state": "After conflict, originalValue and isEdited must be preserved so user can re-save",
+            "no_premature_reload": "Don't call updateRowAfterSave() for conflict rows - would lose user's attempted edit",
+            "conflict_vs_no_conflict": "Backend distinguishes: no changes at all (savedCount=0, no conflicts) vs conflicts (has_conflict=true)",
+            "second_save_validation": "Second save after resolving conflict must use NEW _updated timestamp from conflict response"
+          },
+          
+          "api_contract": {
+            "request_payload": {
+              "rows": [
+                {
+                  "id": "123",
+                  "_updated": "2025-11-03T10:00:00Z",
+                  "changes": {
+                    "name": "New Name",
+                    "level_glottolog": "language"
+                  }
+                }
+              ]
+            },
+            "success_response": {
+              "saved": ["List of successfully saved languoid objects"],
+              "errors": [],
+              "conflicts": []
+            },
+            "conflict_response": {
+              "saved": ["List of partially saved objects (non-conflicting fields)"],
+              "errors": [],
+              "conflicts": [
+                {
+                  "id": 123,
+                  "conflicting_fields": {
+                    "name": {
+                      "db_value": "Current DB Name",
+                      "attempted_value": "New Name",
+                      "last_updated": "2025-11-03T10:05:00Z"
+                    }
+                  },
+                  "_updated": "2025-11-03T10:05:00Z"
+                }
+              ]
+            }
+          },
+          
+          "debugging_lessons": {
+            "false_conflict_warning": {
+              "symptom": "Second save after conflict shows 'has_conflict: true' even though save succeeded",
+              "root_cause": "Frontend checking conflicts.length > 0 even when save was successful",
+              "fix": "Only show conflict warning if response.conflicts?.length > 0 AND response is not a general error"
+            },
+            "no_conflict_overwrite": {
+              "symptom": "Second tab's save overwrites first tab's save without warning",
+              "root_cause": "Backend not checking _updated timestamp or not returning conflict",
+              "fix": "Backend must compare _updated, return 409 status with conflict details"
+            },
+            "value_lost_after_conflict": {
+              "symptom": "After conflict, user's attempted value disappears, row reloads with DB value",
+              "root_cause": "Frontend calling updateRowAfterSave() for conflict rows, resetting to DB state",
+              "fix": "Skip updateRowAfterSave() for conflict rows, preserve user's attempted edit"
+            }
+          }
+        },
+        
+        "validation_performance": {
+          "bulk_paste_optimization": {
+            "problem": "Pasting 100 cells → 100 API calls → UI freeze",
+            "solution": "Batch validation API endpoint processes multiple cells in one request",
+            "visual_feedback": "Global spinner cursor (no 'Validating X cells' message - too noisy)",
+            "user_experience": "User sees cursor change, knows to wait, no confusion about frozen UI"
+          },
+          "debouncing": {
+            "single_cell_edit": "300ms debounce before API call",
+            "rationale": "Avoid API call on every keystroke during typing"
+          },
+          "caching": {
+            "validation_results": "Not currently cached (validation is fast enough)",
+            "future_optimization": "Could cache validation results keyed by (fieldName, value) if performance degrades"
+          }
+        },
+        
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "smart_copy_paste_system": {
+        "decision_id": "stage1_062",
+        "content": "Intelligent copy/paste preserving machine-readable values and display text",
+        "added_date": "2025-11-03",
+        "conversation_reference": "Smart serialization format for complex cell types, hybrid clipboard approach",
+        "problem_statement": "Standard clipboard copy/paste loses machine-readable data (IDs, arrays) and only copies display text",
+        
+        "clipboard_format": {
+          "marker_format": "__CELL__<type>__<json>__<text>__",
+          "example_relationship": "__CELL__relationship__123__\"Zaparo-Abishira (zapa1252)\"__",
+          "example_multiselect": "__CELL__multiselect__[45,78]__\"Indo-European (indo1319), Sino-Tibetan (sino1245)\"__",
+          "example_stringarray": "__CELL__stringarray__[\"Zaparo\",\"Kayapi\"]__\"Zaparo, Kayapi\"__",
+          "example_select": "__CELL__select__\"language\"__\"Language\"__",
+          "example_boolean": "__CELL__boolean__true__\"Yes\"__",
+          "simple_types": "text, decimal - no special format, just copy/paste plain text"
+        },
+        
+        "serialization_deserialization": {
+          "on_copy": {
+            "single_cell": "Serialize cell.value (machine) + cell.text (display) into marker format",
+            "range": "Create TSV grid with each cell serialized",
+            "clipboard_content": "Plain text that looks like: '__CELL__relationship__123__\"Zaparo-Abishira (zapa1252)\"__'",
+            "implementation": "TanStackSpreadsheet.tsx::handleCopy()"
+          },
+          "on_paste": {
+            "detect_format": "Check if pasted text matches marker pattern (__CELL__...)",
+            "if_marker_found": "Extract type, parse JSON for value, extract text for display",
+            "if_plain_text": "Use as-is for text/decimal, trigger validation for complex types",
+            "implementation": "TanStackSpreadsheet.tsx::handlePaste()",
+            "graceful_degradation": "External paste (from Excel) → plain text → validation catches invalid values"
+          }
+        },
+        
+        "benefits": {
+          "internal_copy_paste": "Preserves exact machine values (IDs, arrays) for efficient batch editing",
+          "external_paste_compatibility": "Plain text from Excel/CSV still works (validated, may be invalid)",
+          "single_clipboard_format": "No need for separate 'internal' vs 'external' clipboards",
+          "user_transparency": "Works invisibly - users just copy/paste as normal"
+        },
+        
+        "debugging_lessons": {
+          "display_text_not_preserved": {
+            "symptom": "After pasting relationship, cell shows PK (123) instead of 'Name (glottocode)'",
+            "root_cause": "Deserialization only returned value (ID), not text",
+            "fix": "Updated marker format to include text: __CELL__<type>__<json>__<text>__"
+          },
+          "paste_validation_confusion": {
+            "symptom": "Pasting plain text into relationship turned yellow (valid) but showed wrong data",
+            "root_cause": "Plain text was stored as value, should have been null with text for later API resolution",
+            "fix": "Set value=null, text=plainText for relationship/multiselect types when pasting plain text"
+          }
+        },
+        
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "hierarchical_sorting_system": {
+        "decision_id": "stage1_063",
+        "content": "Depth-first tree traversal sorting for hierarchical data display",
+        "added_date": "2025-11-03",
+        "conversation_reference": "Hierarchical sorting bug fix, tree traversal implementation in cache building",
+        
+        "problem_statement": {
+          "symptom": "Batch editor showing languoids in alphabetical order, not hierarchical tree order",
+          "impact": [
+            "New saved rows appearing at end (after 'Z' names)",
+            "Non-English characters sorting at very end",
+            "No hierarchical grouping (families not grouped with their descendants)"
+          ],
+          "user_expectation": "Same tree order as languoid list page (true depth-first traversal)"
+        },
+        
+        "root_cause_analysis": {
+          "backend_cache_building": "app/metadata/tasks.py::build_languoid_list_cache() was using simple .order_by('name')",
+          "frontend_list_page": "LanguoidsList.tsx already implemented correct tree traversal on frontend",
+          "discrepancy": "Backend cache wasn't pre-sorted, frontend list page sorted client-side, batch editor used cache as-is",
+          "lesson": "Sorting logic must be in ONE authoritative place (backend cache building)"
+        },
+        
+        "correct_algorithm": {
+          "description": "Depth-first tree traversal with alphabetical ordering of siblings",
+          "rules": [
+            "1. All children appear below their parent",
+            "2. Siblings are sorted alphabetically",
+            "3. Top-level nodes see ALL descendants below them before next sibling",
+            "4. Result: Families grouped with all their descendants in nested order"
+          ],
+          "example_order": [
+            "Afro-Asiatic (family)",
+            "  Berber (language)",
+            "    Tuareg (dialect)",
+            "    Zenati (dialect)",
+            "  Semitic (language)",
+            "    Arabic (dialect)",
+            "Indo-European (family)",
+            "  Germanic (language)",
+            "  Romance (language)"
+          ]
+        },
+        
+        "implementation": {
+          "location": "app/metadata/tasks.py::build_languoid_list_cache()",
+          "algorithm_steps": [
+            "1. Build parent → children mapping from queryset",
+            "2. Find top-level nodes (parent_languoid = None)",
+            "3. Sort top-level nodes alphabetically",
+            "4. For each top-level node: recursively traverse children (depth-first)",
+            "5. At each level: sort children alphabetically before traversal",
+            "6. Append nodes to result list in traversal order"
+          ],
+          "code_pattern": {
+            "recursive_function": "def add_node_and_descendants(node, visited)",
+            "base_case": "if node.id in visited: return",
+            "recursive_case": "for each child (sorted): add_node_and_descendants(child, visited)",
+            "visited_set": "Prevents infinite loops from circular references"
+          }
+        },
+        
+        "cache_clearing_requirements": {
+          "backend_cache": "Django cache - must clear after changing sort logic",
+          "command": "cache.delete('languoid_list_full')",
+          "frontend_cache": "sessionStorage - must clear in browser",
+          "command": "sessionStorage.clear() in browser console",
+          "both_required": "Changes not visible until both caches cleared AND server restarted",
+          "celery_worker": "If export affected, restart Celery worker"
+        },
+        
+        "reusability_for_other_models": {
+          "applies_to": "Any model with self-referential foreign key (parent/child hierarchy)",
+          "examples": ["Languoid (parent_languoid)", "Item (parent_item?)", "Geographic regions"],
+          "customization_needed": [
+            "Replace parent_languoid with model's parent field name",
+            "Replace 'name' with model's display field",
+            "Update cache key name"
+          ],
+          "pattern_is_reusable": "Exact same recursive algorithm works for any tree structure"
+        },
+        
+        "debugging_lessons": {
+          "sort_not_updating": {
+            "symptom": "Code changed but batch editor still shows old sort order",
+            "root_cause": "Forgot to clear Django cache AND sessionStorage",
+            "fix": "Clear both caches AND restart Django server"
+          },
+          "partial_hierarchical_sort": {
+            "symptom": "Some groups correct, but others (families) at end",
+            "root_cause": "Incorrectly assumed 'all families first' was correct algorithm",
+            "fix": "Clarified with user: true depth-first traversal, not grouped by level"
+          }
+        },
+        
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "user_guide_system": {
+        "decision_id": "stage1_064",
+        "content": "In-app user guide with markdown documentation and contextual help links",
+        "added_date": "2025-11-03",
+        "conversation_reference": "User guide implementation with single-source markdown, automated build, and info icon links",
+        
+        "architecture": {
+          "single_source_of_truth": "/docs/user-guide/ (version controlled markdown files)",
+          "build_process": "Automated copy to /frontend/public/docs/ via npm prestart/prebuild hooks",
+          "runtime_loading": "React component fetches markdown files and assembles single-page view",
+          "presentation": "Material-UI styled, sticky TOC sidebar, smooth scrolling to sections",
+          "contextual_help": "InfoIconLink component provides deep links to specific guide sections"
+        },
+        
+        "file_structure": {
+          "principle": "Logical separation by feature area, not by implementation phase",
+          "pattern": "Top-level sections for major features, subsections for model-specific details",
+          "current_structure": {
+            "/docs/user-guide/": [
+              "getting-started.md - Overview, navigation, basic workflows",
+              "editing-languoids.md - Single-edit languoid workflows and field descriptions",
+              "batch-editor/ - Directory for batch editing subsections",
+              "  overview.md - General batch editor features (keyboard nav, selection, validation)",
+              "  languoid-batch.md - Languoid-specific batch features and import details",
+              "  importing-data.md - General import guide (formats, validation, troubleshooting)",
+              "  keyboard-shortcuts.md - Complete keyboard reference with cross-platform details"
+            ]
+          },
+          "future_structure": {
+            "editing-items.md": "Single-edit item workflows",
+            "editing-collaborators.md": "Single-edit collaborator workflows",
+            "batch-editor/item-batch.md": "Item-specific batch features",
+            "batch-editor/collaborator-batch.md": "Collaborator-specific batch features"
+          }
+        },
+        
+        "organizational_principles": {
+          "single_vs_batch": "Separate single-edit content from batch-edit content",
+          "model_specific_sections": "Each model gets its own top-level section for single-edit AND a batch editor subsection",
+          "feature_grouping": "Group by logical feature (editing, batch operations) not by model",
+          "scalability": "Structure supports adding new models without reorganization",
+          "avoid_duplication": "Common batch features in overview, model-specific details in subsections"
+        },
+        
+        "content_organization_pattern": {
+          "single_edit_sections": {
+            "purpose": "Teach users about the data model and individual record editing",
+            "location": "Top-level /docs/user-guide/editing-{model}.md",
+            "content": [
+              "Data model overview (What is a {Model}?)",
+              "Field descriptions (all fields with types and validation)",
+              "Relationships and hierarchies",
+              "Validation rules",
+              "Single-edit workflows (create, update, common tasks)",
+              "When to use batch editing instead"
+            ],
+            "example": "/docs/user-guide/editing-languoids.md"
+          },
+          "batch_edit_sections": {
+            "purpose": "Teach batch-specific features and bulk operations for each model",
+            "location": "/docs/user-guide/batch-editor/{model}-batch.md",
+            "content": [
+              "Batch-specific features (hierarchical display, bulk operations)",
+              "Importing model-specific spreadsheets (recognized columns, ignored columns)",
+              "Model-specific import requirements (e.g., parent-child save order)",
+              "Common batch tasks for this model",
+              "Validation in batch mode",
+              "Performance tips for large datasets"
+            ],
+            "example": "/docs/user-guide/batch-editor/languoid-batch.md"
+          }
+        },
+        
+        "build_automation": {
+          "package_json_scripts": {
+            "prestart": "mkdir -p public/docs && cp -r ../docs/user-guide public/docs/",
+            "prebuild": "mkdir -p public/docs && cp -r ../docs/user-guide public/docs/"
+          },
+          "gitignore": "/frontend/public/docs/ (build artifact, not tracked)",
+          "principle": "Markdown files in /docs are authoritative, /public/docs is generated",
+          "workflow": "Edit markdown in /docs, run npm start or npm run build:django, files auto-copy"
+        },
+        
+        "react_implementation": {
+          "main_component": "frontend/src/pages/UserGuidePage.tsx",
+          "features": [
+            "Fetches all markdown files at page load",
+            "Stores sections separately with IDs for anchor links",
+            "Renders each section wrapped in Box with id={section.id}",
+            "ReactMarkdown with custom Material-UI styled components",
+            "Auto-generates TOC from h1/h2/h3 headings",
+            "Smooth scroll to anchors with retry logic (ensures content rendered)",
+            "Sticky sidebar TOC (hidden on mobile)",
+            "scrollMarginTop: 80 to account for navigation bar"
+          ],
+          "section_assembly": "Each markdown file becomes a section with its own anchor ID",
+          "scroll_behavior": {
+            "timeout": "400ms to ensure markdown fully rendered",
+            "retry_logic": "Retries scroll if element not found after initial timeout",
+            "offset": "scrollMarginTop: 80px for sticky navigation clearance"
+          }
+        },
+        
+        "contextual_help_component": {
+          "component": "frontend/src/components/common/InfoIconLink.tsx",
+          "usage": "<InfoIconLink anchor=\"languoid-batch\" tooltip=\"Learn about batch editing languoids\" />",
+          "behavior": "Opens user guide in new tab at specific section (anchor link)",
+          "props": {
+            "anchor": "Section ID (e.g., 'batch-editor', 'languoid-batch', 'importing-data')",
+            "tooltip": "Hover text (optional, defaults to 'Learn more')",
+            "size": "Icon size (optional, defaults to 'small')"
+          },
+          "integration_pattern": "Place info icons next to buttons/features that need explanation",
+          "example_usage": "TanStackSpreadsheetWrapper places icon next to Save button, linking to batch editor guide"
+        },
+        
+        "markdown_conventions": {
+          "headings": {
+            "h1": "Main section title (one per file, maps to section ID)",
+            "h2": "Major subsections (appear in TOC)",
+            "h3": "Minor subsections (appear in TOC)",
+            "principle": "Use descriptive headings that make sense out of context (TOC shows them)"
+          },
+          "formatting": {
+            "code_inline": "`glottocode`, `Parent Languoid`",
+            "code_blocks": "Use for examples, CSV/JSON data, step-by-step workflows",
+            "emphasis": "**Bold** for critical warnings, *italic* for UI elements",
+            "lists": "Bullet points for features/items, numbered for sequential steps",
+            "tables": "For field lists, keyboard shortcuts, comparisons"
+          },
+          "writing_style": {
+            "voice": "Direct, instructional, friendly",
+            "audience": "Museum staff with varying technical skill",
+            "examples": "Always include concrete examples with real field names",
+            "warnings": "Use ⚠️ or **Important** for critical information",
+            "tips": "Use **Tip** or **Note** for helpful but optional info"
+          }
+        },
+        
+        "adding_new_sections": {
+          "checklist": [
+            "1. Create markdown file in appropriate location (/docs/user-guide/ or /docs/user-guide/batch-editor/)",
+            "2. Follow naming convention: kebab-case (editing-languoids.md, languoid-batch.md)",
+            "3. Start with clear h1 title that describes the section",
+            "4. Structure content according to single-edit or batch-edit pattern",
+            "5. Add section to UserGuidePage.tsx sections array with unique ID",
+            "6. Test anchor links work (check scrolling behavior)",
+            "7. Add InfoIconLink components in relevant UI locations",
+            "8. Run npm start to trigger prestart hook (copies markdown)"
+          ],
+          "section_id_convention": "kebab-case matching filename without extension",
+          "title_convention": "Human-readable title shown in TOC"
+        },
+        
+        "model_specific_import_documentation": {
+          "pattern": "Document recognized columns and ignored columns explicitly",
+          "critical_details": [
+            "Which columns are actually read (editable columns)",
+            "Which columns are ignored (calculated/derivative)",
+            "Special column requirements (e.g., 'Parent Languoid Glottocode' not 'Parent Languoid')",
+            "Parent-child save order for hierarchical data",
+            "Mixed hierarchy support (e.g., families + languages + dialects in one file)",
+            "Update vs create behavior (glottocode matching)"
+          ],
+          "example": "docs/user-guide/batch-editor/languoid-batch.md § Importing Languoid Spreadsheets"
+        },
+        
+        "maintenance_workflow": {
+          "updating_existing_content": [
+            "1. Edit markdown file in /docs/user-guide/",
+            "2. Refresh browser (if dev server running, files already copied)",
+            "3. If dev server not running, restart it (triggers prestart hook)"
+          ],
+          "adding_new_model": [
+            "1. Create /docs/user-guide/editing-{model}.md (single-edit guide)",
+            "2. Create /docs/user-guide/batch-editor/{model}-batch.md (batch guide)",
+            "3. Add both to UserGuidePage.tsx sections array",
+            "4. Add InfoIconLink to model's batch editor component",
+            "5. Document model-specific import columns and requirements"
+          ],
+          "testing": [
+            "Test anchor links from InfoIconLink components",
+            "Verify TOC is generated correctly",
+            "Check mobile view (TOC should hide)",
+            "Test scroll behavior with hash in URL",
+            "Verify markdown renders correctly (code blocks, tables, lists)"
+          ]
+        },
+        
+        "design_decisions": {
+          "why_single_page": "Better UX for search (Ctrl+F), faster navigation, no page loads",
+          "why_markdown": "Easy to edit, version controlled, non-technical staff can contribute",
+          "why_automated_copy": "DRY principle while working within Create React App constraints",
+          "why_fetch_not_import": "CRA doesn't support importing files outside src/, fetch from public/ works",
+          "why_separate_sections": "Maintainable file sizes, clear ownership, parallel editing without conflicts",
+          "why_material_ui_styling": "Consistent with rest of application, accessible, responsive"
+        },
+        
+        "known_limitations": {
+          "cra_constraints": "Cannot import files outside /src, must copy to /public",
+          "search": "No built-in search (users must use browser Ctrl+F)",
+          "versioning": "No version history in UI (use git for history)",
+          "offline": "Requires markdown files in /public (won't work if not copied)",
+          "images": "Would need to be in /public/docs as well (not yet implemented)"
+        },
+        
+        "future_enhancements": {
+          "full_text_search": "Add search box that filters TOC and content",
+          "breadcrumbs": "Show current section hierarchy at top",
+          "print_view": "CSS for printer-friendly single-page output",
+          "images_diagrams": "Add visual aids for complex workflows",
+          "videos": "Embed short tutorial videos for key features",
+          "feedback_widget": "Allow users to report issues or suggest improvements",
+          "mobile_toc": "Collapsible TOC for mobile instead of hiding"
+        },
+        
         "confidence_level": "high",
         "status": "active"
       }

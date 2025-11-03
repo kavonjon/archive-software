@@ -25,16 +25,20 @@
     "react": "^19.2.0",
     "react-data-grid": "^7.0.0-beta.58",
     "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
     "react-redux": "^9.2.0",
     "react-responsive": "^10.0.1",
     "react-router-dom": "^7.9.4",
     "react-scripts": "5.0.1",
     "typescript": "^4.9.5",
     "uuid": "^13.0.0",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
+    "prestart": "mkdir -p public/docs && cp -r ../docs/user-guide public/docs/",
     "start": "react-scripts start",
+    "prebuild": "mkdir -p public/docs && cp -r ../docs/user-guide public/docs/",
     "build": "react-scripts build",
     "build:django": "PUBLIC_URL=/static/frontend npm run build && npm run copy-to-django",
     "copy-to-django": "rm -rf ../app/static-files/frontend && mkdir -p ../app/static-files/frontend && cp -r build/* ../app/static-files/frontend/",
@@ -60,6 +64,7 @@
     ]
   },
   "devDependencies": {
-    "@types/lodash": "^4.17.20"
+    "@types/lodash": "^4.17.20",
+    "raw-loader": "^4.0.2"
   }
 }

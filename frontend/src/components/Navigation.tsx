@@ -37,6 +37,7 @@ const Navigation: React.FC = () => {
       { label: 'Collections', path: '/collections' },
       { label: 'Collaborators', path: '/collaborators' },
       { label: 'Languages', path: '/languoids' },
+      { label: 'User Guide', path: '/user-guide' },
     ] : [
       { label: 'Login', path: '/login' },
     ]),

@@ -1042,28 +1042,44 @@ export const LanguoidBatchEditor: React.FC = () => {
         }
         
         // Update successfully saved rows (but skip conflict rows)
-        response.saved.forEach((savedLanguoid) => {
-          // Skip rows that had conflicts - they were already updated above
-          if (conflictRowIds.has(savedLanguoid.id)) {
-            return;
-          }
+        // CRITICAL: Match saved languoids back to editedRows by order
+        // The backend processes rows sequentially, so response.saved[i] corresponds to editedRows[i]
+        // (excluding any rows that had validation errors and weren't saved)
+        
+        let savedIndex = 0;
+        for (let i = 0; i < editedRows.length; i++) {
+          const oldRow = editedRows[i];
           
-          // Find the corresponding row in editedRows
-          const oldRow = editedRows.find(row => {
-            // Match by ID (for existing) or by finding draft row
-            if (row.isDraft) {
-              // For drafts, we need to match by data (since ID is draft-uuid)
-              return row.cells.name?.value === savedLanguoid.name;
+          // Skip rows that weren't saved (had conflicts)
+          // We need to check if this row's ID (for existing) or name (for draft) is in the saved list
+          const wasSaved = response.saved.some((saved: Languoid) => {
+            if (oldRow.isDraft) {
+              // For drafts, check by glottocode (unique) or name
+              return saved.glottocode === oldRow.cells.glottocode?.value || 
+                     saved.name === oldRow.cells.name?.value;
             } else {
-              return row.id === savedLanguoid.id;
+              // For existing rows, check by ID
+              return saved.id === oldRow.id;
             }
           });
           
-          if (oldRow) {
-            const newRow = languoidToRow(savedLanguoid);
-            dispatch(updateRowAfterSave({ oldId: oldRow.id, newRow }));
+          if (!wasSaved) {
+            continue; // Skip this row - it wasn't saved (validation error or conflict)
           }
-        });
+          
+          // Get the corresponding saved languoid
+          const savedLanguoid = response.saved[savedIndex];
+          savedIndex++;
+          
+          // Skip conflict rows (already handled above)
+          if (conflictRowIds.has(savedLanguoid.id)) {
+            continue;
+          }
+          
+          // Update the row with saved data
+          const newRow = languoidToRow(savedLanguoid);
+          dispatch(updateRowAfterSave({ oldId: oldRow.id, newRow }));
+        }
         
         if (conflicts.length === 0) {
         dispatch(setSuccessMessage(`Successfully saved ${response.saved.length} languoid(s)`));
@@ -1084,11 +1100,25 @@ export const LanguoidBatchEditor: React.FC = () => {
   };
   
   const handleUndo = useCallback(() => {
-    dispatch(undo());
+    // Show spinner cursor for large undo operations
+    document.body.style.cursor = 'wait';
+    
+    // Use setTimeout to allow cursor to update before Redux state change
+    setTimeout(() => {
+      dispatch(undo());
+      document.body.style.cursor = '';
+    }, 0);
   }, [dispatch]);
   
   const handleRedo = useCallback(() => {
-    dispatch(redo());
+    // Show spinner cursor for large redo operations
+    document.body.style.cursor = 'wait';
+    
+    // Use setTimeout to allow cursor to update before Redux state change
+    setTimeout(() => {
+      dispatch(redo());
+      document.body.style.cursor = '';
+    }, 0);
   }, [dispatch]);
   
   // Track last clicked row ID for shift+click range selection

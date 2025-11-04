@@ -42,9 +42,9 @@ interface CollaboratorsListProps {
 }
 
 interface FilterState {
-  firstname_contains: string;
-  lastname_contains: string;
-  name_contains: string;
+  first_names_contains: string;
+  last_names_contains: string;
+  full_name_contains: string;
   collaborator_id_contains: string;
   tribal_affiliations_contains: string;
   native_languages_contains: string;
@@ -79,9 +79,9 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
 
   // Filter state
   const [filters, setFilters] = useState<FilterState>({
-    firstname_contains: '',
-    lastname_contains: '',
-    name_contains: '',
+    first_names_contains: '',
+    last_names_contains: '',
+    full_name_contains: '',
     collaborator_id_contains: '',
     tribal_affiliations_contains: '',
     native_languages_contains: '',
@@ -170,9 +170,9 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
   // Handle clear filters
   const handleClearFilters = () => {
     setFilters({
-      firstname_contains: '',
-      lastname_contains: '',
-      name_contains: '',
+      first_names_contains: '',
+      last_names_contains: '',
+      full_name_contains: '',
       collaborator_id_contains: '',
       tribal_affiliations_contains: '',
       native_languages_contains: '',
@@ -296,22 +296,22 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 2, mt: 2 }}>
             <TextField
               label="First Name Contains"
-              value={filters.firstname_contains}
-              onChange={handleFilterChange('firstname_contains')}
+              value={filters.first_names_contains}
+              onChange={handleFilterChange('first_names_contains')}
               size="small"
               fullWidth
             />
             <TextField
               label="Last Name Contains"
-              value={filters.lastname_contains}
-              onChange={handleFilterChange('lastname_contains')}
+              value={filters.last_names_contains}
+              onChange={handleFilterChange('last_names_contains')}
               size="small"
               fullWidth
             />
             <TextField
-              label="Name Contains"
-              value={filters.name_contains}
-              onChange={handleFilterChange('name_contains')}
+              label="Full Name Contains"
+              value={filters.full_name_contains}
+              onChange={handleFilterChange('full_name_contains')}
               size="small"
               fullWidth
             />

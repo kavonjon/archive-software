@@ -194,13 +194,31 @@ class InternalCollectionViewSet(viewsets.ModelViewSet):
         return super().get_queryset()
 
 
+class CollaboratorFilter(FilterSet):
+    """Custom filter for Collaborators with text search support"""
+    
+    # Define filters with custom parameter names matching frontend expectations
+    first_names_contains = CharFilter(field_name='first_names', lookup_expr='icontains')
+    last_names_contains = CharFilter(field_name='last_names', lookup_expr='icontains')
+    full_name_contains = CharFilter(field_name='full_name', lookup_expr='icontains')
+    collaborator_id_contains = CharFilter(field_name='collaborator_id', lookup_expr='icontains')
+    tribal_affiliations_contains = CharFilter(field_name='tribal_affiliations', lookup_expr='icontains')
+    gender_contains = CharFilter(field_name='gender', lookup_expr='icontains')
+    
+    class Meta:
+        model = Collaborator
+        fields = ['first_names_contains', 'last_names_contains', 'full_name_contains', 
+                  'collaborator_id_contains', 'tribal_affiliations_contains', 
+                  'gender_contains', 'anonymous']
+
+
 class InternalCollaboratorViewSet(viewsets.ModelViewSet):
     """Internal API for Collaborators - used by React frontend"""
     queryset = Collaborator.objects.all().prefetch_related('native_languages', 'other_languages', 'collaborator_collaboratorroles__item__collection')
     serializer_class = InternalCollaboratorSerializer
     permission_classes = [IsAuthenticatedWithEditAccess]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
-    filterset_fields = ['anonymous', 'gender', 'collaborator_id']
+    filterset_class = CollaboratorFilter
     search_fields = ['first_names', 'last_names', 'full_name', 'collaborator_id', 'tribal_affiliations']
     ordering_fields = ['first_names', 'last_names', 'full_name', 'collaborator_id', 'added', 'updated']
     ordering = ['last_names', 'first_names', 'full_name', 'collaborator_id']

@@ -3,6 +3,7 @@ import uuid
 import base58
 import os
 from django.db import models
+from django.contrib.postgres.fields import ArrayField
 from django.urls import reverse
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
@@ -463,7 +464,7 @@ class Collaborator(models.Model):
     origin = models.CharField(max_length=255, blank=True)
     other_info = models.TextField(blank=True)
     other_languages = models.ManyToManyField(Languoid, through='DialectInstance', through_fields=('collaborator_other', 'language'), verbose_name="Other languages", related_name='collaborator_other_languages', blank=True)
-    other_names = models.CharField(max_length=255, blank=True)
+    other_names = ArrayField(models.CharField(max_length=255), default=list, blank=True, help_text='Alternative names, spellings, or aliases for this collaborator')
     tribal_affiliations = models.CharField(max_length=255, blank=True)
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)

@@ -28,6 +28,7 @@ import {
 import {
   EditableTextField,
   EditableBooleanField,
+  EditableJsonArrayField,
   DateFormatHelp,
 } from '../common';
 import { collaboratorsAPI, itemsAPI, Collaborator, AssociatedItem } from '../../services/api';
@@ -524,7 +525,20 @@ const CollaboratorDetail: React.FC = () => {
                 {renderEditableField('last_names', 'Last Name(s)')}
                 {renderEditableField('name_suffix', 'Name Suffix')}
                 {renderEditableField('nickname', 'Nickname')}
-                {renderEditableField('other_names', 'Other Names')}
+                
+                <EditableJsonArrayField
+                  fieldName="other_names"
+                  label="Other Names"
+                  value={collaborator.other_names || []}
+                  isEditing={editingFields.has('other_names')}
+                  isSaving={savingFields.has('other_names')}
+                  editValue={editValues.other_names}
+                  startEditing={startEditing}
+                  saveField={saveField}
+                  cancelEditing={cancelEditing}
+                  updateEditValue={updateEditValue}
+                  placeholder="Add alternative name..."
+                />
                 
                 <EditableBooleanField
                   fieldName="anonymous"

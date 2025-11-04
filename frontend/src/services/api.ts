@@ -214,7 +214,7 @@ export interface Collaborator {
   last_names: string;
   name_suffix: string;
   nickname: string;
-  other_names: string;
+  other_names: string[]; // ArrayField - list of alternative names
   
   // Privacy and display
   anonymous: boolean | null;

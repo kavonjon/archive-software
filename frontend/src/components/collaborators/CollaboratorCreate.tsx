@@ -238,7 +238,10 @@ const CollaboratorCreate: React.FC<CollaboratorCreateProps> = ({
         last_names: formData.last_names.trim() || undefined,
         name_suffix: formData.name_suffix.trim() || undefined,
         nickname: formData.nickname.trim() || undefined,
-        other_names: formData.other_names.trim() || undefined,
+        // Convert comma-separated string to array for other_names
+        other_names: formData.other_names.trim() 
+          ? formData.other_names.split(',').map(name => name.trim()).filter(name => name.length > 0)
+          : [],
         anonymous: formData.anonymous,
         clan_society: formData.clan_society.trim() || undefined,
         tribal_affiliations: formData.tribal_affiliations.trim() || undefined,
@@ -404,7 +407,7 @@ const CollaboratorCreate: React.FC<CollaboratorCreateProps> = ({
                       value={formData.other_names}
                       onChange={handleFieldChange('other_names')}
                       fullWidth
-                      helperText="Alternative names or spellings"
+                      helperText="Alternative names or spellings (comma-separated)"
                     />
                   </Stack>
                 </CardContent>

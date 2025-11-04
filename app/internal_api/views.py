@@ -117,9 +117,9 @@ class ItemFilter(FilterSet):
     def filter_collaborator(self, queryset, name, value):
         """Filter by collaborator name"""
         return queryset.filter(
-            Q(collaborator__firstname__icontains=value) |
-            Q(collaborator__lastname__icontains=value) |
-            Q(collaborator__name__icontains=value)
+            Q(collaborator__first_names__icontains=value) |
+            Q(collaborator__last_names__icontains=value) |
+            Q(collaborator__full_name__icontains=value)
         ).distinct()
     
     def filter_keyword(self, queryset, name, value):
@@ -129,9 +129,9 @@ class ItemFilter(FilterSet):
             Q(call_number__icontains=value) |
             Q(description_scope_and_content__icontains=value) |
             Q(title_item__title__icontains=value) |
-            Q(collaborator__firstname__icontains=value) |
-            Q(collaborator__lastname__icontains=value) |
-            Q(collaborator__name__icontains=value)
+            Q(collaborator__first_names__icontains=value) |
+            Q(collaborator__last_names__icontains=value) |
+            Q(collaborator__full_name__icontains=value)
         ).distinct()
 
 
@@ -201,9 +201,9 @@ class InternalCollaboratorViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedWithEditAccess]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     filterset_fields = ['anonymous', 'gender', 'collaborator_id']
-    search_fields = ['firstname', 'lastname', 'name', 'collaborator_id', 'tribal_affiliations']
-    ordering_fields = ['firstname', 'lastname', 'name', 'collaborator_id', 'added', 'updated']
-    ordering = ['lastname', 'firstname', 'name', 'collaborator_id']
+    search_fields = ['first_names', 'last_names', 'full_name', 'collaborator_id', 'tribal_affiliations']
+    ordering_fields = ['first_names', 'last_names', 'full_name', 'collaborator_id', 'added', 'updated']
+    ordering = ['last_names', 'first_names', 'full_name', 'collaborator_id']
 
     def get_queryset(self):
         """All authenticated users can see all collaborators, permissions handled by permission_classes"""

@@ -18,7 +18,7 @@ from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls import handler500
 from django.conf.urls.static import static
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.views.generic import TemplateView
 from metadata.views import collection_index, collection_detail, collection_add, collection_edit, collection_delete, item_index, item_migrate_list, item_detail, item_edit, item_add, item_delete,languoid_index, languoid_detail, languoid_edit, languoid_add, languoid_delete, languoid_stats, dialect_edit, dialect_add, dialect_delete, dialect_instance_edit, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView, LanguoidListView, custom_error_500, custom_error_403, trigger_error, download_collaborator_export, collaborator_export_task_status, celery_health_check, cleanup_collaborator_export
 from frontend_views import ReactAppView
@@ -33,121 +33,155 @@ handler500 = custom_error_500
 handler403 = custom_error_403
 
 urlpatterns = [
-    path('trigger-error/', trigger_error),
+    # =============================================================================
+    # CRITICAL BACKEND ROUTES (Must stay at top - these should NOT go to React)
+    # =============================================================================
+    
+    # Django Admin (PRODUCTION CRITICAL)
     path('admin/', admin.site.urls),
+    
+    # Authentication & Accounts
     path('accounts/', include('django.contrib.auth.urls')),
+    
+    # Django Select2
     path("select2/", include("django_select2.urls")),
+    
+    # Error pages
+    path('trigger-error/', trigger_error),
     path("no-permission", TemplateView.as_view(template_name='no_permission.html')),
     
-    # Old Django template routes - accessible at /django/* for comparison during transition
-    path("django/", TemplateView.as_view(template_name='home.html'), name="django_home"),
-    path("django/items/", item_index, name="django_item_index"),
-    path("django/collections/", collection_index, name="django_collection_index"),
-    path("django/collaborators/", collaborator_index, name="django_collaborator_index"),
-    path("django/languoids/", languoid_index, name="django_languoid_index"),
+    # =============================================================================
+    # API ROUTES (Must stay before React catch-all)
+    # =============================================================================
     
-    # Root path serves React SPA
-    path("", ReactAppView.as_view(), name='react_home'),
-    
-    # Django template routes (commented out - now using React)
-    # path("catalog/", item_index, name="item_index"),
-    # path("collections/", collection_index, name="collection_index"),
-    # path("collaborators/", collaborator_index, name="collaborator_index"),
-    # path("languoids/", languoid_index, name="languoid_index"),
-    
-    # Keep detail/edit routes for Django templates (for now)
-    path("catalog/<int:pk>/", item_detail, name="item_detail"),
-    path("catalog/<int:pk>/edit/", item_edit, name="item_edit"),
-    path("catalog/add/", item_add.as_view(), name="item_add"),
-    path('catalog/<int:pk>/delete/', item_delete.as_view(), name='item_delete'),
-    path("catalog/<int:parent_pk>/geographic/add/", geographic_add.as_view(), name="geographic_add"),
-    path("migrate/", item_index, name="migrate"),
-    path("migrate/list/", item_migrate_list, name="migrate_list"),
-    path("api/item-update-migrate/<int:pk>/", ItemUpdateMigrateView.as_view(), name="item_update_migrate"),
-    path("api/languoids/", LanguoidListView.as_view(), name="languoids_list"),
-    # Collections index now uses React - commented out Django template route
-    # path("collections/", collection_index, name="collection_index"),
-    path("collections/<int:pk>/", collection_detail, name="collection_detail"),
-    path("collections/<int:pk>/edit/", collection_edit, name="collection_edit"),
-    path("collections/add/", collection_add.as_view(), name="collection_add"),
-    path("collections/<int:pk>/delete/", collection_delete.as_view(), name="collection_delete"),
-    path("documents/", document_index, name="document_index"),
-    path("documents/<int:pk>/", document_detail, name="document_detail"),
-    path("documents/<int:pk>/edit/", document_edit, name="document_edit"),
-    path("documents/add/", document_add.as_view(), name="document_add"),
-    path('documents/<int:pk>/delete/', document_delete.as_view(), name='document_delete'),
-    path("documents/<int:parent_pk>/geographic/add/", geographic_add.as_view(), name="geographic_add"),
-    # Languoids index now uses React (/languoids/) - commented out Django template route
-    # path("languoids/", languoid_index, name="languoid_index"),
-    path("languoids/<str:pk>/", languoid_detail, name="languoid_detail"),
-    path("languoids/<str:pk>/edit/", languoid_edit, name="languoid_edit"),
-    path("languoids/add/", languoid_add.as_view(), name="languoids_add"),
-    path('languoids/<str:pk>/delete/', languoid_delete.as_view(), name='languoid_delete'),
-    path('languoids/stats/', languoid_stats, name='languoid_stats'),
-    path("dialect-instances/<int:pk>/edit/", dialect_instance_edit, name="dialect_instance_edit"),
-    path("dialects/<int:pk>/edit/", dialect_edit, name="dialect_edit"),
-    path("languoids/<int:lang_pk>/dialects/add/", dialect_add.as_view(), name="dialect_add"),
-    path('dialects/<int:pk>/delete/', dialect_delete.as_view(), name='dialect_delete'),
-    # Collaborators index now uses React - commented out Django template route
-    # path("collaborators/", collaborator_index, name="collaborator_index"),
-    path("collaborators/<int:pk>/", collaborator_detail, name="collaborator_detail"),
-    path("collaborators/<int:pk>/edit/", collaborator_edit, name="collaborator_edit"),
-    path("collaborators/add/", collaborator_add.as_view(), name="collaborator_add"),
-    path('collaborators/<int:pk>/delete/', collaborator_delete.as_view(), name='collaborator_delete'),
-    path("geographic/<int:pk>/edit/", geographic_edit, name="geographic_edit"),
-    path('geographic/<int:pk>/delete/', geographic_delete.as_view(), name='geographic_delete'),
-
-    path("roles/<int:pk>/edit/", collaborator_role_edit, name="collaborator_role_edit"),
-    path("export-columns/", columns_export_index, name="columns_export_index"),
-    path("export-columns/<int:pk>/", columns_export_detail, name="columns_export_detail"),
-    path("export-columns/<int:pk>/edit/", columns_export_edit, name="columns_export_edit"),
-    path("export-columns/add/", columns_export_add.as_view(), name="columns_export_add"),
-
-    path('search/', item_index, name='item_all_filters'),
-    path('catalog/import/', ImportView, name='import'),
-    path('documents/import/', document_upload.as_view(), name='document_upload'),
-    path('collaborators/import/', ImportView, name='import_collaborator'),
-    path('collaborators/export-task-status/<str:task_id>/', collaborator_export_task_status, name='collaborator_export_task_status'),
-    path('collaborators/download-export/<str:filename>/', download_collaborator_export, name='collaborator_download_export'),
-    path('collaborators/cleanup-export/<str:filename>/', cleanup_collaborator_export, name='collaborator_cleanup_export'),
-    path('languoids/import/', ImportView, name='import_language'),
-    
-    # Health checks
-    path('celery-health/', celery_health_check, name='celery_health_check'),
-
     # API Schema and Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
-
-    # Add before the API URLs
+    
+    # OAuth2
     path('o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
-
-    # Your existing API URLs
+    
+    # Public API
     path('api/', include('api.urls')),
     
     # Internal API for React frontend
     path('internal/', include('internal_api.urls')),
-
+    
     # Authentication API for React frontend
     path('auth/csrf/', CSRFTokenView.as_view(), name='csrf_token'),
     path('auth/login/', LoginView.as_view(), name='api_login'),
     path('auth/logout/', LogoutView.as_view(), name='api_logout'),
     path('auth/status/', UserStatusView.as_view(), name='user_status'),
-
-    # Add this to the urlpatterns before the API URLs
+    
+    # Metadata API
     path('metadata/', include('metadata.urls')),
     
-    # React SPA routes - these should be at the end to catch unmatched routes
-    path('items/', ReactAppView.as_view(), name='react_items'),
-    path('items/<path:path>/', ReactAppView.as_view(), name='react_items_detail'),
-    path('collections/', ReactAppView.as_view(), name='react_collections'),
-    path('collections/<path:path>/', ReactAppView.as_view(), name='react_collections_detail'),
-    path('collaborators/', ReactAppView.as_view(), name='react_collaborators'),
-    path('collaborators/<path:path>/', ReactAppView.as_view(), name='react_collaborators_detail'),
-    path('languoids/', ReactAppView.as_view(), name='react_languoids'),
-    path('languoids/<path:path>/', ReactAppView.as_view(), name='react_languoids_detail'),
-    path('user-guide/', ReactAppView.as_view(), name='react_user_guide'),
+    # Legacy API routes
+    path("api/item-update-migrate/<int:pk>/", ItemUpdateMigrateView.as_view(), name="item_update_migrate"),
+    path("api/languoids/", LanguoidListView.as_view(), name="languoids_list"),
+    
+    # =============================================================================
+    # SPECIAL BACKEND ROUTES (Export, Health Checks)
+    # =============================================================================
+    
+    # Health checks
+    path('celery-health/', celery_health_check, name='celery_health_check'),
+    
+    # Export routes (API endpoints - not templates)
+    path('collaborators/export-task-status/<str:task_id>/', collaborator_export_task_status, name='collaborator_export_task_status'),
+    path('collaborators/download-export/<str:filename>/', download_collaborator_export, name='collaborator_download_export'),
+    path('collaborators/cleanup-export/<str:filename>/', cleanup_collaborator_export, name='collaborator_cleanup_export'),
+    
+    # =============================================================================
+    # DJANGO TEMPLATE ROUTES (Accessible at /django/* for developers)
+    # =============================================================================
+    
+    path("django/", TemplateView.as_view(template_name='home.html'), name="django_home"),
+    
+    # List views
+    path("django/items/", item_index, name="django_item_index"),
+    path("django/collections/", collection_index, name="django_collection_index"),
+    path("django/collaborators/", collaborator_index, name="django_collaborator_index"),
+    path("django/languoids/", languoid_index, name="django_languoid_index"),
+    path("django/documents/", document_index, name="django_document_index"),
+    
+    # Item (Catalog) detail/edit routes
+    path("django/catalog/<int:pk>/", item_detail, name="django_item_detail"),
+    path("django/catalog/<int:pk>/edit/", item_edit, name="django_item_edit"),
+    path("django/catalog/add/", item_add.as_view(), name="django_item_add"),
+    path('django/catalog/<int:pk>/delete/', item_delete.as_view(), name='django_item_delete'),
+    path("django/catalog/<int:parent_pk>/geographic/add/", geographic_add.as_view(), name="django_geographic_add_item"),
+    
+    # Collection detail/edit routes
+    path("django/collections/<int:pk>/", collection_detail, name="django_collection_detail"),
+    path("django/collections/<int:pk>/edit/", collection_edit, name="django_collection_edit"),
+    path("django/collections/add/", collection_add.as_view(), name="django_collection_add"),
+    path("django/collections/<int:pk>/delete/", collection_delete.as_view(), name="django_collection_delete"),
+    
+    # Collaborator detail/edit routes
+    path("django/collaborators/<int:pk>/", collaborator_detail, name="django_collaborator_detail"),
+    path("django/collaborators/<int:pk>/edit/", collaborator_edit, name="django_collaborator_edit"),
+    path("django/collaborators/add/", collaborator_add.as_view(), name="django_collaborator_add"),
+    path('django/collaborators/<int:pk>/delete/', collaborator_delete.as_view(), name='django_collaborator_delete'),
+    
+    # Languoid detail/edit routes
+    path("django/languoids/<str:pk>/", languoid_detail, name="django_languoid_detail"),
+    path("django/languoids/<str:pk>/edit/", languoid_edit, name="django_languoid_edit"),
+    path("django/languoids/add/", languoid_add.as_view(), name="django_languoids_add"),
+    path('django/languoids/<str:pk>/delete/', languoid_delete.as_view(), name='django_languoid_delete'),
+    path('django/languoids/stats/', languoid_stats, name='django_languoid_stats'),
+    
+    # Document detail/edit routes
+    path("django/documents/<int:pk>/", document_detail, name="django_document_detail"),
+    path("django/documents/<int:pk>/edit/", document_edit, name="django_document_edit"),
+    path("django/documents/add/", document_add.as_view(), name="django_document_add"),
+    path('django/documents/<int:pk>/delete/', document_delete.as_view(), name='django_document_delete'),
+    path("django/documents/<int:parent_pk>/geographic/add/", geographic_add.as_view(), name="django_geographic_add_document"),
+    
+    # Dialect routes
+    path("django/dialect-instances/<int:pk>/edit/", dialect_instance_edit, name="django_dialect_instance_edit"),
+    path("django/dialects/<int:pk>/edit/", dialect_edit, name="django_dialect_edit"),
+    path("django/languoids/<int:lang_pk>/dialects/add/", dialect_add.as_view(), name="django_dialect_add"),
+    path('django/dialects/<int:pk>/delete/', dialect_delete.as_view(), name='django_dialect_delete'),
+    
+    # Geographic routes
+    path("django/geographic/<int:pk>/edit/", geographic_edit, name="django_geographic_edit"),
+    path('django/geographic/<int:pk>/delete/', geographic_delete.as_view(), name='django_geographic_delete'),
+    
+    # Collaborator role routes
+    path("django/roles/<int:pk>/edit/", collaborator_role_edit, name="django_collaborator_role_edit"),
+    
+    # Export columns routes
+    path("django/export-columns/", columns_export_index, name="django_columns_export_index"),
+    path("django/export-columns/<int:pk>/", columns_export_detail, name="django_columns_export_detail"),
+    path("django/export-columns/<int:pk>/edit/", columns_export_edit, name="django_columns_export_edit"),
+    path("django/export-columns/add/", columns_export_add.as_view(), name="django_columns_export_add"),
+    
+    # Migrate routes
+    path("django/migrate/", item_index, name="django_migrate"),
+    path("django/migrate/list/", item_migrate_list, name="django_migrate_list"),
+    
+    # Search route
+    path('django/search/', item_index, name='django_item_all_filters'),
+    
+    # Import routes (Django template forms)
+    path('django/catalog/import/', ImportView, name='django_import'),
+    path('django/documents/import/', document_upload.as_view(), name='django_document_upload'),
+    path('django/collaborators/import/', ImportView, name='django_import_collaborator'),
+    path('django/languoids/import/', ImportView, name='django_import_language'),
+    
+    # =============================================================================
+    # REACT SPA ROUTES (Catch-all - MUST BE LAST!)
+    # =============================================================================
+    
+    # Root path serves React SPA
+    path("", ReactAppView.as_view(), name='react_home'),
+    
+    # Catch-all route - serves React SPA for any unmatched URL
+    # This allows React Router to handle all frontend routing
+    # IMPORTANT: This must be the last route in the list!
+    re_path(r'^.*$', ReactAppView.as_view(), name='react_catchall'),
 ]
 
 #urlpatterns = path(r'dj/', include(urlpatterns)),  # prepend 'django/' to all URLs

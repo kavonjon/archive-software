@@ -32,6 +32,7 @@ class Command(BaseCommand):
             'rule_4': 0,   # Parentheticals
             'rule_5': 0,   # Comma format
             'rule_6': 0,   # Rebuild full_name from components
+            'rule_8': 0,   # Whitespace normalization
             'prompted': 0,
             'skipped': 0,
             'errors': 0,
@@ -186,6 +187,10 @@ class Command(BaseCommand):
         """
         Try to apply automatic fixes. Returns (rule_name, changes_dict) or None.
         """
+        # Rule 8: Whitespace normalization (check first, before other rules)
+        if self.check_rule_8(collab):
+            return self.apply_rule_8(collab)
+        
         # Rule 1a: Suffix in last_names
         if self.check_rule_1a(collab):
             return self.apply_rule_1a(collab)
@@ -213,6 +218,56 @@ class Command(BaseCommand):
         return None
 
     # ============================================================================
+    # Rule 8: Whitespace normalization
+    # ============================================================================
+    
+    def check_rule_8(self, collab):
+        """Check if full_name only differs from rebuilt by whitespace"""
+        if not collab.full_name:
+            return False
+        
+        # Get what the rebuilt full_name would be
+        expected_full_name = self.rebuild_full_name(collab)
+        
+        # If they're already identical, no need to fix
+        if collab.full_name == expected_full_name:
+            return False
+        
+        # Check if the only difference is whitespace (strip, normalize spaces, replace non-breaking spaces)
+        normalized_current = ' '.join(collab.full_name.replace('\xa0', ' ').split())
+        normalized_expected = ' '.join(expected_full_name.split())
+        
+        # If they match after normalization, this is just a whitespace issue
+        return normalized_current == normalized_expected
+    
+    def apply_rule_8(self, collab):
+        """Normalize whitespace in full_name and component fields"""
+        old_full_name = collab.full_name
+        old_first_names = collab.first_names
+        old_last_names = collab.last_names
+        old_nickname = collab.nickname
+        old_suffix = collab.name_suffix
+        
+        # Normalize whitespace in all fields
+        if collab.first_names:
+            collab.first_names = ' '.join(collab.first_names.replace('\xa0', ' ').split())
+        if collab.last_names:
+            collab.last_names = ' '.join(collab.last_names.replace('\xa0', ' ').split())
+        if collab.nickname:
+            collab.nickname = ' '.join(collab.nickname.replace('\xa0', ' ').split())
+        if collab.name_suffix:
+            collab.name_suffix = ' '.join(collab.name_suffix.replace('\xa0', ' ').split())
+        
+        # Rebuild full_name from normalized components
+        collab.full_name = self.rebuild_full_name(collab)
+        
+        return ('rule_8', {
+            'old_full_name': old_full_name,
+            'new_full_name': collab.full_name,
+            'type': 'whitespace_normalization',
+        })
+
+    # ============================================================================
     # Rule 1a: Suffix in last_names
     # ============================================================================
     
@@ -221,16 +276,19 @@ class Command(BaseCommand):
         if not collab.last_names:
             return False
         
-        suffix_pattern = r'\b(Jr\.?|Sr\.?|II|III|IV|V|VI|VII|VIII|IX|X)$'
+        # Match suffixes with optional comma: Jr, Sr, I, II, III, IV, V, etc.
+        suffix_pattern = r',?\s*(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII|IX|X)$'
         return bool(re.search(suffix_pattern, collab.last_names, re.IGNORECASE))
 
     def apply_rule_1a(self, collab):
         """Extract suffix from last_names to name_suffix"""
-        suffix_pattern = r'\s*(Jr\.?|Sr\.?|II|III|IV|V|VI|VII|VIII|IX|X)$'
+        # Match suffixes with optional comma, capture the suffix without comma
+        suffix_pattern = r',?\s*(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII|IX|X)$'
         match = re.search(suffix_pattern, collab.last_names, re.IGNORECASE)
         
         if match:
-            suffix = match.group(1)
+            suffix = match.group(1)  # Captures just the suffix without comma
+            # Remove the entire match (including comma if present)
             clean_last_names = re.sub(suffix_pattern, '', collab.last_names, flags=re.IGNORECASE).strip()
             
             collab.last_names = clean_last_names
@@ -253,16 +311,19 @@ class Command(BaseCommand):
         if not collab.first_names:
             return False
         
-        suffix_pattern = r'\b(Jr\.?|Sr\.?|II|III|IV|V|VI|VII|VIII|IX|X)\b'
+        # Match suffixes with optional comma: Jr, Sr, I, II, III, IV, V, etc.
+        suffix_pattern = r',?\s*(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII|IX|X)\b'
         return bool(re.search(suffix_pattern, collab.first_names, re.IGNORECASE))
 
     def apply_rule_2(self, collab):
         """Extract suffix from first_names to name_suffix"""
-        suffix_pattern = r'\s*(Jr\.?|Sr\.?|II|III|IV|V|VI|VII|VIII|IX|X)\s*'
+        # Match suffixes with optional comma, capture the suffix without comma
+        suffix_pattern = r',?\s*(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII|IX|X)\b'
         match = re.search(suffix_pattern, collab.first_names, re.IGNORECASE)
         
         if match:
-            suffix = match.group(1)
+            suffix = match.group(1)  # Captures just the suffix without comma
+            # Remove the entire match (including comma if present)
             clean_first_names = re.sub(suffix_pattern, ' ', collab.first_names, flags=re.IGNORECASE).strip()
             clean_first_names = re.sub(r'\s+', ' ', clean_first_names)  # Clean up extra spaces
             
@@ -438,14 +499,23 @@ class Command(BaseCommand):
         # Check if current full_name matches what we'd build from components
         expected_full_name = self.rebuild_full_name(collab)
         
-        # Only auto-fix if no nickname is involved
-        if collab.nickname:
-            return False  # Will be handled by interactive prompt instead
+        # If full_name matches, no need to rebuild
+        if collab.full_name == expected_full_name:
+            return False
         
-        return collab.full_name != expected_full_name
+        # Only skip auto-fix if nickname needs cleaning (Rule 7)
+        if collab.nickname and collab.last_names:
+            # Check if nickname ends with last_names (needs interactive fixing)
+            if collab.nickname.endswith(collab.last_names):
+                cleaned_nickname = collab.nickname[:-(len(collab.last_names))].strip()
+                if cleaned_nickname:  # Nickname needs cleaning
+                    return False  # Will be handled interactively
+        
+        # Otherwise, auto-fix is okay
+        return True
 
     def apply_rule_6(self, collab):
-        """Rebuild full_name from valid components (only when no nickname)"""
+        """Rebuild full_name from valid components"""
         old_full_name = collab.full_name
         collab.full_name = self.rebuild_full_name(collab)
         
@@ -669,10 +739,10 @@ class Command(BaseCommand):
         if not full_name:
             return None
         
-        # Check for suffix
-        suffix_pattern = r'\s+(Jr\.?|Sr\.?|II|III|IV|V|VI|VII|VIII|IX|X)$'
+        # Check for suffix with optional comma
+        suffix_pattern = r',?\s+(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII|IX|X)$'
         suffix_match = re.search(suffix_pattern, full_name, re.IGNORECASE)
-        suffix = suffix_match.group(1) if suffix_match else None
+        suffix = suffix_match.group(1) if suffix_match else None  # Capture without comma
         
         # Remove suffix for parsing
         name_without_suffix = re.sub(suffix_pattern, '', full_name, flags=re.IGNORECASE).strip()
@@ -714,6 +784,7 @@ class Command(BaseCommand):
             'rule_4': 'Parenthetical to nickname',
             'rule_5': 'Comma format reversal',
             'rule_6': 'Rebuild full_name from components',
+            'rule_8': 'Whitespace normalization',
         }
         
         self.stdout.write(self.style.SUCCESS(f'[AUTO] PK {collab.pk}: {rule_names.get(rule, rule)}'))

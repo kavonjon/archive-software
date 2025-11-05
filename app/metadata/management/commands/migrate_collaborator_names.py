@@ -134,18 +134,27 @@ class Command(BaseCommand):
             self.print_skip(collab, reason)
             return 'skip'
 
-        # Try automatic fixes
-        auto_result = self.try_auto_fix(collab)
-        
-        if auto_result:
-            rule_applied, changes = auto_result
-            self.stats['auto_fixed'] += 1
-            self.stats[rule_applied] += 1
+        # Try automatic fixes (may apply multiple rules in sequence)
+        rules_applied = []
+        while True:
+            auto_result = self.try_auto_fix(collab)
             
-            # Print the change
-            self.print_auto_fix(collab, rule_applied, changes, original_full_name, 
-                              original_first_names, original_last_names, 
-                              original_name_suffix, original_nickname)
+            if auto_result:
+                rule_applied, changes = auto_result
+                rules_applied.append((rule_applied, changes))
+                self.stats['auto_fixed'] += 1
+                self.stats[rule_applied] += 1
+            else:
+                # No more rules to apply
+                break
+        
+        # If any rules were applied, print and save
+        if rules_applied:
+            # Print all the changes
+            for rule_applied, changes in rules_applied:
+                self.print_auto_fix(collab, rule_applied, changes, original_full_name, 
+                                  original_first_names, original_last_names, 
+                                  original_name_suffix, original_nickname)
             
             # Save if not dry run
             if not dry_run:

@@ -402,13 +402,13 @@ const CollaboratorCreate: React.FC<CollaboratorCreateProps> = ({
                       />
                     </Box>
                     
-                    <TextField
-                      label="Other Names"
-                      value={formData.other_names}
-                      onChange={handleFieldChange('other_names')}
-                      fullWidth
+                      <TextField
+                        label="Other Names"
+                        value={formData.other_names}
+                        onChange={handleFieldChange('other_names')}
+                        fullWidth
                       helperText="Alternative names or spellings (comma-separated)"
-                    />
+                      />
                   </Stack>
                 </CardContent>
               </Card>

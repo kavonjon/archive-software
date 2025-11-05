@@ -53,27 +53,27 @@ urlpatterns = [
     # =============================================================================
     # API ROUTES (Must stay before React catch-all)
     # =============================================================================
-    
+
     # API Schema and Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
-    
+
     # OAuth2
     path('o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
-    
+
     # Public API
     path('api/', include('api.urls')),
     
     # Internal API for React frontend
     path('internal/', include('internal_api.urls')),
-    
+
     # Authentication API for React frontend
     path('auth/csrf/', CSRFTokenView.as_view(), name='csrf_token'),
     path('auth/login/', LoginView.as_view(), name='api_login'),
     path('auth/logout/', LogoutView.as_view(), name='api_logout'),
     path('auth/status/', UserStatusView.as_view(), name='user_status'),
-    
+
     # Metadata API
     path('metadata/', include('metadata.urls')),
     

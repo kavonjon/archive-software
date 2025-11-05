@@ -582,43 +582,24 @@ class Command(BaseCommand):
         return None
 
     # ============================================================================
-    # Rule 4: Parentheticals as nickname
+    # Rule 4: Parentheticals require manual review
     # ============================================================================
     
     def check_rule_4(self, collab):
-        """Check if full_name contains parentheticals"""
+        """Check if full_name contains parentheticals (often translations)"""
         if not collab.full_name:
             return False
-        return '(' in collab.full_name and ')' in collab.full_name
+        # Check if any name field contains parentheses
+        return (
+            ('(' in collab.full_name and ')' in collab.full_name) or
+            (collab.first_names and '(' in collab.first_names and ')' in collab.first_names) or
+            (collab.last_names and '(' in collab.last_names and ')' in collab.last_names)
+        )
 
     def apply_rule_4(self, collab):
-        """Extract parentheticals as nickname"""
-        match = re.search(r'\(([^)]+)\)', collab.full_name)
-        if match:
-            nickname = match.group(1)
-            # Remove parenthetical from full_name for parsing
-            name_without_parens = re.sub(r'\s*\([^)]+\)\s*', ' ', collab.full_name).strip()
-            name_without_parens = re.sub(r'\s+', ' ', name_without_parens)  # Clean up spaces
-            
-            # Parse the remaining name
-            parts = name_without_parens.split()
-            if len(parts) >= 2:
-                # Assume last part is last name, rest is first name
-                collab.first_names = ' '.join(parts[:-1])
-                collab.last_names = parts[-1]
-            elif len(parts) == 1:
-                # Single name - put in last_names
-                collab.first_names = ''
-                collab.last_names = parts[0]
-            
-            collab.nickname = nickname
-            collab.full_name = self.rebuild_full_name(collab)
-            
-            return ('rule_4', {
-                'nickname_extracted': nickname,
-                'parsed_name': name_without_parens,
-            })
-        
+        """Parentheticals require manual review - return None to trigger interactive prompt"""
+        # Parentheses often indicate translations (e.g., "Tsistł'ahnii Yázhí (Ray Winnie)")
+        # This is too semantically complex for auto-parsing, so always prompt the user
         return None
 
     # ============================================================================

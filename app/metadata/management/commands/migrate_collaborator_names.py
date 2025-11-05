@@ -33,6 +33,7 @@ class Command(BaseCommand):
             'rule_5': 0,   # Comma format
             'rule_6': 0,   # Rebuild full_name from components
             'rule_8': 0,   # Whitespace normalization
+            'rule_9': 0,   # Extract suffix from full_name
             'prompted': 0,
             'skipped': 0,
             'errors': 0,
@@ -191,6 +192,10 @@ class Command(BaseCommand):
         if self.check_rule_8(collab):
             return self.apply_rule_8(collab)
         
+        # Rule 9: Extract suffix from full_name (when components exist)
+        if self.check_rule_9(collab):
+            return self.apply_rule_9(collab)
+        
         # Rule 1a: Suffix in last_names
         if self.check_rule_1a(collab):
             return self.apply_rule_1a(collab)
@@ -266,6 +271,44 @@ class Command(BaseCommand):
             'new_full_name': collab.full_name,
             'type': 'whitespace_normalization',
         })
+
+    # ============================================================================
+    # Rule 9: Extract suffix from full_name (when components exist)
+    # ============================================================================
+    
+    def check_rule_9(self, collab):
+        """Check if full_name has a suffix that's missing from name_suffix"""
+        # Need full_name and at least one component field, but no existing suffix
+        if not collab.full_name or collab.name_suffix:
+            return False
+        
+        if not (collab.first_names or collab.last_names):
+            return False
+        
+        # Check if full_name ends with a suffix
+        suffix_pattern = r',?\s+(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII|IX|X)$'
+        return bool(re.search(suffix_pattern, collab.full_name, re.IGNORECASE))
+    
+    def apply_rule_9(self, collab):
+        """Extract suffix from full_name and populate name_suffix"""
+        suffix_pattern = r',?\s+(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII|IX|X)$'
+        match = re.search(suffix_pattern, collab.full_name, re.IGNORECASE)
+        
+        if match:
+            suffix = match.group(1).strip()  # Capture without comma/space
+            
+            # Store the suffix
+            collab.name_suffix = suffix
+            
+            # Rebuild full_name from components (which now includes suffix)
+            collab.full_name = self.rebuild_full_name(collab)
+            
+            return ('rule_9', {
+                'suffix_extracted': suffix,
+                'new_full_name': collab.full_name,
+            })
+        
+        return None
 
     # ============================================================================
     # Rule 1a: Suffix in last_names
@@ -785,6 +828,7 @@ class Command(BaseCommand):
             'rule_5': 'Comma format reversal',
             'rule_6': 'Rebuild full_name from components',
             'rule_8': 'Whitespace normalization',
+            'rule_9': 'Extract suffix from full_name',
         }
         
         self.stdout.write(self.style.SUCCESS(f'[AUTO] PK {collab.pk}: {rule_names.get(rule, rule)}'))

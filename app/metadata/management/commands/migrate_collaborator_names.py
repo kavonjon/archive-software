@@ -119,7 +119,7 @@ class Command(BaseCommand):
         """
         self.stats['total_processed'] += 1
         
-        # Store original values
+        # Store original values for final comparison
         original_full_name = collab.full_name
         original_first_names = collab.first_names
         original_last_names = collab.last_names
@@ -134,27 +134,74 @@ class Command(BaseCommand):
             self.print_skip(collab, reason)
             return 'skip'
 
-        # Try automatic fixes (may apply multiple rules in sequence)
+        # Apply rules iteratively until "already correct" or recursion limit
         rules_applied = []
-        while True:
+        max_iterations = 10  # Safety limit (more than number of rules)
+        iteration = 0
+        
+        while iteration < max_iterations:
+            iteration += 1
+            
+            # Capture current state before applying rule
+            current_full_name = collab.full_name
+            current_first_names = collab.first_names
+            current_last_names = collab.last_names
+            current_name_suffix = collab.name_suffix
+            current_nickname = collab.nickname
+            
+            # Try to apply one rule
             auto_result = self.try_auto_fix(collab)
             
             if auto_result:
+                # Rule was applied
                 rule_applied, changes = auto_result
-                rules_applied.append((rule_applied, changes))
+                rules_applied.append((
+                    rule_applied, 
+                    changes,
+                    current_full_name,
+                    current_first_names,
+                    current_last_names,
+                    current_name_suffix,
+                    current_nickname
+                ))
                 self.stats['auto_fixed'] += 1
                 self.stats[rule_applied] += 1
+                
+                # Check if now "already correct"
+                needs_processing, reason = self.needs_processing(collab)
+                if not needs_processing:
+                    # Success! Data is now correct
+                    break
             else:
-                # No more rules to apply
+                # No rule matched, but still needs processing → interactive prompt
                 break
         
-        # If any rules were applied, print and save
+        # Check if we hit the recursion limit
+        if iteration >= max_iterations and needs_processing:
+            # Too many iterations, prompt user
+            self.stdout.write(self.style.WARNING('=' * 70))
+            self.stdout.write(self.style.WARNING(f'[WARNING] PK {collab.pk}: Recursion limit reached'))
+            self.stdout.write(self.style.WARNING(f'Applied {len(rules_applied)} rules but data still needs processing'))
+            self.stdout.write(self.style.WARNING('=' * 70))
+            
+            # Print all the changes that were made
+            for rule_applied, changes, prev_full, prev_first, prev_last, prev_suffix, prev_nick in rules_applied:
+                self.print_auto_fix(collab, rule_applied, changes, prev_full, 
+                                  prev_first, prev_last, prev_suffix, prev_nick)
+            
+            self.stdout.write(self.style.WARNING('Switching to interactive mode for safety...'))
+            self.stdout.write('')
+            
+            # Prompt user
+            self.stats['prompted'] += 1
+            return self.interactive_prompt(collab, dry_run)
+        
+        # If any rules were applied successfully, print and save
         if rules_applied:
             # Print all the changes
-            for rule_applied, changes in rules_applied:
-                self.print_auto_fix(collab, rule_applied, changes, original_full_name, 
-                                  original_first_names, original_last_names, 
-                                  original_name_suffix, original_nickname)
+            for rule_applied, changes, prev_full, prev_first, prev_last, prev_suffix, prev_nick in rules_applied:
+                self.print_auto_fix(collab, rule_applied, changes, prev_full, 
+                                  prev_first, prev_last, prev_suffix, prev_nick)
             
             # Save if not dry run
             if not dry_run:
@@ -166,7 +213,7 @@ class Command(BaseCommand):
             self.stdout.write('')
             return 'auto'
         
-        # If no auto-fix possible, prompt user
+        # No auto-fix possible, prompt user
         self.stats['prompted'] += 1
         return self.interactive_prompt(collab, dry_run)
 
@@ -309,6 +356,17 @@ class Command(BaseCommand):
             # Store the suffix
             collab.name_suffix = suffix
             
+            # Also clean the suffix from first_names and last_names if present
+            # This ensures subsequent rules don't try to re-extract it
+            if collab.first_names:
+                first_suffix_pattern = r'(?:,\s+|\s+)(Jr\.?|Sr\.?|I|II|III|IV|V|VI|VII|VIII|IX|X)(?:\s|$)'
+                collab.first_names = re.sub(first_suffix_pattern, '', collab.first_names).strip()
+                collab.first_names = re.sub(r'\s+', ' ', collab.first_names)  # Clean up spaces
+            
+            if collab.last_names:
+                last_suffix_pattern = r'(?:,\s+|\s+)(Jr\.?|Sr\.?|I|II|III|IV|V|VI|VII|VIII|IX|X)$'
+                collab.last_names = re.sub(last_suffix_pattern, '', collab.last_names).strip()
+            
             # Rebuild full_name from components (which now includes suffix)
             collab.full_name = self.rebuild_full_name(collab)
             
@@ -326,6 +384,10 @@ class Command(BaseCommand):
     def check_rule_1a(self, collab):
         """Check if last_names ends with a suffix"""
         if not collab.last_names:
+            return False
+        
+        # Skip if suffix is already populated
+        if collab.name_suffix:
             return False
         
         # Match suffixes with optional comma: Jr, Sr, I, II, III, IV, V, etc.
@@ -364,21 +426,25 @@ class Command(BaseCommand):
         if not collab.first_names:
             return False
         
+        # Skip if suffix is already populated
+        if collab.name_suffix:
+            return False
+        
         # Match suffixes with optional comma: Jr, Sr, I, II, III, IV, V, etc.
         # Case-sensitive for Roman numerals, must be preceded by space or comma+space
-        suffix_pattern = r'(?:,\s+|\s+)(Jr\.?|Sr\.?|I|II|III|IV|V|VI|VII|VIII|IX|X)\b'
+        suffix_pattern = r'(?:,\s+|\s+)(Jr\.?|Sr\.?|I|II|III|IV|V|VI|VII|VIII|IX|X)(?:\s|$)'
         return bool(re.search(suffix_pattern, collab.first_names))
 
     def apply_rule_2(self, collab):
         """Extract suffix from first_names to name_suffix"""
-        # Match suffixes with optional comma, capture the suffix without comma/space
-        suffix_pattern = r'(?:,\s+|\s+)(Jr\.?|Sr\.?|I|II|III|IV|V|VI|VII|VIII|IX|X)\b'
+        # Match suffixes with optional comma, capture the suffix with period if present
+        suffix_pattern = r'(?:,\s+|\s+)(Jr\.?|Sr\.?|I|II|III|IV|V|VI|VII|VIII|IX|X)(?:\s|$)'
         match = re.search(suffix_pattern, collab.first_names)
         
         if match:
-            suffix = match.group(1)  # Captures just the suffix without comma/space
-            # Remove the entire match (including comma and space if present)
-            clean_first_names = re.sub(suffix_pattern, ' ', collab.first_names).strip()
+            suffix = match.group(1)  # Captures the suffix with period if present
+            # Remove the entire match (including comma and space if present, but not trailing space/end)
+            clean_first_names = re.sub(r'(?:,\s+|\s+)(Jr\.?|Sr\.?|I|II|III|IV|V|VI|VII|VIII|IX|X)', '', collab.first_names).strip()
             clean_first_names = re.sub(r'\s+', ' ', clean_first_names)  # Clean up extra spaces
             
             collab.first_names = clean_first_names

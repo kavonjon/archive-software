@@ -428,6 +428,15 @@ class Command(BaseCommand):
                     pass
         
         # Case B: Add middle initial/name from full_name to first_names
+        # ONLY if middle content comes AFTER first_names (not before)
+        
+        # Check if first_names appears at the beginning of full_name
+        # This ensures we're adding middle names, not dealing with titles or "goes by middle name" cases
+        if not collab.full_name.startswith(collab.first_names):
+            # Content appears BEFORE first_names (could be title, or additional first name)
+            # Skip auto-fix, let user handle interactively
+            return None
+        
         full_parts = collab.full_name.split()
         first_parts = collab.first_names.split()
         last_parts = collab.last_names.split()
@@ -444,7 +453,7 @@ class Command(BaseCommand):
                         break
                 
                 if last_start_idx and last_start_idx > len(first_parts):
-                    # There are middle tokens
+                    # There are middle tokens AFTER first_names
                     middle_tokens = full_parts[len(first_parts):last_start_idx]
                     new_first_names = collab.first_names + ' ' + ' '.join(middle_tokens)
                     

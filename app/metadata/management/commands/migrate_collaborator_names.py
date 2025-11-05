@@ -285,17 +285,17 @@ class Command(BaseCommand):
         if not (collab.first_names or collab.last_names):
             return False
         
-        # Check if full_name ends with a suffix
-        suffix_pattern = r',?\s+(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII|IX|X)$'
-        return bool(re.search(suffix_pattern, collab.full_name, re.IGNORECASE))
+        # Check if full_name ends with a suffix (case-sensitive for Roman numerals)
+        suffix_pattern = r'(?:,\s+|\s+)(Jr\.?|Sr\.?|I|II|III|IV|V|VI|VII|VIII|IX|X)$'
+        return bool(re.search(suffix_pattern, collab.full_name))
     
     def apply_rule_9(self, collab):
         """Extract suffix from full_name and populate name_suffix"""
-        suffix_pattern = r',?\s+(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII|IX|X)$'
-        match = re.search(suffix_pattern, collab.full_name, re.IGNORECASE)
+        suffix_pattern = r'(?:,\s+|\s+)(Jr\.?|Sr\.?|I|II|III|IV|V|VI|VII|VIII|IX|X)$'
+        match = re.search(suffix_pattern, collab.full_name)
         
         if match:
-            suffix = match.group(1).strip()  # Capture without comma/space
+            suffix = match.group(1)  # Capture just the suffix (without comma/space)
             
             # Store the suffix
             collab.name_suffix = suffix
@@ -320,19 +320,20 @@ class Command(BaseCommand):
             return False
         
         # Match suffixes with optional comma: Jr, Sr, I, II, III, IV, V, etc.
-        suffix_pattern = r',?\s*(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII|IX|X)$'
-        return bool(re.search(suffix_pattern, collab.last_names, re.IGNORECASE))
+        # Case-sensitive for Roman numerals, must be preceded by space or comma+space
+        suffix_pattern = r'(?:,\s+|\s+)(Jr\.?|Sr\.?|I|II|III|IV|V|VI|VII|VIII|IX|X)$'
+        return bool(re.search(suffix_pattern, collab.last_names))
 
     def apply_rule_1a(self, collab):
         """Extract suffix from last_names to name_suffix"""
-        # Match suffixes with optional comma, capture the suffix without comma
-        suffix_pattern = r',?\s*(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII|IX|X)$'
-        match = re.search(suffix_pattern, collab.last_names, re.IGNORECASE)
+        # Match suffixes with optional comma, capture the suffix without comma/space
+        suffix_pattern = r'(?:,\s+|\s+)(Jr\.?|Sr\.?|I|II|III|IV|V|VI|VII|VIII|IX|X)$'
+        match = re.search(suffix_pattern, collab.last_names)
         
         if match:
-            suffix = match.group(1)  # Captures just the suffix without comma
-            # Remove the entire match (including comma if present)
-            clean_last_names = re.sub(suffix_pattern, '', collab.last_names, flags=re.IGNORECASE).strip()
+            suffix = match.group(1)  # Captures just the suffix without comma/space
+            # Remove the entire match (including comma and space)
+            clean_last_names = re.sub(suffix_pattern, '', collab.last_names).strip()
             
             collab.last_names = clean_last_names
             collab.name_suffix = suffix
@@ -355,19 +356,20 @@ class Command(BaseCommand):
             return False
         
         # Match suffixes with optional comma: Jr, Sr, I, II, III, IV, V, etc.
-        suffix_pattern = r',?\s*(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII|IX|X)\b'
-        return bool(re.search(suffix_pattern, collab.first_names, re.IGNORECASE))
+        # Case-sensitive for Roman numerals, must be preceded by space or comma+space
+        suffix_pattern = r'(?:,\s+|\s+)(Jr\.?|Sr\.?|I|II|III|IV|V|VI|VII|VIII|IX|X)\b'
+        return bool(re.search(suffix_pattern, collab.first_names))
 
     def apply_rule_2(self, collab):
         """Extract suffix from first_names to name_suffix"""
-        # Match suffixes with optional comma, capture the suffix without comma
-        suffix_pattern = r',?\s*(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII|IX|X)\b'
-        match = re.search(suffix_pattern, collab.first_names, re.IGNORECASE)
+        # Match suffixes with optional comma, capture the suffix without comma/space
+        suffix_pattern = r'(?:,\s+|\s+)(Jr\.?|Sr\.?|I|II|III|IV|V|VI|VII|VIII|IX|X)\b'
+        match = re.search(suffix_pattern, collab.first_names)
         
         if match:
-            suffix = match.group(1)  # Captures just the suffix without comma
-            # Remove the entire match (including comma if present)
-            clean_first_names = re.sub(suffix_pattern, ' ', collab.first_names, flags=re.IGNORECASE).strip()
+            suffix = match.group(1)  # Captures just the suffix without comma/space
+            # Remove the entire match (including comma and space if present)
+            clean_first_names = re.sub(suffix_pattern, ' ', collab.first_names).strip()
             clean_first_names = re.sub(r'\s+', ' ', clean_first_names)  # Clean up extra spaces
             
             collab.first_names = clean_first_names
@@ -782,13 +784,13 @@ class Command(BaseCommand):
         if not full_name:
             return None
         
-        # Check for suffix with optional comma
-        suffix_pattern = r',?\s+(Jr\.?|Sr\.?|I{1,3}|IV|V|VI|VII|VIII|IX|X)$'
-        suffix_match = re.search(suffix_pattern, full_name, re.IGNORECASE)
-        suffix = suffix_match.group(1) if suffix_match else None  # Capture without comma
+        # Check for suffix with optional comma (case-sensitive for Roman numerals)
+        suffix_pattern = r'(?:,\s+|\s+)(Jr\.?|Sr\.?|I|II|III|IV|V|VI|VII|VIII|IX|X)$'
+        suffix_match = re.search(suffix_pattern, full_name)
+        suffix = suffix_match.group(1) if suffix_match else None  # Capture without comma/space
         
         # Remove suffix for parsing
-        name_without_suffix = re.sub(suffix_pattern, '', full_name, flags=re.IGNORECASE).strip()
+        name_without_suffix = re.sub(suffix_pattern, '', full_name).strip()
         
         # Simple parse: assume last token is last name, rest is first name
         parts = name_without_suffix.split()

@@ -34,6 +34,7 @@ class Command(BaseCommand):
             'rule_6': 0,   # Rebuild full_name from components
             'rule_8': 0,   # Whitespace normalization
             'rule_9': 0,   # Extract suffix from full_name
+            'rule_10': 0,  # Single name in wrong field
             'prompted': 0,
             'skipped': 0,
             'errors': 0,
@@ -238,6 +239,10 @@ class Command(BaseCommand):
                 if not self.check_rule_1a(collab):
                     return False, 'already_correct'
         
+        # Rule 1b: Single name in last_names is already correct
+        if not collab.first_names and collab.last_names and collab.full_name == collab.last_names:
+            return False, 'already_correct_single_name'
+        
         return True, None
 
     def try_auto_fix(self, collab):
@@ -247,6 +252,10 @@ class Command(BaseCommand):
         # Rule 8: Whitespace normalization (check first, before other rules)
         if self.check_rule_8(collab):
             return self.apply_rule_8(collab)
+        
+        # Rule 10: Single name in wrong field (first_names instead of last_names)
+        if self.check_rule_10(collab):
+            return self.apply_rule_10(collab)
         
         # Rule 9: Extract suffix from full_name (when components exist)
         if self.check_rule_9(collab):
@@ -326,6 +335,34 @@ class Command(BaseCommand):
             'old_full_name': old_full_name,
             'new_full_name': collab.full_name,
             'type': 'whitespace_normalization',
+        })
+
+    # ============================================================================
+    # Rule 10: Single name in wrong field (move from first_names to last_names)
+    # ============================================================================
+    
+    def check_rule_10(self, collab):
+        """Check if single name is in first_names but should be in last_names"""
+        # Single name in first_names, empty last_names, and full_name matches first_names
+        if collab.first_names and not collab.last_names and collab.full_name == collab.first_names:
+            return True
+        return False
+    
+    def apply_rule_10(self, collab):
+        """Move single name from first_names to last_names"""
+        old_first_names = collab.first_names
+        
+        # Move to last_names
+        collab.last_names = collab.first_names
+        collab.first_names = ''
+        
+        # Rebuild full_name (should stay the same)
+        collab.full_name = self.rebuild_full_name(collab)
+        
+        return ('rule_10', {
+            'moved_from': 'first_names',
+            'moved_to': 'last_names',
+            'name': old_first_names,
         })
 
     # ============================================================================
@@ -915,6 +952,7 @@ class Command(BaseCommand):
             'rule_6': 'Rebuild full_name from components',
             'rule_8': 'Whitespace normalization',
             'rule_9': 'Extract suffix from full_name',
+            'rule_10': 'Move single name to last_names',
         }
         
         self.stdout.write(self.style.SUCCESS(f'[AUTO] PK {collab.pk}: {rule_names.get(rule, rule)}'))

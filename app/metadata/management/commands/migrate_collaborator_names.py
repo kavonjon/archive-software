@@ -636,7 +636,20 @@ class Command(BaseCommand):
         # Only apply if first_names and last_names are empty
         if collab.first_names or collab.last_names:
             return False
-        return ',' in collab.full_name
+        if ',' not in collab.full_name:
+            return False
+        
+        # Don't apply if what comes after the comma is a suffix (e.g., "John Smith, Jr.")
+        # Split on first comma and check if the part after is a known suffix
+        parts = collab.full_name.split(',', 1)
+        if len(parts) == 2:
+            after_comma = parts[1].strip()
+            # Check if it matches a known suffix pattern (longest-to-shortest ordering)
+            suffix_pattern = r'^(Jr\.?|Sr\.?|X|IX|VIII|VII|VI|V|IV|III|II|I)$'
+            if re.match(suffix_pattern, after_comma):
+                return False  # This is a suffix, not a first name
+        
+        return True
 
     def apply_rule_5(self, collab):
         """Reverse comma-separated format"""

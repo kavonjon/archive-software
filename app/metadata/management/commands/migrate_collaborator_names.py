@@ -156,14 +156,21 @@ class Command(BaseCommand):
             if auto_result:
                 # Rule was applied
                 rule_applied, changes = auto_result
+                
+                # Store both before and after states for accurate reporting
                 rules_applied.append((
                     rule_applied, 
                     changes,
-                    current_full_name,
-                    current_first_names,
-                    current_last_names,
-                    current_name_suffix,
-                    current_nickname
+                    current_full_name,        # before
+                    current_first_names,       # before
+                    current_last_names,        # before
+                    current_name_suffix,       # before
+                    current_nickname,          # before
+                    collab.full_name,          # after
+                    collab.first_names,        # after
+                    collab.last_names,         # after
+                    collab.name_suffix,        # after
+                    collab.nickname            # after
                 ))
                 self.stats['auto_fixed'] += 1
                 self.stats[rule_applied] += 1
@@ -186,9 +193,10 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('=' * 70))
             
             # Print all the changes that were made
-            for rule_applied, changes, prev_full, prev_first, prev_last, prev_suffix, prev_nick in rules_applied:
-                self.print_auto_fix(collab, rule_applied, changes, prev_full, 
-                                  prev_first, prev_last, prev_suffix, prev_nick)
+            for rule_applied, changes, prev_full, prev_first, prev_last, prev_suffix, prev_nick, after_full, after_first, after_last, after_suffix, after_nick in rules_applied:
+                self.print_auto_fix_with_after(collab.pk, rule_applied, changes, prev_full, 
+                                  prev_first, prev_last, prev_suffix, prev_nick,
+                                  after_full, after_first, after_last, after_suffix, after_nick)
             
             self.stdout.write(self.style.WARNING('Switching to interactive mode for safety...'))
             self.stdout.write('')
@@ -200,9 +208,10 @@ class Command(BaseCommand):
         # If any rules were applied successfully, print and save
         if rules_applied:
             # Print all the changes
-            for rule_applied, changes, prev_full, prev_first, prev_last, prev_suffix, prev_nick in rules_applied:
-                self.print_auto_fix(collab, rule_applied, changes, prev_full, 
-                                  prev_first, prev_last, prev_suffix, prev_nick)
+            for rule_applied, changes, prev_full, prev_first, prev_last, prev_suffix, prev_nick, after_full, after_first, after_last, after_suffix, after_nick in rules_applied:
+                self.print_auto_fix_with_after(collab.pk, rule_applied, changes, prev_full, 
+                                  prev_first, prev_last, prev_suffix, prev_nick,
+                                  after_full, after_first, after_last, after_suffix, after_nick)
             
             # Save if not dry run
             if not dry_run:
@@ -938,7 +947,8 @@ class Command(BaseCommand):
         self.stdout.write('')
 
     def print_auto_fix(self, collab, rule, changes, orig_full, orig_first, orig_last, orig_suffix, orig_nick):
-        """Print auto-fix result"""
+        """Print auto-fix result (legacy - uses current collab state)"""
+        # This version uses the current collab object state - kept for backward compatibility
         rule_names = {
             'rule_1a': 'Suffix in last_names',
             'rule_2': 'Suffix in first_names',
@@ -976,6 +986,47 @@ class Command(BaseCommand):
             self.stdout.write(f'  nickname:     "{collab.nickname}"')
         
         self.stdout.write(f'  Rebuilt full_name: "{collab.full_name}"')
+
+    def print_auto_fix_with_after(self, pk, rule, changes, orig_full, orig_first, orig_last, orig_suffix, orig_nick, 
+                                   after_full, after_first, after_last, after_suffix, after_nick):
+        """Print auto-fix result with explicit after states"""
+        rule_names = {
+            'rule_1a': 'Suffix in last_names',
+            'rule_2': 'Suffix in first_names',
+            'rule_3': 'Middle name reconciliation',
+            'rule_4': 'Parenthetical to nickname',
+            'rule_5': 'Comma format reversal',
+            'rule_6': 'Rebuild full_name from components',
+            'rule_8': 'Whitespace normalization',
+            'rule_9': 'Extract suffix from full_name',
+            'rule_10': 'Move single name to last_names',
+        }
+        
+        self.stdout.write(self.style.SUCCESS(f'[AUTO] PK {pk}: {rule_names.get(rule, rule)}'))
+        self.stdout.write(f'  Original full_name: "{orig_full}"')
+        
+        # Show what changed (with arrows for changed fields)
+        if orig_first != after_first:
+            self.stdout.write(f'  first_names:  "{orig_first}" → "{after_first}"')
+        else:
+            self.stdout.write(f'  first_names:  "{after_first}"')
+            
+        if orig_last != after_last:
+            self.stdout.write(f'  last_names:   "{orig_last}" → "{after_last}"')
+        else:
+            self.stdout.write(f'  last_names:   "{after_last}"')
+            
+        if orig_suffix != after_suffix:
+            self.stdout.write(f'  name_suffix:  "{orig_suffix}" → "{after_suffix}"')
+        else:
+            self.stdout.write(f'  name_suffix:  "{after_suffix}"')
+            
+        if orig_nick != after_nick:
+            self.stdout.write(f'  nickname:     "{orig_nick}" → "{after_nick}"')
+        else:
+            self.stdout.write(f'  nickname:     "{after_nick}"')
+        
+        self.stdout.write(f'  Rebuilt full_name: "{after_full}"')
 
     def print_final_stats(self):
         """Print final statistics"""

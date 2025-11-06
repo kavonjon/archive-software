@@ -733,6 +733,7 @@ class Command(BaseCommand):
                     offer_clean_nickname = True
         
         # If only full_name exists, try to suggest a parse
+        suggested = None
         if collab.full_name and not collab.first_names and not collab.last_names:
             suggested = self.suggest_parse(collab.full_name)
             if suggested:
@@ -764,6 +765,8 @@ class Command(BaseCommand):
         
         # Get user input
         self.stdout.write('\nOptions:')
+        if suggested:
+            self.stdout.write('  [A] Accept suggested parsing')
         if offer_clean_nickname:
             self.stdout.write('  [A] Accept cleaned nickname and rebuild full_name')
         if offer_rebuild:
@@ -780,6 +783,8 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('Skipped'))
             self.stdout.write('')
             return 'skip'
+        elif choice == 'A' and suggested:
+            return self.accept_suggested_parse(collab, suggested, dry_run)
         elif choice == 'A' and offer_clean_nickname:
             return self.accept_cleaned_nickname(collab, cleaned_nickname, dry_run)
         elif choice == 'R' and offer_rebuild:
@@ -790,6 +795,36 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('Invalid choice, skipping...'))
             self.stdout.write('')
             return 'skip'
+
+    def accept_suggested_parse(self, collab, suggested, dry_run):
+        """Accept the suggested parsing of full_name"""
+        old_full_name = collab.full_name
+        
+        # Apply suggested values
+        collab.first_names = suggested['first']
+        collab.last_names = suggested['last']
+        if suggested.get('suffix'):
+            collab.name_suffix = suggested['suffix']
+        
+        # Rebuild full_name from components
+        collab.full_name = self.rebuild_full_name(collab)
+        
+        self.stdout.write(self.style.SUCCESS(f'\n✓ Accepted suggested parsing'))
+        self.stdout.write(f'  first_names:  "{collab.first_names}"')
+        self.stdout.write(f'  last_names:   "{collab.last_names}"')
+        if collab.name_suffix:
+            self.stdout.write(f'  name_suffix:  "{collab.name_suffix}"')
+        self.stdout.write(f'  Old full_name: "{old_full_name}"')
+        self.stdout.write(f'  New full_name: "{collab.full_name}"')
+        
+        if not dry_run:
+            collab.save()
+            self.stdout.write(self.style.SUCCESS('  ✓ Saved'))
+        else:
+            self.stdout.write(self.style.WARNING('  (dry-run - not saved)'))
+        
+        self.stdout.write('')
+        return 'prompt'
 
     def accept_cleaned_nickname(self, collab, cleaned_nickname, dry_run):
         """Accept the cleaned nickname (Rule 7: remove last_names from nickname)"""

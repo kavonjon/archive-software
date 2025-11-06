@@ -257,10 +257,6 @@ class Command(BaseCommand):
         if self.check_rule_10(collab):
             return self.apply_rule_10(collab)
         
-        # Rule 9: Extract suffix from full_name (when components exist)
-        if self.check_rule_9(collab):
-            return self.apply_rule_9(collab)
-        
         # Rule 1a: Suffix in last_names
         if self.check_rule_1a(collab):
             return self.apply_rule_1a(collab)
@@ -280,6 +276,11 @@ class Command(BaseCommand):
         # Rule 3: Middle name reconciliation
         if self.check_rule_3(collab):
             return self.apply_rule_3(collab)
+        
+        # Rule 9: Extract suffix from full_name (when components exist)
+        # Runs AFTER Rules 2 and 3 to avoid conflicts with suffix extraction from components
+        if self.check_rule_9(collab):
+            return self.apply_rule_9(collab)
         
         # Rule 6: Rebuild full_name if components are valid but don't match
         if self.check_rule_6(collab):

@@ -730,6 +730,11 @@ class Command(BaseCommand):
         self.stdout.write(f'  name_suffix:  "{collab.name_suffix}"')
         self.stdout.write(f'  nickname:     "{collab.nickname}"')
         
+        # Show other_names if it exists (it's an ArrayField)
+        if collab.other_names:
+            other_names_display = ', '.join(collab.other_names)
+            self.stdout.write(f'  other_names:  [{other_names_display}]')
+        
         # Check if we can offer a "rebuild" option
         rebuilt_full_name = self.rebuild_full_name(collab)
         offer_rebuild = (collab.first_names or collab.last_names) and (rebuilt_full_name != collab.full_name)

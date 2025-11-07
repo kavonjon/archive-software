@@ -117,6 +117,13 @@ export const EditableBooleanField: React.FC<EditableBooleanFieldProps> = ({
             onChange={handleSelectChange}
             autoFocus
             onKeyDown={handleKeyDown}
+            displayEmpty
+            renderValue={(selected) => {
+              // Ensure the closed Select displays the correct label for all values
+              if (selected === 'true') return trueLabel;
+              if (selected === 'false') return falseLabel;
+              return nullLabel; // For empty string or any other value
+            }}
             sx={{
               width: '100%',
               minWidth: 0,

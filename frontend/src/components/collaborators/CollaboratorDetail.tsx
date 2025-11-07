@@ -29,7 +29,9 @@ import {
   EditableTextField,
   EditableBooleanField,
   EditableJsonArrayField,
+  EditableMultiRelationshipField,
   DateFormatHelp,
+  DateInterpretationFeedback,
 } from '../common';
 import { collaboratorsAPI, itemsAPI, Collaborator, AssociatedItem } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -51,6 +53,9 @@ const CollaboratorDetail: React.FC = () => {
   const [editingFields, setEditingFields] = useState<Set<string>>(new Set());
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [savingFields, setSavingFields] = useState<Set<string>>(new Set());
+
+  // State for date interpretation feedback - prevents cross-field re-renders
+  const [dateInterpretationValues, setDateInterpretationValues] = useState<Record<string, string>>({});
 
   // Collaborator ID validation state (for uniqueness checking)
   const [collaboratorIdValidation, setCollaboratorIdValidation] = useState<{
@@ -103,11 +108,21 @@ const CollaboratorDetail: React.FC = () => {
         return;
       }
 
+      // Check if value contains only digits (reject strings with non-numeric characters)
+      if (!/^\d+$/.test(value.trim())) {
+        setCollaboratorIdValidation({
+          isValidating: false,
+          error: 'Collaborator ID must be a positive integer (numbers only)',
+          isValid: false
+        });
+        return;
+      }
+
       const numericValue = parseInt(value, 10);
       if (isNaN(numericValue) || numericValue <= 0) {
         setCollaboratorIdValidation({
           isValidating: false,
-          error: 'Collaborator ID must be a positive number',
+          error: 'Collaborator ID must be a positive integer',
           isValid: false
         });
         return;
@@ -181,6 +196,15 @@ const CollaboratorDetail: React.FC = () => {
   const startEditing = (fieldName: string, value: string) => {
     setEditingFields(prev => new Set(Array.from(prev).concat(fieldName)));
     setEditValues(prev => ({ ...prev, [fieldName]: value }));
+    
+    // Clear validation state for collaborator_id when starting to edit
+    if (fieldName === 'collaborator_id') {
+      setCollaboratorIdValidation({
+        isValidating: false,
+        error: null,
+        isValid: true
+      });
+    }
   };
 
   const cancelEditing = (fieldName: string) => {
@@ -212,6 +236,11 @@ const CollaboratorDetail: React.FC = () => {
     if (fieldName === 'collaborator_id' && collaborator) {
       validateCollaboratorId(value, collaborator.collaborator_id);
     }
+  };
+
+  // Handler for date interpretation feedback
+  const handleDateInterpretationChange = (fieldName: string, value: string) => {
+    setDateInterpretationValues(prev => ({ ...prev, [fieldName]: value }));
   };
 
   const saveField = async (fieldName: string, value?: any) => {
@@ -332,11 +361,117 @@ const CollaboratorDetail: React.FC = () => {
           saveField={saveField}
           cancelEditing={cancelEditing}
           updateEditValue={updateEditValue}
+          onValueChange={(value) => handleDateInterpretationChange(fieldName, value)}
         />
+        
+        {/* Date interpretation feedback - shows what will happen to input */}
+        <DateInterpretationFeedback 
+          value={dateInterpretationValues[fieldName] || ''}
+          show={isEditing}
+        />
+        
         {isEditing && <DateFormatHelp />}
       </Box>
     );
   };
+
+  // Helper functions to compute display name variations
+  const computeDisplayNameVariations = () => {
+    if (!collaborator) return null;
+
+    // If anonymous, all variations show "Anonymous {ID}"
+    if (collaborator.anonymous) {
+      const anonymousDisplay = `Anonymous ${collaborator.collaborator_id}`;
+      return {
+        fullName: anonymousDisplay,
+        fullNameSortedByLastName: anonymousDisplay,
+        firstAndLastName: anonymousDisplay,
+        lastNameFirst: anonymousDisplay,
+        lastNameOnly: anonymousDisplay,
+        firstNameOnly: anonymousDisplay,
+      };
+    }
+
+    const { first_names, nickname, last_names, name_suffix, full_name } = collaborator;
+
+    // Helper to build parts with proper spacing
+    const buildParts = (...parts: (string | undefined)[]) => {
+      return parts.filter(p => p && p.trim()).join(' ');
+    };
+
+    // Full name sorted by last name: last_names name_suffix, first_names "nickname"
+    const fullNameSortedByLastName = (() => {
+      const lastPart = buildParts(last_names, name_suffix);
+      const firstPart = buildParts(first_names, nickname ? `"${nickname}"` : undefined);
+      if (lastPart && firstPart) {
+        return `${lastPart}, ${firstPart}`;
+      }
+      return lastPart || firstPart || '';
+    })();
+
+    // First name & last name: first_names last_names name_suffix
+    const firstAndLastName = buildParts(first_names, last_names, name_suffix);
+
+    // Last name first: last_names name_suffix, first_names
+    const lastNameFirst = (() => {
+      const lastPart = buildParts(last_names, name_suffix);
+      if (lastPart && first_names) {
+        return `${lastPart}, ${first_names}`;
+      }
+      return lastPart || first_names || '';
+    })();
+
+    // Last name only: last_names
+    const lastNameOnly = last_names || '';
+
+    // First name only: first_names, unless empty then last_names (for mononyms)
+    const firstNameOnly = first_names || last_names || '';
+
+    return {
+      fullName: full_name || '',
+      fullNameSortedByLastName,
+      firstAndLastName,
+      lastNameFirst,
+      lastNameOnly,
+      firstNameOnly,
+    };
+  };
+
+  // Helper function to compute searchable terms
+  const computeSearchableTerms = () => {
+    if (!collaborator) return '';
+
+    // If anonymous, no searchable name terms
+    if (collaborator.anonymous) {
+      return '';
+    }
+
+    const { first_names, last_names, name_suffix, nickname, other_names } = collaborator;
+    
+    // Collect all text from relevant fields
+    const textSources: string[] = [];
+    if (first_names) textSources.push(first_names);
+    if (last_names) textSources.push(last_names);
+    if (name_suffix) textSources.push(name_suffix);
+    if (nickname) textSources.push(nickname);
+    if (other_names && Array.isArray(other_names)) {
+      textSources.push(...other_names);
+    }
+
+    // Split all text into words and create a unique set
+    const allWords = new Set<string>();
+    textSources.forEach(text => {
+      // Split by whitespace and common punctuation
+      const words = text.split(/[\s,;.]+/).filter(word => word.trim().length > 0);
+      words.forEach(word => allWords.add(word.trim()));
+    });
+
+    // Return as sorted, comma-separated list
+    return Array.from(allWords).sort().join(', ');
+  };
+
+  const displayVariations = computeDisplayNameVariations();
+  const searchableTerms = computeSearchableTerms();
 
   if (loading) {
     return (
@@ -383,7 +518,7 @@ const CollaboratorDetail: React.FC = () => {
                   fontSize: { xs: '1.5rem', md: '2.125rem' }
                 }}
               >
-                {collaborator.display_name}
+                {collaborator.full_name || 'Unnamed Collaborator'}
               </Typography>
             </Box>
           </Stack>
@@ -495,9 +630,14 @@ const CollaboratorDetail: React.FC = () => {
                   updateEditValue={updateEditValue}
                 />
                 
-                {/* Validation feedback for collaborator ID */}
+                {/* Validation feedback and info for collaborator ID */}
                 {editingFields.has('collaborator_id') && (
                   <Box sx={{ mt: 1 }}>
+                    {/* Info message about the field purpose */}
+                    <Alert severity="info" sx={{ mb: 1 }}>
+                      This ID is for internal software bookkeeping. You can edit it without breaking things, but there's no need to organize these IDs in any particular way.
+                    </Alert>
+                    
                     {collaboratorIdValidation.isValidating && (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <CircularProgress size={16} />
@@ -520,7 +660,17 @@ const CollaboratorDetail: React.FC = () => {
                     )}
                   </Box>
                 )}
-                {renderEditableField('full_name', 'Full Name')}
+                
+                {/* Read-only display field - computed from name components by backend signal */}
+                <Box sx={{ width: '100%', mb: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'medium' }}>
+                    Full Name (auto-calculated):
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {collaborator.full_name || '(none)'}
+                  </Typography>
+                </Box>
+                
                 {renderEditableField('first_names', 'First Name(s)')}
                 {renderEditableField('last_names', 'Last Name(s)')}
                 {renderEditableField('name_suffix', 'Name Suffix')}
@@ -567,6 +717,46 @@ const CollaboratorDetail: React.FC = () => {
                 {renderEditableField('clan_society', 'Clan or Society')}
                 {renderEditableField('origin', 'Place of Origin')}
                 {renderEditableField('gender', 'Gender')}
+              </CardContent>
+            </Card>
+
+            {/* Languages */}
+            <Card sx={{ mb: 3, elevation: 1 }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ fontWeight: 'medium', color: 'primary.main', mb: 2 }}>
+                  Languages
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                
+                <EditableMultiRelationshipField
+                  fieldName="native_languages"
+                  label="Native/First Languages"
+                  value={collaborator.native_languages || []}
+                  isEditing={editingFields.has('native_languages')}
+                  isSaving={savingFields.has('native_languages')}
+                  editValue={editValues.native_languages}
+                  startEditing={startEditing}
+                  saveField={saveField}
+                  cancelEditing={cancelEditing}
+                  updateEditValue={updateEditValue}
+                  relationshipEndpoint="/internal/v1/languoids/"
+                  getOptionLabel={(option) => `${option.name}${option.glottocode ? ` (${option.glottocode})` : ''}`}
+                />
+                
+                <EditableMultiRelationshipField
+                  fieldName="other_languages"
+                  label="Other Languages"
+                  value={collaborator.other_languages || []}
+                  isEditing={editingFields.has('other_languages')}
+                  isSaving={savingFields.has('other_languages')}
+                  editValue={editValues.other_languages}
+                  startEditing={startEditing}
+                  saveField={saveField}
+                  cancelEditing={cancelEditing}
+                  updateEditValue={updateEditValue}
+                  relationshipEndpoint="/internal/v1/languoids/"
+                  getOptionLabel={(option) => `${option.name}${option.glottocode ? ` (${option.glottocode})` : ''}`}
+                />
               </CardContent>
             </Card>
 
@@ -662,6 +852,101 @@ const CollaboratorDetail: React.FC = () => {
                 
                 {renderDateField('birthdate', 'Date of Birth')}
                 {renderDateField('deathdate', 'Date of Death')}
+              </CardContent>
+            </Card>
+
+            {/* Display Name Variations */}
+            <Card sx={{ mb: 3, elevation: 1 }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ fontWeight: 'medium', color: 'primary.main', mb: 2 }}>
+                  Display Name Variations
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
+                  These variations show how the name will appear in different contexts.
+                </Typography>
+
+                {displayVariations && (
+                  <>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'medium' }}>
+                        Full Name:
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {displayVariations.fullName || '(none)'}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'medium' }}>
+                        Full Name Sorted by Last Name(s):
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {displayVariations.fullNameSortedByLastName || '(none)'}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'medium' }}>
+                        First Name(s) & Last Name(s):
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {displayVariations.firstAndLastName || '(none)'}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'medium' }}>
+                        Last Name(s), First Name(s):
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {displayVariations.lastNameFirst || '(none)'}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'medium' }}>
+                        Last Name(s) Only:
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {displayVariations.lastNameOnly || '(none)'}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'medium' }}>
+                        First Name(s) Only:
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {displayVariations.firstNameOnly || '(none)'}
+                      </Typography>
+                    </Box>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Searchable Name Terms */}
+            <Card sx={{ mb: 3, elevation: 1 }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ fontWeight: 'medium', color: 'primary.main', mb: 2 }}>
+                  Searchable Name Terms
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
+                  All unique words from name fields that can be used to find this collaborator.
+                </Typography>
+
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'medium' }}>
+                    Terms:
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {searchableTerms || '(none)'}
+                  </Typography>
+                </Box>
               </CardContent>
             </Card>
 

@@ -6,7 +6,7 @@ from rest_framework import viewsets, filters, status, permissions, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from django_filters import FilterSet, CharFilter, DateFilter
+from django_filters import FilterSet, CharFilter, DateFilter, NumberFilter, BooleanFilter
 from django.db.models import Q
 from metadata.models import Item, Collection, Collaborator, Languoid, ItemTitle
 from .serializers import (
@@ -197,6 +197,9 @@ class InternalCollectionViewSet(viewsets.ModelViewSet):
 class CollaboratorFilter(FilterSet):
     """Custom filter for Collaborators with text search support"""
     
+    # Exact match filter for uniqueness validation
+    collaborator_id = NumberFilter(field_name='collaborator_id', lookup_expr='exact')
+    
     # Define filters with custom parameter names matching frontend expectations
     first_names_contains = CharFilter(field_name='first_names', lookup_expr='icontains')
     last_names_contains = CharFilter(field_name='last_names', lookup_expr='icontains')
@@ -205,11 +208,103 @@ class CollaboratorFilter(FilterSet):
     tribal_affiliations_contains = CharFilter(field_name='tribal_affiliations', lookup_expr='icontains')
     gender_contains = CharFilter(field_name='gender', lookup_expr='icontains')
     
+    # Empty value filters - for finding incomplete records
+    # CharField/TextField: Check for both NULL and empty string ('')
+    first_names_isnull = BooleanFilter(method='filter_first_names_empty')
+    nickname_isnull = BooleanFilter(method='filter_nickname_empty')
+    last_names_isnull = BooleanFilter(method='filter_last_names_empty')
+    name_suffix_isnull = BooleanFilter(method='filter_name_suffix_empty')
+    tribal_affiliations_isnull = BooleanFilter(method='filter_tribal_affiliations_empty')
+    gender_isnull = BooleanFilter(method='filter_gender_empty')
+    birthdate_isnull = BooleanFilter(method='filter_birthdate_empty')
+    deathdate_isnull = BooleanFilter(method='filter_deathdate_empty')
+    # ArrayField: Check for NULL, empty array, or array with empty strings
+    other_names_isnull = BooleanFilter(method='filter_other_names_empty')
+    # ManyToManyField: Check for no related records
+    native_languages_isnull = BooleanFilter(method='filter_native_languages_empty')
+    other_languages_isnull = BooleanFilter(method='filter_other_languages_empty')
+    
+    def filter_first_names_empty(self, queryset, name, value):
+        """Filter for collaborators with empty first_names (NULL or empty string)"""
+        if value:
+            return queryset.filter(Q(first_names__isnull=True) | Q(first_names='')).distinct()
+        return queryset
+    
+    def filter_nickname_empty(self, queryset, name, value):
+        """Filter for collaborators with empty nickname (NULL or empty string)"""
+        if value:
+            return queryset.filter(Q(nickname__isnull=True) | Q(nickname='')).distinct()
+        return queryset
+    
+    def filter_last_names_empty(self, queryset, name, value):
+        """Filter for collaborators with empty last_names (NULL or empty string)"""
+        if value:
+            return queryset.filter(Q(last_names__isnull=True) | Q(last_names='')).distinct()
+        return queryset
+    
+    def filter_name_suffix_empty(self, queryset, name, value):
+        """Filter for collaborators with empty name_suffix (NULL or empty string)"""
+        if value:
+            return queryset.filter(Q(name_suffix__isnull=True) | Q(name_suffix='')).distinct()
+        return queryset
+    
+    def filter_tribal_affiliations_empty(self, queryset, name, value):
+        """Filter for collaborators with empty tribal_affiliations (NULL or empty string)"""
+        if value:
+            return queryset.filter(Q(tribal_affiliations__isnull=True) | Q(tribal_affiliations='')).distinct()
+        return queryset
+    
+    def filter_gender_empty(self, queryset, name, value):
+        """Filter for collaborators with empty gender (NULL or empty string)"""
+        if value:
+            return queryset.filter(Q(gender__isnull=True) | Q(gender='')).distinct()
+        return queryset
+    
+    def filter_birthdate_empty(self, queryset, name, value):
+        """Filter for collaborators with empty birthdate (NULL or empty string)"""
+        if value:
+            return queryset.filter(Q(birthdate__isnull=True) | Q(birthdate='')).distinct()
+        return queryset
+    
+    def filter_deathdate_empty(self, queryset, name, value):
+        """Filter for collaborators with empty deathdate (NULL or empty string)"""
+        if value:
+            return queryset.filter(Q(deathdate__isnull=True) | Q(deathdate='')).distinct()
+        return queryset
+    
+    def filter_other_names_empty(self, queryset, name, value):
+        """Filter for collaborators with empty other_names (NULL, empty array, or array with only empty strings)"""
+        if value:
+            # Check for NULL, empty array [], or arrays containing only empty strings
+            return queryset.filter(
+                Q(other_names__isnull=True) | 
+                Q(other_names=[]) |
+                Q(other_names=[''])
+            ).distinct()
+        return queryset
+    
+    def filter_native_languages_empty(self, queryset, name, value):
+        """Filter for collaborators with no native languages (M2M relationship)"""
+        if value:
+            # Find collaborators with no native language DialectInstance records
+            return queryset.filter(collaborator_native_languages_dialectinstances__isnull=True).distinct()
+        return queryset
+    
+    def filter_other_languages_empty(self, queryset, name, value):
+        """Filter for collaborators with no other languages (M2M relationship)"""
+        if value:
+            # Find collaborators with no other language DialectInstance records
+            return queryset.filter(collaborator_other_languages_dialectinstances__isnull=True).distinct()
+        return queryset
+    
     class Meta:
         model = Collaborator
-        fields = ['first_names_contains', 'last_names_contains', 'full_name_contains', 
+        fields = ['collaborator_id', 'first_names_contains', 'last_names_contains', 'full_name_contains', 
                   'collaborator_id_contains', 'tribal_affiliations_contains', 
-                  'gender_contains', 'anonymous']
+                  'gender_contains', 'anonymous',
+                  'first_names_isnull', 'nickname_isnull', 'last_names_isnull', 'name_suffix_isnull',
+                  'tribal_affiliations_isnull', 'other_names_isnull', 'gender_isnull',
+                  'birthdate_isnull', 'deathdate_isnull', 'native_languages_isnull', 'other_languages_isnull']
 
 
 class InternalCollaboratorViewSet(viewsets.ModelViewSet):
@@ -251,7 +346,7 @@ class LanguoidFilter(FilterSet):
             'iso': ['icontains', 'exact'],
             'glottocode': ['icontains', 'exact'],
             'level_nal': ['exact'],
-            'level_glottolog': ['exact'],
+            'level_glottolog': ['exact', 'in'],  # Added 'in' lookup for filtering multiple values
             'region': ['icontains'],
             'tribes': ['icontains'],
         }

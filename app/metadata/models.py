@@ -473,17 +473,17 @@ class Collaborator(models.Model):
 #        ordering = ['name']
     def __str__(self):
         return self.full_name
-    def clean(self):
-        # Import our good standardization function from signals
-        from .signals import standardize_date_format
-        
-        self.birthdate = standardize_date_format(self.birthdate)
-        self.deathdate = standardize_date_format(self.deathdate)
+    
+    # NOTE: Date standardization is now handled by the pre_save signal
+    # (compute_collaborator_derived_fields in signals.py)
+    # This ensures dates are standardized on ALL saves (API, admin, bulk operations)
+    # not just during form validation.
+    
+    # NOTE: Slug generation is now handled by the pre_save signal
+    # (compute_collaborator_derived_fields in signals.py)
+    # The signal generates the slug before the first save if not already set.
 
     def save(self, *args, **kwargs):
-        if not self.slug:
-            encoded = base58.b58encode(self.uuid.bytes).decode()[:10]
-            self.slug = f"{encoded[:5]}-{encoded[5:10]}"
         super().save(*args, **kwargs)
 
 class Geographic(models.Model):

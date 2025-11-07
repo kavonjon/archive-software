@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { debounce } from 'lodash';
 import {
   Box,
   Paper,
@@ -22,6 +23,10 @@ import {
   Stack,
   useTheme,
   useMediaQuery,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -29,6 +34,7 @@ import {
   Add as AddIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  FilterList as FilterListIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { collaboratorsAPI, Collaborator, PaginatedResponse, APIError } from '../../services/api';
@@ -51,6 +57,18 @@ interface FilterState {
   other_languages_contains: string;
   anonymous: string;
   gender_contains: string;
+  // Empty filters (isnull lookups)
+  first_names_isnull?: boolean;
+  nickname_isnull?: boolean;
+  last_names_isnull?: boolean;
+  name_suffix_isnull?: boolean;
+  tribal_affiliations_isnull?: boolean;
+  native_languages_isnull?: boolean;
+  other_languages_isnull?: boolean;
+  other_names_isnull?: boolean;
+  gender_isnull?: boolean;
+  birthdate_isnull?: boolean;
+  deathdate_isnull?: boolean;
 }
 
 const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
@@ -64,7 +82,6 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
   const { state: authState } = useAuth();
   
   // Refs for focus management
-  const searchButtonRef = useRef<HTMLButtonElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
   
   // State management
@@ -76,6 +93,7 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCollaborators, setSelectedCollaborators] = useState<Collaborator[]>([]);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   // Filter state
   const [filters, setFilters] = useState<FilterState>({
@@ -90,6 +108,9 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
     gender_contains: '',
   });
 
+  // Active filters state - these are the filters actually applied to the API
+  const [activeFilters, setActiveFilters] = useState<FilterState>(filters);
+
   // Load collaborators data
   const loadCollaborators = useCallback(async (resetPage = false) => {
     try {
@@ -99,15 +120,19 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
       const currentPage = resetPage ? 0 : page;
       
       // Build query parameters
-      const params: Record<string, string | number> = {
+      const params: Record<string, string | number | boolean> = {
         page: currentPage + 1, // API uses 1-based pagination
         page_size: rowsPerPage,
         ordering: 'last_names,first_names,full_name,collaborator_id', // Explicit ordering by last name
       };
       
       // Add non-empty filters
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value.trim()) {
+      Object.entries(activeFilters).forEach(([key, value]) => {
+        if (typeof value === 'boolean') {
+          // Add boolean filters (isnull lookups)
+          params[key] = value;
+        } else if (typeof value === 'string' && value.trim()) {
+          // Add string filters (contains lookups)
           params[key] = value.trim();
         }
       });
@@ -121,14 +146,33 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
         setPage(0);
       }
       
+      setInitialLoadComplete(true);
+      
     } catch (err) {
       const apiError = err as APIError;
       setError(apiError.message || 'Failed to load collaborators');
       console.error('Error loading collaborators:', err);
+      setInitialLoadComplete(true);
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, filters]);
+  }, [page, rowsPerPage, activeFilters]);
+
+  // Debounced filter application - automatically applies filters after user stops typing
+  const debouncedApplyFilters = useMemo(
+    () => debounce((newFilters: FilterState) => {
+      setActiveFilters(newFilters);
+      setPage(0); // Reset to first page when filters change
+    }, 500),
+    []
+  );
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      debouncedApplyFilters.cancel();
+    };
+  }, [debouncedApplyFilters]);
 
   // Load data on component mount and when dependencies change
   useEffect(() => {
@@ -147,29 +191,40 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
     setPage(0);
   };
 
-  // Handle filter changes
+  // Handle filter changes with debounced API call
   const handleFilterChange = (field: keyof FilterState) => (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    setFilters(prev => ({
-      ...prev,
+    const newFilters = {
+      ...filters,
       [field]: event.target.value
-    }));
+    };
+    setFilters(newFilters);
+    
+    // Debounced API call - waits 500ms after user stops typing
+    debouncedApplyFilters(newFilters);
   };
 
-  // Handle search
-  const handleSearch = () => {
-    loadCollaborators(true);
+  // Handle empty filter toggle (isnull lookups)
+  const handleEmptyFilterToggle = (field: keyof FilterState) => {
+    const currentValue = filters[field];
+    const newValue = currentValue === true ? undefined : true;
     
-    // Focus management for screen readers
-    if (tableRef.current) {
-      tableRef.current.focus();
-    }
+    const newFilters = {
+      ...filters,
+      [field]: newValue
+    };
+    setFilters(newFilters);
+    
+    // Immediately apply (no need for debounce on button clicks)
+    debouncedApplyFilters.cancel();
+    setActiveFilters(newFilters);
+    setPage(0);
   };
 
   // Handle clear filters
   const handleClearFilters = () => {
-    setFilters({
+    const clearedFilters: FilterState = {
       first_names_contains: '',
       last_names_contains: '',
       full_name_contains: '',
@@ -179,12 +234,12 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
       other_languages_contains: '',
       anonymous: '',
       gender_contains: '',
-    });
+    };
     
-    // Reload with cleared filters
-    setTimeout(() => {
-      loadCollaborators(true);
-    }, 0);
+    setFilters(clearedFilters);
+    debouncedApplyFilters.cancel(); // Cancel any pending debounced calls
+    setActiveFilters(clearedFilters); // Immediately apply cleared filters
+    setPage(0);
   };
 
   // Handle collaborator selection
@@ -217,13 +272,25 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
   };
 
   // Check if any filters are active
-  const hasActiveFilters = Object.values(filters).some(value => value.trim() !== '');
+  const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
+    if (typeof value === 'boolean') return value === true;
+    if (typeof value === 'string') return value.trim() !== '';
+    return false;
+  });
+
+  // Count active filters for display
+  const activeFilterCount = Object.entries(filters).filter(([key, value]) => {
+    if (typeof value === 'boolean') return value === true;
+    if (typeof value === 'string') return value.trim() !== '';
+    return false;
+  }).length;
 
   // Selection state
   const isAllSelected = collaborators.length > 0 && selectedCollaborators.length === collaborators.length;
   const isIndeterminate = selectedCollaborators.length > 0 && selectedCollaborators.length < collaborators.length;
 
-  if (loading && collaborators.length === 0) {
+  // Show full-page loading only on initial load, not on subsequent filter/pagination changes
+  if (!initialLoadComplete) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
         <CircularProgress />
@@ -262,16 +329,7 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
 
       {/* Search and Filter Controls */}
       <Paper sx={{ p: 2, mb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-          <Button
-            ref={searchButtonRef}
-            variant="contained"
-            startIcon={<SearchIcon />}
-            onClick={handleSearch}
-            disabled={loading}
-          >
-            Search
-          </Button>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
           <Button
             variant="outlined"
             startIcon={showFilters ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -280,20 +338,39 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
             {showFilters ? 'Hide Filters' : 'Show Filters'}
           </Button>
           {hasActiveFilters && (
-            <Button
-              variant="outlined"
-              startIcon={<ClearIcon />}
-              onClick={handleClearFilters}
-              color="secondary"
-            >
-              Clear Filters
-            </Button>
+            <>
+              <Button
+                variant="outlined"
+                startIcon={<ClearIcon />}
+                onClick={handleClearFilters}
+                color="secondary"
+              >
+                Clear Filters
+              </Button>
+              <Chip 
+                icon={<FilterListIcon />}
+                label={`${activeFilterCount} active filter${activeFilterCount !== 1 ? 's' : ''}`}
+                color="primary"
+                variant="outlined"
+              />
+            </>
+          )}
+          {loading && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <CircularProgress size={16} />
+              <Typography variant="caption" color="text.secondary">
+                Searching...
+              </Typography>
+            </Box>
           )}
         </Box>
 
         {/* Filter Fields */}
         <Collapse in={showFilters}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 2, mt: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
+            Filters apply automatically as you type
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
             <TextField
               label="First Name Contains"
               value={filters.first_names_contains}
@@ -350,6 +427,124 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
               size="small"
               fullWidth
             />
+            <FormControl size="small" fullWidth>
+              <InputLabel id="anonymous-filter-label">Anonymous Status</InputLabel>
+              <Select
+                labelId="anonymous-filter-label"
+                id="anonymous-filter"
+                value={filters.anonymous}
+                label="Anonymous Status"
+                onChange={(e) => {
+                  const newFilters = {
+                    ...filters,
+                    anonymous: e.target.value
+                  };
+                  setFilters(newFilters);
+                  debouncedApplyFilters(newFilters);
+                }}
+              >
+                <MenuItem value="">All</MenuItem>
+                <MenuItem value="true">Anonymous Only</MenuItem>
+                <MenuItem value="false">Non-Anonymous Only</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+
+          {/* Empty Value Filters */}
+          <Box sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+            <Typography variant="subtitle2" gutterBottom sx={{ mb: 1.5 }}>
+              Find Records With Empty Values:
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              <Button
+                variant={filters.first_names_isnull ? "contained" : "outlined"}
+                size="small"
+                color={filters.first_names_isnull ? "primary" : "secondary"}
+                onClick={() => handleEmptyFilterToggle('first_names_isnull')}
+              >
+                First Name(s): Empty
+              </Button>
+              <Button
+                variant={filters.nickname_isnull ? "contained" : "outlined"}
+                size="small"
+                color={filters.nickname_isnull ? "primary" : "secondary"}
+                onClick={() => handleEmptyFilterToggle('nickname_isnull')}
+              >
+                Nickname: Empty
+              </Button>
+              <Button
+                variant={filters.last_names_isnull ? "contained" : "outlined"}
+                size="small"
+                color={filters.last_names_isnull ? "primary" : "secondary"}
+                onClick={() => handleEmptyFilterToggle('last_names_isnull')}
+              >
+                Last Name(s): Empty
+              </Button>
+              <Button
+                variant={filters.name_suffix_isnull ? "contained" : "outlined"}
+                size="small"
+                color={filters.name_suffix_isnull ? "primary" : "secondary"}
+                onClick={() => handleEmptyFilterToggle('name_suffix_isnull')}
+              >
+                Suffix: Empty
+              </Button>
+              <Button
+                variant={filters.other_names_isnull ? "contained" : "outlined"}
+                size="small"
+                color={filters.other_names_isnull ? "primary" : "secondary"}
+                onClick={() => handleEmptyFilterToggle('other_names_isnull')}
+              >
+                Other Names: Empty
+              </Button>
+              <Button
+                variant={filters.tribal_affiliations_isnull ? "contained" : "outlined"}
+                size="small"
+                color={filters.tribal_affiliations_isnull ? "primary" : "secondary"}
+                onClick={() => handleEmptyFilterToggle('tribal_affiliations_isnull')}
+              >
+                Tribal Affiliations: Empty
+              </Button>
+              <Button
+                variant={filters.native_languages_isnull ? "contained" : "outlined"}
+                size="small"
+                color={filters.native_languages_isnull ? "primary" : "secondary"}
+                onClick={() => handleEmptyFilterToggle('native_languages_isnull')}
+              >
+                Native Languages: Empty
+              </Button>
+              <Button
+                variant={filters.other_languages_isnull ? "contained" : "outlined"}
+                size="small"
+                color={filters.other_languages_isnull ? "primary" : "secondary"}
+                onClick={() => handleEmptyFilterToggle('other_languages_isnull')}
+              >
+                Other Languages: Empty
+              </Button>
+              <Button
+                variant={filters.gender_isnull ? "contained" : "outlined"}
+                size="small"
+                color={filters.gender_isnull ? "primary" : "secondary"}
+                onClick={() => handleEmptyFilterToggle('gender_isnull')}
+              >
+                Gender: Empty
+              </Button>
+              <Button
+                variant={filters.birthdate_isnull ? "contained" : "outlined"}
+                size="small"
+                color={filters.birthdate_isnull ? "primary" : "secondary"}
+                onClick={() => handleEmptyFilterToggle('birthdate_isnull')}
+              >
+                Birth Date: Empty
+              </Button>
+              <Button
+                variant={filters.deathdate_isnull ? "contained" : "outlined"}
+                size="small"
+                color={filters.deathdate_isnull ? "primary" : "secondary"}
+                onClick={() => handleEmptyFilterToggle('deathdate_isnull')}
+              >
+                Death Date: Empty
+              </Button>
+            </Box>
           </Box>
         </Collapse>
       </Paper>

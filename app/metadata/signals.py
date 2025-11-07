@@ -1,9 +1,10 @@
 from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
-from .models import Languoid, Item, CollaboratorRole
+from .models import Languoid, Item, Collaborator, CollaboratorRole
 from .tasks import update_collection_date_ranges
 from .utils import parse_standardized_date
 import logging
+import base58
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +160,240 @@ def set_citation_author_for_roles(sender, instance, created, **kwargs):
         if 'author' in instance.role or 'performer' in instance.role:
             instance.citation_author = True
             instance.save(update_fields=['citation_author'])
+
+
+# ============================================================================
+# COLLABORATOR SIGNALS
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# Utility Functions (Pure Logic, No Decorators)
+# ---------------------------------------------------------------------------
+
+def build_full_name_from_components(instance):
+    """
+    Build full_name from first_names, nickname, last_names, and name_suffix.
+    
+    Format: first_names "nickname" last_names name_suffix
+    - Skips empty fields (no extra spaces)
+    - Adds quotes around nickname only if present
+    - Trims and normalizes spacing
+    
+    Args:
+        instance: The Collaborator instance
+    
+    Returns:
+        str: The computed full_name
+    
+    Examples:
+        first="Jane", nick="JJ", last="Doe", suffix="Jr." → 'Jane "JJ" Doe Jr.'
+        first="Jane", nick="", last="Doe", suffix="" → 'Jane Doe'
+        first="", nick="JJ", last="Doe", suffix="" → '"JJ" Doe'
+    """
+    parts = []
+    
+    # Add first names
+    if instance.first_names:
+        parts.append(instance.first_names.strip())
+    
+    # Add nickname with quotes
+    if instance.nickname:
+        parts.append(f'"{instance.nickname.strip()}"')
+    
+    # Add last names
+    if instance.last_names:
+        parts.append(instance.last_names.strip())
+    
+    # Add name suffix
+    if instance.name_suffix:
+        parts.append(instance.name_suffix.strip())
+    
+    # Join with single spaces and return
+    return ' '.join(parts)
+
+
+def synchronize_full_name(instance, old_instance):
+    """
+    Synchronize full_name with component name fields.
+    
+    Always rebuilds full_name from components (one-way calculation).
+    This enforces proper use of structured name fields.
+    
+    Args:
+        instance: The Collaborator instance being saved
+        old_instance: The previous state from database (or None if new)
+    """
+    # Always recalculate full_name from components
+    instance.full_name = build_full_name_from_components(instance)
+
+
+def validate_anonymous_flag_change(instance, old_instance):
+    """
+    Validate and log warnings for anonymous flag changes.
+    
+    Checks if the collaborator has associated items and logs detailed
+    information about which items may be affected by the status change.
+    
+    Different log levels based on direction:
+    - False → True (making anonymous): INFO level (notification only)
+    - True → False (removing anonymous): WARNING level (may need republishing)
+    
+    Args:
+        instance: The Collaborator instance being saved
+        old_instance: The previous state from database (or None if new)
+    """
+    # Skip if this is a new instance (no old_instance to compare)
+    if not old_instance:
+        return
+    
+    # Check if anonymous flag actually changed
+    if old_instance.anonymous == instance.anonymous:
+        return
+    
+    # Get all associated items through CollaboratorRole relationships
+    item_roles = instance.collaborator_collaboratorroles.select_related(
+        'item'
+    ).filter(item__isnull=False)
+    
+    # If no associated items, no warning needed
+    if not item_roles.exists():
+        return
+    
+    # Build detailed list of affected items with their roles
+    affected_items = []
+    for role_obj in item_roles:
+        if role_obj.item:
+            affected_items.append({
+                'catalog_number': role_obj.item.catalog_number,
+                'roles': role_obj.role or []
+            })
+    
+    item_count = len(affected_items)
+    collaborator_display = instance.full_name or f"Collaborator {instance.collaborator_id}"
+    
+    # Format the items list for logging
+    items_detail = '\n         '.join([
+        f"- Item {item['catalog_number']}: roles={item['roles']}"
+        for item in affected_items
+    ])
+    
+    # Determine direction and log appropriately
+    if not old_instance.anonymous and instance.anonymous:
+        # Making anonymous (False → True) - INFO level
+        logger.info(
+            f"Anonymous status set for '{collaborator_display}' (ID: {instance.collaborator_id}). "
+            f"This collaborator has {item_count} associated item{'s' if item_count != 1 else ''}:\n"
+            f"         {items_detail}"
+        )
+    elif old_instance.anonymous and not instance.anonymous:
+        # Removing anonymous (True → False) - WARNING level (truly warning-worthy)
+        logger.warning(
+            f"Anonymous status removed for '{collaborator_display}' (ID: {instance.collaborator_id}). "
+            f"This collaborator has {item_count} associated item{'s' if item_count != 1 else ''} "
+            f"that may need republishing:\n"
+            f"         {items_detail}"
+        )
+
+
+def generate_collaborator_slug(instance):
+    """
+    Generate a unique slug from the collaborator's UUID.
+    
+    Uses base58 encoding of the UUID to create a short, URL-safe identifier.
+    Format: xxxxx-xxxxx (5 chars, hyphen, 5 chars)
+    
+    Args:
+        instance: The Collaborator instance
+    
+    Returns:
+        str: The generated slug (e.g., "aBc12-DeF34")
+    """
+    encoded = base58.b58encode(instance.uuid.bytes).decode()[:10]
+    return f"{encoded[:5]}-{encoded[5:10]}"
+
+
+def update_collaborator_date_ranges(instance, old_instance):
+    """
+    Update birthdate_min/max and deathdate_min/max from text date fields.
+    
+    Mirrors the Item model's date range calculation pattern.
+    Standardizes date format first, then parses to min/max date objects.
+    
+    This replaces the old Collaborator.clean() method, ensuring date
+    standardization happens on ALL saves (API, admin, bulk operations),
+    not just during form validation.
+    
+    Args:
+        instance: The Collaborator instance being saved
+        old_instance: The previous state from database (or None if new)
+    """
+    # Dictionary mapping text date fields to their corresponding min/max fields
+    date_field_pairs = {
+        'birthdate': ('birthdate_min', 'birthdate_max'),
+        'deathdate': ('deathdate_min', 'deathdate_max'),
+    }
+    
+    # Process each date field
+    for text_field, (min_field, max_field) in date_field_pairs.items():
+        current_value = getattr(instance, text_field)
+        
+        # Skip if the field hasn't changed (performance optimization)
+        if old_instance and current_value == getattr(old_instance, text_field):
+            continue
+        
+        # Standardize the date format first (converts MM/DD/YYYY to YYYY/MM/DD)
+        standardized_value = standardize_date_format(current_value)
+        setattr(instance, text_field, standardized_value)
+        
+        # Parse the standardized date and update min/max fields
+        min_date, max_date = parse_standardized_date(standardized_value)
+        setattr(instance, min_field, min_date)
+        setattr(instance, max_field, max_date)
+
+
+# ---------------------------------------------------------------------------
+# Main Pre-Save Signal (Orchestrates All Pre-Save Operations)
+# ---------------------------------------------------------------------------
+
+@receiver(pre_save, sender=Collaborator)
+def compute_collaborator_derived_fields(sender, instance, **kwargs):
+    """
+    Compute all derived fields before save.
+    
+    This handles:
+    1. Slug generation (if not already set)
+       - Replaces slug logic from Collaborator.save() method
+    2. Full name synchronization (always calculated from components)
+       - Builds full_name from first_names, nickname, last_names, name_suffix
+       - One-way calculation (components are source of truth)
+    3. Anonymous flag validation (logs warnings for status changes)
+       - Logs INFO when making anonymous (False → True)
+       - Logs WARNING when removing anonymous (True → False)
+       - Includes detailed list of affected items and roles
+    4. Date standardization and range calculation (birthdate, deathdate)
+       - Replaces the old Collaborator.clean() method
+       - Ensures dates are standardized on ALL saves (API, admin, bulk)
+    """
+    # Get old instance once for all comparisons
+    old_instance = None
+    if instance.pk:
+        try:
+            old_instance = Collaborator.objects.get(pk=instance.pk)
+        except Collaborator.DoesNotExist:
+            pass
+    
+    # 1. Generate slug if not already set (for new instances)
+    if not instance.slug:
+        instance.slug = generate_collaborator_slug(instance)
+    
+    # 2. Full name synchronization (always recalculate from components)
+    synchronize_full_name(instance, old_instance)
+    
+    # 3. Anonymous flag validation (log warnings for status changes)
+    validate_anonymous_flag_change(instance, old_instance)
+    
+    # 4. Date standardization and range calculation
+    update_collaborator_date_ranges(instance, old_instance)
 
 
 # ============================================================================

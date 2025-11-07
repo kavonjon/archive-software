@@ -235,9 +235,13 @@ export interface Collaborator {
   // Additional information
   other_info: string;
   
-  // Language relationships (simplified display)
+  // Language relationships (simplified display - deprecated but kept for compatibility)
   native_language_names: string[];
   other_language_names: string[];
+  
+  // Language relationships (full objects for editing)
+  native_languages: Languoid[];
+  other_languages: Languoid[];
   
   // Related data
   associated_items: AssociatedItem[];
@@ -561,9 +565,16 @@ export const collectionsAPI = {
 
 // Collaborators API
 export const collaboratorsAPI = {
-  list: (params?: Record<string, string | number>): Promise<PaginatedResponse<Collaborator>> => {
-    const queryString = params ? '?' + new URLSearchParams(params as Record<string, string>).toString() : '';
-    return apiRequest<PaginatedResponse<Collaborator>>(`/collaborators/${queryString}`);
+  list: (params?: Record<string, string | number | boolean>): Promise<PaginatedResponse<Collaborator>> => {
+    if (params) {
+      // Convert params to URLSearchParams, handling boolean values
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        searchParams.append(key, String(value));
+      });
+      return apiRequest<PaginatedResponse<Collaborator>>(`/collaborators/?${searchParams.toString()}`);
+    }
+    return apiRequest<PaginatedResponse<Collaborator>>(`/collaborators/`);
   },
 
   get: (id: number): Promise<Collaborator> => {

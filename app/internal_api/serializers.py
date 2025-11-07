@@ -326,9 +326,13 @@ class InternalCollaboratorSerializer(serializers.ModelSerializer):
     # Related items this collaborator is associated with
     associated_items = serializers.SerializerMethodField()
     
-    # Language names (simplified for display)
+    # Language names (simplified for display) - DEPRECATED in favor of full objects
     native_language_names = serializers.SerializerMethodField()
     other_language_names = serializers.SerializerMethodField()
+    
+    # Language relationships (full objects for editing) - nested serializer for read, IDs for write
+    native_languages = serializers.SerializerMethodField()
+    other_languages = serializers.SerializerMethodField()
     
     # Boolean field display
     anonymous_display = serializers.SerializerMethodField()
@@ -352,8 +356,11 @@ class InternalCollaboratorSerializer(serializers.ModelSerializer):
             # Additional information
             'other_info',
             
-            # Language relationships (simplified display)
+            # Language relationships (simplified display - deprecated but kept for compatibility)
             'native_language_names', 'other_language_names',
+            
+            # Language relationships (full objects for editing)
+            'native_languages', 'other_languages',
             
             # Related data
             'associated_items',
@@ -450,11 +457,90 @@ class InternalCollaboratorSerializer(serializers.ModelSerializer):
         """Return simplified list of other language names"""
         return [lang.name for lang in obj.other_languages.all()]
     
+    def get_native_languages(self, obj):
+        """Return full Languoid objects for native languages"""
+        return InternalLanguoidSerializer(obj.native_languages.all(), many=True).data
+    
+    def get_other_languages(self, obj):
+        """Return full Languoid objects for other languages"""
+        return InternalLanguoidSerializer(obj.other_languages.all(), many=True).data
+    
     def get_anonymous_display(self, obj):
         """Return display value for anonymous boolean field"""
         if obj.anonymous is None:
             return 'Not specified'
         return 'Yes' if obj.anonymous else 'No'
+    
+    def update(self, instance, validated_data):
+        """
+        Custom update to handle M2M fields through the DialectInstance through model.
+        
+        For native_languages and other_languages, we need to:
+        1. Extract the M2M data from the initial request data (not validated_data, since they're SerializerMethodFields)
+        2. Update the regular fields first
+        3. Update the M2M relationships through DialectInstance
+        """
+        from metadata.models import DialectInstance, Languoid
+        
+        # Extract M2M field data from initial_data (raw request data)
+        # Since native_languages and other_languages are SerializerMethodFields (read-only),
+        # they won't be in validated_data. We need to get them from initial_data.
+        initial_data = self.initial_data
+        native_languages_ids = initial_data.get('native_languages', None)
+        other_languages_ids = initial_data.get('other_languages', None)
+        
+        # Get modified_by value for tracking who made the change
+        request = self.context.get('request')
+        modified_by_value = str(request.user) if request and request.user else 'unknown'
+        
+        # Update regular fields (including modified_by from request)
+        if request and request.user:
+            validated_data['modified_by'] = modified_by_value
+        
+        # Update the instance with non-M2M fields
+        instance = super().update(instance, validated_data)
+        
+        # Update native_languages M2M relationship through DialectInstance
+        if native_languages_ids is not None:
+            # Clear existing native language relationships
+            DialectInstance.objects.filter(collaborator_native=instance).delete()
+            
+            # Create new relationships with modified_by tracking
+            for languoid_id in native_languages_ids:
+                try:
+                    languoid = Languoid.objects.get(pk=languoid_id)
+                    DialectInstance.objects.create(
+                        collaborator_native=instance,
+                        language=languoid,
+                        modified_by=modified_by_value
+                    )
+                except Languoid.DoesNotExist:
+                    # Log error but continue processing other languoids
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Languoid with id {languoid_id} not found for collaborator {instance.id}")
+        
+        # Update other_languages M2M relationship through DialectInstance
+        if other_languages_ids is not None:
+            # Clear existing other language relationships
+            DialectInstance.objects.filter(collaborator_other=instance).delete()
+            
+            # Create new relationships with modified_by tracking
+            for languoid_id in other_languages_ids:
+                try:
+                    languoid = Languoid.objects.get(pk=languoid_id)
+                    DialectInstance.objects.create(
+                        collaborator_other=instance,
+                        language=languoid,
+                        modified_by=modified_by_value
+                    )
+                except Languoid.DoesNotExist:
+                    # Log error but continue processing other languoids
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(f"Languoid with id {languoid_id} not found for collaborator {instance.id}")
+        
+        return instance
 
 
 class InternalLanguoidSerializer(serializers.ModelSerializer):

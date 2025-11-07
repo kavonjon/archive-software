@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { debounce } from 'lodash';
 import {
@@ -18,50 +18,53 @@ import {
   Select,
   MenuItem,
   CircularProgress,
+  Autocomplete,
+  Chip,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
-import { languoidsAPI, LANGUOID_LEVEL_CHOICES } from '../../services/api';
+import { languoidsAPI, LANGUOID_LEVEL_CHOICES, LANGUOID_LEVEL_GLOTTOLOG_CHOICES } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { hasEditAccess } from '../../utils/permissions';
 
+interface LanguoidOption {
+  id: number;
+  name: string;
+  glottocode: string;
+  display_name: string;
+}
+
 interface FormData {
   name: string;
+  name_abbrev: string;
   iso: string;
   glottocode: string;
-  level_nal: string;
-  alt_name: string;
-  alt_names: string;
-  family_languoid: string;
-  pri_subgroup_languoid: string;
-  sec_subgroup_languoid: string;
-  parent_languoid: string;
+  level_glottolog: string;
+  alt_names: string[];
+  parent_languoid: number | null;
   region: string;
   latitude: string;
   longitude: string;
   dialects: string;
-  dialects_ids: string;
   tribes: string;
   notes: string;
 }
 
 const initialFormData: FormData = {
   name: '',
+  name_abbrev: '',
   iso: '',
   glottocode: '',
-  level_nal: '',
-  alt_name: '',
-  alt_names: '',
-  family_languoid: '',
-  pri_subgroup_languoid: '',
-  sec_subgroup_languoid: '',
-  parent_languoid: '',
+  level_glottolog: '',
+  alt_names: [],
+  parent_languoid: null,
   region: '',
   latitude: '',
   longitude: '',
   dialects: '',
-  dialects_ids: '',
   tribes: '',
   notes: '',
 };
@@ -86,6 +89,15 @@ const LanguoidCreate: React.FC = () => {
     error: null,
     isValid: true
   });
+
+  // Parent languoid autocomplete state
+  const [parentOptions, setParentOptions] = useState<LanguoidOption[]>([]);
+  const [parentSearchQuery, setParentSearchQuery] = useState<string>('');
+  const [loadingParents, setLoadingParents] = useState<boolean>(false);
+  const [selectedParent, setSelectedParent] = useState<LanguoidOption | null>(null);
+
+  // Alt names array state
+  const [newAltName, setNewAltName] = useState<string>('');
 
   // Debounced glottocode validation (must be before any conditional returns)
   const validateGlottocode = useMemo(
@@ -143,6 +155,85 @@ const LanguoidCreate: React.FC = () => {
     []
   );
 
+  // Load parent languoid options with debounce
+  // Filter based on the level_glottolog being created:
+  // - If creating a dialect -> only show languages as parent options
+  // - If creating a language or family -> only show families as parent options
+  const loadParentOptions = useCallback(async (query: string, currentLevel: string) => {
+    setLoadingParents(true);
+    try {
+      // Build params object
+      const params: Record<string, string> = {
+        page_size: '50',
+      };
+      
+      // Filter parent options based on the level being created
+      if (currentLevel === 'dialect') {
+        // Dialects can only have languages as parents
+        params['level_glottolog__in'] = 'language';
+      } else if (currentLevel === 'language' || currentLevel === 'family') {
+        // Languages and families can only have families as parents
+        params['level_glottolog__in'] = 'family';
+      } else {
+        // If no level selected yet, show families and languages (exclude dialects)
+        params['level_glottolog__in'] = 'family,language';
+      }
+      
+      // Add search query if provided
+      if (query) {
+        params.search = query;
+      }
+      
+      const response = await languoidsAPI.list(params);
+
+      const mappedOptions: LanguoidOption[] = response.results.map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        glottocode: item.glottocode || '',
+        display_name: item.glottocode 
+          ? `${item.name} (${item.glottocode})`
+          : item.name
+      }));
+
+      setParentOptions(mappedOptions);
+    } catch (error) {
+      console.error('Error loading parent options:', error);
+      setParentOptions([]);
+    } finally {
+      setLoadingParents(false);
+    }
+  }, []);
+
+  // Debounced search effect for parent options
+  // Re-load when search query OR level changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadParentOptions(parentSearchQuery, formData.level_glottolog);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [parentSearchQuery, formData.level_glottolog, loadParentOptions]);
+
+  // Load initial parent options on mount
+  useEffect(() => {
+    loadParentOptions('', formData.level_glottolog);
+  }, [loadParentOptions, formData.level_glottolog]);
+
+  // Clear selected parent when level changes (parent may no longer be valid)
+  useEffect(() => {
+    if (selectedParent) {
+      // Only clear if the selected parent is no longer valid for the new level
+      const shouldClear = 
+        (formData.level_glottolog === 'dialect' && selectedParent.id) || // Dialect changed, need to check parent
+        (formData.level_glottolog !== 'dialect' && formData.level_glottolog); // Language/family changed
+      
+      if (shouldClear) {
+        setSelectedParent(null);
+        setFormData(prev => ({ ...prev, parent_languoid: null }));
+      }
+    }
+  }, [formData.level_glottolog]); // Only run when level changes
+
   // Check edit access (after hooks)
   if (!hasEditAccess(authState.user)) {
     return (
@@ -175,6 +266,46 @@ const LanguoidCreate: React.FC = () => {
     }
   };
 
+  // Handle parent languoid selection
+  const handleParentChange = (_event: any, newValue: LanguoidOption | null) => {
+    setSelectedParent(newValue);
+    setFormData(prev => ({ ...prev, parent_languoid: newValue?.id || null }));
+    
+    // Clear parent error when user makes selection
+    if (errors.parent_languoid) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.parent_languoid;
+        return newErrors;
+      });
+    }
+  };
+
+  // Handle alt names array operations
+  const handleAddAltName = () => {
+    if (newAltName.trim()) {
+      setFormData(prev => ({ 
+        ...prev, 
+        alt_names: [...prev.alt_names, newAltName.trim()] 
+      }));
+      setNewAltName('');
+    }
+  };
+
+  const handleDeleteAltName = (index: number) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      alt_names: prev.alt_names.filter((_, i) => i !== index) 
+    }));
+  };
+
+  const handleAltNameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddAltName();
+    }
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -182,8 +313,8 @@ const LanguoidCreate: React.FC = () => {
     if (!formData.name.trim()) {
       newErrors.name = 'Name is required';
     }
-    if (!formData.level_nal) {
-      newErrors.level_nal = 'Level is required';
+    if (!formData.level_glottolog) {
+      newErrors.level_glottolog = 'Level is required';
     }
 
     // Glottocode format validation
@@ -196,12 +327,22 @@ const LanguoidCreate: React.FC = () => {
       newErrors.glottocode = glottocodeValidation.error || 'Glottocode validation in progress';
     }
 
-    // Validate numeric fields
-    if (formData.latitude && isNaN(parseFloat(formData.latitude))) {
-      newErrors.latitude = 'Latitude must be a valid number';
+    // Validate numeric fields with bounds
+    if (formData.latitude) {
+      const lat = parseFloat(formData.latitude);
+      if (isNaN(lat)) {
+        newErrors.latitude = 'Latitude must be a valid number';
+      } else if (lat < -90 || lat > 90) {
+        newErrors.latitude = 'Latitude must be between -90 and 90';
+      }
     }
-    if (formData.longitude && isNaN(parseFloat(formData.longitude))) {
-      newErrors.longitude = 'Longitude must be a valid number';
+    if (formData.longitude) {
+      const lon = parseFloat(formData.longitude);
+      if (isNaN(lon)) {
+        newErrors.longitude = 'Longitude must be a valid number';
+      } else if (lon < -180 || lon > 180) {
+        newErrors.longitude = 'Longitude must be between -180 and 180';
+      }
     }
 
     setErrors(newErrors);
@@ -230,12 +371,17 @@ const LanguoidCreate: React.FC = () => {
         submitData.longitude = parseFloat(submitData.longitude);
       }
 
-      // Remove empty string values
+      // Remove empty string values (but keep arrays and null values)
       Object.keys(submitData).forEach(key => {
         if (submitData[key] === '') {
           delete submitData[key];
         }
       });
+
+      // Ensure alt_names is an array (even if empty)
+      if (!submitData.alt_names) {
+        submitData.alt_names = [];
+      }
 
       const newLanguoid = await languoidsAPI.create(submitData);
       // Navigate using glottocode if available, otherwise use ID
@@ -300,6 +446,15 @@ const LanguoidCreate: React.FC = () => {
 
                   <TextField
                     fullWidth
+                    label="Name Abbreviation"
+                    value={formData.name_abbrev}
+                    onChange={handleInputChange('name_abbrev')}
+                    error={!!errors.name_abbrev}
+                    helperText={errors.name_abbrev || 'Optional - defaults to full name if left blank'}
+                  />
+
+                  <TextField
+                    fullWidth
                     label="ISO Code"
                     value={formData.iso}
                     onChange={handleInputChange('iso')}
@@ -327,45 +482,66 @@ const LanguoidCreate: React.FC = () => {
                     }}
                   />
 
-                  <FormControl fullWidth required error={!!errors.level_nal}>
+                  <FormControl fullWidth required error={!!errors.level_glottolog}>
                     <InputLabel>Level</InputLabel>
                     <Select
-                      value={formData.level_nal}
+                      value={formData.level_glottolog}
                       label="Level"
-                      onChange={handleInputChange('level_nal')}
+                      onChange={handleInputChange('level_glottolog')}
                     >
-                      {LANGUOID_LEVEL_CHOICES.map((choice) => (
+                      {LANGUOID_LEVEL_GLOTTOLOG_CHOICES.map((choice) => (
                         <MenuItem key={choice.value} value={choice.value}>
                           {choice.label}
                         </MenuItem>
                       ))}
                     </Select>
-                    {errors.level_nal && (
+                    {errors.level_glottolog && (
                       <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
-                        {errors.level_nal}
+                        {errors.level_glottolog}
                       </Typography>
                     )}
                   </FormControl>
 
-                  <TextField
-                    fullWidth
-                    label="Alternate Name"
-                    value={formData.alt_name}
-                    onChange={handleInputChange('alt_name')}
-                    error={!!errors.alt_name}
-                    helperText={errors.alt_name}
-                  />
-
-                  <TextField
-                    fullWidth
-                    label="Alternate Names"
-                    value={formData.alt_names}
-                    onChange={handleInputChange('alt_names')}
-                    multiline
-                    rows={2}
-                    error={!!errors.alt_names}
-                    helperText={errors.alt_names}
-                  />
+                  {/* Alternate Names - Array Field */}
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'medium' }}>
+                      Alternate Names
+                    </Typography>
+                    
+                    {/* Display existing alt names as chips */}
+                    {formData.alt_names.length > 0 && (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+                        {formData.alt_names.map((name, index) => (
+                          <Chip
+                            key={index}
+                            label={name}
+                            size="small"
+                            onDelete={() => handleDeleteAltName(index)}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                    
+                    {/* Input field for adding new alt names */}
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={newAltName}
+                        onChange={(e) => setNewAltName(e.target.value)}
+                        placeholder="Add alternate name..."
+                        onKeyDown={handleAltNameKeyDown}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={handleAddAltName}
+                        disabled={!newAltName.trim()}
+                        color="primary"
+                      >
+                        <AddIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </Box>
                 </Stack>
               </CardContent>
             </Card>
@@ -379,52 +555,72 @@ const LanguoidCreate: React.FC = () => {
                 <Divider sx={{ mb: 2 }} />
                 
                 <Stack spacing={3}>
-                  <Alert severity="info">
-                    Hierarchy fields (Family, Primary Subgroup, Secondary Subgroup, Parent) should be set using 
-                    relationship selectors. This form needs to be updated to use autocomplete fields for FK relationships.
-                    For now, these fields are disabled.
-                  </Alert>
-                  
-                  {/* TODO: Replace with EditableRelationshipField pattern or autocomplete selects */}
-                  <TextField
-                    fullWidth
-                    label="Family Languoid (ID)"
-                    value={formData.family_languoid}
-                    onChange={handleInputChange('family_languoid')}
-                    error={!!errors.family_languoid}
-                    helperText={errors.family_languoid || 'Enter languoid ID'}
-                    disabled
-                  />
-
-                  <TextField
-                    fullWidth
-                    label="Primary Subgroup Languoid (ID)"
-                    value={formData.pri_subgroup_languoid}
-                    onChange={handleInputChange('pri_subgroup_languoid')}
-                    error={!!errors.pri_subgroup_languoid}
-                    helperText={errors.pri_subgroup_languoid || 'Enter languoid ID'}
-                    disabled
-                  />
-
-                  <TextField
-                    fullWidth
-                    label="Secondary Subgroup Languoid (ID)"
-                    value={formData.sec_subgroup_languoid}
-                    onChange={handleInputChange('sec_subgroup_languoid')}
-                    error={!!errors.sec_subgroup_languoid}
-                    helperText={errors.sec_subgroup_languoid || 'Enter languoid ID'}
-                    disabled
-                  />
-                  
-                  <TextField
-                    fullWidth
-                    label="Parent Languoid (ID)"
-                    value={formData.parent_languoid}
-                    onChange={handleInputChange('parent_languoid')}
-                    error={!!errors.parent_languoid}
-                    helperText={errors.parent_languoid || 'Enter languoid ID'}
-                    disabled
-                  />
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      {!formData.level_glottolog && (
+                        <>Select a level above to see appropriate parent options. </>
+                      )}
+                      {formData.level_glottolog === 'dialect' && (
+                        <>Dialects can only have languages as parents. </>
+                      )}
+                      {(formData.level_glottolog === 'language' || formData.level_glottolog === 'family') && (
+                        <>Languages and families can only have families as parents. </>
+                      )}
+                      Family, primary subgroup, and secondary subgroup will be automatically derived from the parent.
+                    </Typography>
+                    
+                    <Autocomplete
+                      options={parentOptions}
+                      value={selectedParent}
+                      onChange={handleParentChange}
+                      onInputChange={(_event, newInputValue) => {
+                        setParentSearchQuery(newInputValue);
+                      }}
+                      getOptionLabel={(option) => option.display_name}
+                      loading={loadingParents}
+                      disabled={!formData.level_glottolog}
+                      autoHighlight
+                      openOnFocus
+                      clearOnEscape
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Parent Languoid"
+                          placeholder={
+                            !formData.level_glottolog 
+                              ? "Select a level first..."
+                              : formData.level_glottolog === 'dialect'
+                              ? "Search for a language..."
+                              : "Search for a family..."
+                          }
+                          error={!!errors.parent_languoid}
+                          helperText={errors.parent_languoid || 'Optional - leave blank for top-level families'}
+                          InputProps={{
+                            ...params.InputProps,
+                            endAdornment: (
+                              <>
+                                {loadingParents ? <CircularProgress size={20} /> : null}
+                                {params.InputProps.endAdornment}
+                              </>
+                            ),
+                          }}
+                        />
+                      )}
+                      renderOption={(props, option) => (
+                        <li {...props} key={option.id}>
+                          <Box>
+                            <Typography variant="body2">{option.name}</Typography>
+                            {option.glottocode && (
+                              <Typography variant="caption" color="text.secondary">
+                                {option.glottocode}
+                              </Typography>
+                            )}
+                          </Box>
+                        </li>
+                      )}
+                      isOptionEqualToValue={(option, value) => option.id === value?.id}
+                    />
+                  </Box>
                 </Stack>
               </CardContent>
             </Card>

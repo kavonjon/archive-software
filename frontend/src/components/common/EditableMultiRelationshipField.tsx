@@ -6,12 +6,12 @@ import { debounce } from 'lodash';
 
 export interface MultiRelationshipOption {
   id: number;
-  display_name: string;
+  display_name?: string;
   [key: string]: any; // Allow additional fields for flexible display formatting
 }
 
 export interface EditableMultiRelationshipFieldProps extends Omit<EditableFieldProps, 'children' | 'value'> {
-  value: number[]; // Array of selected IDs
+  value: number[] | Array<{ id: number; [key: string]: any }>; // Array of IDs or objects with at least an id
   relationshipEndpoint: string; // API endpoint to fetch options (e.g., '/internal/v1/languoids/')
   getOptionLabel?: (option: MultiRelationshipOption) => string; // Custom formatting for display
   maxDisplayChips?: number; // Maximum chips to display before showing "+N more"
@@ -168,7 +168,25 @@ export const EditableMultiRelationshipField: React.FC<EditableMultiRelationshipF
     if (isEditing && !initializedRef.current) {
       initializedRef.current = true;
       
-      // Parse IDs from editValue
+      // Check if we can use the value directly (already has full objects)
+      if (value.length > 0) {
+        const firstItem = value[0];
+        if (typeof firstItem === 'object' && 'id' in firstItem) {
+          // Already full objects - use them directly (no need to fetch)
+          const mappedOptions: MultiRelationshipOption[] = value.map((item: any) => ({
+            id: item.id,
+            display_name: getOptionLabel(item),
+            ...item,
+          }));
+          setSelectedOptions(mappedOptions);
+          
+          // Also load search options (empty query = show all)
+          loadOptions('');
+          return;
+        }
+      }
+      
+      // Otherwise parse IDs from editValue and fetch
       let ids: number[] = [];
       if (editValue) {
         try {
@@ -194,14 +212,27 @@ export const EditableMultiRelationshipField: React.FC<EditableMultiRelationshipF
     if (!isEditing) {
       initializedRef.current = false;
     }
-  }, [isEditing, editValue, loadOptions, loadSelectedOptions]);
+  }, [isEditing, editValue, value, loadOptions, loadSelectedOptions, getOptionLabel]);
 
   // EFFECT 2: Display mode - load option objects for display (separate concern)
   useEffect(() => {
     if (!isEditing && value.length > 0 && selectedOptions.length === 0) {
-      loadSelectedOptions(value);
+      // Check if value is already full objects or just IDs
+      const firstItem = value[0];
+      if (typeof firstItem === 'object' && 'id' in firstItem) {
+        // Already full objects - use them directly
+        const mappedOptions: MultiRelationshipOption[] = value.map((item: any) => ({
+          id: item.id,
+          display_name: getOptionLabel(item),
+          ...item,
+        }));
+        setSelectedOptions(mappedOptions);
+      } else {
+        // Just IDs - need to fetch full objects
+        loadSelectedOptions(value as number[]);
+      }
     }
-  }, [isEditing, value, selectedOptions.length, loadSelectedOptions]);
+  }, [isEditing, value, selectedOptions.length, loadSelectedOptions, getOptionLabel]);
 
   // Handle selection change
   const handleChange = (_event: any, newValue: MultiRelationshipOption[]) => {
@@ -233,7 +264,20 @@ export const EditableMultiRelationshipField: React.FC<EditableMultiRelationshipF
   // Custom start editing to pass current value as JSON string of IDs
   const handleStartEditing = () => {
     if (startEditing) {
-      startEditing(fieldName, JSON.stringify(value));
+      // Extract IDs from value (handles both ID arrays and object arrays)
+      let ids: number[] = [];
+      if (value.length > 0) {
+        const firstItem = value[0];
+        if (typeof firstItem === 'object' && 'id' in firstItem) {
+          // Array of objects - extract IDs
+          ids = (value as Array<{ id: number; [key: string]: any }>).map(item => item.id);
+        } else {
+          // Already an array of IDs
+          ids = value as number[];
+        }
+      }
+      
+      startEditing(fieldName, JSON.stringify(ids));
     }
   };
 
@@ -289,7 +333,7 @@ export const EditableMultiRelationshipField: React.FC<EditableMultiRelationshipF
           fullWidth
           size="small"
           options={options}
-          getOptionLabel={(option) => option.display_name}
+          getOptionLabel={(option) => option.display_name || `ID: ${option.id}`}
           isOptionEqualToValue={(option, val) => option.id === val.id}
           value={selectedOptions}
           onChange={handleChange}

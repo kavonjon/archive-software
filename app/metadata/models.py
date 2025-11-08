@@ -414,34 +414,6 @@ class Languoid(models.Model):
     def __str__(self):
         return self.name
 
-class Dialect(models.Model):
-    language = models.ForeignKey('Languoid', related_name='language_dialects', on_delete=models.CASCADE)
-    name = models.CharField(max_length=255, verbose_name='Dialect name')
-    added = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
-    modified_by = models.CharField(max_length=255)
-    class Meta:
-        ordering = ['name']
-    def __str__(self):
-        return self.name
-
-
-class DialectInstance(models.Model):
-    document = models.ForeignKey('Document', related_name='document_dialectinstances', on_delete=models.CASCADE, null=True, blank=True)
-    item = models.ForeignKey('Item', related_name='item_dialectinstances', on_delete=models.CASCADE, null=True, blank=True)
-    collaborator_native = models.ForeignKey('Collaborator', related_name='collaborator_native_languages_dialectinstances', on_delete=models.CASCADE, null=True, blank=True)
-    collaborator_other = models.ForeignKey('Collaborator', related_name='collaborator_other_languages_dialectinstances', on_delete=models.CASCADE, null=True, blank=True)
-    language = models.ForeignKey('Languoid', related_name='language_dialectinstances', on_delete=models.CASCADE)
-    name = models.ManyToManyField(Dialect, verbose_name="dialect for this language", related_name='dialectinstance_dialects', blank=True)
-    added = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
-    modified_by = models.CharField(max_length=255)
-    def __str__(self):
-        return '{self.pk}'.format(self=self)
-    @property
-    def dialect_choices(self):
-        return self.language_dialectinstance_language
-
 class Collaborator(models.Model):
     uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
     slug = models.CharField(max_length=20, unique=True, blank=True, editable=False)
@@ -459,11 +431,11 @@ class Collaborator(models.Model):
     first_names = models.CharField(max_length=255, blank=True)
     last_names = models.CharField(max_length=255, blank=True)
     name_suffix = models.CharField(max_length=255, blank=True)
-    native_languages = models.ManyToManyField(Languoid, through='DialectInstance', through_fields=('collaborator_native', 'language'), verbose_name="Native/First languages", related_name='collaborator_native_languages', blank=True)
+    native_languages = models.ManyToManyField(Languoid, verbose_name="Native/First languages", related_name='collaborator_native_languages', blank=True)
     nickname = models.CharField(max_length=255, blank=True)
     origin = models.CharField(max_length=255, blank=True)
     other_info = models.TextField(blank=True)
-    other_languages = models.ManyToManyField(Languoid, through='DialectInstance', through_fields=('collaborator_other', 'language'), verbose_name="Other languages", related_name='collaborator_other_languages', blank=True)
+    other_languages = models.ManyToManyField(Languoid, verbose_name="Other languages", related_name='collaborator_other_languages', blank=True)
     other_names = ArrayField(models.CharField(max_length=255), default=list, blank=True, help_text='Alternative names, spellings, or aliases for this collaborator')
     tribal_affiliations = models.CharField(max_length=255, blank=True)
     added = models.DateTimeField(auto_now_add=True)
@@ -638,7 +610,7 @@ class Item(models.Model):
     ipm_issues = models.CharField(max_length=255, blank=True)
     isbn = models.CharField(max_length=255, blank=True)
     item_access_level = models.CharField(max_length=1, choices=ACCESS_CHOICES, blank=True) # automate across deposit
-    language = models.ManyToManyField(Languoid, through='DialectInstance', through_fields=('item', 'language'), verbose_name="list of languages", related_name='item_languages', blank=True)
+    language = models.ManyToManyField(Languoid, verbose_name="list of languages", related_name='item_languages', blank=True)
     lender_loan_number = models.CharField(max_length=255, blank=True)
     loc_catalog_number = models.CharField(max_length=255, blank=True)
     location_of_original = models.TextField(blank=True)
@@ -805,7 +777,7 @@ class Document(models.Model):
     creation_date = models.CharField(max_length=255, blank=True)
     creation_date_min = models.DateField(null=True, blank=True)
     creation_date_max = models.DateField(null=True, blank=True)
-    language = models.ManyToManyField(Languoid, through='DialectInstance', through_fields=('document', 'language'), verbose_name="list of languages", related_name='document_languages', blank=True)
+    language = models.ManyToManyField(Languoid, verbose_name="list of languages", related_name='document_languages', blank=True)
     collaborator = models.ManyToManyField(Collaborator, verbose_name="list of collaborators", related_name='document_collaborators', blank=True)
     item = models.ForeignKey('Item', related_name='item_documents', on_delete=models.CASCADE, null=True, blank=True)
     added = models.DateTimeField(auto_now_add=True)

@@ -339,14 +339,14 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
           </Button>
           {hasActiveFilters && (
             <>
-              <Button
-                variant="outlined"
-                startIcon={<ClearIcon />}
-                onClick={handleClearFilters}
-                color="secondary"
-              >
-                Clear Filters
-              </Button>
+            <Button
+              variant="outlined"
+              startIcon={<ClearIcon />}
+              onClick={handleClearFilters}
+              color="secondary"
+            >
+              Clear Filters
+            </Button>
               <Chip 
                 icon={<FilterListIcon />}
                 label={`${activeFilterCount} active filter${activeFilterCount !== 1 ? 's' : ''}`}

@@ -168,6 +168,7 @@ export const EditableField: React.FC<EditableFieldProps> = ({
         </>
       ) : (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          {typeof value === 'string' ? (
           <Typography
             variant="body2"
             color="text.secondary"
@@ -181,6 +182,17 @@ export const EditableField: React.FC<EditableFieldProps> = ({
           >
             {value || '(blank)'}
           </Typography>
+          ) : (
+            <Box
+              sx={{
+                flex: 1,
+                color: 'text.secondary',
+                fontSize: '0.875rem', // body2 size
+              }}
+            >
+              {value}
+            </Box>
+          )}
           <Tooltip title={`Edit ${label}`}>
             <IconButton
               size="small"

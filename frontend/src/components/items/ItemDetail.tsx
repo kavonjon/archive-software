@@ -38,6 +38,7 @@ import {
   EditableTextField,
   EditableSelectField,
   EditableBooleanField,
+  EditableMultiRelationshipField,
   SelectOption,
   createAbbreviatedLabel
 } from '../common';
@@ -664,16 +665,36 @@ const ItemDetail: React.FC<ItemDetailProps> = ({
              </CardContent>
            </Card>
 
-           {/* Languages */}
+           {/* Languages and Dialects */}
            <Card sx={{ mb: 2 }} elevation={1}>
              <CardContent>
                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'medium', color: 'primary.main' }}>
-                 Languages
+                 Languages and Dialects
                </Typography>
                <Divider sx={{ mb: 2 }} />
-               <Box>
-                 {renderField('Languages', item.language_names, true)}
-               </Box>
+               
+               <EditableMultiRelationshipField
+                 fieldName="language"
+                 label="Languages"
+                 value={item.language || []}
+                 isEditing={editingFields.has('language')}
+                 isSaving={savingFields.has('language')}
+                 editValue={editValues.language}
+                 startEditing={startEditing}
+                 saveField={saveField}
+                 cancelEditing={cancelEditing}
+                 updateEditValue={updateEditValue}
+                 relationshipEndpoint="/internal/v1/languoids/"
+                 getOptionLabel={(option) => `${option.name}${option.glottocode ? ` (${option.glottocode})` : ''}`}
+                 filterParams={{ level_glottolog__in: 'language,dialect' }}
+               />
+               
+               {/* Info message for language field when editing */}
+               {editingFields.has('language') && (
+                 <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
+                   You can add both languages and dialects directly. When you add a dialect, its parent language will be automatically added as well.
+                 </Alert>
+               )}
              </CardContent>
            </Card>
 

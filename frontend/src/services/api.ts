@@ -44,7 +44,8 @@ export interface Item {
   genre_display: string[];
   language_description_type: string[];
   language_description_type_display: string[];
-  language_names: string[];
+  language_names: string[];  // DEPRECATED - use language instead
+  language: Languoid[];  // Full Languoid objects for editing
   collaborator_names: string[];
   creation_date: string | null;
   associated_ephemera: string;
@@ -127,10 +128,14 @@ export interface Item {
   updated: string;
   modified_by: string;
   
-  // Related data (for compatibility)
-  language: number[];
+  // Related data - collaborator kept as IDs for compatibility
   collaborator: number[];
 }
+
+// Type for creating/updating items where language can be IDs instead of full objects
+export type ItemMutationData = Omit<Partial<Item>, 'language'> & {
+  language?: number[] | Languoid[];
+};
 
 export interface ItemTitle {
   id?: number;  // Optional for creation
@@ -471,7 +476,7 @@ export const itemsAPI = {
   },
 
   // Create new item
-  create: (data: Partial<Item>): Promise<Item> => {
+  create: (data: ItemMutationData): Promise<Item> => {
     return apiRequest<Item>('/items/', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -479,7 +484,7 @@ export const itemsAPI = {
   },
 
   // Update existing item
-  update: (id: number, data: Partial<Item>): Promise<Item> => {
+  update: (id: number, data: ItemMutationData): Promise<Item> => {
     return apiRequest<Item>(`/items/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -487,7 +492,7 @@ export const itemsAPI = {
   },
 
   // Partial update (patch) existing item
-  patch: (id: number, data: Partial<Item>): Promise<Item> => {
+  patch: (id: number, data: ItemMutationData): Promise<Item> => {
     return apiRequest<Item>(`/items/${id}/`, {
       method: 'PATCH',
       body: JSON.stringify(data),

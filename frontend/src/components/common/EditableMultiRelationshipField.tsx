@@ -216,7 +216,7 @@ export const EditableMultiRelationshipField: React.FC<EditableMultiRelationshipF
 
   // EFFECT 2: Display mode - load option objects for display (separate concern)
   useEffect(() => {
-    if (!isEditing && value.length > 0 && selectedOptions.length === 0) {
+    if (!isEditing && value.length > 0) {
       // Check if value is already full objects or just IDs
       const firstItem = value[0];
       if (typeof firstItem === 'object' && 'id' in firstItem) {
@@ -226,13 +226,27 @@ export const EditableMultiRelationshipField: React.FC<EditableMultiRelationshipF
           display_name: getOptionLabel(item),
           ...item,
         }));
-        setSelectedOptions(mappedOptions);
+        // Update selectedOptions if the value has changed
+        // Compare by IDs to avoid unnecessary updates
+        const currentIds = selectedOptions.map(opt => opt.id).sort().join(',');
+        const newIds = mappedOptions.map(opt => opt.id).sort().join(',');
+        if (currentIds !== newIds) {
+          setSelectedOptions(mappedOptions);
+        }
       } else {
         // Just IDs - need to fetch full objects
-        loadSelectedOptions(value as number[]);
-      }
+        // Only fetch if the IDs have changed
+        const currentIds = selectedOptions.map(opt => opt.id).sort().join(',');
+        const newIds = (value as number[]).sort().join(',');
+        if (currentIds !== newIds) {
+          loadSelectedOptions(value as number[]);
     }
-  }, [isEditing, value, selectedOptions.length, loadSelectedOptions, getOptionLabel]);
+      }
+    } else if (!isEditing && value.length === 0 && selectedOptions.length > 0) {
+      // Clear selectedOptions when value is empty
+      setSelectedOptions([]);
+    }
+  }, [isEditing, value, selectedOptions, loadSelectedOptions, getOptionLabel]);
 
   // Handle selection change
   const handleChange = (_event: any, newValue: MultiRelationshipOption[]) => {
@@ -290,25 +304,102 @@ export const EditableMultiRelationshipField: React.FC<EditableMultiRelationshipF
     }
   };
 
-  // Display value as chips (with "+N more" if exceeds max)
+  // Helper function to organize languoids by language/dialect hierarchy
+  const organizeLanguoidChips = (options: MultiRelationshipOption[]) => {
+    // Check if these are languoid objects (have level_glottolog)
+    const hasLanguoidData = options.length > 0 && 'level_glottolog' in options[0];
+    if (!hasLanguoidData) {
+      // Not languoids, return simple list
+      return options.map(option => ({ type: 'simple' as const, option }));
+    }
+
+    // Separate languages and dialects
+    const languages = options
+      .filter(opt => opt.level_glottolog === 'language')
+      .sort((a, b) => (a.name || a.display_name || '').localeCompare(b.name || b.display_name || ''));
+    
+    const dialects = options.filter(opt => opt.level_glottolog === 'dialect');
+    
+    // Create organized structure
+    const organized: Array<{ type: 'language' | 'dialect-orphan'; option: MultiRelationshipOption; dialects?: MultiRelationshipOption[] }> = [];
+    
+    // Add languages with their child dialects
+    languages.forEach(lang => {
+      const childDialects = dialects
+        .filter(dialect => dialect.parent_languoid === lang.id)
+        .sort((a, b) => (a.name || a.display_name || '').localeCompare(b.name || b.display_name || ''));
+      
+      organized.push({
+        type: 'language',
+        option: lang,
+        dialects: childDialects.length > 0 ? childDialects : undefined
+      });
+    });
+    
+    // Add orphan dialects (dialects whose parent is not in the list)
+    const orphanDialects = dialects
+      .filter(dialect => !languages.some(lang => lang.id === dialect.parent_languoid))
+      .sort((a, b) => (a.name || a.display_name || '').localeCompare(b.name || b.display_name || ''));
+    
+    orphanDialects.forEach(dialect => {
+      organized.push({
+        type: 'dialect-orphan',
+        option: dialect
+      });
+    });
+    
+    return organized;
+  };
+
+  // Display value as chips organized by language/dialect hierarchy
   const displayValue = selectedOptions.length > 0 ? (
-    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-      {selectedOptions.slice(0, maxDisplayChips).map((option) => (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+      {organizeLanguoidChips(selectedOptions).map((item, index) => {
+        if (item.type === 'simple') {
+          // Simple chip (non-languoid fields)
+          return (
         <Chip
-          key={option.id}
-          label={option.display_name}
+              key={item.option.id}
+              label={item.option.display_name}
           size="small"
           variant="outlined"
         />
-      ))}
-      {selectedOptions.length > maxDisplayChips && (
+          );
+        } else if (item.type === 'language') {
+          return (
+            <Box key={item.option.id} sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+              {/* Language chip */}
         <Chip
-          label={`+${selectedOptions.length - maxDisplayChips} more`}
+                label={item.option.display_name}
           size="small"
           variant="outlined"
           color="primary"
         />
-      )}
+              {/* Dialect chips on same line */}
+              {item.dialects?.map(dialect => (
+                <Chip
+                  key={dialect.id}
+                  label={dialect.display_name}
+                  size="small"
+                  variant="outlined"
+                  sx={{ ml: 1 }}
+                />
+              ))}
+            </Box>
+          );
+        } else {
+          // Orphan dialect on its own line
+          return (
+            <Box key={item.option.id} sx={{ display: 'flex', gap: 0.5 }}>
+              <Chip
+                label={item.option.display_name}
+                size="small"
+                variant="outlined"
+              />
+            </Box>
+          );
+        }
+      })}
     </Box>
   ) : '(none selected)';
 
@@ -364,10 +455,12 @@ export const EditableMultiRelationshipField: React.FC<EditableMultiRelationshipF
           )}
           renderOption={(props, option) => {
             const isSelected = selectedOptions.some(selected => selected.id === option.id);
+            const { key, ...otherProps } = props;
             return (
               <Box
+                key={key}
                 component="li"
-                {...props}
+                {...otherProps}
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
@@ -388,16 +481,95 @@ export const EditableMultiRelationshipField: React.FC<EditableMultiRelationshipF
               </Box>
             );
           }}
-          renderTags={(tagValue, getTagProps) =>
-            tagValue.map((option, index) => (
+          renderTags={(tagValue, getTagProps) => {
+            // Check if these are languoid objects for hierarchical display
+            const hasLanguoidData = tagValue.length > 0 && 'level_glottolog' in tagValue[0];
+            
+            if (!hasLanguoidData) {
+              // Simple display for non-languoid fields
+              return tagValue.map((option, index) => {
+                const { key, ...chipProps } = getTagProps({ index });
+                return (
               <Chip
+                    key={key}
                 label={option.display_name}
                 size="small"
-                {...getTagProps({ index })}
+                    {...chipProps}
+                    disabled={isSaving}
+                  />
+                );
+              });
+            }
+
+            // Organize languoids hierarchically
+            const organized = organizeLanguoidChips(tagValue);
+            
+            return organized.flatMap((item) => {
+              if (item.type === 'simple') {
+                // Find the actual index in the original tagValue array
+                const actualIndex = tagValue.findIndex(t => t.id === item.option.id);
+                const { key, ...chipProps } = getTagProps({ index: actualIndex });
+                return (
+                  <Chip
+                    key={key}
+                    label={item.option.display_name}
+                    size="small"
+                    {...chipProps}
+                    disabled={isSaving}
+                  />
+                );
+              } else if (item.type === 'language') {
+                // Find the actual index in the original tagValue array
+                const actualIndex = tagValue.findIndex(t => t.id === item.option.id);
+                const { key: languageKey, ...languageProps } = getTagProps({ index: actualIndex });
+                const chips = [
+                  <Chip
+                    key={languageKey}
+                    label={item.option.display_name}
+                    size="small"
+                    color="primary"
+                    {...languageProps}
+                    disabled={isSaving}
+                  />
+                ];
+                
+                // Add dialect chips after parent language
+                if (item.dialects) {
+                  item.dialects.forEach(dialect => {
+                    // Find the actual index in the original tagValue array
+                    const dialectActualIndex = tagValue.findIndex(t => t.id === dialect.id);
+                    const { key: dialectKey, ...dialectProps } = getTagProps({ index: dialectActualIndex });
+                    chips.push(
+                      <Chip
+                        key={dialectKey}
+                        label={dialect.display_name}
+                        size="small"
+                        variant="outlined"
+                        {...dialectProps}
+                        disabled={isSaving}
+                      />
+                    );
+                  });
+                }
+                
+                return chips;
+              } else {
+                // Orphan dialect - Find the actual index in the original tagValue array
+                const actualIndex = tagValue.findIndex(t => t.id === item.option.id);
+                const { key, ...chipProps } = getTagProps({ index: actualIndex });
+                return (
+                  <Chip
+                    key={key}
+                    label={item.option.display_name}
+                    size="small"
+                    variant="outlined"
+                    {...chipProps}
                 disabled={isSaving}
               />
-            ))
+                );
           }
+            });
+          }}
           componentsProps={{
             popper: {
               placement: 'bottom-start',

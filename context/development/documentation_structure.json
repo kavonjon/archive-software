@@ -163,8 +163,8 @@
       "added_date": "2025-10-27",
       "distinction": {
         "context_memory": {
-          "purpose": "AI assistant context and architectural decisions",
-          "audience": "AI assistants, lead developers understanding project history",
+          "purpose": "Development context and architectural decisions",
+          "audience": "Lead developers understanding project history",
           "format": "Structured JSON with decision tracking",
           "location": "context/",
           "update_frequency": "Continuously during development"
@@ -410,15 +410,15 @@
         "example_structure": "## Languoid Parent Change: Descendents Update\n\n**What happens:** When a languoid's parent changes, the system must update the `descendents` M2M field for both old and new ancestor chains.\n\n**Steps:**\n1. pre_save signal detects parent change, stores old_parent_id\n2. post_save signal passes old_parent_id to async task\n3. Celery task:\n   - Updates NEW parent chain (adds moved subtree)\n   - Updates OLD parent chain (removes moved subtree)\n\n**Implementation:** See `app/metadata/signals.py` and `app/metadata/tasks.py`",
         "style_note": "Similar to architectural clarifications provided during development discussions",
         "status": "planned",
-        "creation_trigger": "PM explicitly requests system behavior documentation"
+        "creation_trigger": "Project Manager explicitly requests system behavior documentation"
       },
       
       "creation_and_maintenance_protocol": {
-        "never_proactive": "Documentation is NEVER created automatically - PM must explicitly request it",
-        "explicit_trigger_required": "PM must say 'create user documentation' or 'document system behavior for X'",
-        "survey_mechanism": "PM can request documentation surveys to identify outdated/missing sections",
-        "survey_does_not_update": "Surveys only report issues - PM must approve updates explicitly",
-        "integration_with_development": "When implementing features, AI may FLAG that docs might need updates, but NEVER creates docs automatically",
+        "never_proactive": "Documentation is NEVER created automatically - Project Manager must explicitly request it",
+        "explicit_trigger_required": "Project Manager must say 'create user documentation' or 'document system behavior for X'",
+        "survey_mechanism": "Project Manager can request documentation surveys to identify outdated/missing sections",
+        "survey_does_not_update": "Surveys only report issues - Project Manager must approve updates explicitly",
+        "integration_with_development": "When implementing features, lead developer may FLAG that docs might need updates, but NEVER creates docs automatically",
         "cross_reference": "See protocol.json::end_user_documentation_protocol for complete workflow"
       },
       
@@ -426,7 +426,7 @@
         "vs_developer_docs": "Developer docs (docs/development/) are for code contributors. User guide is for system users. System behavior is for understanding internals without diving into code.",
         "vs_deployment_docs": "Deployment docs (docs/deployment/) are for infrastructure setup. End-user docs assume system is running.",
         "vs_operations_docs": "Operations docs (docs/operations/) are for system maintenance. System behavior docs explain application logic, not infrastructure.",
-        "vs_context_memory": "Context memory tracks AI decision history. End-user docs are polished deliverables for humans."
+        "vs_context_memory": "Context memory tracks development decision history. End-user docs are polished deliverables for humans."
       },
       
       "confidence_level": "high",

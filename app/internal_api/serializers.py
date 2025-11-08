@@ -61,8 +61,11 @@ class InternalItemSerializer(serializers.ModelSerializer):
     # Primary title (the default one)
     primary_title = serializers.SerializerMethodField()
     
-    # Language names (simplified)
+    # Language names (simplified) - DEPRECATED in favor of full objects
     language_names = serializers.SerializerMethodField()
+    
+    # Language relationships (full objects for editing) - nested serializer for read, IDs for write
+    language = serializers.SerializerMethodField()
     
     # Collaborator names (simplified) 
     collaborator_names = serializers.SerializerMethodField()
@@ -162,6 +165,10 @@ class InternalItemSerializer(serializers.ModelSerializer):
         """Get simple list of language names"""
         return [lang.name for lang in obj.language.all()]
     
+    def get_language(self, obj):
+        """Return full Languoid objects for languages"""
+        return InternalLanguoidSerializer(obj.language.all(), many=True).data
+    
     def get_collaborator_names(self, obj):
         """Get simple list of collaborator names"""
         return [collab.full_name for collab in obj.collaborator.all()]
@@ -247,6 +254,42 @@ class InternalItemSerializer(serializers.ModelSerializer):
             from metadata.signals import standardize_date_format
             return standardize_date_format(value)
         return value
+    
+    def update(self, instance, validated_data):
+        """
+        Custom update to handle M2M language field.
+        
+        For language field, we need to:
+        1. Extract the M2M data from the initial request data (not validated_data, since it's a SerializerMethodField)
+        2. Update the regular fields first
+        3. Update the M2M relationships using Django's built-in .set() method
+        """
+        from metadata.models import Languoid
+        
+        # Extract M2M field data from initial_data (raw request data)
+        # Since language is a SerializerMethodField (read-only),
+        # it won't be in validated_data. We need to get it from initial_data.
+        initial_data = self.initial_data
+        language_ids = initial_data.get('language', None)
+        
+        # Get modified_by value for tracking who made the change
+        request = self.context.get('request')
+        modified_by_value = str(request.user) if request and request.user else 'unknown'
+        
+        # Update regular fields (including modified_by from request)
+        if request and request.user:
+            validated_data['modified_by'] = modified_by_value
+        
+        # Update the instance with non-M2M fields
+        instance = super().update(instance, validated_data)
+        
+        # Update language M2M relationship
+        if language_ids is not None:
+            # Use Django's built-in set() method for M2M relationships
+            # This will automatically trigger m2m_changed signals
+            instance.language.set(language_ids)
+        
+        return instance
 
 
 class InternalCollectionSerializer(serializers.ModelSerializer):
@@ -473,14 +516,14 @@ class InternalCollaboratorSerializer(serializers.ModelSerializer):
     
     def update(self, instance, validated_data):
         """
-        Custom update to handle M2M fields through the DialectInstance through model.
+        Custom update to handle M2M fields.
         
         For native_languages and other_languages, we need to:
         1. Extract the M2M data from the initial request data (not validated_data, since they're SerializerMethodFields)
         2. Update the regular fields first
-        3. Update the M2M relationships through DialectInstance
+        3. Update the M2M relationships using Django's built-in .set() method
         """
-        from metadata.models import DialectInstance, Languoid
+        from metadata.models import Languoid
         
         # Extract M2M field data from initial_data (raw request data)
         # Since native_languages and other_languages are SerializerMethodFields (read-only),
@@ -500,45 +543,16 @@ class InternalCollaboratorSerializer(serializers.ModelSerializer):
         # Update the instance with non-M2M fields
         instance = super().update(instance, validated_data)
         
-        # Update native_languages M2M relationship through DialectInstance
+        # Update native_languages M2M relationship
         if native_languages_ids is not None:
-            # Clear existing native language relationships
-            DialectInstance.objects.filter(collaborator_native=instance).delete()
-            
-            # Create new relationships with modified_by tracking
-            for languoid_id in native_languages_ids:
-                try:
-                    languoid = Languoid.objects.get(pk=languoid_id)
-                    DialectInstance.objects.create(
-                        collaborator_native=instance,
-                        language=languoid,
-                        modified_by=modified_by_value
-                    )
-                except Languoid.DoesNotExist:
-                    # Log error but continue processing other languoids
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.warning(f"Languoid with id {languoid_id} not found for collaborator {instance.id}")
+            # Use Django's built-in set() method for M2M relationships
+            # This will automatically trigger m2m_changed signals
+            instance.native_languages.set(native_languages_ids)
         
-        # Update other_languages M2M relationship through DialectInstance
+        # Update other_languages M2M relationship
         if other_languages_ids is not None:
-            # Clear existing other language relationships
-            DialectInstance.objects.filter(collaborator_other=instance).delete()
-            
-            # Create new relationships with modified_by tracking
-            for languoid_id in other_languages_ids:
-                try:
-                    languoid = Languoid.objects.get(pk=languoid_id)
-                    DialectInstance.objects.create(
-                        collaborator_other=instance,
-                        language=languoid,
-                        modified_by=modified_by_value
-                    )
-                except Languoid.DoesNotExist:
-                    # Log error but continue processing other languoids
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    logger.warning(f"Languoid with id {languoid_id} not found for collaborator {instance.id}")
+            # Use Django's built-in set() method for M2M relationships
+            instance.other_languages.set(other_languages_ids)
         
         return instance
 

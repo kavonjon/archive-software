@@ -19,13 +19,77 @@ from django.db.models import Count, Sum, Max, Q
 from django.views.generic.edit import FormView, DeleteView
 from rest_framework import generics
 from django.contrib.auth.mixins import UserPassesTestMixin, LoginRequiredMixin
-from .models import Item, ItemTitle, Collection, Languoid, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, RESOURCE_TYPE_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text  # Video removed for Django 5.0 compatibility
+from .models import Item, ItemTitle, Collection, Languoid, Collaborator, CollaboratorRole, Geographic, Columns_export, Document, ACCESS_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, RESOURCE_TYPE_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, STRICT_GENRE_CHOICES, MONTH_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES, reverse_lookup_choices, validate_date_text  # Video removed for Django 5.0 compatibility
 from .serializers import ItemMigrateSerializer, LegacyLanguoidSerializer
-from .forms import CollectionForm, LanguoidForm, DialectForm, DialectInstanceForm, DialectInstanceCustomForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, UploadDocumentForm  # VideoForm removed for Django 5.0 compatibility
+from .forms import CollectionForm, LanguoidForm, CollaboratorForm, CollaboratorRoleForm, GeographicForm, ItemForm, Columns_exportForm, Columns_export_choiceForm, Csv_format_type, DocumentForm, UploadDocumentForm  # VideoForm removed for Django 5.0 compatibility
 from django.contrib.staticfiles import finders
 from django.views.decorators.http import require_POST
 import logging
 from metadata.file_utils import get_main_storage_base
+
+# =============================================================================
+# DEPRECATED: DialectInstance and Dialect Stub Classes
+# =============================================================================
+# These models have been decommissioned (replaced by direct M2M relationships).
+# The following stub classes prevent errors in legacy Django template views
+# that are no longer used (React frontend uses DRF API instead).
+# 
+# These views should be removed entirely in a future cleanup.
+# =============================================================================
+
+class DialectInstanceStub:
+    """Stub class to prevent errors in deprecated Django template views"""
+    objects = None
+    
+    class objects:
+        @staticmethod
+        def get_or_create(*args, **kwargs):
+            """No-op: returns (None, False) to prevent errors"""
+            return (None, False)
+        
+        @staticmethod
+        def filter(*args, **kwargs):
+            """No-op: returns empty queryset-like object"""
+            class EmptyQuerySet:
+                def all(self):
+                    return []
+                def order_by(self, *args):
+                    return self
+                def values_list(self, *args, **kwargs):
+                    return []
+                def delete(self):
+                    pass
+            return EmptyQuerySet()
+        
+        @staticmethod
+        def none():
+            class EmptyQuerySet:
+                def __or__(self, other):
+                    return self
+            return EmptyQuerySet()
+
+class DialectStub:
+    """Stub class to prevent errors in deprecated Django template views"""
+    objects = None
+    
+    class objects:
+        @staticmethod
+        def filter(*args, **kwargs):
+            """No-op: returns empty queryset-like object"""
+            class EmptyQuerySet:
+                def all(self):
+                    return []
+                def values_list(self, *args, **kwargs):
+                    return []
+            return EmptyQuerySet()
+
+# Assign stubs so legacy code doesn't crash
+DialectInstance = DialectInstanceStub
+Dialect = DialectStub
+
+# =============================================================================
+# End of Deprecated Stubs
+# =============================================================================
 
 def is_member_of_archivist(user):
     return user.groups.filter(name="Archivist").exists()
@@ -2471,72 +2535,6 @@ def languoid_stats(request):
     }
 
     return render(request, 'languoid_stats.html', context)
-
-@login_required
-@user_passes_test(is_member_of_archivist, login_url='/no-permission', redirect_field_name=None)
-def dialect_edit(request, pk):
-    qs = get_object_or_404(Dialect, id=pk)
-    if request.method == "POST":
-        form = DialectForm(request.POST, instance=qs)
-        if form.is_valid():
-            qs.modified_by = request.user.get_username()
-            qs.save()
-            form.save()
-            url = "../../../languoids/%s/" %qs.languoid.pk
-            return redirect(url)
-    else:
-        form = DialectForm(instance=qs)
-    return render(request, 'dialect_edit.html', {'form': form})
-
-class dialect_add(UserPassesTestMixin, FormView):
-    def test_func(self):
-        return self.request.user.groups.filter(name="Archivist").exists()
-    def handle_no_permission(self):
-        return redirect('/no-permission')
-    form_class = DialectForm
-    template_name = "add.html"
-    def form_valid(self, form):
-        language_pk = self.kwargs['lang_pk']
-        self.object = form.save(commit=False)
-        self.object.language_id = language_pk
-        self.object.save()
-        pk = self.object.pk
-        instance = Dialect.objects.get(pk=pk)
-        instance.modified_by = self.request.user.get_username()
-        instance.save()
-        return redirect("../../")
-
-class dialect_delete(UserPassesTestMixin, DeleteView):
-    def test_func(self):
-        return self.request.user.groups.filter(name="Archivist").exists()
-    def handle_no_permission(self):
-        return redirect('/no-permission')
-    model = Dialect
-    success_url = '/languoids/'
-
-@login_required
-@user_passes_test(is_member_of_archivist, login_url='/no-permission', redirect_field_name=None)
-def dialect_instance_edit(request, pk):
-    qs = get_object_or_404(DialectInstance, id=pk)
-    if request.method == "POST":
-        form = DialectInstanceForm(request.POST, instance=qs)
-        if form.is_valid():
-            qs.modified_by = request.user.get_username()
-            qs.save()
-            form.save()
-            url = "/"
-            if qs.document:
-                url = "../../../documents/%s/" %qs.document.pk
-            if qs.item:
-                url = "../../../catalog/%s/" %qs.item.pk
-            if qs.collaborator_native:
-                url = "../../../collaborators/%s/" %qs.collaborator_native.pk
-            if qs.collaborator_other:
-                url = "../../../collaborators/%s/" %qs.collaborator_other.pk
-            return redirect(url)
-    else:
-        form = DialectInstanceForm(instance=qs)
-    return render(request, 'dialect_instance_edit.html', {'form': form})
 
 @login_required
 def collaborator_index(request):

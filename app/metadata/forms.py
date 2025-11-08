@@ -5,7 +5,7 @@ from django.forms import ModelForm
 from django.forms.widgets import CheckboxSelectMultiple
 from django.db.models import Max
 from django_select2.forms import Select2MultipleWidget
-from .models import Collection, Item, ItemTitle, Languoid, Dialect, DialectInstance, Collaborator, CollaboratorRole, Geographic, Columns_export, Document  # Video removed for Django 5.0 compatibility
+from .models import Collection, Item, ItemTitle, Languoid, Collaborator, CollaboratorRole, Geographic, Columns_export, Document  # Video removed for Django 5.0 compatibility
 
 class CollectionForm(ModelForm):
     class Meta:
@@ -57,21 +57,6 @@ class LanguoidForm(ModelForm):
             instance.save()
         return instance
     
-class DialectForm(ModelForm):
-    class Meta:
-        model = Dialect
-        fields = ['name']
-
-class DialectInstanceForm(ModelForm):
-    class Meta:
-        model = DialectInstance
-        fields = ['name']
-    def __init__(self, *args, **kwargs):
-        super(DialectInstanceForm, self).__init__(*args, **kwargs)
-        self.fields['name'].widget = CheckboxSelectMultiple()
-        self.fields['name'].queryset = Dialect.objects.filter(language=self.instance.language)
-
-
 class CollaboratorForm(ModelForm):
     class Meta:
         model = Collaborator
@@ -283,30 +268,6 @@ class Columns_exportForm(ModelForm):
                   'item_updated',
                   'item_modified_by',
                   'item_added']
-
-#########################
-
-class DialectInstanceCustomForm(ModelForm):
-
-    OPTIONS = [
-        ("0", "ALL"),
-        ("1", "New York"),
-        ("2", "Los Angeles"),
-        ]
-    dialects = forms.MultipleChoiceField(
-                        choices=(),
-                        required=False,
-                        widget=forms.CheckboxSelectMultiple,)
-
-    class Meta:
-        model = DialectInstance
-        fields = ['dialects']
-
-        def __init__(self, *args, **kwargs):
-
-            super(DialectInstanceCustomForm, self).__init__(*args, **kwargs)
-            self.fields['dialects'] = Item.objects.filter(catalog_number__icontains='s')
-
 
 ###########################################
 

@@ -140,6 +140,13 @@
         "when_to_reference": "When working on authentication, navigation, or homepage",
         "update_frequency": "When login flow or authentication UX changes",
         "cross_references": ["stage_0_react_migration.json", "coding_patterns.json", "project_requirements.json"]
+      },
+      "collaborator-harmonization.json": {
+        "purpose": "Collaborator model backend/frontend harmonization, name field restructuring, and Dialect/DialectInstance decommissioning",
+        "when_to_reference": "When working on Collaborator or language relationships, understanding M2M signal patterns, or referencing name computation logic",
+        "update_frequency": "If Collaborator model changes significantly or similar patterns applied to other models",
+        "cross_references": ["data_model_understanding.json", "coding_patterns.json", "active_context.json"],
+        "added_date": "2025-11-08"
       }
     },
     

@@ -1,9 +1,45 @@
 {
   "data_model_understanding": {
-    "version": "1.1",
-    "last_updated": "2025-10-29",
-    "conversation_reference": "Languoid hierarchy implementation and parent change fix",
-    "note": "Expanded with comprehensive languoid hierarchy documentation. Other models still need detailed analysis.",
+    "version": "1.2",
+    "last_updated": "2025-11-08",
+    "conversation_reference": "Collaborator model harmonization, Dialect/DialectInstance decommissioning, language relationship simplification",
+    "note": "Comprehensive documentation of Languoid, Collaborator, and deprecated models. Item and Document models updated with language relationship changes. Collection model still needs detailed analysis.",
+    
+    "deprecated_models": {
+      "dialect": {
+        "decision_id": "model_deprecated_001",
+        "content": "Legacy Dialect model for dialect names - DEPRECATED and removed 2025-11-08",
+        "added_date": "2025-11-08",
+        "deprecation_reason": "Dialects now represented as Languoid objects with level_glottolog='dialect'",
+        "removal_date": "2025-11-08",
+        "migration": "0102_decommission_dialect_models.py",
+        "superseded_by": "Languoid model with hierarchical parent_languoid relationships",
+        "status": "deprecated"
+      },
+      
+      "dialect_instance": {
+        "decision_id": "model_deprecated_002",
+        "content": "Legacy DialectInstance custom through model for M2M language relationships - DEPRECATED and removed 2025-11-08",
+        "added_date": "2025-11-08",
+        "deprecation_reason": [
+          "Overcomplicated design with required modified_by field",
+          "Made simple M2M operations complex (manual object creation, manual signal triggering)",
+          "Django's default M2M through tables are simpler and sufficient"
+        ],
+        "removal_date": "2025-11-08",
+        "migration": "0102_decommission_dialect_models.py",
+        "relationships_migrated": [
+          "Collaborator.native_languages ↔ Languoid",
+          "Collaborator.other_languages ↔ Languoid",
+          "Item.language ↔ Languoid",
+          "Document.language ↔ Languoid"
+        ],
+        "superseded_by": "Django's auto-generated M2M through tables (e.g., metadata_collaborator_native_languages)",
+        "metadata_lost": "modified_by tracking, timestamps (intentionally discarded)",
+        "legacy_view_stubs": "Stub classes in app/metadata/views.py prevent errors in deprecated Django template views",
+        "status": "deprecated"
+      }
+    },
     
     "core_entities": {
       "item": {
@@ -20,9 +56,101 @@
         "decision_id": "model_002",
         "content": "Collaborators are people involved in creating or contributing to archived materials",
         "added_date": "2025-01-04",
-        "characteristics": ["Names (multiple forms)", "Anonymous flag", "Birth/death dates", "Gender", "Origin", "Tribal affiliations"],
-        "relationships": ["Related to Items", "Related to Documents", "Has native languages", "Has other languages"],
-        "special_considerations": ["Anonymous collaborators for cultural sensitivity"],
+        "updated_date": "2025-11-08",
+        "conversation_reference": "Collaborator name field restructuring and language relationship simplification",
+        
+        "name_architecture": {
+          "component_fields": {
+            "first_names": "Given names (CharField)",
+            "nickname": "Preferred name or nickname (CharField, displayed in quotes)",
+            "last_names": "Surname(s) (CharField)",
+            "name_suffix": "Jr., III, etc. (CharField)",
+            "other_names": "Aliases, alternative spellings (ArrayField of strings)"
+          },
+          "computed_field": {
+            "full_name": "Auto-calculated via pre_save signal",
+            "format": "first_names \"nickname\" last_names name_suffix",
+            "rules": [
+              "Empty fields omitted",
+              "Quotes only if nickname present",
+              "Extra spaces removed",
+              "One-way sync (users edit components, full_name computed)",
+              "Read-only in React frontend"
+            ]
+          },
+          "display_formats": {
+            "purpose": "Support different citation and sorting contexts",
+            "calculated_on": "React frontend (CollaboratorDetail page)",
+            "formats": [
+              "Full name",
+              "Full name sorted by last name",
+              "First name(s) & last name(s)",
+              "Last name(s), first name(s)",
+              "Last name only",
+              "First name only (with mononym fallback to last_names)"
+            ]
+          },
+          "searchable_terms": "Set of all words from first_names, last_names, name_suffix, nickname, other_names",
+          "anonymous_handling": "When anonymous=True, all display formats show 'Anonymous {collaborator_id}'"
+        },
+        
+        "characteristics": [
+          "Names (structured component fields + computed full_name)",
+          "Anonymous flag (BooleanField, null=True for Not Specified)",
+          "Birth/death dates (CharField with min/max DateField for ranges)",
+          "Gender", 
+          "Origin", 
+          "Tribal affiliations",
+          "Collaborator ID (IntegerField, unique)",
+          "Slug (CharField, auto-generated from full_name via base58 encoding)",
+          "UUID (auto-generated)"
+        ],
+        
+        "relationships": {
+          "items": "M2M through CollaboratorRole (with role field)",
+          "documents": "M2M (direct)",
+          "native_languages": "M2M to Languoid (languages user speaks natively)",
+          "other_languages": "M2M to Languoid (languages user knows but not natively)"
+        },
+        
+        "language_relationships": {
+          "design": "Direct M2M to Languoid model (Dialect/DialectInstance decommissioned 2025-11-08)",
+          "through_tables": [
+            "metadata_collaborator_native_languages (Django auto-generated)",
+            "metadata_collaborator_other_languages (Django auto-generated)"
+          ],
+          "signal_enforcement": "auto_add_parent_language_for_collaborator_dialects ensures parent languages present when dialects selected",
+          "frontend_editing": "EditableMultiRelationshipField with hierarchical display and auto-add parent UX"
+        },
+        
+        "signal_architecture": {
+          "pre_save_signal": {
+            "name": "compute_collaborator_derived_fields",
+            "file": "app/metadata/signals.py",
+            "responsibilities": [
+              "Calculate full_name from component fields",
+              "Standardize birthdate/deathdate to YYYY/MM/DD",
+              "Generate slug from full_name using base58 encoding",
+              "Detect anonymous flag changes and log warnings if collaborator has relationships",
+              "Calculate birthdate_min/max and deathdate_min/max from date ranges"
+            ]
+          },
+          "m2m_changed_signals": {
+            "native_languages": "auto_add_parent_language_for_collaborator_dialects",
+            "other_languages": "auto_add_parent_language_for_collaborator_dialects (same signal)",
+            "logic": "Check ALL current languoids after any change, add missing parent languages for dialects",
+            "triggers": "post_add, post_clear, post_remove"
+          }
+        },
+        
+        "special_considerations": [
+          "Anonymous collaborators for cultural sensitivity (cannot identify individuals)",
+          "Name field structure enforced via signals (no dirty data)",
+          "Language hierarchy maintained automatically (dialects require parent languages)",
+          "Slug generation ensures URL-friendly identifiers",
+          "Computed full_name enables proper sorting and citation formatting"
+        ],
+        
         "confidence_level": "high",
         "status": "active"
       },

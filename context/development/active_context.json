@@ -1,27 +1,30 @@
 {
   "active_context": {
-    "version": "2.0",
-    "last_updated": "2025-10-17",
-    "conversation_reference": "Transition from Stage 0 completion to Stage 1 batch editing implementation",
+    "version": "2.1",
+    "last_updated": "2025-11-08",
+    "conversation_reference": "Collaborator model backend/frontend harmonization complete, Dialect/DialectInstance decommissioned, language relationship editing implemented",
     
         "current_focus": {
           "primary_objective": {
             "decision_id": "active_001",
-            "content": "Stage 0 initial pass complete and deployed. Stage 1 batch editing implementation beginning with Phase 1 (Foundation & Basic Grid)",
+            "content": "Stage 0 Collaborator and Item detail pages production-ready with comprehensive language relationship editing",
             "added_date": "2025-01-04",
-            "updated_date": "2025-10-17",
-            "stage_0_status": "Initial pass complete - Items, Collections, Collaborators, Languoids all have CRUD functionality with EditableField system, validation patterns, and security workflows. Relationship editing and advanced features deferred until after Stage 1.",
-            "stage_1_status": "Beginning Phase 1 implementation with ReactGrid library and Languoid batch editor",
-            "deployment_note": "Stage 0 work merged to main branch and ready for production deployment",
-            "current_phase": "Stage 1 Phase 1: Foundation & Basic Grid (Languoids)",
-        "stage_1_phase_1_details": {
-          "library_selected": "ReactGrid (MIT license, TypeScript-first, custom cell types)",
-          "architecture_pattern": "Reusable SpreadsheetGrid core with model-specific wrappers",
-          "first_implementation": "Languoid batch editor",
-          "upload_deferred": "Upload functionality deferred to Phase 6",
-          "data_loading_modes": "Three modes: selected rows from list view, upload (Phase 6), quick filters",
-          "responsive_strategy": "Desktop/tablet full support, mobile functional with relaxed constraints"
-        },
+            "updated_date": "2025-11-08",
+            "stage_0_status": "CollaboratorDetail and CollaboratorList pages complete and production-ready. ItemDetail language editing complete. Both models have full CRUD with advanced features.",
+            "recent_achievements": [
+              "Collaborator name field restructuring complete (signal-based full_name computation)",
+              "Dialect and DialectInstance models fully decommissioned",
+              "Language relationships simplified to direct M2M with Languoid",
+              "EditableMultiRelationshipField enhanced with hierarchical display and auto-add parent languages",
+              "CollaboratorList advanced filtering complete (empty values, debouncing, anonymous status)",
+              "Item language field editing implemented with same patterns as Collaborator"
+            ],
+            "current_phase": "Stage 0 - Continuing with remaining models (Document, Collection)",
+        "next_priorities": [
+          "DocumentDetail page language relationship editing",
+          "CollectionDetail page completion",
+          "Final Stage 0 polish and testing before Stage 1"
+        ],
             "confidence_level": "high",
             "status": "active"
           }

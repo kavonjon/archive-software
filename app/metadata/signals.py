@@ -1,4 +1,4 @@
-from django.db.models.signals import post_save, post_delete, pre_save
+from django.db.models.signals import post_save, post_delete, pre_save, m2m_changed
 from django.dispatch import receiver
 from .models import Languoid, Item, Collaborator, CollaboratorRole
 from .tasks import update_collection_date_ranges
@@ -394,6 +394,139 @@ def compute_collaborator_derived_fields(sender, instance, **kwargs):
     
     # 4. Date standardization and range calculation
     update_collaborator_date_ranges(instance, old_instance)
+
+
+# ---------------------------------------------------------------------------
+# M2M Signal: Auto-add Parent Languages for Dialects
+# ---------------------------------------------------------------------------
+
+@receiver(m2m_changed, sender=Collaborator.native_languages.through)
+@receiver(m2m_changed, sender=Collaborator.other_languages.through)
+def auto_add_parent_language_for_collaborator_dialects(sender, instance, action, pk_set, **kwargs):
+    """
+    Automatically add parent languages when dialects are present in Collaborator language fields.
+    
+    When a dialect exists in native_languages or other_languages, this signal
+    ensures the parent language is also included in the same field.
+    
+    This maintains consistency and supports the hierarchical display pattern.
+    
+    Triggers on:
+    - post_add: When new languoids are added
+    - post_clear: After all languoids are removed (before new ones added via .set())
+    - post_remove: After languoids are removed
+    
+    Args:
+        sender: The through model (Django's auto-generated M2M table)
+        instance: The Collaborator instance
+        action: The M2M action ('post_add', 'post_clear', 'post_remove')
+        pk_set: Set of Languoid PKs being added/removed (None for post_clear)
+    """
+    # Only act on post_add, post_clear, or post_remove
+    # post_clear happens during .set() before post_add
+    if action not in ('post_add', 'post_clear', 'post_remove'):
+        return
+    
+    # Determine which field we're working with based on the through model table name
+    # Django's auto-generated through tables have predictable names
+    through_model_name = sender._meta.db_table
+    
+    if 'native_languages' in through_model_name:
+        language_field = instance.native_languages
+        field_name = 'native_languages'
+    elif 'other_languages' in through_model_name:
+        language_field = instance.other_languages
+        field_name = 'other_languages'
+    else:
+        logger.warning(
+            f"Could not determine which language field to update for Collaborator {instance.collaborator_id}. "
+            f"Through model: {through_model_name}"
+        )
+        return
+    
+    # Get ALL current languoids in the field (not just the ones being added)
+    # This ensures we check consistency after any change
+    current_languoids = language_field.all()
+    
+    # Find all dialects currently in the field and their parent languages
+    parent_language_ids = set()
+    for languoid in current_languoids:
+        if languoid.level_glottolog == 'dialect' and languoid.parent_languoid:
+            parent_language_ids.add(languoid.parent_languoid.id)
+    
+    if not parent_language_ids:
+        return  # No dialects with parents in the field
+    
+    # Get current language IDs in the field
+    current_language_ids = set(language_field.values_list('id', flat=True))
+    
+    # Find parent languages that are not already in the field
+    missing_parent_ids = parent_language_ids - current_language_ids
+    
+    if missing_parent_ids:
+        # Add missing parent languages using the M2M manager
+        language_field.add(*missing_parent_ids)
+        
+        logger.info(
+            f"Auto-added {len(missing_parent_ids)} parent language(s) to "
+            f"Collaborator {instance.collaborator_id} ({instance.full_name}) "
+            f"field '{field_name}': {list(missing_parent_ids)}"
+        )
+
+
+@receiver(m2m_changed, sender=Item.language.through)
+def auto_add_parent_language_for_item_dialects(sender, instance, action, pk_set, **kwargs):
+    """
+    Automatically add parent languages when dialects are present in Item language field.
+    
+    When a dialect exists in an Item's language field, this signal
+    ensures the parent language is also included.
+    
+    This maintains consistency and supports the hierarchical display pattern.
+    
+    Triggers on:
+    - post_add: When new languoids are added
+    - post_clear: After all languoids are removed (before new ones added via .set())
+    - post_remove: After languoids are removed
+    
+    Args:
+        sender: The through model (Django's auto-generated M2M table)
+        instance: The Item instance
+        action: The M2M action ('post_add', 'post_clear', 'post_remove')
+        pk_set: Set of Languoid PKs being added/removed (None for post_clear)
+    """
+    # Only act on post_add, post_clear, or post_remove
+    if action not in ('post_add', 'post_clear', 'post_remove'):
+        return
+    
+    # Get ALL current languoids in the field (not just the ones being added)
+    # This ensures we check consistency after any change
+    current_languoids = instance.language.all()
+    
+    # Find all dialects currently in the field and their parent languages
+    parent_language_ids = set()
+    for languoid in current_languoids:
+        if languoid.level_glottolog == 'dialect' and languoid.parent_languoid:
+            parent_language_ids.add(languoid.parent_languoid.id)
+    
+    if not parent_language_ids:
+        return  # No dialects with parents in the field
+    
+    # Get current language IDs in the field
+    current_language_ids = set(instance.language.values_list('id', flat=True))
+    
+    # Find parent languages that are not already in the field
+    missing_parent_ids = parent_language_ids - current_language_ids
+    
+    if missing_parent_ids:
+        # Add missing parent languages using the M2M manager
+        instance.language.add(*missing_parent_ids)
+        
+        logger.info(
+            f"Auto-added {len(missing_parent_ids)} parent language(s) to "
+            f"Item {instance.catalog_number} "
+            f"field 'language': {list(missing_parent_ids)}"
+        )
 
 
 # ============================================================================

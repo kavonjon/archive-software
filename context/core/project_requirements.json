@@ -576,9 +576,9 @@
       },
       "documentation_creation_protocol": {
         "trigger": "Project manager explicitly requests documentation creation or updates",
-        "never_automatic": "Documentation is NEVER created proactively by AI assistants",
-        "explicit_request_required": "PM must explicitly say 'create/update user documentation' or 'create/update system behavior documentation'",
-        "scope_clarification": "PM specifies which features/sections to document in each request"
+        "never_automatic": "Documentation is NEVER created proactively by lead developers",
+        "explicit_request_required": "Project manager must explicitly say 'create/update user documentation' or 'create/update system behavior documentation'",
+        "scope_clarification": "Project manager specifies which features/sections to document in each request"
       },
       "documentation_maintenance_protocol": {
         "survey_trigger": "Project manager explicitly requests documentation surveys",
@@ -587,14 +587,14 @@
           "Completeness check: Are there new features missing from documentation?",
           "Staleness check: Are there deprecated features still documented?"
         ],
-        "survey_output": "AI provides list of documentation sections needing updates with specific reasons",
-        "update_execution": "Updates only proceed after PM reviews survey results and approves specific changes"
+        "survey_output": "Lead developer provides list of documentation sections needing updates with specific reasons",
+        "update_execution": "Updates only proceed after Project Manager reviews survey results and approves specific changes"
       },
       "relationship_to_other_docs": {
         "vs_developer_docs": "Developer docs (docs/development/) focus on code contribution, local setup, architecture. End-user docs focus on using the application.",
         "vs_deployment_docs": "Deployment docs (docs/deployment/) focus on infrastructure setup. End-user docs assume system is already running.",
         "vs_operations_docs": "Operations docs (docs/operations/) focus on maintenance and troubleshooting at infrastructure level. System behavior docs focus on application logic.",
-        "vs_context_memory": "Context memory is for AI decision tracking. End-user docs are for human consumption and learning."
+        "vs_context_memory": "Context memory is for development decision tracking. End-user docs are for human consumption and learning."
       },
       "priority": "medium",
       "rationale": "Comprehensive documentation enables user self-service, reduces support burden, and provides clarity on system internals for technical users",
@@ -603,4 +603,3 @@
       "cross_references": ["documentation_structure.json", "protocol.json", "user_workflows.json"]
     }
   }
-}

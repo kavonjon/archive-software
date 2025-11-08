@@ -1056,7 +1056,7 @@
             "Don't forget to invalidate cache on model saves/deletes",
             "Don't use same cache key for different endpoints",
             "Don't set TTL too short (defeats purpose) or too long (stale data)",
-            "Don't block user requests - always use async tasks for rebuilding"
+            "Don't block application requests - always use async tasks for rebuilding"
           ],
           "common_mistakes": {
             "forgetting_lock": "Results in duplicate rebuilds, wasted resources",

@@ -243,6 +243,41 @@ const CollaboratorDetail: React.FC = () => {
     setDateInterpretationValues(prev => ({ ...prev, [fieldName]: value }));
   };
 
+  // Helper function to organize languoids hierarchically for display
+  const organizeLanguoidsForDisplay = (languoids: any[]) => {
+    if (!languoids || languoids.length === 0) return [];
+
+    // Separate languages and dialects
+    const languages = languoids
+      .filter(l => l.level_glottolog === 'language')
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    
+    const dialects = languoids.filter(l => l.level_glottolog === 'dialect');
+    
+    // Create organized array
+    const organized: any[] = [];
+    
+    // Add each language followed by its dialects
+    languages.forEach(lang => {
+      organized.push(lang);
+      
+      const childDialects = dialects
+        .filter(d => d.parent_languoid === lang.id)
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      
+      organized.push(...childDialects);
+    });
+    
+    // Add orphan dialects at the end
+    const orphanDialects = dialects
+      .filter(d => !languages.some(l => l.id === d.parent_languoid))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    
+    organized.push(...orphanDialects);
+    
+    return organized;
+  };
+
   const saveField = async (fieldName: string, value?: any) => {
     if (!collaborator) return;
 
@@ -571,26 +606,27 @@ const CollaboratorDetail: React.FC = () => {
             </Box>
 
             {/* Languages */}
-            {(collaborator.native_language_names.length > 0 || collaborator.other_language_names.length > 0) && (
+            {(collaborator.native_languages.length > 0 || collaborator.other_languages.length > 0) && (
               <Box sx={{ mt: 3 }}>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                   Languages
                 </Typography>
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  {collaborator.native_language_names.map((lang, index) => (
+                  {organizeLanguoidsForDisplay(collaborator.native_languages).map((lang) => (
                     <Chip 
-                      key={`native-${index}`} 
-                      label={`${lang} (Native)`} 
+                      key={`native-${lang.id}`} 
+                      label={`${lang.name} (Native)`} 
                       size="small" 
-                      color="primary" 
+                      color={lang.level_glottolog === 'language' ? 'primary' : 'default'}
                       variant="outlined" 
                     />
                   ))}
-                  {collaborator.other_language_names.map((lang, index) => (
+                  {organizeLanguoidsForDisplay(collaborator.other_languages).map((lang) => (
                     <Chip 
-                      key={`other-${index}`} 
-                      label={lang} 
+                      key={`other-${lang.id}`} 
+                      label={lang.name} 
                       size="small" 
+                      color={lang.level_glottolog === 'language' ? 'primary' : 'default'}
                       variant="outlined" 
                     />
                   ))}
@@ -720,11 +756,11 @@ const CollaboratorDetail: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Languages */}
+            {/* Languages and Dialects */}
             <Card sx={{ mb: 3, elevation: 1 }}>
               <CardContent>
                 <Typography variant="h6" sx={{ fontWeight: 'medium', color: 'primary.main', mb: 2 }}>
-                  Languages
+                  Languages and Dialects
                 </Typography>
                 <Divider sx={{ mb: 2 }} />
                 
@@ -741,7 +777,15 @@ const CollaboratorDetail: React.FC = () => {
                   updateEditValue={updateEditValue}
                   relationshipEndpoint="/internal/v1/languoids/"
                   getOptionLabel={(option) => `${option.name}${option.glottocode ? ` (${option.glottocode})` : ''}`}
+                  filterParams={{ level_glottolog__in: 'language,dialect' }}
                 />
+                
+                {/* Info message for native languages when editing */}
+                {editingFields.has('native_languages') && (
+                  <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
+                    You can add both languages and dialects directly. When you add a dialect, its parent language will be automatically added as well.
+                  </Alert>
+                )}
                 
                 <EditableMultiRelationshipField
                   fieldName="other_languages"
@@ -756,7 +800,15 @@ const CollaboratorDetail: React.FC = () => {
                   updateEditValue={updateEditValue}
                   relationshipEndpoint="/internal/v1/languoids/"
                   getOptionLabel={(option) => `${option.name}${option.glottocode ? ` (${option.glottocode})` : ''}`}
+                  filterParams={{ level_glottolog__in: 'language,dialect' }}
                 />
+                
+                {/* Info message for other languages when editing */}
+                {editingFields.has('other_languages') && (
+                  <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
+                    You can add both languages and dialects directly. When you add a dialect, its parent language will be automatically added as well.
+                  </Alert>
+                )}
               </CardContent>
             </Card>
 

@@ -773,6 +773,122 @@
       
       "confidence_level": "high",
       "status": "active"
+    },
+    
+    "signal_driven_computed_fields": {
+      "decision_id": "pattern_030",
+      "content": "Use pre_save signals to compute derived fields for consistency, auditability, and guaranteed execution",
+      "added_date": "2025-11-08",
+      "conversation_reference": "Collaborator model harmonization and full_name computation",
+      
+      "principle": "All derived fields should be computed in pre_save signals rather than overriding save() or using property decorators",
+      
+      "benefits": [
+        "Single source of truth for derivation logic",
+        "Always fires (unlike overriding save() which can be bypassed)",
+        "Centralized and easy to test",
+        "Logging and auditing capabilities built-in",
+        "Works with Django admin, DRF, and direct model saves"
+      ],
+      
+      "use_cases": [
+        "full_name computed from first_names, nickname, last_names, name_suffix (Collaborator)",
+        "slug generated from name or title fields",
+        "Date standardization (MM/DD/YYYY → YYYY/MM/DD)",
+        "Min/max date calculation from date ranges",
+        "Hierarchy-derived fields (family_languoid, level_nal) in Languoid model"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["collaborator-harmonization.json", "data_model_understanding.json"]
+    },
+    
+    "m2m_consistency_signals": {
+      "decision_id": "pattern_031",
+      "content": "Use m2m_changed signals to enforce data integrity rules on Many-to-Many relationships by checking ALL current relationships after ANY change",
+      "added_date": "2025-11-08",
+      "conversation_reference": "Auto-add parent languages when dialects selected in Collaborator/Item models",
+      
+      "principle": "When M2M relationships have integrity constraints, enforce them with m2m_changed signals that examine complete state, not just deltas",
+      
+      "use_case_language_dialects": {
+        "constraint": "If dialect selected, parent language must also be present",
+        "models": ["Collaborator.native_languages", "Collaborator.other_languages", "Item.language"],
+        "scenarios_handled": [
+          "Staff member adds dialect → Parent auto-added",
+          "Staff member removes parent but keeps dialect → Parent re-added",
+          "Code calls .set([dialect_ids]) → post_clear then post_add, parent ensured"
+        ]
+      },
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["collaborator-harmonization.json", "data_model_understanding.json"]
+    },
+    
+    "hierarchical_m2m_display": {
+      "decision_id": "pattern_032",
+      "content": "Display M2M relationships with parent-child hierarchy using helper functions, visual differentiation, and careful index management",
+      "added_date": "2025-11-08",
+      "conversation_reference": "Language/dialect chip display in CollaboratorDetail and ItemDetail",
+      
+      "helper_function_pattern": {
+        "name": "organizeLanguoidChips(languoids: Languoid[])",
+        "logic": "Separate by type, sort top-level alphabetically, append children, append orphans",
+        "reusability": "Used in both read mode (display) and edit mode (chip rendering)"
+      },
+      
+      "chip_removal_fix": {
+        "problem": "Visual order (hierarchical sorted) didn't match data order (unsorted)",
+        "manifestation": "Clicking X on a dialect chip removed the wrong languoid",
+        "solution": "Use actualIndex = tagValue.findIndex(t => t.id === item.option.id) instead of counter",
+        "critical": "Pass actualIndex to getTagProps({ index: actualIndex }) for correct onDelete behavior"
+      },
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["collaborator-harmonization.json"]
+    },
+    
+    "design_for_end_state_first": {
+      "decision_id": "pattern_033",
+      "content": "When implementing multiple related features, design the final architecture first, then implement incrementally",
+      "added_date": "2025-11-08",
+      "conversation_reference": "Collaborator signal architecture planning",
+      
+      "principle": "Plan complete architecture upfront to ensure clean integration, then implement features one at a time for testing",
+      
+      "benefits": [
+        "Avoids refactoring between each feature implementation",
+        "Ensures consistent naming and structure across related features",
+        "Identifies shared utilities and patterns early",
+        "Cleaner final code than piecemeal approach with refactoring"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["collaborator-harmonization.json"]
+    },
+    
+    "stub_classes_for_model_deprecation": {
+      "decision_id": "pattern_034",
+      "content": "When removing widely-used model classes, create stub classes to prevent cascading failures in legacy code",
+      "added_date": "2025-11-08",
+      "conversation_reference": "Dialect/DialectInstance decommissioning",
+      
+      "use_case": "Legacy Django template views reference deleted models but are no longer actively used (React-only frontend)",
+      
+      "benefits": [
+        "Prevents ImportError and AttributeError crashes",
+        "Avoids deleting hundreds of lines of legacy code immediately",
+        "Allows gradual cleanup of deprecated code paths",
+        "Clearly documents deprecation with comments"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["collaborator-harmonization.json", "data_model_understanding.json"]
     }
   }
 }

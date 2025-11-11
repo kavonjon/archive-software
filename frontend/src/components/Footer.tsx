@@ -1,6 +1,5 @@
 import React from 'react';
 import { Box, Container, Typography, Link as MuiLink, Divider } from '@mui/material';
-import { Accessible as AccessibleIcon } from '@mui/icons-material';
 
 const Footer: React.FC = () => {
   const currentYear = new Date().getFullYear();
@@ -55,14 +54,7 @@ const Footer: React.FC = () => {
           }}
         >
           {/* Accessibility Statement */}
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-            }}
-          >
-            <AccessibleIcon fontSize="small" color="action" aria-hidden="true" />
+          <Box>
             <Typography variant="body2" color="text.secondary">
               This website is committed to accessibility standards.{' '}
               <MuiLink

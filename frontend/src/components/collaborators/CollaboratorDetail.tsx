@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { debounce } from 'lodash';
 import {
   Box,
@@ -179,7 +179,8 @@ const CollaboratorDetail: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const collaboratorData = await collaboratorsAPI.get(parseInt(id, 10));
+        // Pass id directly - backend handles both "id-XXXX" format and numeric IDs
+        const collaboratorData = await collaboratorsAPI.get(id);
         setCollaborator(collaboratorData);
       } catch (err: any) {
         setError(err.message || 'Failed to load collaborator');
@@ -279,7 +280,7 @@ const CollaboratorDetail: React.FC = () => {
   };
 
   const saveField = async (fieldName: string, value?: any) => {
-    if (!collaborator) return;
+    if (!collaborator || !id) return;  // Guard against undefined id
 
     const finalValue = value !== undefined ? value : editValues[fieldName];
     
@@ -289,7 +290,8 @@ const CollaboratorDetail: React.FC = () => {
       // Convert collaborator_id to number if needed
       const processedValue = fieldName === 'collaborator_id' ? parseInt(finalValue, 10) : finalValue;
       
-      const updatedCollaborator = await collaboratorsAPI.patch(collaborator.id, {
+      // Use id from URL params - backend handles both "id-XXXX" format and numeric IDs
+      const updatedCollaborator = await collaboratorsAPI.patch(id, {
         [fieldName]: processedValue
       });
       
@@ -330,10 +332,11 @@ const CollaboratorDetail: React.FC = () => {
 
   // Handle delete
   const handleDelete = async () => {
-    if (!collaborator || deleteConfirmText !== collaborator.collaborator_id.toString()) return;
+    if (!collaborator || !id || deleteConfirmText !== collaborator.collaborator_id.toString()) return;
 
     try {
-      await collaboratorsAPI.delete(collaborator.id);
+      // Use id from URL params - backend handles both "id-XXXX" format and numeric IDs
+      await collaboratorsAPI.delete(id);
       navigate('/collaborators');
     } catch (err: any) {
       setError(err.message || 'Failed to delete collaborator');
@@ -848,9 +851,9 @@ const CollaboratorDetail: React.FC = () => {
                         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                           <Box sx={{ flex: 1 }}>
                             <Link
-                              component="button"
+                              component={RouterLink}
+                              to={`/items/${item.id}`}
                               variant="h6"
-                              onClick={() => navigate(`/items/${item.id}`)}
                               sx={{ 
                                 textAlign: 'left',
                                 textDecoration: 'none',

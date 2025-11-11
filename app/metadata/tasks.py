@@ -4,7 +4,7 @@ import logging
 from django.conf import settings
 from celery import shared_task
 from datetime import datetime, timedelta
-from metadata.models import Collection, Item, Languoid
+from metadata.models import Collection, Item, Languoid, Collaborator
 from django.db.models import Min, Max
 from .utils import parse_standardized_date
 from .models import File
@@ -970,7 +970,7 @@ def build_languoid_list_cache():
         'parent_languoid',
         'pri_subgroup_languoid',
         'sec_subgroup_languoid'
-    ).prefetch_related('child_languoids')
+    ).prefetch_related('child_languoids', 'item_languages')
     
     # Get all languoids as a list for tree building
     all_languoids = list(queryset)
@@ -1103,6 +1103,125 @@ def invalidate_and_warm_languoid_cache():
     
     # Trigger background rebuild (doesn't block the signal)
     warm_languoid_list_cache.apply_async(priority=8)
+
+
+# ============================================================================
+# COLLABORATOR LIST CACHE WARMING TASKS
+# ============================================================================
+
+def build_collaborator_list_cache():
+    """
+    Utility function to build the cached collaborator list response.
+    
+    This function does the expensive work:
+    - Queries all collaborators with optimized prefetch
+    - Sorts them with locale-aware collation (è, é sort near 'e')
+    - Serializes them to JSON
+    - Returns the serialized data ready for caching
+    
+    Used by:
+    - warm_collaborator_list_cache task (background refresh)
+    - InternalCollaboratorViewSet (on cache miss)
+    """
+    from internal_api.serializers import InternalCollaboratorBatchSerializer
+    from django.db.models.functions import Lower, Collate
+    
+    logger.info("[Cache Warming] Building collaborator list cache...")
+    
+    # Query all collaborators with optimized prefetch and locale-aware sorting
+    queryset = Collaborator.objects.all().prefetch_related(
+        'native_languages', 
+        'other_languages'
+    ).order_by(
+        Collate(Lower('last_names'), 'en-US-x-icu'),
+        Collate(Lower('first_names'), 'en-US-x-icu'),
+        Collate(Lower('full_name'), 'en-US-x-icu'),
+        'collaborator_id'
+    )
+    
+    # Serialize to JSON (same as API response)
+    serializer = InternalCollaboratorBatchSerializer(queryset, many=True)
+    data = serializer.data
+    
+    logger.info(f"[Cache Warming] Built cache with {len(data)} collaborators")
+    return data
+
+
+@shared_task(bind=True, max_retries=3)
+def warm_collaborator_list_cache(self):
+    """
+    Background task to warm/refresh the collaborator list cache.
+    
+    This task:
+    - Builds the full collaborator list response
+    - Stores it in Redis cache with 10-minute TTL
+    - Uses a lock to prevent concurrent rebuilds
+    - Runs periodically via Celery Beat (every 9 minutes)
+    - Runs immediately after collaborator saves/deletes
+    
+    Users never wait for this - it happens in the background.
+    """
+    from django.core.cache import cache
+    import time
+    
+    lock_key = 'collaborator_list_cache_lock'
+    cache_key = 'collaborator_list_full'
+    
+    try:
+        # Try to acquire lock (prevents concurrent rebuilds)
+        lock_acquired = cache.add(lock_key, 'locked', timeout=120)  # 2-minute lock
+        
+        if not lock_acquired:
+            logger.info("[Cache Warming] Another cache build is in progress, skipping")
+            return {'status': 'skipped', 'reason': 'lock_held'}
+        
+        start_time = time.time()
+        logger.info("[Cache Warming] Starting collaborator list cache rebuild...")
+        
+        # Build the cache data
+        data = build_collaborator_list_cache()
+        
+        # Store in Redis with 10-minute TTL
+        cache.set(cache_key, data, timeout=600)
+        
+        elapsed = time.time() - start_time
+        logger.info(f"[Cache Warming] Cache rebuilt successfully in {elapsed:.2f}s")
+        
+        return {
+            'status': 'success',
+            'collaborator_count': len(data),
+            'elapsed_seconds': elapsed
+        }
+        
+    except Exception as e:
+        logger.error(f"[Cache Warming] Error building cache: {e}")
+        import traceback
+        traceback.print_exc()
+        raise self.retry(exc=e, countdown=30)  # Retry after 30 seconds
+        
+    finally:
+        # Always release the lock
+        cache.delete(lock_key)
+
+
+@shared_task
+def invalidate_and_warm_collaborator_cache():
+    """
+    Invalidate the collaborator list cache and trigger immediate rebuild.
+    
+    Called by Django signals when a collaborator is saved or deleted.
+    This ensures users always see fresh data after edits.
+    """
+    from django.core.cache import cache
+    
+    cache_key = 'collaborator_list_full'
+    
+    # Invalidate existing cache
+    cache.delete(cache_key)
+    logger.info("[Cache Invalidation] Collaborator list cache invalidated")
+    
+    # Trigger background rebuild (doesn't block the signal)
+    warm_collaborator_list_cache.apply_async(priority=8)
 
 
 # ============================================================================
@@ -1268,6 +1387,150 @@ def generate_languoid_export_task(self, export_id, mode, ids):
         
     except Exception as e:
         logger.error(f"[EXPORT TASK] Error generating export {export_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise self.retry(exc=e, countdown=30)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=30)
+def generate_collaborator_export_task(self, export_id, mode, ids):
+    """
+    Background task to generate collaborator export for large datasets.
+    
+    Args:
+        export_id: Unique identifier for this export (used for filename and tracking)
+        mode: 'filtered' | 'selected'
+        ids: List of collaborator IDs to export
+    
+    Returns:
+        dict with status, filename, and error info
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    from datetime import datetime
+    from django.core.files.storage import default_storage
+    from django.core.files.base import ContentFile
+    from django.conf import settings
+    import os
+    
+    logger.info(f"[EXPORT TASK] Starting collaborator export {export_id}: {len(ids)} collaborators")
+    
+    try:
+        # Fetch collaborators with optimized queries and locale-aware sorting
+        from django.db.models.functions import Lower, Collate
+        
+        queryset = Collaborator.objects.filter(id__in=ids).prefetch_related(
+            'native_languages',
+            'other_languages'
+        )
+        
+        collaborators = list(queryset.order_by(
+            Collate(Lower('last_names'), 'en-US-x-icu'),
+            Collate(Lower('first_names'), 'en-US-x-icu'),
+            'collaborator_id'
+        ))
+        logger.info(f"[EXPORT TASK] Found {len(collaborators)} collaborators")
+        
+        # Create workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Collaborators"
+        
+        # Define headers (full_name before first_names)
+        headers = [
+            'Collaborator ID',
+            'Full Name',  # Position 2 - export only, read-only
+            'First Name(s)',
+            'Last Name(s)',
+            'Name Suffix',
+            'Nickname',
+            'Other Names',
+            'Anonymous',
+            'Native/First Languages',
+            'Other Languages',
+            'Birth Date',
+            'Death Date',
+            'Gender',
+            'Tribal Affiliations',
+            'Clan/Society',
+            'Origin',
+            'Other Info',
+        ]
+        
+        # Write header row with styling
+        header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+        header_font = Font(bold=True, color='FFFFFF')
+        
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_num)
+            cell.value = header
+            cell.fill = header_fill
+            cell.font = header_font
+        
+        # Helper function for safe values
+        def safe_value(value):
+            if value is None:
+                return ''
+            if isinstance(value, (list, tuple)):
+                return ', '.join(str(v) for v in value)
+            if isinstance(value, bool):
+                return 'Yes' if value else 'No'
+            return str(value)
+        
+        # Write data rows
+        for row_num, collab in enumerate(collaborators, 2):
+            ws.cell(row=row_num, column=1).value = collab.collaborator_id if collab.collaborator_id else ''
+            ws.cell(row=row_num, column=2).value = safe_value(collab.full_name)  # Export only
+            ws.cell(row=row_num, column=3).value = safe_value(collab.first_names)
+            ws.cell(row=row_num, column=4).value = safe_value(collab.last_names)
+            ws.cell(row=row_num, column=5).value = safe_value(collab.name_suffix)
+            ws.cell(row=row_num, column=6).value = safe_value(collab.nickname)
+            ws.cell(row=row_num, column=7).value = safe_value(collab.other_names)
+            
+            # Anonymous - convert None/True/False to Not specified/Yes/No
+            if collab.anonymous is None:
+                ws.cell(row=row_num, column=8).value = 'Not specified'
+            else:
+                ws.cell(row=row_num, column=8).value = 'Yes' if collab.anonymous else 'No'
+            
+            # Languages - display as comma-separated names
+            native_langs = ', '.join([lang.name for lang in collab.native_languages.all()])
+            other_langs = ', '.join([lang.name for lang in collab.other_languages.all()])
+            ws.cell(row=row_num, column=9).value = native_langs
+            ws.cell(row=row_num, column=10).value = other_langs
+            
+            ws.cell(row=row_num, column=11).value = safe_value(collab.birthdate)
+            ws.cell(row=row_num, column=12).value = safe_value(collab.deathdate)
+            ws.cell(row=row_num, column=13).value = safe_value(collab.gender)
+            ws.cell(row=row_num, column=14).value = safe_value(collab.tribal_affiliations)
+            ws.cell(row=row_num, column=15).value = safe_value(collab.clan_society)
+            ws.cell(row=row_num, column=16).value = safe_value(collab.origin)
+            ws.cell(row=row_num, column=17).value = safe_value(collab.other_info)
+        
+        # Auto-size columns
+        for col_num in range(1, len(headers) + 1):
+            ws.column_dimensions[ws.cell(row=1, column=col_num).column_letter].width = 20
+        
+        # Save to media/exports directory
+        exports_dir = os.path.join(settings.MEDIA_ROOT, 'exports')
+        os.makedirs(exports_dir, exist_ok=True)
+        
+        filename = f'collaborators_export_{export_id}.xlsx'
+        file_path = os.path.join(exports_dir, filename)
+        
+        # Save workbook
+        wb.save(file_path)
+        
+        logger.info(f"[EXPORT TASK] Successfully generated collaborator export: {filename}")
+        
+        return {
+            'status': 'success',
+            'filename': filename,
+            'count': len(collaborators)
+        }
+        
+    except Exception as e:
+        logger.error(f"[EXPORT TASK] Error generating collaborator export {export_id}: {e}")
         import traceback
         traceback.print_exc()
         raise self.retry(exc=e, countdown=30)

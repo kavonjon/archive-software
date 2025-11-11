@@ -182,6 +182,9 @@ export const CheckboxColumn: React.FC<CheckboxColumnProps> = ({
           checked={allSelected}
           indeterminate={someSelected}
           onClick={handleMasterCheckboxClick}
+          inputProps={{
+            'aria-label': 'Select all rows',
+          }}
           sx={{ padding: 0.5 }}
         />
       </Box>
@@ -202,6 +205,9 @@ export const CheckboxColumn: React.FC<CheckboxColumnProps> = ({
           <Checkbox
             checked={selectedRowIdsRef.current.has(row.id)}
             onClick={(e) => handleRowCheckboxClick(e, row.id, index)}
+            inputProps={{
+              'aria-label': `Select row ${index + 1}`,
+            }}
             sx={{ padding: 0.5 }}
           />
         </Box>

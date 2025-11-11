@@ -500,10 +500,24 @@ export const TanStackSpreadsheet = forwardRef<TanStackSpreadsheetHandle, TanStac
     scrollToRow: (rowId: string | number) => {
       const rowIndex = rows.findIndex(r => r.id.toString() === rowId.toString());
       if (rowIndex !== -1) {
+        const isLastRow = rowIndex === rows.length - 1;
+        
+        if (isLastRow && tableContainerRef.current) {
+          // For the last row, scroll the container to its maximum scrollTop
+          // This ensures the last row is fully visible
+          const container = tableContainerRef.current;
+          container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'smooth',
+          });
+        } else {
+          // For all other rows, use virtualizer's scrollToIndex with center alignment
+          // This positions the target row in the middle of the viewport
         rowVirtualizer.scrollToIndex(rowIndex, {
-          align: 'start',
+            align: 'center',
           behavior: 'smooth',
         });
+        }
       }
     },
   }), [rows, rowVirtualizer]);

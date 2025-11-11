@@ -6,6 +6,7 @@ import { Provider } from 'react-redux';
 import { store } from './store/store';
 import { AuthProvider } from './contexts/AuthContext';
 import { LanguoidCacheProvider } from './contexts/LanguoidCacheContext';
+import { CollaboratorCacheProvider } from './contexts/CollaboratorCacheContext';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -96,6 +97,7 @@ function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <AuthProvider>
+          <CollaboratorCacheProvider>
           <LanguoidCacheProvider>
             <Router>
               <div className="App">
@@ -131,7 +133,7 @@ function App() {
                 tabIndex={-1}
                 style={{ 
                   padding: '20px',
-                  outline: 'none' // Remove focus outline since this is programmatically focused
+                  outline: 'none', // Remove focus outline since this is programmatically focused
                 }}
                 role="main"
                 aria-label="Main content"
@@ -177,6 +179,7 @@ function App() {
             </div>
           </Router>
           </LanguoidCacheProvider>
+          </CollaboratorCacheProvider>
         </AuthProvider>
       </ThemeProvider>
     </Provider>

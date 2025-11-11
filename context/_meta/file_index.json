@@ -147,6 +147,13 @@
         "update_frequency": "If Collaborator model changes significantly or similar patterns applied to other models",
         "cross_references": ["data_model_understanding.json", "coding_patterns.json", "active_context.json"],
         "added_date": "2025-11-08"
+      },
+      "ui-enhancements-session.json": {
+        "purpose": "UI polish session - favicon, footer, password visibility, hybrid links, and user guide updates",
+        "when_to_reference": "When implementing navigation patterns, adding UI polish, or understanding hybrid link implementation",
+        "update_frequency": "When new UI enhancement patterns established",
+        "cross_references": ["coding_patterns.json", "login-ux-improvements.json", "stage_0_react_migration.json"],
+        "added_date": "2025-11-11"
       }
     },
     

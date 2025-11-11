@@ -10,7 +10,10 @@ import {
   Container,
   useTheme,
   useMediaQuery,
+  IconButton,
+  InputAdornment,
 } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { focusUtils, formUtils } from '../utils/accessibility';
@@ -18,6 +21,7 @@ import { focusUtils, formUtils } from '../utils/accessibility';
 const LoginForm: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { state, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -66,6 +70,14 @@ const LoginForm: React.FC = () => {
 
   const handlePasswordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(event.target.value);
+  };
+
+  const handleTogglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const handleMouseDownPassword = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault(); // Prevent the button from stealing focus from the input
   };
 
   const isFormValid = username.trim() && password.trim();
@@ -155,7 +167,7 @@ const LoginForm: React.FC = () => {
           <TextField
             {...formUtils.generateFieldProps('password', 'Password', true)}
             label="Password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             variant="outlined"
             value={password}
             onChange={handlePasswordChange}
@@ -169,6 +181,25 @@ const LoginForm: React.FC = () => {
                 ? 'Password is required' 
                 : ''
             }
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    onClick={handleTogglePasswordVisibility}
+                    onMouseDown={handleMouseDownPassword}
+                    edge="end"
+                    disabled={state.isLoading}
+                    sx={{
+                      minWidth: '44px',
+                      minHeight: '44px',
+                    }}
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
             inputProps={{
               'aria-describedby': state.error ? 'login-error password-help' : 'password-help',
             }}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -31,21 +31,24 @@ import {
   Pagination,
   Tooltip,
   Checkbox,
+  Link,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Search as SearchIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
-  Refresh as RefreshIcon,
   CheckBox as CheckBoxIcon,
   CheckBoxOutlineBlank as CheckBoxOutlineBlankIcon,
   IndeterminateCheckBox as IndeterminateCheckBoxIcon,
+  Clear as ClearIcon,
+  FilterList as FilterListIcon,
 } from '@mui/icons-material';
 import { languoidsAPI, type Languoid, LANGUOID_LEVEL_CHOICES } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguoidCache } from '../../contexts/LanguoidCacheContext';
 import { hasEditAccess } from '../../utils/permissions';
+import { usePersistedListState } from '../../hooks/usePersistedListState';
 import BatchEditButton, { type BatchEditMode } from './BatchEditButton';
 import BatchEditWarningDialog, { type WarningConfig } from './BatchEditWarningDialog';
 import ExportButton, { type ExportMode } from './ExportButton';
@@ -56,7 +59,8 @@ const LEVEL_FILTER_PRESETS = [
   { key: 'languages', label: 'Languages Only', levels: ['language'], useGlottolog: false },
   { key: 'dialects', label: 'Dialects Only', levels: ['dialect'], useGlottolog: false },
   { key: 'languages_dialects', label: 'Languages & Dialects', levels: ['language', 'dialect'], useGlottolog: false },
-  { key: 'families', label: 'Families Only', levels: ['family'], useGlottolog: true }, // Use level_glottolog
+  { key: 'families_only', label: 'Families Only', levels: ['family'], useGlottolog: false }, // Use level_nal
+  { key: 'families_subfamilies', label: 'Families & Subfamilies', levels: ['family'], useGlottolog: true }, // Use level_glottolog
 ];
 
 // Level badge colors
@@ -66,6 +70,42 @@ const LEVEL_COLORS = {
   dialect: 'warning'
 } as const;
 
+// Filter state type
+interface LanguoidFilterState {
+  selectedLevelFilter: string;
+  searchTerm: string;
+  levelFilter: string;
+  familyFilter: string;
+  regionFilter: string;
+  isoFilter: string;
+  glottocodeFilter: string;
+  altNamesFilter: string;
+  isoIsNull?: boolean;
+  altNamesIsNull?: boolean;
+  parentLanguoidIsNull?: boolean;
+  regionIsNull?: boolean;
+  latLongIsNull?: boolean;
+  tribesIsNull?: boolean;
+}
+
+// Default filter values
+const DEFAULT_FILTERS: LanguoidFilterState = {
+  selectedLevelFilter: 'all',
+  searchTerm: '',
+  levelFilter: '',
+  familyFilter: '',
+  regionFilter: '',
+  isoFilter: '',
+  glottocodeFilter: '',
+  altNamesFilter: '',
+  isoIsNull: undefined,
+  altNamesIsNull: undefined,
+  parentLanguoidIsNull: undefined,
+  regionIsNull: undefined,
+  latLongIsNull: undefined,
+  tribesIsNull: undefined,
+};
+
 interface HierarchicalLanguoid extends Languoid {
   indentLevel: number;
 }
@@ -73,7 +113,7 @@ interface HierarchicalLanguoid extends Languoid {
 const LanguoidsList: React.FC = () => {
   const navigate = useNavigate();
   const { state: authState } = useAuth();
-  const { getLanguoids, refreshCache, isLoading: cacheLoading, error: cacheError } = useLanguoidCache();
+  const { getLanguoids, isLoading: cacheLoading, error: cacheError } = useLanguoidCache();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
@@ -84,30 +124,45 @@ const LanguoidsList: React.FC = () => {
   const [allLanguoids, setAllLanguoids] = useState<Languoid[]>([]); // Store ALL languoids (unfiltered)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Filter state
-  const [selectedLevelFilter, setSelectedLevelFilter] = useState('all');
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [levelFilter, setLevelFilter] = useState('');
-  const [familyFilter, setFamilyFilter] = useState('');
-  const [regionFilter, setRegionFilter] = useState('');
-
-  // Display pagination state (frontend only)
-  const [displayPage, setDisplayPage] = useState(1);
-  const minPageSize = 50; // Minimum items per page
-
-  // Selection state (persists during session, cleared on tab close)
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => {
-    const saved = sessionStorage.getItem('languoid-selected-ids');
-    return saved ? new Set(JSON.parse(saved)) : new Set();
+  // Persisted filter and selection state
+  const {
+    filters,
+    setFilters,
+    selectedIds,
+    setSelectedIds,
+    page: displayPage,
+    setPage: setDisplayPage,
+    rowsPerPage,
+    setRowsPerPage,
+    toggleSelection,
+    setAllSelections,
+    clearFilters: clearPersistedFilters,
+  } = usePersistedListState<LanguoidFilterState, Languoid>({
+    storageKey: 'languoid-list-state',
+    defaultFilters: DEFAULT_FILTERS,
+    defaultPagination: { page: 1, rowsPerPage: 50 },
   });
 
-  // Persist selections to sessionStorage on every change
-  useEffect(() => {
-    sessionStorage.setItem('languoid-selected-ids', JSON.stringify(Array.from(selectedIds)));
-  }, [selectedIds]);
+  // Extract individual filter values for easier access
+  const selectedLevelFilter = filters.selectedLevelFilter;
+  const searchTerm = filters.searchTerm;
+  const levelFilter = filters.levelFilter;
+  const familyFilter = filters.familyFilter;
+  const regionFilter = filters.regionFilter;
+  const isoFilter = filters.isoFilter;
+  const glottocodeFilter = filters.glottocodeFilter;
+  const altNamesFilter = filters.altNamesFilter;
+  const isoIsNull = filters.isoIsNull;
+  const altNamesIsNull = filters.altNamesIsNull;
+  const parentLanguoidIsNull = filters.parentLanguoidIsNull;
+  const regionIsNull = filters.regionIsNull;
+  const latLongIsNull = filters.latLongIsNull;
+  const tribesIsNull = filters.tribesIsNull;
+
+  // UI state (not persisted)
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const minPageSize = rowsPerPage;
 
   // Batch edit mode state (persists across sessions in localStorage)
   const [batchEditMode, setBatchEditMode] = useState<BatchEditMode>(() => {
@@ -165,20 +220,6 @@ const LanguoidsList: React.FC = () => {
     }
   }, [getLanguoids, cacheError]);
 
-  // Handle manual refresh
-  const handleRefresh = useCallback(async () => {
-    try {
-      setIsRefreshing(true);
-      const languoids = await refreshCache();
-      setAllLanguoids(languoids);
-    } catch (err) {
-      console.error('Error refreshing languoids:', err);
-      setError('Failed to refresh languoids. Please try again.');
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [refreshCache]);
-
   // Apply filters on frontend (instant, no API call)
   const filteredLanguoids = useMemo(() => {
     // Safety check: ensure allLanguoids is defined
@@ -232,8 +273,66 @@ const LanguoidsList: React.FC = () => {
       );
     }
 
+    // Apply ISO filter
+    if (isoFilter.trim()) {
+      const isoSearch = isoFilter.trim().toLowerCase();
+      filtered = filtered.filter(languoid => 
+        languoid.iso && languoid.iso.toLowerCase().includes(isoSearch)
+      );
+    }
+
+    // Apply Glottocode filter
+    if (glottocodeFilter.trim()) {
+      const glottocodeSearch = glottocodeFilter.trim().toLowerCase();
+      filtered = filtered.filter(languoid => 
+        languoid.glottocode && languoid.glottocode.toLowerCase().includes(glottocodeSearch)
+      );
+    }
+
+    // Apply Alternate Names filter
+    if (altNamesFilter.trim()) {
+      const altNamesSearch = altNamesFilter.trim().toLowerCase();
+      filtered = filtered.filter(languoid => 
+        languoid.alt_names && languoid.alt_names.some(name => name.toLowerCase().includes(altNamesSearch))
+      );
+    }
+
+    // Apply empty field filters
+    if (isoIsNull === true) {
+      filtered = filtered.filter(languoid => !languoid.iso || languoid.iso.trim() === '');
+    }
+
+    if (altNamesIsNull === true) {
+      filtered = filtered.filter(languoid => !languoid.alt_names || languoid.alt_names.length === 0);
+    }
+
+    if (parentLanguoidIsNull === true) {
+      filtered = filtered.filter(languoid => !languoid.parent_languoid);
+    }
+
+    // Language-only empty field filters (only apply to level_glottolog='language')
+    if (regionIsNull === true) {
+      filtered = filtered.filter(languoid => 
+        languoid.level_glottolog === 'language' && (!languoid.region || languoid.region.trim() === '')
+      );
+    }
+
+    if (latLongIsNull === true) {
+      filtered = filtered.filter(languoid => 
+        languoid.level_glottolog === 'language' && (languoid.latitude === null || languoid.longitude === null)
+      );
+    }
+
+    if (tribesIsNull === true) {
+      filtered = filtered.filter(languoid => 
+        languoid.level_glottolog === 'language' && (!languoid.tribes || languoid.tribes.trim() === '')
+      );
+    }
+
     return filtered;
-  }, [allLanguoids, selectedLevelFilter, levelFilter, searchTerm, familyFilter, regionFilter]);
+  }, [allLanguoids, selectedLevelFilter, levelFilter, searchTerm, familyFilter, regionFilter, 
+      isoFilter, glottocodeFilter, altNamesFilter, isoIsNull, altNamesIsNull, 
+      parentLanguoidIsNull, regionIsNull, latLongIsNull, tribesIsNull]);
 
   // Build hierarchical display with indentation
   const hierarchicalLanguoids = useMemo((): HierarchicalLanguoid[] => {
@@ -321,7 +420,7 @@ const LanguoidsList: React.FC = () => {
       }
       return newSet;
     });
-  }, [selectedIds, allLanguoids, getDescendantIds]);
+  }, [selectedIds, allLanguoids, getDescendantIds, setSelectedIds]);
 
   // Handle "Select All Filtered" checkbox
   const handleSelectAllFiltered = useCallback(() => {
@@ -332,13 +431,13 @@ const LanguoidsList: React.FC = () => {
       });
       return newSet;
     });
-  }, [hierarchicalLanguoids]);
+  }, [hierarchicalLanguoids, setSelectedIds]);
 
   // Handle "Deselect All" button
   const handleDeselectAll = useCallback(() => {
+    // Note: setSelectedIds comes from usePersistedListState and will auto-persist
     setSelectedIds(new Set());
-    sessionStorage.removeItem('languoid-selected-ids');
-  }, []);
+  }, [setSelectedIds]);
 
   // Calculate select-all checkbox state (checked, indeterminate, or unchecked)
   const selectAllCheckboxState = useMemo(() => {
@@ -365,20 +464,11 @@ const LanguoidsList: React.FC = () => {
     // No warning for empty mode
     if (mode === 'empty') return null;
     
-    // No warning for <= 100 items
-    if (count <= 100) return null;
-    
-    // Large dataset warnings (>100) with advanced filters
-    if (count > 100 && hasAdvancedFilters) {
-      return { 
-        type: mode === 'filtered' ? 'large-filtered' : 'large-selected', 
-        count, 
-        mode 
-      };
-    }
-    
-    // Preset-only warning (no advanced filters, >100 items)
-    if (mode === 'filtered' && !hasAdvancedFilters && count > 100) {
+    // Only warn if no advanced filters are active (user is editing ALL rows)
+    // The count doesn't matter - what matters is whether they're editing everything
+    if (!hasAdvancedFilters) {
+      // Preset-only warning (no advanced filters)
+      if (mode === 'filtered') {
       // Map preset key to warning preset type
       const presetMap: Record<string, 'all' | 'languages' | 'dialects' | 'languages_dialects' | 'families'> = {
         'all': 'all',
@@ -396,13 +486,14 @@ const LanguoidsList: React.FC = () => {
       };
     }
     
-    // Also show preset warning for large-selected if no advanced filters
-    if (mode === 'selected' && !hasAdvancedFilters && count > 100) {
+      // Also show warning for selected mode if no advanced filters
+      if (mode === 'selected') {
       return {
         type: 'large-selected',
         count,
         mode
       };
+      }
     }
     
     return null;
@@ -426,21 +517,12 @@ const LanguoidsList: React.FC = () => {
     const savedConfig = sessionStorage.getItem('languoid-batch-config');
     console.log('[LanguoidsList] Verified saved config:', savedConfig);
     
-    // Save current list state for back button restoration
-    sessionStorage.setItem('languoid-list-scroll', window.scrollY.toString());
-    sessionStorage.setItem('languoid-list-filters', JSON.stringify({
-      selectedLevelFilter,
-      searchTerm,
-      levelFilter,
-      familyFilter,
-      regionFilter,
-      displayPage,
-    }));
+    // Note: Filter and selection state is now auto-persisted by usePersistedListState
     
     console.log('[LanguoidsList] Navigating to /languoids/batch');
     // Navigate to batch editor
     navigate('/languoids/batch');
-  }, [navigate, selectedLevelFilter, searchTerm, levelFilter, familyFilter, regionFilter, displayPage]);
+  }, [navigate]);
 
   // Handle batch edit button execution
   const handleBatchEdit = useCallback((mode: BatchEditMode) => {
@@ -817,27 +899,8 @@ const LanguoidsList: React.FC = () => {
     loadLanguoids();
   }, [loadLanguoids]);
 
-  // Restore scroll position and filters when returning from batch editor
-  useEffect(() => {
-    const savedScroll = sessionStorage.getItem('languoid-list-scroll');
-    const savedFilters = sessionStorage.getItem('languoid-list-filters');
-    
-    if (savedScroll) {
-      window.scrollTo(0, parseInt(savedScroll));
-      sessionStorage.removeItem('languoid-list-scroll');
-    }
-    
-    if (savedFilters) {
-      const filters = JSON.parse(savedFilters);
-      setSelectedLevelFilter(filters.selectedLevelFilter);
-      setSearchTerm(filters.searchTerm);
-      setLevelFilter(filters.levelFilter);
-      setFamilyFilter(filters.familyFilter);
-      setRegionFilter(filters.regionFilter);
-      setDisplayPage(filters.displayPage);
-      sessionStorage.removeItem('languoid-list-filters');
-    }
-  }, []);
+  // Note: Filter and selection state is now auto-persisted by usePersistedListState,
+  // so no manual restoration needed
 
   const handleRowClick = (languoid: Languoid) => {
     // Use glottocode for URL if available, otherwise fall back to ID
@@ -850,18 +913,67 @@ const LanguoidsList: React.FC = () => {
   };
 
   const handleLevelFilterChange = (filterKey: string) => {
-    setSelectedLevelFilter(filterKey);
+    setFilters({ ...filters, selectedLevelFilter: filterKey });
     setDisplayPage(1); // Reset to first page
   };
 
   const clearFilters = () => {
-    setSearchTerm('');
-    setLevelFilter('');
-    setFamilyFilter('');
-    setRegionFilter('');
-    setSelectedLevelFilter('all');
+    // Clear all filters except selectedLevelFilter (preset filter operates independently)
+    setFilters({
+      ...DEFAULT_FILTERS,
+      selectedLevelFilter: filters.selectedLevelFilter, // Preserve preset filter
+    });
     setDisplayPage(1);
   };
+
+  const handleEmptyFilterToggle = (filterKey: keyof LanguoidFilterState) => {
+    const currentValue = filters[filterKey] as boolean | undefined;
+    const newValue = currentValue === true ? undefined : true;
+    setFilters({ ...filters, [filterKey]: newValue });
+    setDisplayPage(1); // Reset to first page
+  };
+
+  // Check if any advanced filters are active (excluding level preset filter)
+  const hasActiveFilters = useMemo(() => {
+    return (
+      searchTerm.trim() !== '' ||
+      levelFilter !== '' ||
+      familyFilter.trim() !== '' ||
+      regionFilter.trim() !== '' ||
+      isoFilter.trim() !== '' ||
+      glottocodeFilter.trim() !== '' ||
+      altNamesFilter.trim() !== '' ||
+      isoIsNull === true ||
+      altNamesIsNull === true ||
+      parentLanguoidIsNull === true ||
+      regionIsNull === true ||
+      latLongIsNull === true ||
+      tribesIsNull === true
+    );
+  }, [searchTerm, levelFilter, familyFilter, regionFilter, isoFilter, glottocodeFilter, 
+      altNamesFilter, isoIsNull, altNamesIsNull, parentLanguoidIsNull, 
+      regionIsNull, latLongIsNull, tribesIsNull]);
+
+  // Count active filters for display (excluding level preset filter)
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (searchTerm.trim() !== '') count++;
+    if (levelFilter !== '') count++;
+    if (familyFilter.trim() !== '') count++;
+    if (regionFilter.trim() !== '') count++;
+    if (isoFilter.trim() !== '') count++;
+    if (glottocodeFilter.trim() !== '') count++;
+    if (altNamesFilter.trim() !== '') count++;
+    if (isoIsNull === true) count++;
+    if (altNamesIsNull === true) count++;
+    if (parentLanguoidIsNull === true) count++;
+    if (regionIsNull === true) count++;
+    if (latLongIsNull === true) count++;
+    if (tribesIsNull === true) count++;
+    return count;
+  }, [searchTerm, levelFilter, familyFilter, regionFilter, isoFilter, glottocodeFilter, 
+      altNamesFilter, isoIsNull, altNamesIsNull, parentLanguoidIsNull, 
+      regionIsNull, latLongIsNull, tribesIsNull]);
 
   const handlePageChange = (newPage: number) => {
     setDisplayPage(newPage);
@@ -902,18 +1014,6 @@ const LanguoidsList: React.FC = () => {
           )}
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Tooltip title="Refresh list data">
-            <IconButton
-              color="primary"
-              onClick={handleRefresh}
-              disabled={isRefreshing || loading}
-              sx={{ 
-                '&:hover': { bgcolor: 'action.hover' }
-              }}
-            >
-              {isRefreshing ? <CircularProgress size={24} aria-label="Refreshing languoids" /> : <RefreshIcon />}
-            </IconButton>
-          </Tooltip>
           {hasEditAccess(authState.user) && (
             <>
               <ExportButton
@@ -986,71 +1086,172 @@ const LanguoidsList: React.FC = () => {
       {/* Collapsible Advanced Filters */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Typography variant="h6">
-              Advanced Filters
-            </Typography>
-            <IconButton onClick={() => setFiltersOpen(!filtersOpen)}>
-              {filtersOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            </IconButton>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              startIcon={filtersOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              onClick={() => setFiltersOpen(!filtersOpen)}
+            >
+              {filtersOpen ? 'Hide Filters' : 'Show Filters'}
+            </Button>
+            {hasActiveFilters && (
+              <>
+                <Button
+                  variant="outlined"
+                  startIcon={<ClearIcon />}
+                  onClick={clearFilters}
+                  color="secondary"
+                >
+                  Clear Filters
+                </Button>
+                <Chip 
+                  icon={<FilterListIcon />}
+                  label={`${activeFilterCount} active filter${activeFilterCount !== 1 ? 's' : ''}`}
+                  color="primary"
+                  variant="outlined"
+                />
+              </>
+            )}
           </Box>
           
           <Collapse in={filtersOpen}>
             <Box sx={{ mt: 2 }}>
-              <Stack spacing={2} direction={isMobile ? 'column' : 'row'}>
-                <TextField
-                  label="Search"
-                  variant="outlined"
-                  size="small"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  InputProps={{
-                    startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                  }}
-                  sx={{ flex: 1 }}
-                />
-                
-                <FormControl size="small" sx={{ minWidth: 120 }}>
-                  <InputLabel>Level</InputLabel>
-                  <Select
-                    value={levelFilter}
-                    label="Level"
-                    onChange={(e) => setLevelFilter(e.target.value)}
-                  >
-                    <MenuItem value="">All Levels</MenuItem>
-                    {LANGUOID_LEVEL_CHOICES.map((choice) => (
-                      <MenuItem key={choice.value} value={choice.value}>
-                        {choice.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+              <Stack spacing={2}>
+                {/* First row - Search, Level, Family, Region */}
+                <Stack spacing={2} direction={isMobile ? 'column' : 'row'}>
+                  <TextField
+                    label="Search"
+                    variant="outlined"
+                    size="small"
+                    value={searchTerm}
+                    onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
+                    InputProps={{
+                      startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                    }}
+                    sx={{ flex: 1 }}
+                  />
+                  
+                  <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <InputLabel>Level</InputLabel>
+                    <Select
+                      value={levelFilter}
+                      label="Level"
+                      onChange={(e) => setFilters({ ...filters, levelFilter: e.target.value })}
+                    >
+                      <MenuItem value="">All Levels</MenuItem>
+                      {LANGUOID_LEVEL_CHOICES.map((choice) => (
+                        <MenuItem key={choice.value} value={choice.value}>
+                          {choice.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
 
-                <TextField
-                  label="Family"
-                  variant="outlined"
-                  size="small"
-                  value={familyFilter}
-                  onChange={(e) => setFamilyFilter(e.target.value)}
-                  sx={{ flex: 1 }}
-                />
+                  <TextField
+                    label="Family"
+                    variant="outlined"
+                    size="small"
+                    value={familyFilter}
+                    onChange={(e) => setFilters({ ...filters, familyFilter: e.target.value })}
+                    sx={{ flex: 1 }}
+                  />
 
-                <TextField
-                  label="Region"
-                  variant="outlined"
-                  size="small"
-                  value={regionFilter}
-                  onChange={(e) => setRegionFilter(e.target.value)}
-                  sx={{ flex: 1 }}
-                />
+                  <TextField
+                    label="Region"
+                    variant="outlined"
+                    size="small"
+                    value={regionFilter}
+                    onChange={(e) => setFilters({ ...filters, regionFilter: e.target.value })}
+                    sx={{ flex: 1 }}
+                  />
+                </Stack>
 
-                <Button
-                  variant="outlined"
-                  onClick={clearFilters}
-                  size="small"
-                >
-                  Clear
-                </Button>
+                {/* Second row - Glottocode, ISO, Alternate Names */}
+                <Stack spacing={2} direction={isMobile ? 'column' : 'row'}>
+                  <TextField
+                    label="Glottocode"
+                    variant="outlined"
+                    size="small"
+                    value={glottocodeFilter}
+                    onChange={(e) => setFilters({ ...filters, glottocodeFilter: e.target.value })}
+                    sx={{ flex: 1 }}
+                  />
+
+                  <TextField
+                    label="ISO Code"
+                    variant="outlined"
+                    size="small"
+                    value={isoFilter}
+                    onChange={(e) => setFilters({ ...filters, isoFilter: e.target.value })}
+                    sx={{ flex: 1 }}
+                  />
+
+                  <TextField
+                    label="Alternate Names"
+                    variant="outlined"
+                    size="small"
+                    value={altNamesFilter}
+                    onChange={(e) => setFilters({ ...filters, altNamesFilter: e.target.value })}
+                    sx={{ flex: 1 }}
+                  />
+                </Stack>
+
+                {/* Empty Value Filters */}
+                <Box sx={{ pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                  <Typography variant="subtitle2" gutterBottom sx={{ mb: 1.5 }}>
+                    Find Records With Empty Values:
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    <Button
+                      variant={isoIsNull ? "contained" : "outlined"}
+                      size="small"
+                      color={isoIsNull ? "primary" : "secondary"}
+                      onClick={() => handleEmptyFilterToggle('isoIsNull')}
+                    >
+                      ISO: Empty
+                    </Button>
+                    <Button
+                      variant={altNamesIsNull ? "contained" : "outlined"}
+                      size="small"
+                      color={altNamesIsNull ? "primary" : "secondary"}
+                      onClick={() => handleEmptyFilterToggle('altNamesIsNull')}
+                    >
+                      Alternate Names: Empty
+                    </Button>
+                    <Button
+                      variant={parentLanguoidIsNull ? "contained" : "outlined"}
+                      size="small"
+                      color={parentLanguoidIsNull ? "primary" : "secondary"}
+                      onClick={() => handleEmptyFilterToggle('parentLanguoidIsNull')}
+                    >
+                      Parent Languoid: Empty
+                    </Button>
+                    <Button
+                      variant={regionIsNull ? "contained" : "outlined"}
+                      size="small"
+                      color={regionIsNull ? "primary" : "secondary"}
+                      onClick={() => handleEmptyFilterToggle('regionIsNull')}
+                    >
+                      Region: Empty (Languages Only)
+                    </Button>
+                    <Button
+                      variant={latLongIsNull ? "contained" : "outlined"}
+                      size="small"
+                      color={latLongIsNull ? "primary" : "secondary"}
+                      onClick={() => handleEmptyFilterToggle('latLongIsNull')}
+                    >
+                      Lat/Long: Empty (Languages Only)
+                    </Button>
+                    <Button
+                      variant={tribesIsNull ? "contained" : "outlined"}
+                      size="small"
+                      color={tribesIsNull ? "primary" : "secondary"}
+                      onClick={() => handleEmptyFilterToggle('tribesIsNull')}
+                    >
+                      Tribes: Empty (Languages Only)
+                    </Button>
+                  </Box>
+                </Box>
               </Stack>
             </Box>
           </Collapse>
@@ -1174,7 +1375,7 @@ const LanguoidsList: React.FC = () => {
                 <TableCell>Glottocode</TableCell>
                 <TableCell>Family</TableCell>
                 <TableCell>Region</TableCell>
-                <TableCell>Children</TableCell>
+                <TableCell>Items</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -1197,9 +1398,18 @@ const LanguoidsList: React.FC = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       {/* Hierarchical indentation */}
                       <Box sx={{ width: languoid.indentLevel * 24 }} />
-                      <Typography variant="body1">
+                      <Link
+                        component={RouterLink}
+                        to={`/languoids/${languoid.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        variant="body1"
+                        sx={{ 
+                          textDecoration: 'none',
+                          '&:hover': { textDecoration: 'underline' }
+                        }}
+                      >
                         {languoid.name}
-                      </Typography>
+                      </Link>
                     </Box>
                   </TableCell>
                   <TableCell>
@@ -1218,9 +1428,9 @@ const LanguoidsList: React.FC = () => {
                   <TableCell>{languoid.family_name || '—'}</TableCell>
                   <TableCell>{languoid.region || '—'}</TableCell>
                   <TableCell>
-                    {languoid.child_count > 0 && (
+                    {languoid.item_count > 0 && (
                       <Chip
-                        label={languoid.child_count}
+                        label={languoid.item_count}
                         size="small"
                         variant="outlined"
                       />

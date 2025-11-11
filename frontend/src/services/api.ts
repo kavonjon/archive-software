@@ -298,6 +298,7 @@ export interface Languoid {
   // Calculated fields
   child_count: number;
   dialect_count: number;
+  item_count: number;
   
   // System metadata
   added: string;
@@ -337,6 +338,24 @@ export const ACCESS_LEVEL_CHOICES = [
   { value: '3', label: '3 - Access protected by a time limit' },
   { value: '4', label: '4 - Depositor (or someone else) controls access to the resource' },
   { value: '', label: 'Not specified' }
+];
+
+export const RESOURCE_TYPE_CHOICES = [
+  { value: '3d_object', label: '3D Object' },
+  { value: 'audio', label: 'Audio' },
+  { value: 'audio-video', label: 'Audio/Video' },
+  { value: 'dataset', label: 'Dataset' },
+  { value: 'ephemera', label: 'Ephemera' },
+  { value: 'image', label: 'Image (Photograph)' },
+  { value: 'manuscript', label: 'Manuscript' },
+  { value: 'multimedia', label: 'Multimedia' },
+  { value: 'other', label: 'Other' },
+  { value: 'publication_article', label: 'Publication: Journal Article' },
+  { value: 'publication_book', label: 'Publication: Book' },
+  { value: 'publication_chapter', label: 'Publication: Book chapter' },
+  { value: 'publication_other', label: 'Publication (other)' },
+  { value: 'publication_thesis', label: 'Publication: Thesis' },
+  { value: 'website', label: 'Website' },
 ];
 
 export const GENRE_CHOICES = [
@@ -582,7 +601,7 @@ export const collaboratorsAPI = {
     return apiRequest<PaginatedResponse<Collaborator>>(`/collaborators/`);
   },
 
-  get: (id: number): Promise<Collaborator> => {
+  get: (id: number | string): Promise<Collaborator> => {
     return apiRequest<Collaborator>(`/collaborators/${id}/`);
   },
 
@@ -593,24 +612,80 @@ export const collaboratorsAPI = {
     });
   },
 
-  update: (id: number, data: Partial<Collaborator>): Promise<Collaborator> => {
+  update: (id: number | string, data: Partial<Collaborator>): Promise<Collaborator> => {
     return apiRequest<Collaborator>(`/collaborators/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   },
 
-  patch: (id: number, data: Partial<Collaborator>): Promise<Collaborator> => {
+  patch: (id: number | string, data: Partial<Collaborator>): Promise<Collaborator> => {
     return apiRequest<Collaborator>(`/collaborators/${id}/`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
 
-  delete: (id: number): Promise<void> => {
+  delete: (id: number | string): Promise<void> => {
     return apiRequest<void>(`/collaborators/${id}/`, {
       method: 'DELETE',
     });
+  },
+
+  getNextId: (): Promise<{ next_id: number }> => {
+    return apiRequest<{ next_id: number }>('/collaborators/next-id/');
+  },
+
+  saveBatch: (rows: any[]): Promise<{ success: boolean; saved: Collaborator[]; errors: any[] }> => {
+    return apiRequest<{ success: boolean; saved: Collaborator[]; errors: any[] }>('/collaborators/save-batch/', {
+      method: 'POST',
+      body: JSON.stringify({ rows }),
+    });
+  },
+
+  export: async (mode: 'filtered' | 'selected', ids: number[]): Promise<Blob | { async: true; export_id: string; count: number }> => {
+    const csrfToken = await getCSRFToken();
+    const response = await fetch(`${API_BASE_URL}/collaborators/export/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      credentials: 'include',
+      body: JSON.stringify({ mode, ids }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Export failed' }));
+      throw new Error(error.detail || 'Export failed');
+    }
+
+    // Check if response is JSON (async export) or blob (file download)
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      // Async export
+      const data = await response.json();
+      return data;
+    } else {
+      // Synchronous export - return blob
+      return response.blob();
+    }
+  },
+
+  exportStatus: async (exportId: string): Promise<{ status: string; filename?: string }> => {
+    return apiRequest<{ status: string; filename?: string }>(`/collaborators/export-status/${exportId}/`);
+  },
+
+  exportDownload: async (exportId: string): Promise<Blob> => {
+    const response = await fetch(`${API_BASE_URL}/collaborators/export-download/${exportId}/`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Export download failed');
+    }
+
+    return response.blob();
   },
 };
 

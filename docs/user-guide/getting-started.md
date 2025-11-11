@@ -25,6 +25,32 @@ Use the navigation bar on the left side of the page to access different sections
 3. **Edit** - Click on a record to view and edit details
 4. **Batch Edit** - Select multiple records for efficient bulk editing
 
+## Navigating Lists
+
+All list pages (Items, Collections, Collaborators, Languages) support flexible navigation to help you work efficiently.
+
+### Opening Records
+
+You have two ways to open a record from any list:
+
+1. **Click on the primary identifier** (catalog number, collaborator name, collection abbreviation, languoid name)
+   - These are proper links that support right-click → "Open in new tab"
+   - Ctrl/Cmd+Click to open in a new tab
+   - Middle-click (mouse wheel) to open in a new tab
+   - Perfect for comparing multiple records side-by-side
+
+2. **Click anywhere else on the row**
+   - Convenient for quick navigation
+   - Opens in the same tab
+   - Fastest way to browse records
+
+### Tips for Efficient Navigation
+
+- **Open multiple tabs:** Right-click identifiers when you need to reference several records at once
+- **Quick browsing:** Click rows directly when moving through records sequentially
+- **Keyboard navigation:** Tab to the identifier link and press Enter to open, or Ctrl/Cmd+Enter for a new tab
+- **Screen readers:** The identifiers are properly announced as links with descriptive labels
+
 ## Getting Help
 
 Throughout the application, you'll find info icons (ℹ️) next to features. Click these icons to jump to the relevant section of this user guide for detailed instructions.

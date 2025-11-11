@@ -24,6 +24,7 @@ interface LanguoidCache {
   lastModified: string;
   cachedAt: number; // Timestamp when data was cached
   count: number; // Number of languoids in cache
+  version: number; // Cache schema version for breaking changes
 }
 
 interface LanguoidCacheContextType {
@@ -44,6 +45,7 @@ const LanguoidCacheContext = createContext<LanguoidCacheContextType | undefined>
 
 const CACHE_KEY = 'languoid_list_cache';
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes in milliseconds
+const CACHE_VERSION = 2; // Increment this when Languoid interface changes (e.g., added item_count)
 
 interface LanguoidCacheProviderProps {
   children: ReactNode;
@@ -60,6 +62,13 @@ export const LanguoidCacheProvider: React.FC<LanguoidCacheProviderProps> = ({ ch
       const stored = sessionStorage.getItem(CACHE_KEY);
       if (stored) {
         const parsedCache = JSON.parse(stored) as LanguoidCache;
+        
+        // Check cache version first (invalidate if schema changed)
+        if (parsedCache.version !== CACHE_VERSION) {
+          console.log(`[LanguoidCache] Cache version mismatch (${parsedCache.version} vs ${CACHE_VERSION}), clearing`);
+          sessionStorage.removeItem(CACHE_KEY);
+          return;
+        }
         
         // Check if cache is still valid (within TTL)
         const now = Date.now();
@@ -148,6 +157,7 @@ export const LanguoidCacheProvider: React.FC<LanguoidCacheProviderProps> = ({ ch
         lastModified: last_modified,
         cachedAt: Date.now(),
         count: count,
+        version: CACHE_VERSION,
       };
 
       setCache(newCache);

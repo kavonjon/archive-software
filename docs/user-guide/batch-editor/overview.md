@@ -43,12 +43,12 @@ You can also open an empty batch editor and import data from a spreadsheet.
 
 ### Edit Multiple Cells
 1. **Select cells** (click and drag, or Shift+arrow keys)
-2. Press **Delete** to clear all selected cells
+2. Press **Delete (Fn+Delete)** to clear all selected cells
 3. Or **paste** copied data to fill the selection
 
 ### Copy and Paste
-- **Ctrl+C** (or Cmd+C on Mac) to copy
-- **Ctrl+V** (or Cmd+V on Mac) to paste
+- **Ctrl+C (Cmd+C)** to copy
+- **Ctrl+V (Cmd+V)** to paste
 - Works with single cells or ranges
 - Preserves data types (foreign keys, arrays, etc.)
 

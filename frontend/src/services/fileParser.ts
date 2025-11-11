@@ -5,7 +5,7 @@
  */
 
 import * as XLSX from 'xlsx';
-import { hasValidColumns } from './importColumnMapper';
+import { hasValidColumns as hasValidLanguoidColumns } from './importColumnMapper';
 
 export interface ParsedSpreadsheetData {
   /** Raw column headers from file */
@@ -79,9 +79,24 @@ const detectFileType = (file: File): 'excel' | 'csv' | null => {
 
 /**
  * Validate file before parsing
+ * @param file File to validate
+ * @param hasValidColumns Optional custom column validator (defaults to Languoid validator)
+ * @param modelName Optional model name for error messages (defaults to "Languoid")
  */
-export const validateFile = async (file: File): Promise<FileValidationResult> => {
+export const validateFile = async (
+  file: File,
+  hasValidColumns?: (headers: string[]) => boolean,
+  modelName: string = 'Languoid'
+): Promise<FileValidationResult> => {
   const warnings: string[] = [];
+  
+  // Default to Languoid validator if not provided
+  const columnValidator = hasValidColumns || hasValidLanguoidColumns;
+  
+  // Get example columns based on model
+  const exampleColumns = modelName === 'Collaborator'
+    ? 'Collaborator ID, First Name(s), Last Name(s), Native/First Languages, etc.'
+    : 'Name, Glottocode, Level (Glottolog), Parent Languoid Glottocode, etc.';
   
   // Check file type
   const fileType = detectFileType(file);
@@ -127,10 +142,10 @@ export const validateFile = async (file: File): Promise<FileValidationResult> =>
     }
     
     // Check for at least one valid column
-    if (!hasValidColumns(data.headers)) {
+    if (!columnValidator(data.headers)) {
       return {
         valid: false,
-        error: 'No recognized columns found in file. Please ensure the file contains columns like: Name, Glottocode, Level (Glottolog), Parent Languoid Glottocode, etc.',
+        error: `No recognized columns found in file. Please ensure the file contains columns like: ${exampleColumns}`,
         fileType,
         fileSize: file.size,
       };

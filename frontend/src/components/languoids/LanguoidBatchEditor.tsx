@@ -298,6 +298,9 @@ export const LanguoidBatchEditor: React.FC = () => {
   const [showValidationErrors, setShowValidationErrors] = useState(false);
   const [validationErrorRows, setValidationErrorRows] = useState<Array<{ rowNumber: number; name: string; errors: string[] }>>([]);
   
+  // State to track newly added row for auto-scrolling
+  const [scrollToRowId, setScrollToRowId] = useState<string | number | null>(null);
+  
   const { rows, loading, saving, error, successMessage, validatingCells, undoStack, redoStack } = useSelector(
     (state: RootState) => state.batchSpreadsheet
   );
@@ -395,6 +398,10 @@ export const LanguoidBatchEditor: React.FC = () => {
         // Convert to spreadsheet rows
         const spreadsheetRows = languoids.map(languoidToRow);
         
+        // Preserve any existing draft rows (they have IDs starting with 'draft-')
+        const existingDraftRows = rowsRef.current.filter(r => r.isDraft);
+        spreadsheetRows.push(...existingDraftRows);
+        
         // Initialize spreadsheet
         dispatch(initializeSpreadsheet({
           modelName: 'Languoid',
@@ -405,6 +412,10 @@ export const LanguoidBatchEditor: React.FC = () => {
         // No configuration (direct navigation) - load all from cache (existing behavior)
         const languoids = await getLanguoids();
         const spreadsheetRows = languoids.map(languoidToRow);
+        
+        // Preserve any existing draft rows
+        const existingDraftRows = rowsRef.current.filter(r => r.isDraft);
+        spreadsheetRows.push(...existingDraftRows);
         
         dispatch(initializeSpreadsheet({
           modelName: 'Languoid',
@@ -459,6 +470,7 @@ export const LanguoidBatchEditor: React.FC = () => {
             text: text,
             validationState: 'invalid',
             validationError: `${column.header} is required.`,
+            hasConflict: false, // Clear conflict flag - user reviewed the cell
           },
         }));
         return; // Don't call backend - we know it's invalid
@@ -477,6 +489,7 @@ export const LanguoidBatchEditor: React.FC = () => {
             text: text,
             validationState: 'invalid',
             validationError: `${column.header} is required.`,
+            hasConflict: false, // Clear conflict flag - user reviewed the cell
           },
         }));
         return; // Don't call backend - we know it's invalid
@@ -497,6 +510,7 @@ export const LanguoidBatchEditor: React.FC = () => {
             text: text,
             validationState: 'invalid',
             validationError: 'Invalid relationship value. Please select from dropdown.',
+            hasConflict: false, // Clear conflict flag - user reviewed the cell
           },
         }));
         return; // Don't call backend - we know it's invalid
@@ -518,6 +532,7 @@ export const LanguoidBatchEditor: React.FC = () => {
               text: text,
               validationState: 'invalid',
               validationError: 'A languoid cannot be its own parent.',
+              hasConflict: false, // Clear conflict flag - user reviewed the cell
             },
           }));
           return; // Don't call backend - we know it's invalid
@@ -538,6 +553,7 @@ export const LanguoidBatchEditor: React.FC = () => {
             text: text,
             validationState: 'invalid',
             validationError: 'Invalid multiselect value. Please select from dropdown.',
+            hasConflict: false, // Clear conflict flag - user reviewed the cell
           },
         }));
         return; // Don't call backend - we know it's invalid
@@ -553,6 +569,7 @@ export const LanguoidBatchEditor: React.FC = () => {
             text: text,
             validationState: 'invalid',
             validationError: 'Invalid multiselect value format.',
+            hasConflict: false, // Clear conflict flag - user reviewed the cell
           },
         }));
         return;
@@ -574,6 +591,7 @@ export const LanguoidBatchEditor: React.FC = () => {
             text: '',
             validationState: 'invalid',
             validationError: 'Invalid string array format.',
+            hasConflict: false, // Clear conflict flag - user reviewed the cell
           },
         }));
         return;
@@ -589,6 +607,7 @@ export const LanguoidBatchEditor: React.FC = () => {
               text: text,
             validationState: 'invalid',
             validationError: 'String array contains empty or invalid items.',
+            hasConflict: false, // Clear conflict flag - user reviewed the cell
           },
         }));
         return;
@@ -610,6 +629,7 @@ export const LanguoidBatchEditor: React.FC = () => {
               text: text,
               validationState: 'invalid',
               validationError: 'Invalid decimal format. Use numbers like: 42, -17.5, 122.419906',
+              hasConflict: false, // Clear conflict flag - user reviewed the cell
             },
           }));
           return;
@@ -649,6 +669,7 @@ export const LanguoidBatchEditor: React.FC = () => {
           text: text,
           validationState: 'valid',
           validationError: undefined,
+          hasConflict: false, // Clear conflict flag - user reviewed the cell
         },
       }));
       return; // Don't call backend validation - it's the DB value so it's valid
@@ -661,6 +682,7 @@ export const LanguoidBatchEditor: React.FC = () => {
       cell: {
         value: newValue,
         text: newText,
+        hasConflict: false, // Clear conflict flag - user reviewed and changed the cell
       },
     }));
     
@@ -700,6 +722,10 @@ export const LanguoidBatchEditor: React.FC = () => {
   const handleAddRow = useCallback(() => {
     const newRow = createDraftRow();
     dispatch(addDraftRow(newRow));
+    // Trigger scroll to the new row
+    setScrollToRowId(newRow.id);
+    // Clear after scrolling happens
+    setTimeout(() => setScrollToRowId(null), 500);
   }, [dispatch]);
   
   // Handle batch cell changes (paste operations) - uses batchUpdateCells for atomic undo
@@ -1200,6 +1226,7 @@ export const LanguoidBatchEditor: React.FC = () => {
         canUndo={undoStack.length > 0}
         canRedo={redoStack.length > 0}
         modelName="Languages"
+        scrollToRowId={scrollToRowId}
       />
       
       {/* Success message snackbar */}
@@ -1222,15 +1249,15 @@ export const LanguoidBatchEditor: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="refresh-dialog-description">
-            You have unsaved changes. Refreshing will lose these changes. Do you want to continue?
+            You have unsaved changes. Refreshing will discard all changes. Are you sure?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleRefreshCancel} color="primary">
             Cancel
           </Button>
-          <Button onClick={handleRefreshConfirm} color="primary" variant="contained" autoFocus>
-            Refresh
+          <Button onClick={handleRefreshConfirm} color="error" autoFocus>
+            Discard & Refresh
           </Button>
         </DialogActions>
       </Dialog>
@@ -1265,6 +1292,7 @@ export const LanguoidBatchEditor: React.FC = () => {
         open={showValidationErrors}
         onClose={() => setShowValidationErrors(false)}
         aria-labelledby="validation-error-dialog-title"
+        aria-describedby="validation-error-dialog-description"
         maxWidth="md"
         fullWidth
       >
@@ -1272,7 +1300,7 @@ export const LanguoidBatchEditor: React.FC = () => {
           Validation Errors Prevent Saving
         </DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ mb: 2 }}>
+          <DialogContentText id="validation-error-dialog-description" sx={{ mb: 2 }}>
             The following row(s) have validation errors that must be fixed before saving:
           </DialogContentText>
           <List dense>

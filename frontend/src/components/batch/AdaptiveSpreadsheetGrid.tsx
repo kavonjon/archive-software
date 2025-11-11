@@ -8,6 +8,7 @@
 import React from 'react';
 import { TanStackSpreadsheetWrapper } from './TanStackSpreadsheetWrapper';
 import { SpreadsheetRow, ColumnConfig } from '../../types/spreadsheet';
+import { UseImportSpreadsheetReturn } from '../../hooks/useImportSpreadsheet';
 
 interface AdaptiveSpreadsheetGridProps {
   /** Rows of data */
@@ -60,6 +61,12 @@ interface AdaptiveSpreadsheetGridProps {
   
   /** Model name for display */
   modelName: string;
+  
+  /** Optional: Custom import hook */
+  importHook?: UseImportSpreadsheetReturn | any;
+  
+  /** Optional: Row ID to scroll to (when changed, scrolls to that row) */
+  scrollToRowId?: string | number | null;
 }
 
 /**

@@ -7,6 +7,44 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { BatchSpreadsheetState, SpreadsheetRow, SpreadsheetCell, HistoryEntry, CellChange } from '../types/spreadsheet';
 
+/**
+ * Deep equality check for cell values
+ * Handles primitives, arrays, and objects
+ */
+function isValueEqual(a: any, b: any): boolean {
+  // Strict equality for primitives
+  if (a === b) return true;
+  
+  // Handle null/undefined
+  if (a == null || b == null) return a === b;
+  
+  // Handle numeric strings vs numbers (e.g., "1234" should equal 1234)
+  // This is common when text cells contain numeric values
+  const aIsNumeric = typeof a === 'number' || (typeof a === 'string' && /^\d+$/.test(a));
+  const bIsNumeric = typeof b === 'number' || (typeof b === 'string' && /^\d+$/.test(b));
+  
+  if (aIsNumeric && bIsNumeric) {
+    return Number(a) === Number(b);
+  }
+  
+  // Handle arrays
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    return a.every((val, index) => isValueEqual(val, b[index]));
+  }
+  
+  // Handle objects
+  if (typeof a === 'object' && typeof b === 'object') {
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
+    if (keysA.length !== keysB.length) return false;
+    return keysA.every(key => isValueEqual(a[key], b[key]));
+  }
+  
+  // Different types or values
+  return false;
+}
+
 const initialState: BatchSpreadsheetState = {
   modelName: null,
   rows: [],
@@ -119,14 +157,14 @@ const batchSpreadsheetSlice = createSlice({
         if (row.isDraft) {
           updatedCell.isEdited = !isEmpty(updatedCell.value);
         } else {
-          updatedCell.isEdited = updatedCell.value !== updatedCell.originalValue;
+          updatedCell.isEdited = !isValueEqual(updatedCell.value, updatedCell.originalValue);
         }
         
         // Update row's hasChanges based on whether ANY cell differs from original (or has non-empty value for drafts)
         if (row.isDraft) {
           row.hasChanges = Object.values(row.cells).some(c => !isEmpty(c.value));
         } else {
-          row.hasChanges = Object.values(row.cells).some(c => c.value !== c.originalValue);
+          row.hasChanges = Object.values(row.cells).some(c => !isValueEqual(c.value, c.originalValue));
         }
         
         // NOTE: isDirty computation removed from hot path for performance
@@ -253,14 +291,14 @@ const batchSpreadsheetSlice = createSlice({
           if (row.isDraft) {
             updatedCell.isEdited = !isEmpty(updatedCell.value);
           } else {
-            updatedCell.isEdited = updatedCell.value !== updatedCell.originalValue;
+            updatedCell.isEdited = !isValueEqual(updatedCell.value, updatedCell.originalValue);
           }
           
           // Update row's hasChanges based on whether ANY cell differs from original (or has non-empty value for drafts)
           if (row.isDraft) {
             row.hasChanges = Object.values(row.cells).some(c => !isEmpty(c.value));
           } else {
-            row.hasChanges = Object.values(row.cells).some(c => c.value !== c.originalValue);
+            row.hasChanges = Object.values(row.cells).some(c => !isValueEqual(c.value, c.originalValue));
           }
           
           // Update row error state
@@ -350,14 +388,14 @@ const batchSpreadsheetSlice = createSlice({
           if (row.isDraft) {
             updatedCell.isEdited = !isEmpty(updatedCell.value);
           } else {
-            updatedCell.isEdited = updatedCell.value !== updatedCell.originalValue;
+            updatedCell.isEdited = !isValueEqual(updatedCell.value, updatedCell.originalValue);
           }
           
-          // Update row's hasChanges
+          // Update row's hasChanges using deep equality
           if (row.isDraft) {
             row.hasChanges = Object.values(row.cells).some(c => !isEmpty(c.value));
           } else {
-            row.hasChanges = Object.values(row.cells).some(c => c.value !== c.originalValue);
+            row.hasChanges = Object.values(row.cells).some(c => !isValueEqual(c.value, c.originalValue));
           }
           
           // Update row error state
@@ -398,6 +436,8 @@ const batchSpreadsheetSlice = createSlice({
       
       const entry = state.undoStack.pop()!;
       
+      console.log('[Redux] Undo: Processing', entry.changes.length, 'changes');
+      
       // Revert all changes in the entry
       entry.changes.forEach(change => {
         const row = state.rows.find(r => r.id.toString() === change.rowId.toString());
@@ -405,17 +445,26 @@ const batchSpreadsheetSlice = createSlice({
         if (row && row.cells[change.fieldName]) {
           const cell = row.cells[change.fieldName];
           
+          console.log('[Redux] Undo: Before - cell.value:', cell.value, 'cell.originalValue:', cell.originalValue);
+          
           // Revert to old values
           cell.value = change.oldValue;
           cell.text = change.oldText;
           cell.validationState = change.oldValidationState || 'valid';
           cell.validationError = change.oldValidationError;
           
-          // Recalculate isEdited
-          cell.isEdited = cell.value !== cell.originalValue;
+          console.log('[Redux] Undo: After - cell.value:', cell.value, 'cell.originalValue:', cell.originalValue);
           
-          // Update row's hasChanges
-          row.hasChanges = Object.values(row.cells).some(c => c.value !== c.originalValue);
+          // Recalculate isEdited using deep equality
+          cell.isEdited = !isValueEqual(cell.value, cell.originalValue);
+          
+          console.log('[Redux] Undo: cell.isEdited:', cell.isEdited);
+          
+          // Update row's hasChanges using deep equality
+          row.hasChanges = Object.values(row.cells).some(c => !isValueEqual(c.value, c.originalValue));
+          
+          console.log('[Redux] Undo: Row', row.id, 'hasChanges now:', row.hasChanges);
+          console.log('[Redux] Undo: All cells in row:', Object.entries(row.cells).map(([field, c]) => ({ field, value: c.value, original: c.originalValue, isEdited: !isValueEqual(c.value, c.originalValue) })));
           
           // Update row error state
           row.hasErrors = Object.values(row.cells).some(c => c.validationState === 'invalid');
@@ -435,6 +484,8 @@ const batchSpreadsheetSlice = createSlice({
       if (state.redoStack.length > state.maxHistorySize) {
         state.redoStack.shift();
       }
+      
+      console.log('[Redux] Undo: Total rows with hasChanges:', state.rows.filter(r => r.hasChanges).length);
     },
     
     // Redo last undone action
@@ -442,6 +493,8 @@ const batchSpreadsheetSlice = createSlice({
       if (state.redoStack.length === 0) return;
       
       const entry = state.redoStack.pop()!;
+      
+      console.log('[Redux] Redo: Processing', entry.changes.length, 'changes');
       
       // For import operations: re-add any rows that were removed
       if (entry.type === 'import' && entry.addedRowIds) {
@@ -462,14 +515,16 @@ const batchSpreadsheetSlice = createSlice({
           cell.value = change.newValue;
           cell.text = change.newText;
           
-          // Recalculate isEdited
-          cell.isEdited = cell.value !== cell.originalValue;
+          // Recalculate isEdited using deep equality
+          cell.isEdited = !isValueEqual(cell.value, cell.originalValue);
           
           // Note: We don't restore validation state on redo, 
           // it will be recomputed if needed
           
-          // Update row's hasChanges
-          row.hasChanges = Object.values(row.cells).some(c => c.value !== c.originalValue);
+          // Update row's hasChanges using deep equality
+          row.hasChanges = Object.values(row.cells).some(c => !isValueEqual(c.value, c.originalValue));
+          
+          console.log('[Redux] Redo: Row', row.id, 'hasChanges now:', row.hasChanges);
           
           // Update row error state
           row.hasErrors = Object.values(row.cells).some(c => c.validationState === 'invalid');
@@ -483,6 +538,8 @@ const batchSpreadsheetSlice = createSlice({
       if (state.undoStack.length > state.maxHistorySize) {
         state.undoStack.shift();
       }
+      
+      console.log('[Redux] Redo: Total rows with hasChanges:', state.rows.filter(r => r.hasChanges).length);
     },
     
     // Clear history (called after save)

@@ -357,6 +357,61 @@ class InternalCollectionSerializer(serializers.ModelSerializer):
         return 'Yes' if obj.expecting_additions else 'No'
 
 
+class InternalCollaboratorBatchSerializer(serializers.ModelSerializer):
+    """Lightweight Collaborator serializer for batch operations - optimized for speed
+    
+    This serializer is specifically designed for loading large numbers of collaborators
+    into the batch editor. It excludes expensive computed fields and only includes
+    the minimal data needed for batch editing.
+    """
+    
+    # Minimal language data - just ID and name for display
+    class MinimalLanguoidSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = Languoid
+            fields = ['id', 'name', 'glottocode', 'level_glottolog']
+    
+    native_languages = MinimalLanguoidSerializer(many=True, read_only=True)
+    other_languages = MinimalLanguoidSerializer(many=True, read_only=True)
+    
+    # Simple boolean display
+    anonymous_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Collaborator
+        fields = [
+            # Core identity fields
+            'id', 'uuid', 'slug', 'collaborator_id',
+            'full_name', 'first_names', 'last_names', 'name_suffix', 'nickname', 'other_names',
+            
+            # Privacy
+            'anonymous', 'anonymous_display',
+            
+            # Cultural information
+            'clan_society', 'tribal_affiliations', 'origin', 'gender',
+            
+            # Dates
+            'birthdate', 'deathdate',
+            
+            # Additional information
+            'other_info',
+            
+            # Language relationships (minimal - just for display)
+            'native_languages', 'other_languages',
+            
+            # System metadata
+            'modified_by',
+            'updated'  # For conflict detection
+        ]
+        read_only_fields = ['id', 'uuid', 'slug', 'anonymous_display', 'updated']
+    
+    def get_anonymous_display(self, obj):
+        """Return display value for anonymous boolean field"""
+        if obj.anonymous is None:
+            return 'Not specified'
+        return 'Yes' if obj.anonymous else 'No'
+
+
 class InternalCollaboratorSerializer(serializers.ModelSerializer):
     """Comprehensive Collaborator serializer for internal API - provides full structure for CRUD operations"""
     
@@ -411,7 +466,7 @@ class InternalCollaboratorSerializer(serializers.ModelSerializer):
             # System metadata
             'added', 'updated', 'modified_by'
         ]
-        read_only_fields = ['id', 'uuid', 'slug', 'added', 'updated', 'display_name', 'privacy_notice', 'associated_items', 'native_language_names', 'other_language_names', 'anonymous_display']
+        read_only_fields = ['id', 'uuid', 'slug', 'added', 'updated', 'modified_by', 'display_name', 'privacy_notice', 'associated_items', 'native_language_names', 'other_language_names', 'anonymous_display']
     
     def get_display_name(self, obj):
         """Return appropriate display name based on user permissions and privacy settings"""
@@ -514,14 +569,14 @@ class InternalCollaboratorSerializer(serializers.ModelSerializer):
             return 'Not specified'
         return 'Yes' if obj.anonymous else 'No'
     
-    def update(self, instance, validated_data):
+    def create(self, validated_data):
         """
-        Custom update to handle M2M fields.
+        Custom create to handle M2M fields.
         
         For native_languages and other_languages, we need to:
         1. Extract the M2M data from the initial request data (not validated_data, since they're SerializerMethodFields)
-        2. Update the regular fields first
-        3. Update the M2M relationships using Django's built-in .set() method
+        2. Create the instance first (without M2M fields)
+        3. Add the M2M relationships using Django's built-in .set() method
         """
         from metadata.models import Languoid
         
@@ -532,15 +587,45 @@ class InternalCollaboratorSerializer(serializers.ModelSerializer):
         native_languages_ids = initial_data.get('native_languages', None)
         other_languages_ids = initial_data.get('other_languages', None)
         
-        # Get modified_by value for tracking who made the change
-        request = self.context.get('request')
-        modified_by_value = str(request.user) if request and request.user else 'unknown'
+        # Create the instance without M2M fields
+        # (modified_by is already in validated_data from perform_create)
+        instance = super().create(validated_data)
         
-        # Update regular fields (including modified_by from request)
-        if request and request.user:
-            validated_data['modified_by'] = modified_by_value
+        # Set native_languages M2M relationship
+        if native_languages_ids is not None:
+            # Use Django's built-in set() method for M2M relationships
+            # This will automatically trigger m2m_changed signals
+            instance.native_languages.set(native_languages_ids)
+        
+        # Set other_languages M2M relationship
+        if other_languages_ids is not None:
+            # Use Django's built-in set() method for M2M relationships
+            instance.other_languages.set(other_languages_ids)
+        
+        return instance
+    
+    def update(self, instance, validated_data):
+        """
+        Custom update to handle M2M fields.
+        
+        For native_languages and other_languages, we need to:
+        1. Extract the M2M data from the initial request data (not validated_data, since they're SerializerMethodFields)
+        2. Update the regular fields first
+        3. Update the M2M relationships using Django's built-in .set() method
+        
+        Note: modified_by is automatically set by perform_update() in the ViewSet
+        """
+        from metadata.models import Languoid
+        
+        # Extract M2M field data from initial_data (raw request data)
+        # Since native_languages and other_languages are SerializerMethodFields (read-only),
+        # they won't be in validated_data. We need to get them from initial_data.
+        initial_data = self.initial_data
+        native_languages_ids = initial_data.get('native_languages', None)
+        other_languages_ids = initial_data.get('other_languages', None)
         
         # Update the instance with non-M2M fields
+        # (modified_by is already handled by perform_update in the ViewSet)
         instance = super().update(instance, validated_data)
         
         # Update native_languages M2M relationship
@@ -576,6 +661,7 @@ class InternalLanguoidSerializer(serializers.ModelSerializer):
     # Child relationship counts for overview display
     child_count = serializers.SerializerMethodField()
     dialect_count = serializers.SerializerMethodField()
+    item_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Languoid
@@ -596,13 +682,13 @@ class InternalLanguoidSerializer(serializers.ModelSerializer):
             'tribes', 'notes',
             
             # Calculated fields
-            'child_count', 'dialect_count',
+            'child_count', 'dialect_count', 'item_count',
             
             # Metadata
             'added', 'updated', 'modified_by'
         ]
         read_only_fields = [
-            'id', 'added', 'updated', 'modified_by', 'child_count', 'dialect_count',
+            'id', 'added', 'updated', 'modified_by', 'child_count', 'dialect_count', 'item_count',
             'family_name', 'family_glottocode', 'parent_name', 'parent_glottocode', 
             'pri_subgroup_name', 'pri_subgroup_glottocode', 'sec_subgroup_name', 'sec_subgroup_glottocode'
         ]
@@ -617,6 +703,10 @@ class InternalLanguoidSerializer(serializers.ModelSerializer):
             # Count child languoids that are dialects
             return obj.child_languoids.filter(level_nal='dialect').count()
         return 0
+    
+    def get_item_count(self, obj):
+        """Get count of items associated with this languoid"""
+        return obj.item_languages.count()
     
     def validate_glottocode(self, value):
         """Validate glottocode format (8 characters, last 4 numeric)"""

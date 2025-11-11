@@ -791,3 +791,25 @@ def invalidate_languoid_list_cache(sender, instance, **kwargs):
     # Trigger cache invalidation + background rebuild
     # Priority 8 = High (user just made an edit, wants fresh data soon)
     invalidate_and_warm_languoid_cache.apply_async(priority=8)
+
+
+@receiver(post_save, sender=Collaborator)
+@receiver(post_delete, sender=Collaborator)
+def invalidate_collaborator_list_cache(sender, instance, **kwargs):
+    """
+    Invalidate and rebuild the collaborator list cache when any collaborator is saved or deleted.
+    
+    This ensures users always see fresh data after edits.
+    The cache rebuild happens in the background via Celery.
+    
+    BATCH MODE: Skips cache invalidation if _skip_async_tasks flag is set.
+    """
+    # BATCH MODE: Skip individual cache invalidation
+    if hasattr(instance, '_skip_async_tasks') and instance._skip_async_tasks:
+        return
+    
+    from .tasks import invalidate_and_warm_collaborator_cache
+    
+    # Trigger cache invalidation + background rebuild
+    # Priority 8 = High (user just made an edit, wants fresh data soon)
+    invalidate_and_warm_collaborator_cache.apply_async(priority=8)

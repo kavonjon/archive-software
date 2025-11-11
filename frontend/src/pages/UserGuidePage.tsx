@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Box, Typography, List, ListItem, ListItemButton, Paper, CircularProgress } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -55,6 +56,11 @@ export const UserGuidePage = () => {
             content: await fetch(`${basePath}/editing-languoids.md`).then(r => r.text())
           },
           {
+            id: 'editing-collaborators',
+            title: 'Editing Collaborators',
+            content: await fetch(`${basePath}/editing-collaborators.md`).then(r => r.text())
+          },
+          {
             id: 'batch-editor',
             title: 'Batch Editor Overview',
             content: await fetch(`${basePath}/batch-editor/overview.md`).then(r => r.text())
@@ -63,6 +69,11 @@ export const UserGuidePage = () => {
             id: 'languoid-batch',
             title: 'Batch Editing Languoids',
             content: await fetch(`${basePath}/batch-editor/languoid-batch.md`).then(r => r.text())
+          },
+          {
+            id: 'collaborator-batch',
+            title: 'Batch Editing Collaborators',
+            content: await fetch(`${basePath}/batch-editor/collaborator-batch.md`).then(r => r.text())
           },
           {
             id: 'importing-data',
@@ -211,6 +222,7 @@ export const UserGuidePage = () => {
             }}
           >
             <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
               components={{
                 h1: ({ node, children, ...props }) => {
                   const id = slugify(children);

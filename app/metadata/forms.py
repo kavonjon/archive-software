@@ -56,7 +56,7 @@ class LanguoidForm(ModelForm):
         if commit:
             instance.save()
         return instance
-    
+
 class CollaboratorForm(ModelForm):
     class Meta:
         model = Collaborator

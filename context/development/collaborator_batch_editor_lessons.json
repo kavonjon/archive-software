@@ -1,0 +1,1139 @@
+{
+  "collaborator_batch_editor_implementation": {
+    "version": "1.0",
+    "last_updated": "2025-11-10",
+    "conversation_reference": "Complete Collaborator batch editor implementation with comprehensive lessons learned from conformance issues",
+    
+    "overview": {
+      "purpose": "Document all lessons learned from implementing the second batch editor (Collaborator) to prevent repeated mistakes when implementing future batch editors (Item, Document, etc.)",
+      "key_insight": "The first implementation (Languoid) established implicit patterns. The second implementation (Collaborator) revealed which patterns must be explicit requirements for all future implementations.",
+      "completion_status": "Production-ready with full feature parity to Languoid batch editor",
+      "phases_completed": [
+        "Phase 1: Backend API endpoints (export, next ID, batch serialization)",
+        "Phase 2: CollaboratorBatchEditor component",
+        "Phase 3: List page integration (Batch Edit/Export buttons)",
+        "Phase 4: Routing and navigation",
+        "Phase 5: Import/Upload dialog with row reconciliation"
+      ]
+    },
+    
+    "critical_architectural_lessons": {
+      "lesson_001_draft_row_initialization": {
+        "decision_id": "collab_batch_001",
+        "content": "Draft row initialization must reflect model-specific validity requirements",
+        "added_date": "2025-11-10",
+        "problem": "New draft rows created with hasChanges: false were filtered out by save logic because no cells were marked as isEdited",
+        "root_cause": "Blindly copied Languoid pattern (hasChanges: false) without considering that Collaborator auto-generates collaborator_id making rows immediately valid",
+        "solution": "Set hasChanges: true for Collaborator draft rows (unlike Languoid which requires user to enter name)",
+        "pattern_for_future": "When creating draft rows, ask: 'Is this row valid and saveable immediately after creation?' If yes (required fields auto-generated), set hasChanges: true. If no (requires user input), set hasChanges: false.",
+        "file": "frontend/src/components/collaborators/CollaboratorBatchEditor.tsx line 303",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "lesson_002_save_logic_for_drafts": {
+        "decision_id": "collab_batch_002",
+        "content": "Draft rows must send ALL non-empty field values to API, not just isEdited fields",
+        "added_date": "2025-11-10",
+        "problem": "Save logic only sent fields where cell.isEdited === true, resulting in empty data object for draft rows",
+        "root_cause": "Failed to implement separate logic paths for draft rows vs. existing rows",
+        "solution": "if (row.isDraft) { send all non-empty values } else { send only isEdited values }",
+        "pattern_for_future": "Always implement distinct save logic for draft rows (creation) vs. existing rows (updates). Draft rows need complete data, existing rows need delta changes.",
+        "code_example": "See CollaboratorBatchEditor.tsx lines 899-936 for reference implementation",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "lesson_003_m2m_serializer_create": {
+        "decision_id": "collab_batch_003",
+        "content": "Django serializers with M2M fields must have explicit create() method",
+        "added_date": "2025-11-10",
+        "problem": "Backend returned 400 Bad Request when creating new collaborators with M2M language fields",
+        "root_cause": "M2M fields cannot be set during object creation in Django - must create instance first, then set relationships",
+        "solution": "Add create() method to InternalCollaboratorSerializer that: (1) creates instance without M2M fields, (2) sets M2M relationships using .set(), (3) returns instance",
+        "pattern_for_future": "ANY model with M2M fields REQUIRES custom create() and update() methods in serializer. Check for M2M fields in Meta.fields and add these methods if missing.",
+        "file": "app/internal_api/serializers.py lines 571-604",
+        "django_documentation": "https://www.django-rest-framework.org/api-guide/relations/#writable-nested-serializers",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "lesson_004_modified_by_automation": {
+        "decision_id": "collab_batch_004",
+        "content": "ViewSets must auto-set modified_by in perform_create() and perform_update()",
+        "added_date": "2025-11-10",
+        "problem": "Backend validation error: 'modified_by: This field is required' despite being required field",
+        "root_cause": "Serializer had modified_by in fields but not in read_only_fields, and ViewSet didn't auto-populate it",
+        "solution": "(1) Add modified_by to read_only_fields in serializer, (2) Add perform_create() and perform_update() methods to ViewSet that call serializer.save(modified_by=request.user.get_username())",
+        "pattern_for_future": "For ANY model with modified_by field: (1) add to read_only_fields in serializer, (2) implement perform_create/update in ViewSet. Check if model has this field and implement both steps together.",
+        "files": [
+          "app/internal_api/serializers.py line 468 (read_only_fields)",
+          "app/internal_api/views.py lines 392-398 (perform methods)"
+        ],
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "lesson_005_auto_scroll_pattern": {
+        "decision_id": "collab_batch_005",
+        "content": "Auto-scroll to new rows uses props-down state pattern, not callback pattern",
+        "added_date": "2025-11-10",
+        "context": "When user clicks 'Add Row', spreadsheet should automatically scroll to show the new row",
+        "problem": "Import already had scroll functionality (direct ref access), but add-row crosses component boundaries",
+        "architectural_analysis": {
+          "why_different_from_import": "Import logic lives where spreadsheetRef lives (inside wrapper) so can call scrollToRow() directly. Add-row logic lives in batch editor (no ref access) so needs communication mechanism.",
+          "pattern_chosen": "Props-down state with useEffect",
+          "rejected_alternatives": [
+            "Callback returning value - breaks existing API, makes onAddRow do two things",
+            "Separate callback - two callbacks for one operation",
+            "Auto-scroll to last row - removes control, inflexible"
+          ]
+        },
+        "implementation": {
+          "step_1": "Add scrollToRowId?: string | number | null prop to TanStackSpreadsheetWrapper and AdaptiveSpreadsheetGrid",
+          "step_2": "In wrapper, add useEffect that watches scrollToRowId and calls spreadsheetRef.current?.scrollToRow(id) with 100ms delay",
+          "step_3": "In batch editor, add scrollToRowId state",
+          "step_4": "In handleAddRow, set scrollToRowId to newRow.id, then clear after 500ms",
+          "step_5": "Pass scrollToRowId prop from batch editor through to wrapper"
+        },
+        "pattern_for_future": "Use this exact pattern for any feature needing cross-component ref access. Props-down state is React-idiomatic for declarative communication.",
+        "files": [
+          "frontend/src/components/batch/TanStackSpreadsheetWrapper.tsx lines 72, 104-112",
+          "frontend/src/components/batch/AdaptiveSpreadsheetGrid.tsx line 69",
+          "frontend/src/components/collaborators/CollaboratorBatchEditor.tsx lines 328, 777-779, 1037"
+        ],
+        "confidence_level": "high",
+        "status": "active"
+      }
+    },
+    
+    "ux_conformance_checklist": {
+      "description": "33 specific items that MUST be checked when implementing any new batch editor. Each item was missed in the initial Collaborator implementation and had to be added later to match Languoid.",
+      
+      "category_1_missing_features": {
+        "description": "Features that existed in Languoid but were missed in initial Collaborator implementation",
+        "total_count": 27,
+        
+        "layout_and_display": [
+          {
+            "id": "conform_001",
+            "item": "Spreadsheet must take full width like Languoid",
+            "check": "Verify batch editor grid matches Languoid's full-width layout",
+            "fix_if_missing": "Update container styling to match Languoid",
+            "file_reference": "CollaboratorBatchEditor.tsx"
+          }
+        ],
+        
+        "core_functionality": [
+          {
+            "id": "conform_002",
+            "item": "Save button must be rendered and connected",
+            "check": "Verify Save button appears in toolbar and onSave prop is passed",
+            "fix_if_missing": "Pass onSave prop to AdaptiveSpreadsheetGrid",
+            "file_reference": "CollaboratorBatchEditor.tsx line 1016"
+          },
+          {
+            "id": "conform_003",
+            "item": "Undo/redo must update unsaved changes counter",
+            "check": "Make change, undo, verify counter decrements",
+            "fix_if_missing": "Fix isValueEqual to do deep equality comparison for arrays/objects",
+            "technical_note": "Reference comparison fails for Redux Proxies - need content comparison",
+            "file_reference": "CollaboratorBatchEditor.tsx isValueEqual function"
+          },
+          {
+            "id": "conform_004",
+            "item": "Boolean columns must update display value correctly",
+            "check": "Change boolean dropdown, verify display doesn't flicker/revert",
+            "fix_if_missing": "Fix boolean field state handling in spreadsheet",
+            "file_reference": "batchSpreadsheetSlice.ts"
+          },
+          {
+            "id": "conform_005",
+            "item": "Numeric columns must show 'no change' when value reverted to original",
+            "check": "Edit number, change back to original, verify cell turns white (not yellow)",
+            "fix_if_missing": "Add numeric string type coercion in isValueEqual (\"123\" should equal 123)",
+            "file_reference": "CollaboratorBatchEditor.tsx lines 716-727"
+          }
+        ],
+        
+        "virtualization_and_performance": [
+          {
+            "id": "conform_006",
+            "item": "Spreadsheet must be scrollable with virtualization",
+            "check": "Load 1000+ rows, verify smooth scrolling and all rows accessible",
+            "fix_if_missing": "Fix virtualization setup in TanStackSpreadsheet",
+            "file_reference": "TanStackSpreadsheet.tsx"
+          },
+          {
+            "id": "conform_007",
+            "item": "No infinite API call loops",
+            "check": "Open batch editor, monitor network tab for repeated requests",
+            "fix_if_missing": "Fix useEffect dependency cycles",
+            "technical_note": "Common cause: useEffect depends on state that it modifies",
+            "file_reference": "CollaboratorBatchEditor.tsx"
+          }
+        ],
+        
+        "caching_and_loading": [
+          {
+            "id": "conform_008",
+            "item": "Fast loading via cache (like Languoid's <1 second for 2000 rows)",
+            "check": "Open batch editor, verify loads in <3 seconds for thousands of rows",
+            "fix_if_missing": "Implement client-side cache with sessionStorage and chunked loading",
+            "pattern_reference": "Copy Languoid's cache implementation (Option A - Cache All)",
+            "files": [
+              "frontend/src/contexts/CollaboratorCacheContext.tsx",
+              "frontend/src/hooks/useCollaboratorCache.ts"
+            ]
+          },
+          {
+            "id": "conform_009",
+            "item": "Smart loading overlay with progress indicator",
+            "check": "Click Batch Edit before cache loaded, verify spinner + percentage shown",
+            "fix_if_missing": "Implement Smart Overlay combining loading progress + large dataset warning",
+            "file_reference": "CollaboratorBatchEditor.tsx lines 350-400"
+          },
+          {
+            "id": "conform_010",
+            "item": "Direct URL access must not cause infinite loop",
+            "check": "Navigate directly to /collaborators/batch URL, verify loads correctly",
+            "fix_if_missing": "Fix cache initialization logic to handle direct access",
+            "file_reference": "CollaboratorBatchEditor.tsx"
+          },
+          {
+            "id": "conform_011",
+            "item": "Warning overlay only shows when no filter applied",
+            "check": "Apply filter, click Batch Edit, verify no warning for reasonable counts",
+            "fix_if_missing": "Check if sessionStorage has filtered IDs before showing warning",
+            "file_reference": "CollaboratorBatchEditor.tsx"
+          }
+        ],
+        
+        "naming_and_urls": [
+          {
+            "id": "conform_012",
+            "item": "Page title must be plural (e.g., 'Collaborators' not 'Collaborator')",
+            "check": "Verify browser tab and page title show plural form",
+            "fix_if_missing": "Update modelName prop to plural",
+            "file_reference": "AdaptiveSpreadsheetGrid modelName prop"
+          },
+          {
+            "id": "conform_013",
+            "item": "Auto-generated IDs must increment on multiple 'Add Row' clicks",
+            "check": "Click Add Row 3 times, verify IDs are 7572, 7573, 7574 (not 7572, 7572, 7572)",
+            "fix_if_missing": "Backend must check both database max AND spreadsheet max for next ID",
+            "file_reference": "CollaboratorBatchEditor.tsx createDraftRow lines 254-271"
+          },
+          {
+            "id": "conform_014",
+            "item": "Detail view URLs must use model-specific identifier (not database ID)",
+            "check": "Click collaborator from list, verify URL is /collaborators/id-7572 (not /collaborators/123)",
+            "fix_if_missing": "Implement model-specific URL pattern (like Languoid uses glottocode)",
+            "pattern": "For Collaborator: id-{collaborator_id}, For Languoid: {glottocode}, For Item: {catalog_number}",
+            "files": [
+              "frontend/src/App.tsx routing",
+              "app/internal_api/views.py get_object() method"
+            ]
+          }
+        ],
+        
+        "error_display": [
+          {
+            "id": "conform_015",
+            "item": "Error messages must appear BEFORE spreadsheet (not after)",
+            "check": "Trigger error, verify message appears above grid",
+            "fix_if_missing": "Move error Alert component before AdaptiveSpreadsheetGrid in JSX",
+            "file_reference": "CollaboratorBatchEditor.tsx lines 1070-1074"
+          },
+          {
+            "id": "conform_016",
+            "item": "Success messages must be toast/Snackbar (not full-width element)",
+            "check": "Save successfully, verify green toast appears at bottom (not full-width bar)",
+            "fix_if_missing": "Use Snackbar component instead of full-width Alert",
+            "file_reference": "CollaboratorBatchEditor.tsx Snackbar component"
+          }
+        ],
+        
+        "m2m_field_editors": [
+          {
+            "id": "conform_017",
+            "item": "M2M editors must be multi-select with chip management",
+            "check": "Click M2M field (languages), verify can add multiple chips without immediate commit",
+            "fix_if_missing": "Implement proper M2M editor (not FK single-select)",
+            "requirements": [
+              "Multiple chips can be added/removed",
+              "Changes not committed until save button clicked",
+              "Editor opens with existing chips pre-selected",
+              "Chips remain visible when editor closed"
+            ],
+            "file_reference": "CellEditor.tsx M2M editor section"
+          },
+          {
+            "id": "conform_018",
+            "item": "M2M chips must consistently show 'name (identifier)'",
+            "check": "Verify all chips show format like 'Pomo (pomo1273)' in all states",
+            "fix_if_missing": "Ensure chip rendering uses consistent format for original, new, and saved chips",
+            "states_to_check": [
+              "Original chips from database",
+              "Newly added chips",
+              "Chips after save and reopen"
+            ],
+            "file_reference": "CollaboratorBatchEditor.tsx chip rendering logic"
+          }
+        ],
+        
+        "row_selection": [
+          {
+            "id": "conform_019",
+            "item": "Row checkboxes must be present",
+            "check": "Verify checkbox column exists on left side of spreadsheet",
+            "fix_if_missing": "Import and use CheckboxColumn component",
+            "file_reference": "TanStackSpreadsheet.tsx checkbox column"
+          },
+          {
+            "id": "conform_020",
+            "item": "Selected/edited counts must be displayed in toolbar",
+            "check": "Select 3 rows, edit 2, verify toolbar shows '3 selected, 2 edited'",
+            "fix_if_missing": "Calculate and display counts in TanStackSpreadsheetWrapper",
+            "file_reference": "TanStackSpreadsheetWrapper.tsx toolbar"
+          },
+          {
+            "id": "conform_021",
+            "item": "Save button must respect checkbox selection",
+            "check": "Select specific rows, click Save, verify only those rows saved",
+            "fix_if_missing": "Implement selection-aware save logic: if rows selected, save only selected; if none selected, save all changed",
+            "file_reference": "CollaboratorBatchEditor.tsx handleSaveAll lines 808-871"
+          }
+        ],
+        
+        "validation_errors": [
+          {
+            "id": "conform_022",
+            "item": "Validation errors must show detailed overlay (not toast)",
+            "check": "Save with validation errors, verify detailed dialog with row-by-row breakdown",
+            "fix_if_missing": "Implement validation error dialog matching Languoid pattern",
+            "dialog_must_include": [
+              "Title: 'Validation Errors Prevent Saving'",
+              "List of affected rows with row numbers",
+              "Row names/identifiers",
+              "Specific field errors for each row",
+              "Close button"
+            ],
+            "file_reference": "CollaboratorBatchEditor.tsx lines 1145-1184"
+          },
+          {
+            "id": "conform_023",
+            "item": "Save button must be disabled when selected rows have no changes",
+            "check": "Select unchanged rows, verify Save button is disabled",
+            "fix_if_missing": "Update hasChanges logic to consider selectedRowsCount and selectedChangedRowsCount",
+            "file_reference": "TanStackSpreadsheetWrapper.tsx lines 163-165"
+          },
+          {
+            "id": "conform_024",
+            "item": "Validation overlay must show when no checkboxes selected",
+            "check": "Make invalid changes, click Save (no selection), confirm save all, verify validation dialog",
+            "fix_if_missing": "Check for validation errors in handleSaveAllConfirm (after user confirms), not in handleSaveAll",
+            "file_reference": "CollaboratorBatchEditor.tsx lines 868-884"
+          }
+        ],
+        
+        "refresh_and_loading": [
+          {
+            "id": "conform_025",
+            "item": "Refresh dialog must match Languoid styling and text",
+            "check": "Click Refresh with changes, verify dialog matches: Title='Unsaved Changes', Red button='Discard & Refresh', auto-focus on button",
+            "fix_if_missing": "Harmonize dialog to exact Languoid specifications",
+            "exact_specs": {
+              "title": "Unsaved Changes",
+              "button_color": "error (red)",
+              "button_text": "Discard & Refresh",
+              "auto_focus": "Yes (on confirm button)"
+            },
+            "file_reference": "CollaboratorBatchEditor.tsx lines 1103-1122"
+          },
+          {
+            "id": "conform_026",
+            "item": "Loading overlay must show during refresh",
+            "check": "Click Refresh, verify semi-transparent white mask with spinner appears",
+            "fix_if_missing": "Pass loading={loading} and saving={saving} props to AdaptiveSpreadsheetGrid",
+            "file_reference": "CollaboratorBatchEditor.tsx lines 1016-1017"
+          },
+          {
+            "id": "conform_027",
+            "item": "Auto-scroll to newly added rows",
+            "check": "Click Add Row, verify spreadsheet scrolls to show new row at bottom",
+            "fix_if_missing": "Implement scrollToRowId prop pattern (see lesson_005)",
+            "file_reference": "See auto_scroll_pattern documentation"
+          }
+        ]
+      },
+      
+      "category_2_accessibility": {
+        "description": "ARIA attributes required for WCAG 2.1 AA compliance",
+        "total_count": 3,
+        "wcag_requirement": "All interactive elements must have accessible names and descriptions",
+        
+        "items": [
+          {
+            "id": "conform_028",
+            "item": "All dialogs must have aria-labelledby and aria-describedby",
+            "check": "Inspect each Dialog in React DevTools, verify ARIA attributes present",
+            "dialogs_to_check": [
+              "Save All Confirmation Dialog",
+              "Validation Errors Dialog",
+              "Refresh Confirmation Dialog",
+              "Import Dialog"
+            ],
+            "fix_if_missing": "Add aria-labelledby pointing to DialogTitle id, aria-describedby pointing to DialogContentText id",
+            "file_reference": "CollaboratorBatchEditor.tsx all Dialog components"
+          },
+          {
+            "id": "conform_029",
+            "item": "All form controls must have aria-label",
+            "check": "Run axe-core, verify no 'form elements must have labels' errors",
+            "controls_to_check": [
+              "Text inputs in cell editors",
+              "Select dropdowns in cell editors",
+              "TextField search inputs in M2M editors"
+            ],
+            "fix_if_missing": "Add aria-label or inputProps={{ 'aria-label': 'descriptive text' }} to all form controls",
+            "file_reference": "CellEditor.tsx all input/select/TextField components"
+          },
+          {
+            "id": "conform_030",
+            "item": "All checkboxes must have aria-label",
+            "check": "Run axe-core, verify no 'buttons must have discernible text' errors on checkboxes",
+            "checkboxes_to_check": [
+              "Master 'select all' checkbox",
+              "Individual row checkboxes"
+            ],
+            "fix_if_missing": "Add inputProps={{ 'aria-label': 'Select all rows' }} or 'Select row {index}'",
+            "file_reference": "CheckboxColumn.tsx"
+          }
+        ]
+      },
+      
+      "category_3_ux_messages": {
+        "description": "Dialog messages and UX flow consistency",
+        "total_count": 3,
+        
+        "items": [
+          {
+            "id": "conform_031",
+            "item": "Save confirmation dialog must be informative",
+            "check": "Click Save with no selection, verify message is clear and shows count",
+            "required_format": {
+              "title": "Save All Changed Rows?",
+              "body": "No rows are currently selected. Do you want to save all {count} changed row(s)?",
+              "button": "Save All (with autoFocus)"
+            },
+            "not_acceptable": {
+              "title": "Save All Changes?",
+              "body": "Save all edited rows to the database?"
+            },
+            "rationale": "User needs to know: (1) why this dialog appeared, (2) exactly what will be saved",
+            "file_reference": "CollaboratorBatchEditor.tsx lines 1131-1141"
+          },
+          {
+            "id": "conform_032",
+            "item": "Dialog order: confirmation BEFORE validation",
+            "check": "Make invalid changes, click Save (no selection), verify confirmation dialog appears FIRST, then validation dialog if errors exist",
+            "correct_flow": [
+              "1. User clicks Save (no rows selected)",
+              "2. System shows 'Save all X rows?' confirmation",
+              "3. User confirms",
+              "4. System checks for validation errors",
+              "5. If errors exist, show validation error dialog",
+              "6. If no errors, proceed with save"
+            ],
+            "incorrect_flow": [
+              "1. User clicks Save",
+              "2. System shows validation error dialog (WRONG - user hasn't confirmed intent yet)"
+            ],
+            "rationale": "User intent first, then validation. Matches 'Are you sure you want to delete?' pattern.",
+            "implementation": "Check validation in handleSaveAllConfirm (after confirmation), not in handleSaveAll (before confirmation)",
+            "file_reference": "CollaboratorBatchEditor.tsx handleSaveAll and handleSaveAllConfirm separation"
+          },
+          {
+            "id": "conform_033",
+            "item": "Save button must have autoFocus",
+            "check": "Open save confirmation dialog, verify Save All button is focused (can press Enter immediately)",
+            "fix_if_missing": "Add autoFocus attribute to primary button in save confirmation dialog",
+            "file_reference": "CollaboratorBatchEditor.tsx line 1139"
+          }
+        ]
+      }
+    },
+    
+    "batch_editor_implementation_protocol": {
+      "description": "Step-by-step protocol for implementing batch editor for any new model, incorporating all lessons learned",
+      "purpose": "Prevent repeating the 33 conformance issues found in Collaborator implementation",
+      
+      "phase_0_planning": {
+        "step_1_review_requirements": {
+          "action": "Read this entire collaborator_batch_editor_lessons.json file",
+          "focus_areas": [
+            "Critical architectural lessons (5 items)",
+            "UX conformance checklist (33 items)",
+            "All code examples and file references"
+          ],
+          "output": "Understanding of all patterns and pitfalls"
+        },
+        
+        "step_2_model_analysis": {
+          "action": "Analyze target model's characteristics",
+          "questions_to_answer": [
+            "What are the required fields? (affects draft row initialization)",
+            "Are any required fields auto-generated? (affects hasChanges initial value)",
+            "Does model have M2M fields? (requires serializer create/update methods)",
+            "Does model have modified_by? (requires perform_create/update + read_only_fields)",
+            "Does model have hierarchical relationships? (affects display and import)",
+            "What is the model's unique identifier? (affects URL pattern)",
+            "How should the model be pluralized? (affects page title)"
+          ],
+          "output": "Model specification document"
+        },
+        
+        "step_3_column_configuration": {
+          "action": "Define COLUMN_CONFIG array with all editable fields",
+          "include_fields": "All user-editable fields (matching detail page editable fields)",
+          "exclude_fields": [
+            "Auto-calculated fields (like full_name for Collaborator)",
+            "System fields (uuid, slug, added, updated, modified_by)",
+            "Database ID (unless it's the user-facing identifier)"
+          ],
+          "column_order": "Match detail page field order OR logical workflow order",
+          "output": "COLUMN_CONFIG array with proper cellType for each field"
+        }
+      },
+      
+      "phase_1_backend": {
+        "step_1_serializer": {
+          "action": "Create or update model serializer",
+          "checklist": [
+            "Add all editable fields to Meta.fields",
+            "Add read_only_fields for id, uuid, slug, added, updated, modified_by",
+            "If model has M2M fields: implement create() method (see lesson_003)",
+            "If model has M2M fields: implement update() method (see lesson_003)",
+            "If M2M uses SerializerMethodField for read: extract IDs from initial_data in create/update"
+          ],
+          "test": "curl POST with M2M fields, verify creation succeeds",
+          "file_pattern": "app/internal_api/serializers.py"
+        },
+        
+        "step_2_viewset": {
+          "action": "Create or update model ViewSet",
+          "checklist": [
+            "If model has modified_by: implement perform_create() (see lesson_004)",
+            "If model has modified_by: implement perform_update() (see lesson_004)",
+            "Implement get_object() for model-specific URL pattern (see conform_014)",
+            "Add next-id action if model has auto-generated numeric ID",
+            "Implement batch=true lightweight serializer if model has expensive computed fields"
+          ],
+          "test": "curl POST and PATCH, verify modified_by is set automatically",
+          "file_pattern": "app/internal_api/views.py"
+        },
+        
+        "step_3_api_endpoints": {
+          "action": "Ensure all required endpoints exist",
+          "required_endpoints": [
+            "GET /internal/v1/{models}/ - list with pagination and filters",
+            "POST /internal/v1/{models}/ - create",
+            "GET /internal/v1/{models}/{id}/ - retrieve",
+            "PATCH /internal/v1/{models}/{id}/ - update",
+            "GET /internal/v1/{models}/next-id/ - next available ID (if applicable)",
+            "GET /internal/v1/{models}/export/ - async export",
+            "GET /internal/v1/{models}/export-status/{task_id}/ - export status",
+            "GET /internal/v1/{models}/export-download/{filename}/ - download export"
+          ],
+          "test": "Test each endpoint with curl or Postman",
+          "file_pattern": "app/internal_api/urls.py"
+        }
+      },
+      
+      "phase_2_frontend_component": {
+        "step_1_create_batch_editor_file": {
+          "action": "Create {Model}BatchEditor.tsx based on Languoid or Collaborator",
+          "copy_from": "CollaboratorBatchEditor.tsx (most recent, has all fixes)",
+          "initial_changes": [
+            "Rename component to {Model}BatchEditor",
+            "Update import statements (API, cache context, types)",
+            "Update COLUMN_CONFIG with model-specific fields",
+            "Update createDraftRow to use model-specific logic",
+            "Update {model}ToRow conversion function"
+          ],
+          "file_pattern": "frontend/src/components/{models}/{Model}BatchEditor.tsx"
+        },
+        
+        "step_2_implement_draft_row_logic": {
+          "action": "Implement createDraftRow function with model-specific logic",
+          "critical_decision": "Determine initial hasChanges value based on model requirements (see lesson_001)",
+          "if_required_fields_auto_generated": "Set hasChanges: true (row is immediately saveable)",
+          "if_requires_user_input": "Set hasChanges: false (user must edit before saving)",
+          "handle_auto_generated_ids": "If model has auto-ID, fetch next ID from backend (see conform_013)",
+          "file_pattern": "createDraftRow function in {Model}BatchEditor.tsx"
+        },
+        
+        "step_3_implement_save_logic": {
+          "action": "Implement handleSaveAll and handleSaveAllConfirm functions",
+          "critical_requirements": [
+            "Separate logic for draft rows vs. existing rows (see lesson_002)",
+            "Draft rows: send ALL non-empty field values",
+            "Existing rows: send ONLY isEdited field values",
+            "M2M fields: convert {id, name}[] to just IDs array",
+            "Validation check AFTER confirmation dialog (see conform_032)",
+            "Respect checkbox selection (see conform_021)"
+          ],
+          "file_pattern": "{Model}BatchEditor.tsx handleSaveAll and handleSaveAllConfirm"
+        },
+        
+        "step_4_implement_auto_scroll": {
+          "action": "Implement auto-scroll to newly added rows",
+          "follow_pattern": "See lesson_005 for complete implementation",
+          "steps": [
+            "Add scrollToRowId state",
+            "In handleAddRow, set scrollToRowId to newRow.id",
+            "Clear scrollToRowId after 500ms timeout",
+            "Pass scrollToRowId prop to AdaptiveSpreadsheetGrid"
+          ],
+          "file_pattern": "{Model}BatchEditor.tsx"
+        },
+        
+        "step_5_implement_dialogs": {
+          "action": "Ensure all dialogs match Languoid/Collaborator patterns",
+          "dialogs_required": [
+            "Save All Confirmation - with count (see conform_031)",
+            "Validation Errors - with row breakdown (see conform_022)",
+            "Refresh Confirmation - exact styling (see conform_025)"
+          ],
+          "aria_requirements": "All dialogs must have aria-labelledby and aria-describedby (see conform_028)",
+          "file_pattern": "{Model}BatchEditor.tsx dialog JSX"
+        }
+      },
+      
+      "phase_3_caching": {
+        "step_1_cache_context": {
+          "action": "Create cache context for model",
+          "copy_from": "CollaboratorCacheContext.tsx",
+          "implement": [
+            "State for cache data, loading, progress",
+            "getNext{Model}Id function",
+            "get{Models} function (fetches and caches)",
+            "invalidateCache function",
+            "Chunked loading for large datasets (chunks of 1000)",
+            "Progress tracking during load"
+          ],
+          "file_pattern": "frontend/src/contexts/{Model}CacheContext.tsx"
+        },
+        
+        "step_2_integrate_cache": {
+          "action": "Use cache in batch editor component",
+          "pattern": "const { get{Models}, cache, isLoading, loadProgress, invalidateCache } = use{Model}Cache()",
+          "load_on_mount": "Call load{Models}() in useEffect on component mount",
+          "filter_cached_data": "If sessionStorage has filtered IDs, filter cached data client-side",
+          "file_pattern": "{Model}BatchEditor.tsx"
+        }
+      },
+      
+      "phase_4_import_export": {
+        "step_1_import_transformer": {
+          "action": "Create import transformer for model",
+          "copy_from": "collaboratorImportTransformer.ts",
+          "implement": [
+            "Column name normalization and recognition",
+            "Value parsers for each field type",
+            "Row reconciliation logic (how to match imported rows to existing)",
+            "Draft row creation for new rows",
+            "Change detection (compare imported values to database values)"
+          ],
+          "file_pattern": "frontend/src/services/{model}ImportTransformer.ts"
+        },
+        
+        "step_2_import_hook": {
+          "action": "Create import hook for model",
+          "copy_from": "useImportCollaboratorSpreadsheet.ts",
+          "implement": [
+            "File validation (Excel/CSV)",
+            "File parsing",
+            "Call transformer to process data",
+            "Return results for display"
+          ],
+          "file_pattern": "frontend/src/hooks/useImport{Model}Spreadsheet.ts"
+        },
+        
+        "step_3_integrate_import": {
+          "action": "Connect import hook to batch editor",
+          "pattern": "const {model}ImportHook = useImport{Model}Spreadsheet()",
+          "pass_to_grid": "Pass importHook prop to AdaptiveSpreadsheetGrid",
+          "file_pattern": "{Model}BatchEditor.tsx"
+        }
+      },
+      
+      "phase_5_integration": {
+        "step_1_routing": {
+          "action": "Add batch editor route",
+          "route": "/{models}/batch",
+          "component": "{Model}BatchEditor",
+          "file_pattern": "frontend/src/App.tsx"
+        },
+        
+        "step_2_list_page_buttons": {
+          "action": "Add Batch Edit and Export buttons to list page",
+          "copy_pattern_from": "CollaboratorsList.tsx",
+          "buttons_required": [
+            "Batch Edit (opens batch editor with filtered/selected IDs)",
+            "Export (starts async export with status polling)"
+          ],
+          "file_pattern": "frontend/src/pages/{Models}List.tsx"
+        },
+        
+        "step_3_detail_page_url": {
+          "action": "Update detail page routing to use model identifier",
+          "pattern": "/{models}/{identifier} where identifier is model-specific (not database ID)",
+          "examples": [
+            "Languoid: /{glottocode}",
+            "Collaborator: /id-{collaborator_id}",
+            "Item: /{catalog_number}"
+          ],
+          "files": [
+            "frontend/src/App.tsx",
+            "app/internal_api/views.py get_object()"
+          ]
+        }
+      },
+      
+      "phase_6_conformance_check": {
+        "action": "Systematically verify all 33 conformance items",
+        "method": "Go through ux_conformance_checklist section item by item",
+        "category_1": "Test all 27 missing features items (conform_001 through conform_027)",
+        "category_2": "Run axe-core and verify all 3 accessibility items (conform_028 through conform_030)",
+        "category_3": "Verify all 3 UX message items (conform_031 through conform_033)",
+        "documentation": "Check off each item as you verify it, note any issues found",
+        "fix_before_proceeding": "Fix ALL conformance issues before considering implementation complete"
+      },
+      
+      "phase_7_testing": {
+        "functional_testing": [
+          "Create new row with auto-generated ID",
+          "Edit existing row and save",
+          "Import spreadsheet with new and updated rows",
+          "Export to Excel",
+          "Test M2M field editing (if applicable)",
+          "Test validation errors display",
+          "Test checkbox selection and filtered save",
+          "Test undo/redo functionality",
+          "Test refresh with unsaved changes"
+        ],
+        
+        "performance_testing": [
+          "Load 1000+ rows, verify smooth scrolling",
+          "Test cache loading time",
+          "Test save operation time for 10+ rows",
+          "Monitor for API call loops"
+        ],
+        
+        "accessibility_testing": [
+          "Run axe-core, verify 0 violations",
+          "Test keyboard navigation (Tab, Shift+Tab, Enter, Escape, Arrow keys)",
+          "Test screen reader (VoiceOver/NVDA) on all dialogs and form controls"
+        ],
+        
+        "cross_browser_testing": [
+          "Chrome",
+          "Firefox",
+          "Safari",
+          "Edge"
+        ]
+      }
+    },
+    
+    "anti_patterns_to_avoid": {
+      "description": "Common mistakes based on Collaborator implementation experience",
+      
+      "mistake_1_blind_copy_paste": {
+        "problem": "Copying Languoid code without understanding model-specific requirements",
+        "example": "Copied hasChanges: false for draft rows without considering that Collaborator has auto-generated ID",
+        "solution": "Always ask: 'Does this model have the same characteristics as the model I'm copying from?'",
+        "prevention": "Review phase_0_planning step_2_model_analysis before copying any code"
+      },
+      
+      "mistake_2_forgetting_m2m_handling": {
+        "problem": "Not implementing create() and update() methods in serializer for M2M fields",
+        "symptom": "400 Bad Request when creating new records with M2M data",
+        "solution": "Check for M2M fields in model, implement both methods if any exist",
+        "prevention": "Add to checklist: 'Does model have M2M fields? If yes, implement serializer create/update.'"
+      },
+      
+      "mistake_3_validation_before_confirmation": {
+        "problem": "Showing validation errors before user confirms save intent",
+        "why_wrong": "User hasn't confirmed they want to save yet, showing errors is premature",
+        "correct_flow": "Confirmation dialog → User confirms → Check validation → Show errors if any",
+        "solution": "Move validation check from handleSaveAll to handleSaveAllConfirm",
+        "prevention": "Follow exact Languoid pattern for dialog flow"
+      },
+      
+      "mistake_4_missing_aria_attributes": {
+        "problem": "Building entire component without ARIA attributes, then retrofitting",
+        "why_wrong": "ARIA should be built-in from the start, not added later",
+        "solution": "Add ARIA attributes as you create each dialog and form control",
+        "prevention": "Use Languoid/Collaborator as template, which already has all ARIA attributes"
+      },
+      
+      "mistake_5_inconsistent_messages": {
+        "problem": "Writing generic messages instead of informative ones",
+        "example": "'Save all changes?' vs. 'No rows are currently selected. Do you want to save all 5 changed row(s)?'",
+        "solution": "Copy exact message text from Languoid/Collaborator",
+        "prevention": "Include message text in conformance checklist items"
+      }
+    },
+    
+    "success_criteria": {
+      "definition_of_done": [
+        "All 33 conformance checklist items verified and passing",
+        "All 5 critical architectural lessons implemented correctly",
+        "Functional testing complete (create, edit, import, export, M2M)",
+        "Performance testing shows <3 second load for thousands of rows",
+        "Accessibility testing shows 0 axe-core violations",
+        "Code review confirms patterns match Languoid/Collaborator",
+        "Project Manager has tested and approved"
+      ],
+      
+      "quality_gates": {
+        "gate_1_backend": "All API endpoints return correct data, M2M fields work, modified_by auto-set",
+        "gate_2_component": "Batch editor loads and displays data, save/import/export work",
+        "gate_3_conformance": "All 33 checklist items pass",
+        "gate_4_accessibility": "axe-core shows 0 violations, keyboard navigation works",
+        "gate_5_approval": "Project Manager approves for production"
+      }
+    },
+    
+    "post_implementation_harmonization_lessons": {
+      "description": "Additional patterns discovered during Phase 6 (final harmonization) that apply to BOTH batch editors and should be followed in all future implementations",
+      "added_date": "2025-11-10",
+      "conversation_reference": "Collaborator batch editor completion and final UX harmonization with Languoid patterns",
+      
+      "universal_patterns_established": {
+        "lesson_006_conflict_resolution_interaction": {
+          "decision_id": "collab_batch_006",
+          "content": "Conflict resolution requires interaction-based review, not just visual flagging",
+          "added_date": "2025-11-10",
+          "applies_to": "ALL batch editors (pattern implemented in both Languoid and Collaborator)",
+          "problem": "Orange cells (conflicts) persisted indefinitely even after user saw them, requiring manual refresh",
+          "root_cause": "Original implementation flagged conflicts but provided no mechanism to mark them as 'reviewed'",
+          "solution": "Opening a conflicting cell for edit marks the conflict as reviewed. If value matches current DB value after editing, cell becomes white. Otherwise, it becomes yellow (user edit), but never orange again.",
+          "pattern_for_future": "When user opens a conflicting cell's editor and closes it (regardless of whether they change it), clear hasConflict flag. Then apply normal state logic: white if matches DB, yellow if user-edited.",
+          "implementation_steps": [
+            "In handleCellChange for EVERY field type, add hasConflict: false to dispatch(updateCell(...))",
+            "This applies to all validation scenarios: valid, invalid, value comparisons, etc.",
+            "The act of editing is the 'review' action that clears conflict state"
+          ],
+          "files": [
+            "frontend/src/components/languoids/LanguoidBatchEditor.tsx lines 473, 492, 513, 535, 556, 572, 594, 611, 632, 663, 676",
+            "frontend/src/components/collaborators/CollaboratorBatchEditor.tsx lines 640, 660, 676, 698, 714, 771, 788"
+          ],
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "lesson_007_refresh_cache_bypass": {
+          "decision_id": "collab_batch_007",
+          "content": "Refresh button must bypass frontend cache AND backend Redis cache to fetch truly fresh data",
+          "added_date": "2025-11-10",
+          "applies_to": "ALL batch editors with caching",
+          "problem": "Refresh button showed stale data because it was pulling from frontend cache (sessionStorage) which itself came from Redis cache",
+          "root_cause": "refreshCache() function used standard API call that checked Redis first before querying database",
+          "solution": "Add pagination parameters (page=1, page_size=99999) to force backend to bypass Redis and query database directly",
+          "pattern_for_future": "Refresh operations MUST include mechanisms to bypass ALL cache layers (frontend and backend) to ensure fresh data from source of truth (database)",
+          "implementation": {
+            "frontend": "Add page=1 and page_size=99999 to API call in refreshCache()",
+            "backend": "List endpoint checks for pagination params and bypasses Redis when present",
+            "data_flow": "Refresh button → refreshCache() → API with pagination → database query (skip Redis) → fresh data"
+          },
+          "additional_considerations": [
+            "Do NOT save refreshed data to sessionStorage (can exceed quota)",
+            "Use empty dependency array for refreshCache useCallback to prevent stale closures",
+            "refreshCache should return the fresh data for immediate use"
+          ],
+          "files": [
+            "frontend/src/contexts/CollaboratorCacheContext.tsx lines 244-260, 278, 291",
+            "frontend/src/components/collaborators/CollaboratorBatchEditor.tsx lines 809-881"
+          ],
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "lesson_008_warning_message_consistency": {
+          "decision_id": "collab_batch_008",
+          "content": "Large dataset warning messages must be identical across all batch editors",
+          "added_date": "2025-11-10",
+          "applies_to": "ALL batch editors",
+          "problem": "Collaborator had different warning text than Languoid (different title, extra sentences, different suggestions)",
+          "solution": "Harmonize ALL warning elements to exact same pattern across models",
+          "standardized_elements": {
+            "title_format": "Load All {ModelNamePlural}?",
+            "warning_trigger": "!hasActiveFilters (show warning when NO filters applied, regardless of count)",
+            "removed_text": "Loading more than 100 items may take a moment to render.",
+            "suggestions_format": [
+              "Applying advanced filters",
+              "Selecting specific items with checkboxes"
+            ],
+            "loading_message": "Loading {model} data, please wait... (with CircularProgress spinner)",
+            "no_progress_bar": "Simple spinner only, no LinearProgress or percentage during load",
+            "warning_persistence": "Warning shows from start in A+B scenario, with loading spinner overlaid"
+          },
+          "pattern_for_future": "Use exact Languoid warning dialog as template. Only change: model name pluralization.",
+          "files": [
+            "frontend/src/components/collaborators/CollaboratorBatchLoadingDialog.tsx lines 79-82, 85-87, 91-102, 198-252",
+            "frontend/src/components/languoids/LanguoidsList.tsx lines 361-401"
+          ],
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "lesson_009_draft_row_preservation": {
+          "decision_id": "collab_batch_009",
+          "content": "Draft rows must persist across state updates, using ref-based tracking",
+          "added_date": "2025-11-10",
+          "applies_to": "ALL batch editors (pattern now in both Languoid and Collaborator)",
+          "problem": "Draft rows disappeared when parent component re-rendered (e.g., after cache update or navigation events)",
+          "root_cause": "loadCollaborators() was called on every re-render and filtered out draft rows",
+          "solution": "Use useRef to track current rows, filter to preserve drafts, and remove rows from loadCollaborators dependency array",
+          "implementation_steps": [
+            "Create rowsRef = useRef<SpreadsheetRow[]>([]);",
+            "Add useEffect to sync rowsRef.current with Redux rows",
+            "In loadCollaborators, filter to preserve draft rows: const existingDraftRows = rowsRef.current.filter(r => r.isDraft);",
+            "Remove rows from loadCollaborators useEffect dependency array",
+            "Add preserveDrafts parameter to loadCollaborators (default true) for refresh use case"
+          ],
+          "files": [
+            "frontend/src/components/collaborators/CollaboratorBatchEditor.tsx lines 361-374, 393-394, 443, 457",
+            "frontend/src/components/languoids/LanguoidBatchEditor.tsx (similar pattern)"
+          ],
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "lesson_010_navigate_away_cleanup": {
+          "decision_id": "collab_batch_010",
+          "content": "Batch editors must discard all changes when user navigates away",
+          "added_date": "2025-11-10",
+          "applies_to": "ALL batch editors",
+          "problem": "Collaborator batch editor retained changes when navigating away, inconsistent with Languoid",
+          "solution": "Add cleanup effect that calls dispatch(resetSpreadsheet()) on component unmount",
+          "pattern_for_future": "Always include cleanup in initial load useEffect: return () => { dispatch(resetSpreadsheet()); }",
+          "implementation": {
+            "location": "In useEffect for initial data load",
+            "cleanup_function": "return () => { dispatch(resetSpreadsheet()); }",
+            "dependency_array": "[] (empty to run only on mount/unmount)"
+          },
+          "files": [
+            "frontend/src/components/collaborators/CollaboratorBatchEditor.tsx lines 445-457",
+            "frontend/src/components/languoids/LanguoidBatchEditor.tsx (similar pattern)"
+          ],
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "lesson_011_refresh_behavior": {
+          "decision_id": "collab_batch_011",
+          "content": "Refresh must clear drafts, selections, and undo/redo history",
+          "added_date": "2025-11-10",
+          "applies_to": "ALL batch editors",
+          "problem": "After importing spreadsheet, pressing refresh kept new draft rows and checkbox selections",
+          "solution": "Refresh operation must: (1) dispatch(clearHistory()), (2) dispatch(clearAllSelections()), (3) load data with preserveDrafts=false",
+          "pattern_for_future": "Refresh is a 'reset to database state' operation. All local-only state (drafts, selections, history) must be cleared.",
+          "implementation": {
+            "handleRefresh": "If no changes, call handleRefreshConfirm directly; otherwise show confirmation dialog",
+            "handleRefreshConfirm": [
+              "dispatch(clearHistory())",
+              "dispatch(clearAllSelections())",
+              "const freshData = await refreshCache()",
+              "initializeSpreadsheet with fresh data"
+            ]
+          },
+          "files": [
+            "frontend/src/components/collaborators/CollaboratorBatchEditor.tsx lines 809-881"
+          ],
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "lesson_012_button_order_consistency": {
+          "decision_id": "collab_batch_012",
+          "content": "List page button order must be consistent: Export, Batch Edit, Add (left to right)",
+          "added_date": "2025-11-10",
+          "applies_to": "ALL list pages",
+          "problem": "Collaborator list had Batch Edit before Export, inconsistent with Languoid",
+          "solution": "Standardize button order: Export, Batch Edit, Add New",
+          "pattern_for_future": "Always place Export before Batch Edit on list pages",
+          "rationale": "Export is more common operation than batch edit, deserves priority placement",
+          "files": [
+            "frontend/src/components/collaborators/CollaboratorsList.tsx lines 641-658"
+          ],
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "lesson_013_export_filtered_data": {
+          "decision_id": "collab_batch_013",
+          "content": "Export button must export ALL filtered rows, not just current page",
+          "added_date": "2025-11-10",
+          "applies_to": "ALL list pages with pagination and export",
+          "problem": "Collaborator export only exported 25 rows (current page) instead of all filtered rows",
+          "solution": "Use getCollaborators() from cache to fetch ALL filtered IDs, not collaborators state array (which is paginated)",
+          "pattern_for_future": "Export operations must fetch from cache with filters applied, not from current page state",
+          "implementation": {
+            "correct": "const allCollaborators = getCollaborators(); const exportIds = allCollaborators.map(c => c.id);",
+            "incorrect": "const exportIds = collaborators.map(c => c.id); // only current page!"
+          },
+          "files": [
+            "frontend/src/components/collaborators/CollaboratorsList.tsx lines 517-546"
+          ],
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "lesson_014_info_icon_dynamic_routing": {
+          "decision_id": "collab_batch_014",
+          "content": "Info icon links in batch editors must route dynamically based on model",
+          "added_date": "2025-11-10",
+          "applies_to": "TanStackSpreadsheetWrapper (used by all batch editors)",
+          "problem": "Info icon hardcoded to 'languoid-batch' section, incorrect for Collaborator",
+          "solution": "Use modelName prop to determine correct anchor: Collaborators → 'collaborator-batch', Languages → 'languoid-batch'",
+          "pattern_for_future": "Always make help links dynamic based on modelName prop",
+          "implementation": {
+            "anchor": "modelName === 'Collaborators' ? 'collaborator-batch' : 'languoid-batch'",
+            "tooltip": "`Learn about batch editing ${modelName === 'Collaborators' ? 'collaborators' : 'languoids'}`"
+          },
+          "files": [
+            "frontend/src/components/batch/TanStackSpreadsheetWrapper.tsx lines 355-358"
+          ],
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "lesson_015_import_id_auto_generation": {
+          "decision_id": "collab_batch_015",
+          "content": "Imported new rows must auto-generate sequential IDs, ignoring spreadsheet IDs",
+          "added_date": "2025-11-10",
+          "applies_to": "ALL models with auto-generated numeric IDs",
+          "problem": "Multiple imported new rows received same ID; also, spreadsheet IDs were trusted for new rows (security/conflict risk)",
+          "solution": "Pre-calculate nextId once at start of import, increment for each new row, ignore spreadsheet IDs for new rows",
+          "pattern_for_future": "For new rows: (1) calculate next available ID considering DB max AND current spreadsheet max, (2) increment for each new row, (3) ignore spreadsheet ID column for new rows",
+          "implementation_steps": [
+            "const dbMaxId = await getNextCollaboratorId();",
+            "const maxIdInCurrentRows = Math.max(...rows.map(r => r.cells.collaborator_id?.value || 0));",
+            "let nextCollaboratorId = Math.max(dbMaxId, maxIdInCurrentRows + 1);",
+            "For each new row in CASE 3: use nextCollaboratorId, then increment: nextCollaboratorId++"
+          ],
+          "files": [
+            "frontend/src/services/collaboratorImportTransformer.ts lines 83-105, 202-412"
+          ],
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "lesson_016_scroll_to_first_affected": {
+          "decision_id": "collab_batch_016",
+          "content": "After import, spreadsheet must scroll to first affected row (modified, new, or unchanged) and center it",
+          "added_date": "2025-11-10",
+          "applies_to": "ALL batch editors with import",
+          "problem": "After import, first affected row scrolled near view but remained out of sight",
+          "solution": "Include unchangedRows in firstAffectedId calculation, and use 'center' alignment for scrollToIndex",
+          "pattern_for_future": "Priority for first affected: modifiedRows > newRows > unchangedRows. Always center the row in view.",
+          "implementation": {
+            "firstAffectedId_calc": "result.modifiedRows[0]?.rowId ?? result.newRows[0]?.rowId ?? result.unchangedRows[0]?.rowId",
+            "scroll_alignment": "align: 'center' (not 'end' or 'start')"
+          },
+          "files": [
+            "frontend/src/components/batch/TanStackSpreadsheetWrapper.tsx lines 135, 163",
+            "frontend/src/components/batch/TanStackSpreadsheet.tsx lines 514-519"
+          ],
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "lesson_017_markdown_table_rendering": {
+          "decision_id": "collab_batch_017",
+          "content": "User guide markdown requires remark-gfm plugin for table rendering",
+          "added_date": "2025-11-10",
+          "applies_to": "User guide documentation system",
+          "problem": "Markdown tables displayed as raw text instead of formatted tables",
+          "root_cause": "ReactMarkdown doesn't parse GitHub Flavored Markdown (GFM) tables by default",
+          "solution": "Install remark-gfm and add remarkPlugins={[remarkGfm]} to ReactMarkdown component",
+          "pattern_for_future": "Any markdown rendering that needs tables, task lists, strikethrough, or other GFM features requires remark-gfm",
+          "implementation": [
+            "npm install remark-gfm",
+            "import remarkGfm from 'remark-gfm';",
+            "<ReactMarkdown remarkPlugins={[remarkGfm]} />"
+          ],
+          "files": [
+            "frontend/src/pages/UserGuidePage.tsx lines 3, 215",
+            "frontend/package.json line 33"
+          ],
+          "confidence_level": "high",
+          "status": "active"
+        }
+      },
+      
+      "documentation_completeness": {
+        "user_guide_sections_created": {
+          "decision_id": "collab_batch_018",
+          "content": "Complete user guide documentation for Collaborator editing (single and batch)",
+          "added_date": "2025-11-10",
+          "sections": [
+            {
+              "file": "docs/user-guide/editing-collaborators.md",
+              "title": "Editing Collaborators",
+              "content_coverage": [
+                "Full Name calculated field (format and examples)",
+                "Other Names as structured list (not comma-separated)",
+                "Anonymous field behavior (public vs internal display)",
+                "All collaborator fields with detailed descriptions",
+                "Field-specific editors and validation rules",
+                "Common single-edit tasks and workflows"
+              ]
+            },
+            {
+              "file": "docs/user-guide/batch-editor/collaborator-batch.md",
+              "title": "Batch Editing Collaborators",
+              "content_coverage": [
+                "Full Name auto-calculation in batch mode",
+                "Structured list editing (Other Names)",
+                "Anonymous status in batch operations",
+                "Auto-generated Collaborator IDs for imports",
+                "Sequential ID generation for multiple new rows",
+                "Language relationship fields (M2M)",
+                "Import/export workflows and column recognition",
+                "Validation and conflict detection",
+                "Common batch editing tasks"
+              ]
+            }
+          ],
+          "pattern_for_future": "For each model, create both single-edit and batch-edit user guide sections. Follow established structure from Languoid documentation. Emphasize model-specific calculated fields, structured data types, and privacy/access controls.",
+          "integration": "Added both sections to UserGuidePage.tsx navigation (lines 59-62, 74-77)",
+          "confidence_level": "high",
+          "status": "active"
+        }
+      }
+    },
+    
+    "maintenance_notes": {
+      "when_to_update_this_file": [
+        "When implementing batch editor for new model and discovering new lessons",
+        "When conformance issues are found in existing batch editors",
+        "When architectural patterns evolve or improve",
+        "When new WCAG requirements are identified"
+      ],
+      
+      "cross_references": {
+        "main_architecture": "stage_1_batch_editing.json",
+        "coding_patterns": "coding_patterns.json",
+        "accessibility_requirements": "project_requirements.json::accessibility",
+        "user_documentation": "docs/user-guide/batch-editor/"
+      }
+    }
+  }
+}
+
+

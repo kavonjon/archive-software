@@ -889,6 +889,84 @@
       "confidence_level": "high",
       "status": "active",
       "cross_references": ["collaborator-harmonization.json", "data_model_understanding.json"]
+    },
+    
+    "hybrid_clickable_links_pattern": {
+      "decision_id": "pattern_035",
+      "content": "List components should use hybrid navigation - proper React Router links on primary identifiers combined with clickable rows for convenience",
+      "added_date": "2025-11-11",
+      "conversation_reference": "UI enhancements session - enabling right-click and new tab workflows",
+      
+      "problem": "MUI Link components with component='button' and onClick handlers don't support browser right-click context menus",
+      
+      "solution": "Use React Router Link components for identifiers with stopPropagation to prevent row click conflict",
+      
+      "implementation_pattern": {
+        "imports_required": [
+          "Link as RouterLink from 'react-router-dom'",
+          "Link from '@mui/material'"
+        ],
+        "link_component": {
+          "structure": "MUI Link with component={RouterLink}",
+          "to_prop": "to={`/path/${id}`}",
+          "onClick": "onClick={(e) => e.stopPropagation()} // Prevents row click",
+          "styling": "textDecoration: 'none', '&:hover': { textDecoration: 'underline' }, fontWeight: 'medium'"
+        },
+        "row_component": {
+          "structure": "TableRow with onClick={handleRowClick}",
+          "styling": "cursor: 'pointer', '&:hover': { backgroundColor: 'action.hover' }"
+        }
+      },
+      
+      "identifier_choices_by_model": {
+        "ItemsList": "Catalog number (e.g., 'ACH-00123')",
+        "CollaboratorsList": "Display name",
+        "LanguoidsList": "Languoid name (preserves hierarchical indentation)",
+        "CollectionsList": "Collection abbreviation (e.g., 'ACH', 'NAL')"
+      },
+      
+      "user_experience_benefits": [
+        "Power users can right-click identifier for 'Open in new tab'",
+        "Ctrl/Cmd+Click on identifier opens in new tab",
+        "Middle-click opens in new tab",
+        "Regular users can still click anywhere on row for quick navigation",
+        "Works on mobile with long-press context menu"
+      ],
+      
+      "accessibility_benefits": [
+        "Proper <a> tags instead of buttons for semantic HTML",
+        "Screen readers announce identifiers as links with descriptive labels",
+        "Keyboard users can Tab to links and Ctrl+Enter for new tabs",
+        "SEO-friendly link structure"
+      ],
+      
+      "when_to_use": [
+        "List components displaying records",
+        "When users might want to reference multiple records simultaneously",
+        "When power users need multi-tab workflows",
+        "When screen reader semantics are important"
+      ],
+      
+      "anti_pattern": "Using component='button' with onClick for navigation - breaks right-click, accessibility, and SEO",
+      
+      "code_example": {
+        "table_cell": "<TableCell><Link component={RouterLink} to={`/items/${item.id}`} onClick={(e) => e.stopPropagation()} variant='body2' sx={{ fontWeight: 'medium', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>{item.catalog_number}</Link></TableCell>",
+        "table_row": "<TableRow hover onClick={() => navigate(`/items/${item.id}`)} sx={{ cursor: 'pointer' }}>...</TableRow>"
+      },
+      
+      "established_in_components": [
+        "frontend/src/components/items/ItemsList.tsx",
+        "frontend/src/components/collaborators/CollaboratorsList.tsx",
+        "frontend/src/components/collaborators/CollaboratorDetail.tsx (associated items)",
+        "frontend/src/components/languoids/LanguoidsList.tsx",
+        "frontend/src/components/collections/CollectionsList.tsx"
+      ],
+      
+      "documented_in_user_guide": "docs/user-guide/getting-started.md - Navigating Lists section",
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["ui-enhancements-session.json", "stage_0_react_migration.json"]
     }
   }
 }

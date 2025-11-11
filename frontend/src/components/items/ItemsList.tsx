@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Box,
   Paper,
@@ -22,6 +22,12 @@ import {
   Stack,
   useTheme,
   useMediaQuery,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  OutlinedInput,
+  Link,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -29,9 +35,13 @@ import {
   Add as AddIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  CheckBox as CheckBoxIcon,
+  CheckBoxOutlineBlank as CheckBoxOutlineBlankIcon,
+  FilterList as FilterListIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
-import { itemsAPI, Item, PaginatedResponse, APIError } from '../../services/api';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { debounce } from 'lodash';
+import { itemsAPI, Item, PaginatedResponse, APIError, ACCESS_LEVEL_CHOICES, RESOURCE_TYPE_CHOICES } from '../../services/api';
 import { ariaLabels, focusUtils, tableUtils, formUtils } from '../../utils/accessibility';
 import { touchTargets } from '../../utils/responsive';
 
@@ -42,15 +52,14 @@ interface ItemsListProps {
 }
 
 interface FilterState {
+  keyword_contains: string;
   catalog_number_contains: string;
-  access_level_contains: string;
+  access_level: string[];  // Multi-select array
   call_number_contains: string;
   accession_date_min: string;
   accession_date_max: string;
-  indigenous_title_contains: string;
-  english_title_contains: string;
   titles_contains: string;
-  resource_type_contains: string;
+  resource_type: string[];  // Multi-select array
   language_contains: string;
   creation_date_min: string;
   creation_date_max: string;
@@ -58,7 +67,26 @@ interface FilterState {
   genre_contains: string;
   collaborator_contains: string;
   depositor_name_contains: string;
-  keyword_contains: string;
+  
+  // Empty field filters (isnull)
+  collection_isnull?: boolean;
+  access_level_restrictions_isnull?: boolean;
+  accession_date_isnull?: boolean;
+  accession_number_isnull?: boolean;
+  call_number_isnull?: boolean;
+  collaborator_isnull?: boolean;
+  creation_date_isnull?: boolean;
+  depositor_name_isnull?: boolean;
+  description_scope_and_content_isnull?: boolean;
+  genre_isnull?: boolean;
+  indigenous_title_isnull?: boolean;
+  english_title_isnull?: boolean;
+  item_access_level_isnull?: boolean;
+  language_isnull?: boolean;
+  resource_type_isnull?: boolean;
+  original_format_medium_isnull?: boolean;
+  publisher_isnull?: boolean;
+  recording_context_isnull?: boolean;
 }
 
 const ItemsList: React.FC<ItemsListProps> = ({
@@ -71,7 +99,6 @@ const ItemsList: React.FC<ItemsListProps> = ({
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   // Refs for focus management
-  const searchButtonRef = useRef<HTMLButtonElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
   
   // State management
@@ -82,19 +109,21 @@ const ItemsList: React.FC<ItemsListProps> = ({
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedItems, setSelectedItems] = useState<Item[]>([]);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  
+  // Selection state (always enabled, using Set for efficient lookups)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   // Filter state
   const [filters, setFilters] = useState<FilterState>({
+    keyword_contains: '',
     catalog_number_contains: '',
-    access_level_contains: '',
+    access_level: [],
     call_number_contains: '',
     accession_date_min: '',
     accession_date_max: '',
-    indigenous_title_contains: '',
-    english_title_contains: '',
     titles_contains: '',
-    resource_type_contains: '',
+    resource_type: [],
     language_contains: '',
     creation_date_min: '',
     creation_date_max: '',
@@ -102,8 +131,10 @@ const ItemsList: React.FC<ItemsListProps> = ({
     genre_contains: '',
     collaborator_contains: '',
     depositor_name_contains: '',
-    keyword_contains: '',
   });
+
+  // Active filters state - these are the filters actually applied to the API
+  const [activeFilters, setActiveFilters] = useState<FilterState>(filters);
 
   // Load items from API
   const loadItems = useCallback(async () => {
@@ -118,8 +149,19 @@ const ItemsList: React.FC<ItemsListProps> = ({
       };
 
       // Add non-empty filters to params
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value && value.trim()) {
+      Object.entries(activeFilters).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          // For multi-select fields, send comma-separated values if not empty
+          if (value.length > 0) {
+            params[key] = value.join(',');
+          }
+        } else if (typeof value === 'boolean') {
+          // For boolean filters (isnull), add if true
+          if (value === true) {
+            params[key] = 'true';
+          }
+        } else if (value && value.trim()) {
+          // For text fields, add if not empty
           params[key] = value.trim();
         }
       });
@@ -128,6 +170,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
       
       setItems(response.results);
       setTotalCount(response.count);
+      setInitialLoadComplete(true);
 
       // Announce results to screen readers
       focusUtils.announce(
@@ -145,7 +188,23 @@ const ItemsList: React.FC<ItemsListProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, filters]);
+  }, [page, rowsPerPage, activeFilters]);
+
+  // Debounced filter application - automatically applies filters after user stops typing
+  const debouncedApplyFilters = useMemo(
+    () => debounce((newFilters: FilterState) => {
+      setActiveFilters(newFilters);
+      setPage(0); // Reset to first page when filters change
+    }, 500),
+    []
+  );
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      debouncedApplyFilters.cancel();
+    };
+  }, [debouncedApplyFilters]);
 
   // Load items on component mount and when dependencies change
   useEffect(() => {
@@ -153,36 +212,45 @@ const ItemsList: React.FC<ItemsListProps> = ({
   }, [loadItems]);
 
   // Handle filter changes
-  const handleFilterChange = (field: keyof FilterState, value: string) => {
-    setFilters(prev => ({
-      ...prev,
+  const handleFilterChange = (field: keyof FilterState, value: string | string[]) => {
+    const newFilters = {
+      ...filters,
       [field]: value,
-    }));
+    };
+    setFilters(newFilters);
+    
+    // Debounced API call - waits 500ms after user stops typing
+    debouncedApplyFilters(newFilters);
   };
 
-  // Apply filters (reset to first page)
-  const handleApplyFilters = () => {
-    setPage(0);
-    loadItems();
+  // Handle empty filter toggle
+  const handleEmptyFilterToggle = (field: keyof FilterState) => {
+    const currentValue = filters[field] as boolean | undefined;
+    const newValue = currentValue === true ? undefined : true;
     
-    // Focus back to table for screen readers
-    if (tableRef.current) {
-      tableRef.current.focus();
-    }
+    const newFilters = {
+      ...filters,
+      [field]: newValue,
+    };
+    setFilters(newFilters);
+    
+    // Immediately apply (no need for debounce on button clicks)
+    debouncedApplyFilters.cancel();
+    setActiveFilters(newFilters);
+    setPage(0);
   };
 
   // Clear all filters
   const handleClearFilters = () => {
-    setFilters({
+    const clearedFilters = {
+      keyword_contains: '',
       catalog_number_contains: '',
-      access_level_contains: '',
+      access_level: [],
       call_number_contains: '',
       accession_date_min: '',
       accession_date_max: '',
-      indigenous_title_contains: '',
-      english_title_contains: '',
       titles_contains: '',
-      resource_type_contains: '',
+      resource_type: [],
       language_contains: '',
       creation_date_min: '',
       creation_date_max: '',
@@ -190,8 +258,31 @@ const ItemsList: React.FC<ItemsListProps> = ({
       genre_contains: '',
       collaborator_contains: '',
       depositor_name_contains: '',
-      keyword_contains: '',
-    });
+      // Reset all empty field filters
+      collection_isnull: undefined,
+      access_level_restrictions_isnull: undefined,
+      accession_date_isnull: undefined,
+      accession_number_isnull: undefined,
+      call_number_isnull: undefined,
+      collaborator_isnull: undefined,
+      creation_date_isnull: undefined,
+      depositor_name_isnull: undefined,
+      description_scope_and_content_isnull: undefined,
+      genre_isnull: undefined,
+      indigenous_title_isnull: undefined,
+      english_title_isnull: undefined,
+      item_access_level_isnull: undefined,
+      language_isnull: undefined,
+      resource_type_isnull: undefined,
+      original_format_medium_isnull: undefined,
+      publisher_isnull: undefined,
+      recording_context_isnull: undefined,
+    };
+    setFilters(clearedFilters);
+    
+    // Immediately apply cleared filters
+    debouncedApplyFilters.cancel();
+    setActiveFilters(clearedFilters);
     setPage(0);
     focusUtils.announce('All filters cleared', 'polite');
   };
@@ -210,54 +301,86 @@ const ItemsList: React.FC<ItemsListProps> = ({
   };
 
   // Handle item selection
-  const handleItemSelection = (item: Item, selected: boolean) => {
-    let newSelection: Item[];
-    if (selected) {
-      newSelection = [...selectedItems, item];
-    } else {
-      newSelection = selectedItems.filter(i => i.id !== item.id);
-    }
-    setSelectedItems(newSelection);
-    onSelectionChange?.(newSelection);
+  // Handle individual item selection
+  const handleItemSelection = useCallback((item: Item, checked: boolean) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(item.id);
+      } else {
+        newSet.delete(item.id);
+      }
+      return newSet;
+    });
     
     focusUtils.announce(
-      selected 
+      checked 
         ? `Selected item ${item.catalog_number}` 
         : `Deselected item ${item.catalog_number}`,
       'polite'
     );
-  };
+  }, []);
 
-  // Handle select all
-  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.checked) {
-      setSelectedItems([...items]);
-      onSelectionChange?.(items);
-      focusUtils.announce(`Selected all ${items.length} items on this page`, 'polite');
-    } else {
-      setSelectedItems([]);
-      onSelectionChange?.([]);
-      focusUtils.announce('Deselected all items', 'polite');
+  // Handle "Deselect All" button
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set());
+    if (onSelectionChange) {
+      onSelectionChange([]);
     }
   };
 
-  // Navigation handlers
-  const handleViewItem = (item: Item) => {
-    navigate(`/items/${item.id}`);
+  // Handle select all on current page
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = event.target.checked;
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        items.forEach(item => newSet.add(item.id));
+      } else {
+        items.forEach(item => newSet.delete(item.id));
+      }
+      return newSet;
+    });
+    
+    // If parent component needs full objects
+    if (onSelectionChange) {
+      onSelectionChange(checked ? items : []);
+    }
+    
+    focusUtils.announce(
+      checked ? `Selected all ${items.length} items on this page` : 'Deselected all items', 
+      'polite'
+    );
   };
+
+  // Navigation handlers
+  const handleViewItem = useCallback((item: Item) => {
+    navigate(`/items/${item.id}`);
+  }, [navigate]);
 
   const handleAddItem = () => {
     navigate('/items/create');
   };
 
   // Get active filter count
-  const activeFilterCount = Object.values(filters).filter(value => value && value.trim()).length;
-  const isAllSelected = selectable && items.length > 0 && selectedItems.length === items.length;
-  const isIndeterminate = selectable && selectedItems.length > 0 && selectedItems.length < items.length;
+  const activeFilterCount = Object.values(filters).filter(value => {
+    if (Array.isArray(value)) {
+      return value.length > 0;
+    }
+    if (typeof value === 'boolean') {
+      return value === true;
+    }
+    return value && value.trim();
+  }).length;
+  // Selection state calculations
+  const selectedCount = items.filter(item => selectedIds.has(item.id)).length;
+  const isAllSelected = items.length > 0 && selectedCount === items.length;
+  const isIndeterminate = selectedCount > 0 && selectedCount < items.length;
 
-  // Mobile card view for items
-  const MobileItemCard: React.FC<{ item: Item }> = ({ item }) => (
+  // Mobile card view for items - memoized to prevent recreating on every render
+  const renderMobileCard = useCallback((item: Item) => (
     <Card 
+      key={item.id}
       sx={{ 
         mb: 2,
         cursor: 'pointer',
@@ -279,15 +402,15 @@ const ItemsList: React.FC<ItemsListProps> = ({
           >
             {item.catalog_number}
           </Typography>
-          {selectable && (
+          <Box onClick={(e) => e.stopPropagation()}>
             <Checkbox
-              checked={selectedItems.some(i => i.id === item.id)}
+              checked={selectedIds.has(item.id)}
               onChange={(e) => handleItemSelection(item, e.target.checked)}
               onClick={(e) => e.stopPropagation()}
               aria-label={`Select item ${item.catalog_number}`}
               sx={{ p: 1 }}
             />
-          )}
+          </Box>
         </Box>
 
         {item.call_number && (
@@ -360,16 +483,27 @@ const ItemsList: React.FC<ItemsListProps> = ({
           </Box>
         )}
 
-        {item.collection_name && (
-          <Typography variant="body2" color="text.secondary">
-            Collection: {item.collection_name}
+        {item.description && (
+          <Typography 
+            variant="body2" 
+            color="text.secondary"
+            sx={{ 
+              display: '-webkit-box',
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {item.description}
           </Typography>
         )}
       </CardContent>
     </Card>
-  );
+  ), [selectedIds, handleViewItem, handleItemSelection]);
 
-  if (loading && items.length === 0) {
+  // Show full-page loading only on initial load, not on subsequent filter/pagination changes
+  if (!initialLoadComplete) {
     return (
       <Box 
         display="flex" 
@@ -399,14 +533,26 @@ const ItemsList: React.FC<ItemsListProps> = ({
         flexDirection={{ xs: 'column', sm: 'row' }}
         gap={2}
       >
-        <Typography 
-          id="items-heading"
-          variant="h4" 
-          component="h1"
-          sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}
-        >
-          Items ({totalCount.toLocaleString()})
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography 
+            id="items-heading"
+            variant="h4" 
+            component="h1"
+            sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}
+          >
+            Items ({totalCount.toLocaleString()})
+          </Typography>
+          {/* Selection indicator */}
+          {selectedIds.size > 0 && (
+            <Chip
+              label={`${selectedIds.size} selected`}
+              color="primary"
+              size="medium"
+              onDelete={handleDeselectAll}
+              deleteIcon={<CheckBoxIcon />}
+            />
+          )}
+        </Box>
         {showActions && (
           <Button
             variant="contained"
@@ -448,36 +594,33 @@ const ItemsList: React.FC<ItemsListProps> = ({
             variant="outlined"
             startIcon={showFilters ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             onClick={() => setShowFilters(!showFilters)}
-            color={activeFilterCount > 0 ? 'primary' : 'inherit'}
             aria-expanded={showFilters}
             aria-controls="filter-panel"
             sx={{ minHeight: touchTargets.minSize }}
           >
-            Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
+            {showFilters ? 'Hide Filters' : 'Show Filters'}
           </Button>
           
           {activeFilterCount > 0 && (
-            <Button
-              variant="outlined"
-              startIcon={<ClearIcon />}
-              onClick={handleClearFilters}
-              size="small"
-              sx={{ minHeight: touchTargets.minSize }}
-            >
-              Clear All
-            </Button>
+            <>
+              <Button
+                variant="outlined"
+                startIcon={<ClearIcon />}
+                onClick={handleClearFilters}
+                color="secondary"
+                size="small"
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Clear Filters
+              </Button>
+              <Chip 
+                icon={<FilterListIcon />}
+                label={`${activeFilterCount} active filter${activeFilterCount !== 1 ? 's' : ''}`}
+                color="primary"
+                variant="outlined"
+              />
+            </>
           )}
-
-          <Button
-            ref={searchButtonRef}
-            variant="contained"
-            startIcon={<SearchIcon />}
-            onClick={handleApplyFilters}
-            disabled={loading}
-            sx={{ minHeight: touchTargets.minSize }}
-          >
-            Search
-          </Button>
         </Box>
 
         <Collapse in={showFilters}>
@@ -495,31 +638,139 @@ const ItemsList: React.FC<ItemsListProps> = ({
             role="group"
             aria-labelledby="filter-heading"
           >
-            {/* Filter fields - using consistent pattern */}
-            {Object.entries({
-              catalog_number_contains: 'Catalog Number',
-              call_number_contains: 'Call Number',
-              access_level_contains: 'Access Level',
-              indigenous_title_contains: 'Indigenous Title',
-              english_title_contains: 'English Title',
-              titles_contains: 'Any Title',
-              resource_type_contains: 'Resource Type',
-              genre_contains: 'Genre',
-              language_contains: 'Language',
-              collaborator_contains: 'Collaborator',
-              depositor_name_contains: 'Depositor Name',
-              keyword_contains: 'Keywords',
-            }).map(([field, label]) => (
-              <TextField
-                key={field}
-                {...formUtils.generateFieldProps(field, label)}
-                label={label}
-                value={filters[field as keyof FilterState]}
-                onChange={(e) => handleFilterChange(field as keyof FilterState, e.target.value)}
-                size="small"
-                fullWidth
-              />
-            ))}
+            {/* Keyword Search - First */}
+            <TextField
+              {...formUtils.generateFieldProps('keyword_contains', 'Keywords')}
+              label="Keywords"
+              value={filters.keyword_contains}
+              onChange={(e) => handleFilterChange('keyword_contains', e.target.value)}
+              size="small"
+              fullWidth
+            />
+
+            {/* Catalog Number */}
+            <TextField
+              {...formUtils.generateFieldProps('catalog_number_contains', 'Catalog Number')}
+              label="Catalog Number"
+              value={filters.catalog_number_contains}
+              onChange={(e) => handleFilterChange('catalog_number_contains', e.target.value)}
+              size="small"
+              fullWidth
+            />
+
+            {/* Access Level - Multi-select */}
+            <FormControl size="small" fullWidth>
+              <InputLabel id="access-level-label">Access Level</InputLabel>
+              <Select
+                labelId="access-level-label"
+                multiple
+                value={filters.access_level}
+                onChange={(e) => handleFilterChange('access_level', e.target.value as string[])}
+                input={<OutlinedInput label="Access Level" />}
+                renderValue={(selected) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {(selected as string[]).map((value) => {
+                      const choice = ACCESS_LEVEL_CHOICES.find(c => c.value === value);
+                      return <Chip key={value} label={choice?.label || value} size="small" />;
+                    })}
+                  </Box>
+                )}
+              >
+                {ACCESS_LEVEL_CHOICES.map((choice) => (
+                  <MenuItem key={choice.value} value={choice.value}>
+                    <Checkbox checked={filters.access_level.indexOf(choice.value) > -1} />
+                    {choice.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Call Number */}
+            <TextField
+              {...formUtils.generateFieldProps('call_number_contains', 'Call Number')}
+              label="Call Number"
+              value={filters.call_number_contains}
+              onChange={(e) => handleFilterChange('call_number_contains', e.target.value)}
+              size="small"
+              fullWidth
+            />
+
+            {/* Titles (renamed from "Any Title") */}
+            <TextField
+              {...formUtils.generateFieldProps('titles_contains', 'Titles')}
+              label="Titles"
+              value={filters.titles_contains}
+              onChange={(e) => handleFilterChange('titles_contains', e.target.value)}
+              size="small"
+              fullWidth
+            />
+
+            {/* Resource Type - Multi-select */}
+            <FormControl size="small" fullWidth>
+              <InputLabel id="resource-type-label">Resource Type</InputLabel>
+              <Select
+                labelId="resource-type-label"
+                multiple
+                value={filters.resource_type}
+                onChange={(e) => handleFilterChange('resource_type', e.target.value as string[])}
+                input={<OutlinedInput label="Resource Type" />}
+                renderValue={(selected) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {(selected as string[]).map((value) => {
+                      const choice = RESOURCE_TYPE_CHOICES.find(c => c.value === value);
+                      return <Chip key={value} label={choice?.label || value} size="small" />;
+                    })}
+                  </Box>
+                )}
+              >
+                {RESOURCE_TYPE_CHOICES.map((choice) => (
+                  <MenuItem key={choice.value} value={choice.value}>
+                    <Checkbox checked={filters.resource_type.indexOf(choice.value) > -1} />
+                    {choice.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Genre */}
+            <TextField
+              {...formUtils.generateFieldProps('genre_contains', 'Genre')}
+              label="Genre"
+              value={filters.genre_contains}
+              onChange={(e) => handleFilterChange('genre_contains', e.target.value)}
+              size="small"
+              fullWidth
+            />
+
+            {/* Language */}
+            <TextField
+              {...formUtils.generateFieldProps('language_contains', 'Language')}
+              label="Language"
+              value={filters.language_contains}
+              onChange={(e) => handleFilterChange('language_contains', e.target.value)}
+              size="small"
+              fullWidth
+            />
+
+            {/* Collaborator */}
+            <TextField
+              {...formUtils.generateFieldProps('collaborator_contains', 'Collaborator')}
+              label="Collaborator"
+              value={filters.collaborator_contains}
+              onChange={(e) => handleFilterChange('collaborator_contains', e.target.value)}
+              size="small"
+              fullWidth
+            />
+
+            {/* Depositor Name */}
+            <TextField
+              {...formUtils.generateFieldProps('depositor_name_contains', 'Depositor Name')}
+              label="Depositor Name"
+              value={filters.depositor_name_contains}
+              onChange={(e) => handleFilterChange('depositor_name_contains', e.target.value)}
+              size="small"
+              fullWidth
+            />
 
             {/* Date filters */}
             {Object.entries({
@@ -555,6 +806,177 @@ const ItemsList: React.FC<ItemsListProps> = ({
               rows={2}
             />
           </Box>
+
+          {/* Empty Field Filters */}
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="body2" gutterBottom>
+              Find Records With Empty Values:
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              <Button
+                variant={filters.collection_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.collection_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('collection_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Collection: Empty
+              </Button>
+              <Button
+                variant={filters.access_level_restrictions_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.access_level_restrictions_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('access_level_restrictions_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Access Level Restrictions: Empty
+              </Button>
+              <Button
+                variant={filters.accession_date_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.accession_date_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('accession_date_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Accession Date: Empty
+              </Button>
+              <Button
+                variant={filters.accession_number_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.accession_number_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('accession_number_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Accession Number: Empty
+              </Button>
+              <Button
+                variant={filters.call_number_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.call_number_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('call_number_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Call Number: Empty
+              </Button>
+              <Button
+                variant={filters.collaborator_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.collaborator_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('collaborator_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Collaborator: Empty
+              </Button>
+              <Button
+                variant={filters.creation_date_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.creation_date_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('creation_date_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Creation Date: Empty
+              </Button>
+              <Button
+                variant={filters.depositor_name_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.depositor_name_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('depositor_name_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Depositor Name: Empty
+              </Button>
+              <Button
+                variant={filters.description_scope_and_content_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.description_scope_and_content_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('description_scope_and_content_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Description: Empty
+              </Button>
+              <Button
+                variant={filters.genre_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.genre_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('genre_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Genre: Empty
+              </Button>
+              <Button
+                variant={filters.indigenous_title_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.indigenous_title_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('indigenous_title_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Indigenous Title: Empty
+              </Button>
+              <Button
+                variant={filters.english_title_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.english_title_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('english_title_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                English Title: Empty
+              </Button>
+              <Button
+                variant={filters.item_access_level_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.item_access_level_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('item_access_level_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Access Level: Empty
+              </Button>
+              <Button
+                variant={filters.language_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.language_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('language_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Language: Empty
+              </Button>
+              <Button
+                variant={filters.resource_type_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.resource_type_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('resource_type_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Resource Type: Empty
+              </Button>
+              <Button
+                variant={filters.original_format_medium_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.original_format_medium_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('original_format_medium_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Original Format/Medium: Empty
+              </Button>
+              <Button
+                variant={filters.publisher_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.publisher_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('publisher_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Publisher: Empty
+              </Button>
+              <Button
+                variant={filters.recording_context_isnull ? 'contained' : 'outlined'}
+                size="small"
+                color={filters.recording_context_isnull ? 'primary' : 'secondary'}
+                onClick={() => handleEmptyFilterToggle('recording_context_isnull')}
+                sx={{ minHeight: touchTargets.minSize }}
+              >
+                Recording Context: Empty
+              </Button>
+            </Box>
+          </Box>
         </Collapse>
       </Paper>
 
@@ -585,9 +1007,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
               No items found
             </Typography>
           ) : (
-            items.map((item) => (
-              <MobileItemCard key={item.id} item={item} />
-            ))
+            items.map((item) => renderMobileCard(item))
           )}
         </Box>
       ) : (
@@ -608,23 +1028,23 @@ const ItemsList: React.FC<ItemsListProps> = ({
             
             <TableHead>
               <TableRow role="row">
-                {selectable && (
-                  <TableCell 
-                    padding="checkbox"
-                    {...tableUtils.generateHeaderProps('select')}
-                  >
-                    <Checkbox
-                      indeterminate={isIndeterminate}
-                      checked={isAllSelected}
-                      onChange={handleSelectAll}
-                      aria-label={
-                        isAllSelected 
-                          ? ariaLabels.selectAllRows
-                          : 'Select all items on this page'
-                      }
-                    />
-                  </TableCell>
-                )}
+                <TableCell 
+                  padding="checkbox"
+                  {...tableUtils.generateHeaderProps('select')}
+                >
+                  <Checkbox
+                    indeterminate={isIndeterminate}
+                    checked={isAllSelected}
+                    onChange={handleSelectAll}
+                    icon={<CheckBoxOutlineBlankIcon />}
+                    checkedIcon={<CheckBoxIcon />}
+                    aria-label={
+                      isAllSelected 
+                        ? ariaLabels.selectAllRows
+                        : 'Select all items on this page'
+                    }
+                  />
+                </TableCell>
                 <TableCell {...tableUtils.generateHeaderProps('catalog')}>
                   Catalog #
                 </TableCell>
@@ -643,9 +1063,6 @@ const ItemsList: React.FC<ItemsListProps> = ({
                 <TableCell {...tableUtils.generateHeaderProps('access')}>
                   Access Level
                 </TableCell>
-                <TableCell {...tableUtils.generateHeaderProps('collection')}>
-                  Collection
-                </TableCell>
               </TableRow>
             </TableHead>
             
@@ -653,7 +1070,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
               {loading && items.length === 0 ? (
                 <TableRow>
                   <TableCell 
-                    colSpan={selectable ? 8 : 7} 
+                    colSpan={7} 
                     align="center"
                     role="status"
                     aria-live="polite"
@@ -667,7 +1084,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
               ) : items.length === 0 ? (
                 <TableRow>
                   <TableCell 
-                    colSpan={selectable ? 8 : 7} 
+                    colSpan={7} 
                     align="center"
                     role="status"
                   >
@@ -690,26 +1107,37 @@ const ItemsList: React.FC<ItemsListProps> = ({
                     }}
                     aria-label={`View details for item ${item.catalog_number}`}
                   >
-                    {selectable && (
-                      <TableCell 
-                        padding="checkbox"
-                        {...tableUtils.generateCellProps('select', index)}
+                    <TableCell 
+                      padding="checkbox"
+                      {...tableUtils.generateCellProps('select', index)}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={selectedIds.has(item.id)}
+                        onChange={(e) => handleItemSelection(item, e.target.checked)}
                         onClick={(e) => e.stopPropagation()}
-                      >
-                        <Checkbox
-                          checked={selectedItems.some(i => i.id === item.id)}
-                          onChange={(e) => handleItemSelection(item, e.target.checked)}
-                          aria-label={ariaLabels.selectRow}
-                        />
-                      </TableCell>
-                    )}
+                        icon={<CheckBoxOutlineBlankIcon />}
+                        checkedIcon={<CheckBoxIcon />}
+                        aria-label={ariaLabels.selectRow}
+                      />
+                    </TableCell>
                     
                     <TableCell {...tableUtils.generateCellProps('catalog', index)}>
-                      <Typography variant="body2" fontWeight="medium">
+                      <Link
+                        component={RouterLink}
+                        to={`/items/${item.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        variant="body2"
+                        sx={{ 
+                          fontWeight: 'medium',
+                          textDecoration: 'none',
+                          '&:hover': { textDecoration: 'underline' }
+                        }}
+                      >
                         {item.catalog_number}
-                      </Typography>
+                      </Link>
                       {item.call_number && (
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary" display="block">
                           Call: {item.call_number}
                         </Typography>
                       )}
@@ -800,18 +1228,6 @@ const ItemsList: React.FC<ItemsListProps> = ({
                         size="small"
                         color={item.item_access_level === '1' ? 'success' : 'default'}
                       />
-                    </TableCell>
-
-                    <TableCell {...tableUtils.generateCellProps('collection', index)}>
-                      {item.collection_name ? (
-                        <Typography variant="body2">
-                          {item.collection_name}
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          None
-                        </Typography>
-                      )}
                     </TableCell>
                   </TableRow>
                 ))

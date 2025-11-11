@@ -10,7 +10,7 @@ import { Box, Paper, Toolbar, Button, Typography, CircularProgress, IconButton, 
 import { Add as AddIcon, Save as SaveIcon, Refresh as RefreshIcon, Undo as UndoIcon, Redo as RedoIcon, UploadFile as UploadFileIcon } from '@mui/icons-material';
 import { TanStackSpreadsheet, TanStackSpreadsheetHandle } from './TanStackSpreadsheet';
 import { SpreadsheetRow, ColumnConfig } from '../../types/spreadsheet';
-import { useImportSpreadsheet } from '../../hooks/useImportSpreadsheet';
+import { useImportSpreadsheet, UseImportSpreadsheetReturn } from '../../hooks/useImportSpreadsheet';
 import { InfoIconLink } from '../common/InfoIconLink';
 
 interface TanStackSpreadsheetWrapperProps {
@@ -64,6 +64,12 @@ interface TanStackSpreadsheetWrapperProps {
   
   /** Model name for display */
   modelName: string;
+  
+  /** Optional: Custom import hook (defaults to Languoid import hook) */
+  importHook?: UseImportSpreadsheetReturn | any;
+  
+  /** Optional: Row ID to scroll to (when changed, scrolls to that row) */
+  scrollToRowId?: string | number | null;
 }
 
 export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProps> = ({
@@ -84,13 +90,30 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
   canUndo = false,
   canRedo = false,
   modelName,
+  importHook,  // Optional custom import hook
+  scrollToRowId,  // Optional row ID to scroll to
 }) => {
-  // Import functionality
+  // Import functionality - use custom hook if provided, otherwise default to Languoid import
   const fileInputRef = useRef<HTMLInputElement>(null);
   const spreadsheetRef = useRef<TanStackSpreadsheetHandle>(null);
-  const { processFile, isImporting, importProgress, importError, clearImportError } = useImportSpreadsheet();
+  const defaultImportHook = useImportSpreadsheet();
+  const { processFile, isImporting, importProgress, importError, clearImportError } = importHook || defaultImportHook;
   const [showImportSuccess, setShowImportSuccess] = React.useState(false);
   const [importSuccessMessage, setImportSuccessMessage] = React.useState('');
+  
+  // Scroll to row when scrollToRowId changes
+  React.useEffect(() => {
+    if (scrollToRowId !== null && scrollToRowId !== undefined && spreadsheetRef.current) {
+      // Use requestAnimationFrame to wait for React render + browser paint cycles
+      // This ensures the new row has been added to the DOM and virtualizer has recalculated
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Double RAF ensures we're past both React render and browser paint
+        spreadsheetRef.current?.scrollToRow(scrollToRowId);
+        });
+      });
+    }
+  }, [scrollToRowId]);
   
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -108,7 +131,8 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
         setShowImportSuccess(true);
         
         // Phase 9: Auto-scroll to first affected row
-        const firstAffectedId = result.modifiedRows[0]?.rowId || result.newRows[0]?.id;
+        // Priority: modifiedRows > newRows > unchangedRows (most important changes first)
+        const firstAffectedId = result.modifiedRows[0]?.rowId || result.newRows[0]?.id || result.unchangedRows[0]?.rowId;
         if (firstAffectedId && spreadsheetRef.current) {
           // Small delay to allow Redux state to update and rows to render
           setTimeout(() => {
@@ -135,7 +159,8 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
       setShowImportSuccess(true);
       
       // Phase 9: Auto-scroll to first affected row
-      const firstAffectedId = result.modifiedRows[0]?.rowId || result.newRows[0]?.id;
+      // Priority: modifiedRows > newRows > unchangedRows (most important changes first)
+      const firstAffectedId = result.modifiedRows[0]?.rowId || result.newRows[0]?.id || result.unchangedRows[0]?.rowId;
       if (firstAffectedId && spreadsheetRef.current) {
         // Small delay to allow Redux state to update and rows to render
         setTimeout(() => {
@@ -147,11 +172,25 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
   
   // Count rows with changes
   const changedRowsCount = rows.filter(row => row.hasChanges).length;
-  const hasChanges = changedRowsCount > 0;
   
   // Count selected rows
   const selectedRowsCount = rows.filter(row => row.isSelected).length;
   const selectedChangedRowsCount = rows.filter(row => row.isSelected && row.hasChanges).length;
+  
+  // Determine if save button should be enabled
+  // If rows are selected, only enable if selected rows have changes
+  // If no rows are selected, enable if any rows have changes
+  const hasChanges = selectedRowsCount > 0 
+    ? selectedChangedRowsCount > 0 
+    : changedRowsCount > 0;
+  
+  // Debug: Log when changed count updates
+  React.useEffect(() => {
+    console.log('[TanStackSpreadsheetWrapper] Changed rows count:', changedRowsCount);
+    console.log('[TanStackSpreadsheetWrapper] Selected rows count:', selectedRowsCount);
+    console.log('[TanStackSpreadsheetWrapper] Selected changed rows count:', selectedChangedRowsCount);
+    console.log('[TanStackSpreadsheetWrapper] hasChanges (save button enabled):', hasChanges);
+  }, [changedRowsCount, selectedRowsCount, selectedChangedRowsCount, hasChanges]);
 
   // Adapter: SpreadsheetGrid passes (rowId, fieldName, newValue, newText)
   // TanStackSpreadsheet passes (rowId, fieldName, newValue)
@@ -313,7 +352,10 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </Button>
-            <InfoIconLink anchor="languoid-batch" tooltip="Learn about batch editing languoids" />
+            <InfoIconLink 
+              anchor={modelName === 'Collaborators' ? 'collaborator-batch' : 'languoid-batch'} 
+              tooltip={`Learn about batch editing ${modelName === 'Collaborators' ? 'collaborators' : 'languoids'}`} 
+            />
           </>
         )}
       </Toolbar>

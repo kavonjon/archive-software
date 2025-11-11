@@ -88,20 +88,20 @@ The Batch Editor supports comprehensive keyboard navigation for efficient data e
 
 ### Bulk Operations
 1. **Select range** - Shift+Arrow or click-drag
-2. **Delete** - Clear all at once
+2. **Delete (Fn+Delete)** - Clear all at once
 3. **Paste** - Fill range from clipboard
 
 ### Keyboard-Only Workflow
 - Use **Tab** and **Arrow keys** for navigation
 - Use **Enter** to edit, **Enter** again to save
-- Use **Delete** to clear unwanted values
-- Use **Ctrl+Z** to undo mistakes
-- Never touch the mouse! ⌨️
+- Use **Delete (Fn+Delete)** to clear unwanted values
+- Use **Ctrl+Z (Cmd+Z)** to undo mistakes
+- Never touch the mouse!
 
 ### Data Protection
 **Backspace** is disabled when not in edit mode:
 - Prevents accidental data deletion
-- Must use **Delete** key to clear cells (more intentional)
+- Must use **Delete (Fn+Delete)** key to clear cells
 - Once in edit mode, Backspace works normally for text editing
 
 ### Auto-Scroll
@@ -120,11 +120,4 @@ The Batch Editor supports comprehensive keyboard navigation for efficient data e
 | Undo | Ctrl+Z | Cmd+Z |
 | Redo | Ctrl+Y | Cmd+Y |
 | Clear cell | Delete | Fn+Delete |
-
-### Delete Key Behavior
-- **Windows/Linux**: Single Delete key clears cells
-- **Mac**: Fn+Delete (two keys = more intentional)
-- **Mac Delete key** (without Fn) does nothing when not editing
-
-This design prevents accidental data loss while still allowing efficient cell clearing.
 

@@ -136,7 +136,7 @@ Parent Languoid values are looked up during import:
 ## Undo Import
 
 If you made a mistake:
-1. Press **Ctrl+Z** (or Cmd+Z on Mac)
+1. Press **Ctrl+Z (Cmd+Z)**
 2. Entire import is undone as a single action
 3. All imported rows and changes are removed
 4. Previous state is restored

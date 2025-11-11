@@ -197,6 +197,9 @@ class InternalCollectionViewSet(viewsets.ModelViewSet):
 class CollaboratorFilter(FilterSet):
     """Custom filter for Collaborators with text search support"""
     
+    # ID filters for batch operations
+    id__in = CharFilter(method='filter_id_in')
+    
     # Exact match filter for uniqueness validation
     collaborator_id = NumberFilter(field_name='collaborator_id', lookup_expr='exact')
     
@@ -223,6 +226,16 @@ class CollaboratorFilter(FilterSet):
     # ManyToManyField: Check for no related records
     native_languages_isnull = BooleanFilter(method='filter_native_languages_empty')
     other_languages_isnull = BooleanFilter(method='filter_other_languages_empty')
+    
+    def filter_id_in(self, queryset, name, value):
+        """Filter by comma-separated list of IDs"""
+        if not value:
+            return queryset
+        try:
+            ids = [int(id_str.strip()) for id_str in value.split(',') if id_str.strip()]
+            return queryset.filter(id__in=ids)
+        except (ValueError, TypeError):
+            return queryset.none()
     
     def filter_first_names_empty(self, queryset, name, value):
         """Filter for collaborators with empty first_names (NULL or empty string)"""
@@ -308,7 +321,12 @@ class CollaboratorFilter(FilterSet):
 
 
 class InternalCollaboratorViewSet(viewsets.ModelViewSet):
-    """Internal API for Collaborators - used by React frontend"""
+    """Internal API for Collaborators - used by React frontend
+    
+    Supports lookup by both database ID and collaborator_id:
+    - GET /internal/v1/collaborators/123/ (database ID)
+    - GET /internal/v1/collaborators/id-7572/ (collaborator_id with prefix)
+    """
     queryset = Collaborator.objects.all().prefetch_related('native_languages', 'other_languages', 'collaborator_collaboratorroles__item__collection')
     serializer_class = InternalCollaboratorSerializer
     permission_classes = [IsAuthenticatedWithEditAccess]
@@ -316,19 +334,762 @@ class InternalCollaboratorViewSet(viewsets.ModelViewSet):
     filterset_class = CollaboratorFilter
     search_fields = ['first_names', 'last_names', 'full_name', 'collaborator_id', 'tribal_affiliations']
     ordering_fields = ['first_names', 'last_names', 'full_name', 'collaborator_id', 'added', 'updated']
-    ordering = ['last_names', 'first_names', 'full_name', 'collaborator_id']
+    # ordering is handled in get_queryset() with Unicode-aware collation
+    lookup_field = 'pk'  # Can be either database ID or collaborator_id with prefix
 
     def get_queryset(self):
-        """All authenticated users can see all collaborators, permissions handled by permission_classes"""
+        """All authenticated users can see all collaborators, permissions handled by permission_classes
+        
+        Uses locale-aware sorting (C collation) for proper Unicode handling:
+        - Characters with diacritics (è, é, ñ, etc.) sort near their base letters
+        - Case-insensitive sorting
+        - Special characters don't all sort to the end
+        """
+        from django.db.models.functions import Lower, Collate
+        
         if not self.request.user.is_authenticated:
             return Collaborator.objects.none()
-        return super().get_queryset()
+        
+        queryset = super().get_queryset()
+        
+        # Apply locale-aware sorting using database collation
+        # Using 'en-US-x-icu' collation for proper Unicode sorting
+        # This ensures è, é sort near 'e', ñ sorts near 'n', etc.
+        queryset = queryset.order_by(
+            Collate(Lower('last_names'), 'en-US-x-icu'),
+            Collate(Lower('first_names'), 'en-US-x-icu'),
+            Collate(Lower('full_name'), 'en-US-x-icu'),
+            'collaborator_id'
+        )
+        
+        return queryset
+    
+    def get_object(self):
+        """
+        Override to support lookup by both collaborator_id and database ID
+        Tries collaborator_id first (if prefixed with "id-"), then falls back to database ID
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        identifier = self.kwargs[lookup_url_kwarg]
+        
+        # Try collaborator_id if it matches format "id-XXXX"
+        if identifier.startswith('id-'):
+            try:
+                collaborator_id_value = int(identifier[3:])  # Remove "id-" prefix
+                obj = queryset.get(collaborator_id=collaborator_id_value)
+                self.check_object_permissions(self.request, obj)
+                return obj
+            except (Collaborator.DoesNotExist, ValueError):
+                pass
+        
+        # Fall back to database ID lookup (numeric only)
+        if identifier.isdigit():
+            try:
+                obj = queryset.get(pk=identifier)
+                self.check_object_permissions(self.request, obj)
+                return obj
+            except Collaborator.DoesNotExist:
+                pass
+        
+        # If neither worked, raise 404
+        from rest_framework.exceptions import NotFound
+        raise NotFound(f'Collaborator with identifier "{identifier}" not found.')
     
     def get_serializer_context(self):
         """Add request to serializer context for privacy logic"""
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
+    
+    def get_serializer_class(self):
+        """Use lightweight serializer for batch operations"""
+        # If requesting batch data (batch=true query param), use lightweight serializer
+        if self.request.query_params.get('batch') == 'true':
+            from .serializers import InternalCollaboratorBatchSerializer
+            return InternalCollaboratorBatchSerializer
+        return super().get_serializer_class()
+    
+    def list(self, request, *args, **kwargs):
+        """
+        List collaborators with Redis caching for performance.
+        
+        Caching strategy:
+        - Full list (no filters, no pagination): Served from Redis cache
+        - Filtered/paginated: Falls back to standard DRF queryset
+        
+        The cache is warmed in the background by a Celery task.
+        """
+        import logging
+        from django.core.cache import cache
+        
+        logger = logging.getLogger(__name__)
+        
+        # Check if this is a full list request (no filters, no pagination)
+        is_full_list = (
+            not request.query_params.get('page') and
+            not request.query_params.get('page_size') and
+            len(request.query_params) <= 1  # Allow 'batch=true' param
+        )
+        
+        # If not requesting full list, use standard DRF behavior
+        if not is_full_list:
+            return super().list(request, *args, **kwargs)
+        
+        # Try to get from cache
+        cache_key = 'collaborator_list_full'
+        cached_data = cache.get(cache_key)
+        
+        if cached_data is not None:
+            logger.info("[Cache] Cache hit! Serving cached collaborator list")
+            return Response({
+                'count': len(cached_data),
+                'next': None,
+                'previous': None,
+                'results': cached_data
+            })
+        
+        # Cache miss - build it now
+        logger.warning("[Cache] Cache miss! Building collaborator list (this will be slow)...")
+        
+        # Import the utility function from tasks
+        from metadata.tasks import build_collaborator_list_cache
+        
+        # Build the cache data
+        data = build_collaborator_list_cache()
+        
+        # Store in cache with 10-minute TTL
+        cache.set(cache_key, data, timeout=600)
+        
+        logger.info(f"[Cache] Built and cached {len(data)} collaborators")
+        
+        # Wrap in pagination format
+        return Response({
+            'count': len(data),
+            'next': None,
+            'previous': None,
+            'results': data
+        })
+    
+    def perform_create(self, serializer):
+        """Automatically set modified_by on create"""
+        serializer.save(modified_by=self.request.user.get_username())
+    
+    def perform_update(self, serializer):
+        """Automatically set modified_by on update"""
+        serializer.save(modified_by=self.request.user.get_username())
+    
+    @action(detail=False, methods=['get'], url_path='next-id')
+    def next_collaborator_id(self, request):
+        """
+        Get the next available collaborator_id for new collaborator creation.
+        
+        GET /internal/v1/collaborators/next-id/
+        
+        Returns: {
+            "next_id": 5000
+        }
+        """
+        import logging
+        from django.db.models import Max
+        
+        logger = logging.getLogger(__name__)
+        
+        # Get the maximum collaborator_id
+        max_id = Collaborator.objects.aggregate(Max('collaborator_id'))['collaborator_id__max']
+        next_id = (max_id or 0) + 1
+        
+        logger.info(f"[NEXT ID] Generated next collaborator_id: {next_id}")
+        
+        return Response({
+            'next_id': next_id
+        })
+    
+    @action(detail=False, methods=['post'], url_path='export')
+    def export_collaborators(self, request):
+        """
+        Export collaborators to Excel spreadsheet.
+        
+        POST /internal/v1/collaborators/export/
+        Body: {
+            "mode": "filtered" | "selected",
+            "ids": [1, 2, 3, ...]
+        }
+        
+        Returns:
+        - For <= 100 collaborators: Excel file download (synchronous)
+        - For > 100 collaborators: Job info for async export (background task)
+        """
+        import logging
+        from django.http import HttpResponse
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill
+        from datetime import datetime
+        import uuid
+        
+        logger = logging.getLogger(__name__)
+        
+        mode = request.data.get('mode', 'filtered')
+        ids = request.data.get('ids', [])
+        
+        logger.info(f"[EXPORT] Exporting {len(ids)} collaborators (mode: {mode})")
+        
+        if not ids:
+            return Response(
+                {'detail': 'No collaborators to export'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if we should use async export (> 100 collaborators)
+        if len(ids) > 100:
+            logger.info(f"[EXPORT] Large export ({len(ids)} collaborators) - using async task")
+            
+            # Generate unique export ID
+            export_id = str(uuid.uuid4())
+            
+            # Trigger async task
+            from metadata.tasks import generate_collaborator_export_task
+            task = generate_collaborator_export_task.apply_async(
+                args=[export_id, mode, ids],
+                priority=7  # High priority but not urgent
+            )
+            
+            return Response({
+                'async': True,
+                'export_id': export_id,
+                'task_id': task.id,
+                'count': len(ids),
+                'message': 'Export is being generated in the background. Check status using the export_id.'
+            })
+        
+        # SYNCHRONOUS EXPORT (≤ 100 collaborators)
+        try:
+            queryset = Collaborator.objects.filter(id__in=ids).prefetch_related(
+                'native_languages',
+                'other_languages'
+            )
+            
+            collaborators = list(queryset.order_by('last_names', 'first_names', 'collaborator_id'))
+            logger.info(f"[EXPORT] Found {len(collaborators)} collaborators to export")
+            
+            # Create workbook
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Collaborators"
+            
+            # Define column headers (finalized order)
+            headers = [
+                'Collaborator ID',
+                'First Name(s)',
+                'Full Name',  # Position 3 - export only, read-only
+                'Last Name(s)',
+                'Name Suffix',
+                'Nickname',
+                'Other Names',
+                'Anonymous',
+                'Native/First Languages',
+                'Other Languages',
+                'Birth Date',
+                'Death Date',
+                'Gender',
+                'Tribal Affiliations',
+                'Clan/Society',
+                'Origin',
+                'Other Info',
+            ]
+            
+            # Write header row with styling
+            header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+            header_font = Font(bold=True, color='FFFFFF')
+            
+            for col_num, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col_num)
+                cell.value = header
+                cell.fill = header_fill
+                cell.font = header_font
+            
+            # Helper function to safely convert values to Excel-compatible format
+            def safe_value(value):
+                """Convert value to Excel-compatible format"""
+                if value is None:
+                    return ''
+                if isinstance(value, (list, tuple)):
+                    # Convert lists/tuples to comma-separated string
+                    return ', '.join(str(v) for v in value)
+                if isinstance(value, bool):
+                    return 'Yes' if value else 'No'
+                return str(value)
+            
+            # Write data rows
+            for row_num, collab in enumerate(collaborators, 2):
+                ws.cell(row=row_num, column=1).value = collab.collaborator_id if collab.collaborator_id else ''
+                ws.cell(row=row_num, column=2).value = safe_value(collab.first_names)
+                ws.cell(row=row_num, column=3).value = safe_value(collab.full_name)  # Export only
+                ws.cell(row=row_num, column=4).value = safe_value(collab.last_names)
+                ws.cell(row=row_num, column=5).value = safe_value(collab.name_suffix)
+                ws.cell(row=row_num, column=6).value = safe_value(collab.nickname)
+                ws.cell(row=row_num, column=7).value = safe_value(collab.other_names)
+                
+                # Anonymous - convert None/True/False to Not specified/Yes/No
+                if collab.anonymous is None:
+                    ws.cell(row=row_num, column=8).value = 'Not specified'
+                else:
+                    ws.cell(row=row_num, column=8).value = 'Yes' if collab.anonymous else 'No'
+                
+                # Languages - display as comma-separated names
+                native_langs = ', '.join([lang.display_name for lang in collab.native_languages.all()])
+                other_langs = ', '.join([lang.display_name for lang in collab.other_languages.all()])
+                ws.cell(row=row_num, column=9).value = native_langs
+                ws.cell(row=row_num, column=10).value = other_langs
+                
+                ws.cell(row=row_num, column=11).value = safe_value(collab.birthdate)
+                ws.cell(row=row_num, column=12).value = safe_value(collab.deathdate)
+                ws.cell(row=row_num, column=13).value = safe_value(collab.gender)
+                ws.cell(row=row_num, column=14).value = safe_value(collab.tribal_affiliations)
+                ws.cell(row=row_num, column=15).value = safe_value(collab.clan_society)
+                ws.cell(row=row_num, column=16).value = safe_value(collab.origin)
+                ws.cell(row=row_num, column=17).value = safe_value(collab.other_info)
+            
+            # Auto-size columns (approximate)
+            for col in ws.columns:
+                max_length = 0
+                column = col[0].column_letter
+                for cell in col:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)  # Cap at 50 for readability
+                ws.column_dimensions[column].width = adjusted_width
+            
+            # Prepare response
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            
+            # Generate filename with timestamp
+            timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            filename = f'collaborators_export_{timestamp}.xlsx'
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            # Write workbook to response
+            wb.save(response)
+            
+            logger.info(f"[EXPORT] Successfully generated export file: {filename}")
+            return response
+            
+        except Exception as e:
+            logger.error(f"[EXPORT] Error generating export: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'detail': f'Export failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'], url_path='export-status/(?P<export_id>[^/.]+)')
+    def export_status(self, request, export_id=None):
+        """
+        Check the status of an async export.
+        
+        GET /internal/v1/collaborators/export-status/{export_id}/
+        
+        Returns: {
+            "status": "pending" | "processing" | "completed" | "failed",
+            "filename": "collaborators_export_xxx.xlsx" (if completed),
+            "error": "error message" (if failed)
+        }
+        """
+        import logging
+        import os
+        from django.conf import settings
+        
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"[EXPORT STATUS] Checking status for export {export_id}")
+        
+        # Check if file exists (completed)
+        exports_dir = os.path.join(settings.MEDIA_ROOT, 'exports')
+        filename = f'collaborators_export_{export_id}.xlsx'
+        file_path = os.path.join(exports_dir, filename)
+        
+        if os.path.exists(file_path):
+            logger.info(f"[EXPORT STATUS] Export {export_id} completed")
+            return Response({
+                'status': 'completed',
+                'filename': filename,
+                'export_id': export_id
+            })
+        
+        # File doesn't exist yet - check task status
+        logger.info(f"[EXPORT STATUS] Export {export_id} still processing")
+        return Response({
+            'status': 'processing',
+            'export_id': export_id
+        })
+    
+    @action(detail=False, methods=['get'], url_path='export-download/(?P<export_id>[^/.]+)')
+    def export_download(self, request, export_id=None):
+        """
+        Download a completed async export.
+        
+        GET /internal/v1/collaborators/export-download/{export_id}/
+        
+        Returns: Excel file download
+        """
+        import logging
+        import os
+        from django.conf import settings
+        from django.http import HttpResponse, Http404
+        
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"[EXPORT DOWNLOAD] Downloading export {export_id}")
+        
+        # Check if file exists
+        exports_dir = os.path.join(settings.MEDIA_ROOT, 'exports')
+        filename = f'collaborators_export_{export_id}.xlsx'
+        file_path = os.path.join(exports_dir, filename)
+        
+        if not os.path.exists(file_path):
+            logger.error(f"[EXPORT DOWNLOAD] Export {export_id} not found")
+            raise Http404("Export file not found or has expired")
+        
+        # Read file and return
+        with open(file_path, 'rb') as f:
+            response = HttpResponse(
+                f.read(),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            logger.info(f"[EXPORT DOWNLOAD] Successfully served export {export_id}")
+            return response
+    
+    @action(detail=False, methods=['post'], url_path='validate-field')
+    def validate_field(self, request):
+        """
+        Validate a single field value for batch editing
+        
+        POST /internal/v1/collaborators/validate-field/
+        Body: {
+            "field_name": "first_names",
+            "value": "John",
+            "row_id": "draft-123" or 42 (collaborator id),
+            "original_value": "John" (optional - value when loaded from DB)
+        }
+        
+        Returns: {
+            "valid": true/false,
+            "error": "error message if invalid"
+        }
+        """
+        field_name = request.data.get('field_name')
+        value = request.data.get('value')
+        row_id = request.data.get('row_id')
+        original_value = request.data.get('original_value')
+        
+        if not field_name:
+            return Response(
+                {'valid': False, 'error': 'field_name is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get the serializer to use its validation methods
+        serializer = self.get_serializer()
+        
+        # Try to validate the field using serializer's field validators
+        try:
+            # Get the field from the serializer
+            if field_name not in serializer.fields:
+                return Response(
+                    {'valid': False, 'error': f'Unknown field: {field_name}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            field = serializer.fields[field_name]
+            
+            # Handle empty values - if field allows blank/null and value is empty, it's valid
+            if value in [None, '', []]:
+                # Check if field allows empty values
+                if getattr(field, 'allow_null', False) or getattr(field, 'allow_blank', False) or not getattr(field, 'required', True):
+                    return Response({'valid': True})
+            
+            # Run field-level validation
+            field.run_validation(value)
+            
+            # Check for field-specific validator methods (e.g., validate_collaborator_id)
+            validate_method_name = f'validate_{field_name}'
+            if hasattr(serializer, validate_method_name):
+                validate_method = getattr(serializer, validate_method_name)
+                validate_method(value)
+            
+            # Field-specific uniqueness checks
+            if field_name == 'collaborator_id' and value:
+                # If value equals original_value, it's valid (editing back to self)
+                if original_value is not None and value == original_value:
+                    return Response({'valid': True})
+                
+                # Check for uniqueness (exclude current row if editing)
+                existing = Collaborator.objects.filter(collaborator_id=value)
+                
+                # Exclude the current row being edited
+                if str(row_id).startswith('draft-'):
+                    # Draft row - don't exclude anything (it's a new row)
+                    pass
+                else:
+                    # Existing row - exclude it from uniqueness check
+                    try:
+                        row_id_int = int(row_id) if isinstance(row_id, str) else row_id
+                        existing = existing.exclude(id=row_id_int)
+                    except (ValueError, TypeError):
+                        # If we can't convert to int, skip exclusion
+                        pass
+                
+                if existing.exists():
+                    return Response({
+                        'valid': False,
+                        'error': f'Collaborator ID "{value}" already exists.'
+                    })
+            
+            return Response({'valid': True})
+            
+        except serializers.ValidationError as e:
+            # Extract error message
+            if isinstance(e.detail, dict):
+                error_msg = str(list(e.detail.values())[0][0]) if e.detail else 'Validation error'
+            elif isinstance(e.detail, list):
+                error_msg = str(e.detail[0])
+            else:
+                error_msg = str(e.detail)
+            
+            return Response({
+                'valid': False,
+                'error': error_msg
+            })
+        except Exception as e:
+            return Response({
+                'valid': False,
+                'error': str(e)
+            })
+    
+    @action(detail=False, methods=['post'], url_path='save-batch')
+    def save_batch(self, request):
+        """
+        Save multiple collaborators in a single transaction with field-level conflict detection.
+        
+        POST /internal/v1/collaborators/save-batch/
+        Body: {
+            "rows": [
+                {
+                    "id": 42 or "draft-uuid",
+                    "first_names": "John",
+                    "last_names": "Doe",
+                    ...
+                },
+                ...
+            ]
+        }
+        
+        Returns: {
+            "success": true,
+            "saved": [{"id": 42, ...}, ...],
+            "errors": []
+        }
+        
+        CONFLICT DETECTION:
+        - Compares client's _updated timestamp with DB's updated timestamp
+        - If different, performs field-level comparison
+        - Returns conflict errors for fields that have true conflicts
+        - Saves non-conflicting fields
+        """
+        from django.db import transaction
+        from django.core.cache import cache
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        rows = request.data.get('rows', [])
+        logger.info(f"[BATCH SAVE] Received {len(rows)} rows")
+        
+        if not rows:
+            return Response(
+                {'success': False, 'errors': ['No rows provided']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        saved_objects = []
+        errors = []
+        
+        try:
+            with transaction.atomic():
+                for row in rows:
+                    row_id = row.get('id')
+                    is_draft = isinstance(row_id, str) and str(row_id).startswith('draft-')
+                    
+                    try:
+                        if is_draft:
+                            # CREATE NEW COLLABORATOR
+                            logger.debug(f"[BATCH SAVE] Creating new collaborator from draft: {row_id}")
+                            row_data = {k: v for k, v in row.items() if k not in ['id', '_updated', '_original_values']}
+                            serializer = self.get_serializer(data=row_data)
+                            serializer.is_valid(raise_exception=True)
+                            instance = serializer.save()
+                            saved_objects.append(instance)
+                            
+                        else:
+                            # UPDATE EXISTING COLLABORATOR
+                            logger.debug(f"[BATCH SAVE] Updating existing collaborator: {row_id}")
+                            try:
+                                old_instance = Collaborator.objects.get(pk=row_id)
+                            except Collaborator.DoesNotExist:
+                                errors.append(f"Collaborator with ID {row_id} not found")
+                                continue
+                            
+                            # CONFLICT DETECTION: Field-level conflict checking
+                            # Check if row was modified since UI loaded it
+                            client_updated = row.get('_updated')  # Frontend sends DB's 'updated' timestamp
+                            conflicting_fields = []
+                            
+                            if client_updated:
+                                # Parse client timestamp (ISO format)
+                                from django.utils.dateparse import parse_datetime
+                                client_updated_dt = parse_datetime(client_updated)
+                                
+                                if client_updated_dt:
+                                    # Compare exact timestamps (with microsecond precision)
+                                    db_updated = old_instance.updated
+                                    
+                                    logger.info(f"[BATCH SAVE] Conflict check for {row_id}: DB={db_updated}, Client={client_updated_dt}, DB > Client? {db_updated > client_updated_dt}")
+                                    
+                                    if db_updated > client_updated_dt:
+                                        # Row was modified - check which fields have TRUE conflicts
+                                        # True conflict = client edited field AND another user also changed it
+                                        
+                                        # Get client's original values (what they loaded)
+                                        client_original_values = row.get('_original_values', {})
+                                        logger.info(f"[BATCH SAVE] Checking conflicts for row {row_id}. Client original values: {client_original_values}")
+                                        
+                                        for field_name in row.keys():
+                                            if field_name in ['id', '_updated', '_original_values']:
+                                                continue  # Skip metadata fields
+                                            
+                                            # Get current DB value
+                                            db_value = getattr(old_instance, field_name, None)
+                                            # Handle M2M fields (native_languages, other_languages)
+                                            if field_name in ['native_languages', 'other_languages']:
+                                                db_value = list(getattr(old_instance, field_name).values_list('id', flat=True))
+                                            
+                                            # Client is trying to update this field
+                                            client_new_value = row[field_name]
+                                            
+                                            # Get what the client originally loaded for this field
+                                            client_original_value = client_original_values.get(field_name)
+                                            
+                                            logger.info(f"[BATCH SAVE] Field '{field_name}': db_value={repr(db_value)}, client_original={repr(client_original_value)}, client_new={repr(client_new_value)}")
+                                            
+                                            # TRUE CONFLICT: DB value changed from what client loaded
+                                            # (Another user edited this field after client loaded it)
+                                            if client_original_value is not None:
+                                                # Special handling for M2M fields (compare as sets)
+                                                if field_name in ['native_languages', 'other_languages']:
+                                                    if set(db_value) != set(client_original_value):
+                                                        logger.warning(f"[BATCH SAVE] TRUE conflict on M2M field '{field_name}': client_original={client_original_value}, db_current={db_value}, client_new={client_new_value}")
+                                                        conflicting_fields.append({
+                                                            'field': field_name,
+                                                            'db_value': db_value,
+                                                            'client_original': client_original_value,
+                                                            'client_new': client_new_value
+                                                        })
+                                                # Regular fields
+                                                elif db_value != client_original_value:
+                                                    logger.warning(f"[BATCH SAVE] TRUE conflict on field '{field_name}': client_original={client_original_value}, db_current={db_value}, client_new={client_new_value}")
+                                                    conflicting_fields.append({
+                                                        'field': field_name,
+                                                        'db_value': db_value,
+                                                        'client_original': client_original_value,
+                                                        'client_new': client_new_value
+                                                    })
+                                        
+                                        if conflicting_fields:
+                                            logger.warning(f"[BATCH SAVE] Field-level conflicts detected for collaborator {row_id}: {[f['field'] for f in conflicting_fields]}")
+                                            
+                                            # Remove conflicting fields from the update
+                                            # (They will not be saved - user must resolve and re-save)
+                                            conflicting_field_names = [f['field'] for f in conflicting_fields]
+                                            for field_name in conflicting_field_names:
+                                                if field_name in row:
+                                                    del row[field_name]
+                                                    logger.info(f"[BATCH SAVE] Removed conflicting field '{field_name}' from save")
+                                            
+                                            # Add conflict info to errors
+                                            errors.append({
+                                                'row_id': row_id,
+                                                'type': 'conflict',
+                                                'message': f'Collaborator {row_id} was modified by another user.',
+                                                'conflicting_fields': conflicting_field_names,
+                                                'current_data': self.get_serializer(old_instance).data,
+                                            })
+                                            
+                                            # If ALL fields have conflicts, skip the entire row
+                                            non_metadata_fields = [k for k in row.keys() if k not in ['id', '_updated', '_original_values']]
+                                            if len(non_metadata_fields) == 0:
+                                                logger.info(f"[BATCH SAVE] All fields conflicted, skipping row {row_id}")
+                                                continue  # Skip this row entirely
+                            
+                            # Perform update
+                            # Remove metadata fields that aren't part of the model
+                            row_data_for_serializer = {k: v for k, v in row.items() if k not in ['_updated', '_original_values', 'id']}
+                            serializer = self.get_serializer(old_instance, data=row_data_for_serializer, partial=True)
+                            serializer.is_valid(raise_exception=True)
+                            instance = serializer.save()
+                            saved_objects.append(instance)
+                    
+                    except serializers.ValidationError as e:
+                        logger.error(f"[BATCH SAVE] Validation error for row {row_id}: {e.detail}")
+                        error_msg = f"Row ID {row_id}: "
+                        if isinstance(e.detail, dict):
+                            error_msg += ", ".join([f"{k}: {v[0]}" if isinstance(v, list) else f"{k}: {v}" 
+                                                   for k, v in e.detail.items()])
+                        else:
+                            error_msg += str(e.detail)
+                        errors.append(error_msg)
+                
+                # If any VALIDATION errors occurred (not conflicts), rollback transaction
+                # Conflicts are non-fatal and should not trigger rollback
+                validation_errors = [e for e in errors if not isinstance(e, dict) or e.get('type') != 'conflict']
+                if validation_errors:
+                    raise Exception("Validation errors occurred")
+            
+            # TRANSACTION COMMITTED
+            logger.info(f"[BATCH SAVE] Transaction committed. Saved {len(saved_objects)} collaborators.")
+            
+            # Invalidate collaborator cache after successful save
+            logger.info("[BATCH SAVE] Invalidating collaborator cache")
+            cache_key = 'collaborator_list_full'
+            cache.delete(cache_key)
+            
+            # Trigger background cache rebuild
+            from metadata.tasks import invalidate_and_warm_collaborator_cache
+            invalidate_and_warm_collaborator_cache.apply_async(priority=5)
+            
+            # Serialize saved objects for response
+            serialized_saved = self.get_serializer(saved_objects, many=True).data
+            
+            return Response({
+                'success': True,
+                'saved': serialized_saved,
+                'errors': errors
+            })
+            
+        except Exception as e:
+            logger.error(f"[BATCH SAVE] Exception: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {'success': False, 'errors': [str(e)]},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class LanguoidFilter(FilterSet):
@@ -363,7 +1124,7 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
     queryset = Languoid.objects.select_related(
         'family_languoid', 'parent_languoid', 'pri_subgroup_languoid', 
         'sec_subgroup_languoid'
-    ).prefetch_related('child_languoids')
+    ).prefetch_related('child_languoids', 'item_languages')
     serializer_class = InternalLanguoidSerializer
     permission_classes = [IsAuthenticatedWithEditAccess]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]

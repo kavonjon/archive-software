@@ -257,7 +257,11 @@ const CollaboratorCreate: React.FC<CollaboratorCreateProps> = ({
       if (onSuccess) {
         onSuccess(newCollaborator);
       } else {
-        navigate(`/collaborators/${newCollaborator.id}`);
+        // Use collaborator_id for URL if available, otherwise fall back to database ID
+        const identifier = newCollaborator.collaborator_id 
+          ? `id-${newCollaborator.collaborator_id}` 
+          : newCollaborator.id;
+        navigate(`/collaborators/${identifier}`);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to create collaborator');

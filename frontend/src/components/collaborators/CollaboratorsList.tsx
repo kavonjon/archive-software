@@ -27,6 +27,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Link,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -35,11 +36,17 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   FilterList as FilterListIcon,
+  CheckBox as CheckBoxIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { collaboratorsAPI, Collaborator, PaginatedResponse, APIError } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCollaboratorCache } from '../../contexts/CollaboratorCacheContext';
+import { usePersistedListState } from '../../hooks/usePersistedListState';
 import { hasEditAccess } from '../../utils/permissions';
+import CollaboratorBatchEditButton, { BatchEditMode } from './CollaboratorBatchEditButton';
+import CollaboratorExportButton, { ExportMode, ExportStatus } from './CollaboratorExportButton';
+import CollaboratorBatchLoadingDialog, { LoadingDialogState } from './CollaboratorBatchLoadingDialog';
 
 interface CollaboratorsListProps {
   showActions?: boolean;
@@ -71,6 +78,18 @@ interface FilterState {
   deathdate_isnull?: boolean;
 }
 
+const DEFAULT_FILTERS: FilterState = {
+  first_names_contains: '',
+  last_names_contains: '',
+  full_name_contains: '',
+  collaborator_id_contains: '',
+  tribal_affiliations_contains: '',
+  native_languages_contains: '',
+  other_languages_contains: '',
+  anonymous: '',
+  gender_contains: '',
+};
+
 const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
   showActions = true,
   selectable = false,
@@ -81,32 +100,63 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { state: authState } = useAuth();
   
+  // Start cache loading on mount
+  const { getCollaborators, cache, isLoading: cacheLoading, loadProgress } = useCollaboratorCache();
+  
+  useEffect(() => {
+    // Trigger cache load in background when list page loads
+    getCollaborators().catch(err => {
+      console.error('[CollaboratorsList] Failed to pre-load cache:', err);
+    });
+  }, [getCollaborators]);
+  
   // Refs for focus management
   const tableRef = useRef<HTMLTableElement>(null);
+  
+  // Persisted state (filters, selections, pagination)
+  const {
+    filters,
+    setFilters,
+    selectedIds,
+    setSelectedIds,
+    page,
+    setPage,
+    rowsPerPage,
+    setRowsPerPage,
+    toggleSelection,
+    setAllSelections,
+    clearFilters: clearPersistedFilters,
+  } = usePersistedListState<FilterState, Collaborator>({
+    storageKey: 'collaborator-list-state',
+    defaultFilters: DEFAULT_FILTERS,
+    defaultPagination: { page: 0, rowsPerPage: 25 },
+  });
   
   // State management
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedCollaborators, setSelectedCollaborators] = useState<Collaborator[]>([]);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-
-  // Filter state
-  const [filters, setFilters] = useState<FilterState>({
-    first_names_contains: '',
-    last_names_contains: '',
-    full_name_contains: '',
-    collaborator_id_contains: '',
-    tribal_affiliations_contains: '',
-    native_languages_contains: '',
-    other_languages_contains: '',
-    anonymous: '',
-    gender_contains: '',
+  
+  // Batch edit state
+  const [batchEditMode, setBatchEditMode] = useState<BatchEditMode>(() => {
+    return (localStorage.getItem('collaborator-batch-edit-mode') as BatchEditMode) || 'filtered';
   });
+  
+  // Loading/warning dialog state for batch editor
+  const [loadingDialogState, setLoadingDialogState] = useState<LoadingDialogState | null>(null);
+  const [pendingBatchIds, setPendingBatchIds] = useState<number[] | null>(null);
+  
+  // Export state
+  const [exportMode, setExportMode] = useState<ExportMode>(() => {
+    return (localStorage.getItem('collaborator-export-mode') as ExportMode) || 'filtered';
+  });
+  const [exportStatus, setExportStatus] = useState<ExportStatus>('idle');
+
+  // Ref to track polling interval
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Active filters state - these are the filters actually applied to the API
   const [activeFilters, setActiveFilters] = useState<FilterState>(filters);
@@ -123,7 +173,8 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
       const params: Record<string, string | number | boolean> = {
         page: currentPage + 1, // API uses 1-based pagination
         page_size: rowsPerPage,
-        ordering: 'last_names,first_names,full_name,collaborator_id', // Explicit ordering by last name
+        // Ordering is handled by backend with locale-aware collation (Unicode sorting)
+        // Do not override with explicit ordering parameter
       };
       
       // Add non-empty filters
@@ -224,52 +275,395 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
 
   // Handle clear filters
   const handleClearFilters = () => {
-    const clearedFilters: FilterState = {
-      first_names_contains: '',
-      last_names_contains: '',
-      full_name_contains: '',
-      collaborator_id_contains: '',
-      tribal_affiliations_contains: '',
-      native_languages_contains: '',
-      other_languages_contains: '',
-      anonymous: '',
-      gender_contains: '',
-    };
-    
-    setFilters(clearedFilters);
+    clearPersistedFilters();
     debouncedApplyFilters.cancel(); // Cancel any pending debounced calls
-    setActiveFilters(clearedFilters); // Immediately apply cleared filters
+    setActiveFilters(DEFAULT_FILTERS); // Immediately apply cleared filters
     setPage(0);
   };
 
   // Handle collaborator selection
   const handleCollaboratorSelect = (collaborator: Collaborator, checked: boolean) => {
-    const newSelected = checked
-      ? [...selectedCollaborators, collaborator]
-      : selectedCollaborators.filter(c => c.id !== collaborator.id);
+    toggleSelection(collaborator.id, checked);
     
-    setSelectedCollaborators(newSelected);
-    onSelectionChange?.(newSelected);
+    // If parent component needs full objects, convert IDs to objects
+    if (onSelectionChange) {
+      const selectedObjects = collaborators.filter(c => 
+        checked ? (selectedIds.has(c.id) || c.id === collaborator.id) : (selectedIds.has(c.id) && c.id !== collaborator.id)
+      );
+      onSelectionChange(selectedObjects);
+    }
+  };
+
+  // Handle "Deselect All" button
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set());
+    if (onSelectionChange) {
+      onSelectionChange([]);
+    }
   };
 
   // Handle select all
   const handleSelectAll = (checked: boolean) => {
-    const newSelected = checked ? [...collaborators] : [];
-    setSelectedCollaborators(newSelected);
-    onSelectionChange?.(newSelected);
+    setAllSelections(collaborators, checked);
+    
+    // If parent component needs full objects
+    if (onSelectionChange) {
+      const selectedObjects = checked ? collaborators : [];
+      onSelectionChange(selectedObjects);
+    }
   };
 
   // Handle row click (navigate to detail)
   const handleRowClick = (collaborator: Collaborator) => {
-    if (!selectable) {
-      navigate(`/collaborators/${collaborator.id}`);
-    }
+    // Use collaborator_id for URL if available, otherwise fall back to database ID
+    const identifier = collaborator.collaborator_id 
+      ? `id-${collaborator.collaborator_id}` 
+      : collaborator.id;
+    navigate(`/collaborators/${identifier}`);
   };
 
   // Handle create new collaborator
   const handleCreateNew = () => {
     navigate('/collaborators/create');
   };
+  
+  // Handle batch edit mode execute
+  const handleBatchEditExecute = useCallback(async (mode: BatchEditMode) => {
+    console.log('[CollaboratorsList] Batch edit execute with mode:', mode);
+    
+    // Check cache status FIRST before doing anything else
+    const cacheReady = cache && !cacheLoading && loadProgress >= 100;
+    
+    // Get IDs based on mode
+    let ids: number[];
+    
+    if (mode === 'selected') {
+      ids = Array.from(selectedIds);
+    } else {
+      // For 'filtered' mode, we need IDs from cache
+      // If cache not ready, show dialog immediately and return
+      if (!cacheReady) {
+        console.log('[CollaboratorsList] Cache not ready, showing dialog');
+        // We know the filtered count from the list view's API response
+        const filteredRowCount = totalCount; // This is the filtered count from the current query
+        
+        // Check if any filters are active
+        const hasActiveFilters = Object.entries(activeFilters).some(([key, value]) => {
+          if (typeof value === 'boolean') return true; // Boolean filters (isnull) are active
+          if (typeof value === 'string' && value.trim()) return true; // String filters are active
+          return false;
+        });
+        
+        // Only show warning if no filters are active (user is editing ALL rows)
+        const shouldShowWarning = !hasActiveFilters;
+        
+        setLoadingDialogState({
+          cacheLoading: true,
+          cacheProgress: loadProgress,
+          totalCount: cache?.count || 0,
+          showLargeDatasetWarning: shouldShowWarning,
+          rowCount: filteredRowCount,
+          mode: mode,
+        });
+        // Store empty pending state - will be filled when cache loads
+        setPendingBatchIds([]);
+        return;
+      }
+      
+      // Cache is ready, get filtered IDs
+      try {
+        const allCollaborators = await getCollaborators(); // Should return immediately from cache
+        
+        // Apply current filters to cache data (client-side filtering)
+        const filteredCollaborators = allCollaborators.filter(c => {
+          // Apply active filters
+          if (activeFilters.first_names_contains && !c.first_names.toLowerCase().includes(activeFilters.first_names_contains.toLowerCase())) return false;
+          if (activeFilters.last_names_contains && !c.last_names.toLowerCase().includes(activeFilters.last_names_contains.toLowerCase())) return false;
+          if (activeFilters.full_name_contains && !c.full_name.toLowerCase().includes(activeFilters.full_name_contains.toLowerCase())) return false;
+          if (activeFilters.collaborator_id_contains && !String(c.collaborator_id).includes(activeFilters.collaborator_id_contains)) return false;
+          if (activeFilters.tribal_affiliations_contains && !c.tribal_affiliations.toLowerCase().includes(activeFilters.tribal_affiliations_contains.toLowerCase())) return false;
+          if (activeFilters.gender_contains && !c.gender.toLowerCase().includes(activeFilters.gender_contains.toLowerCase())) return false;
+          if (activeFilters.anonymous !== undefined && activeFilters.anonymous !== '' && c.anonymous !== (activeFilters.anonymous === 'yes')) return false;
+          // TODO: Add other filter logic if needed
+          return true;
+        });
+        
+        ids = filteredCollaborators.map(c => c.id);
+        console.log('[CollaboratorsList] Filtered cache to', ids.length, 'IDs');
+      } catch (error) {
+        console.error('[CollaboratorsList] Error filtering cache:', error);
+        // Fallback to current page IDs
+        ids = collaborators.map(c => c.id);
+      }
+    }
+    
+    console.log('[CollaboratorsList] Batch edit IDs:', ids.length, 'collaborators');
+    
+    // Check if any filters are active
+    const hasActiveFilters = Object.entries(activeFilters).some(([key, value]) => {
+      if (typeof value === 'boolean') return true; // Boolean filters (isnull) are active
+      if (typeof value === 'string' && value.trim()) return true; // String filters are active
+      return false;
+    });
+    
+    console.log('[CollaboratorsList] Has active filters:', hasActiveFilters);
+    
+    // Only warn if no filters are applied (i.e., user is editing ALL rows)
+    const largeDataset = !hasActiveFilters;
+    
+    console.log('[CollaboratorsList] Cache ready:', cacheReady, 'Large dataset warning:', largeDataset);
+    
+    // Show dialog if large dataset (cache is already ready at this point)
+    if (largeDataset) {
+      setLoadingDialogState({
+        cacheLoading: false,
+        cacheProgress: loadProgress,
+        totalCount: cache?.count || 0,
+        showLargeDatasetWarning: largeDataset,
+        rowCount: ids.length,
+        mode: mode,
+      });
+      setPendingBatchIds(ids);
+      return; // Wait for user to confirm in dialog
+    }
+    
+    // No dialog needed, proceed directly
+    sessionStorage.setItem('batch_edit_ids', JSON.stringify(ids));
+    console.log('[CollaboratorsList] Navigating to /collaborators/batch');
+    navigate('/collaborators/batch');
+  }, [selectedIds, collaborators, activeFilters, navigate, cache, cacheLoading, loadProgress, getCollaborators]);
+  
+  // Handle dialog continue (user confirmed)
+  const handleDialogContinue = useCallback(async (suppressFuture: boolean) => {
+    // TODO: Handle suppressFuture with localStorage if needed
+    
+    if (!pendingBatchIds) return;
+    
+    // If cache not ready, wait for it
+    if (loadingDialogState && loadingDialogState.cacheLoading) {
+      await getCollaborators();
+    }
+    
+    // Close dialog
+    setLoadingDialogState(null);
+    
+    // Store IDs and navigate
+    sessionStorage.setItem('batch_edit_ids', JSON.stringify(pendingBatchIds));
+    setPendingBatchIds(null);
+    navigate('/collaborators/batch');
+  }, [pendingBatchIds, loadingDialogState, getCollaborators, navigate]);
+  
+  // Handle dialog cancel
+  const handleDialogCancel = useCallback(() => {
+    setLoadingDialogState(null);
+    setPendingBatchIds(null);
+  }, []);
+  
+  // Auto-proceed when cache finishes loading (for Scenario B: loading only, no warning)
+  useEffect(() => {
+    // Only proceed if:
+    // 1. Dialog is open and showing loading state
+    // 2. Cache just finished loading
+    // 3. There's no large dataset warning (otherwise user needs to confirm)
+    if (
+      loadingDialogState &&
+      loadingDialogState.cacheLoading && // Dialog was showing loading
+      cache &&
+      !cacheLoading &&
+      loadProgress >= 100 // Cache is now ready
+    ) {
+      console.log('[CollaboratorsList] Cache loading complete');
+      
+      // Now we can get the filtered IDs since cache is ready
+      const getFilteredIds = async () => {
+        try {
+          const allCollaborators = await getCollaborators();
+          
+          // Apply current filters
+          const filteredCollaborators = allCollaborators.filter(c => {
+            if (activeFilters.first_names_contains && !c.first_names.toLowerCase().includes(activeFilters.first_names_contains.toLowerCase())) return false;
+            if (activeFilters.last_names_contains && !c.last_names.toLowerCase().includes(activeFilters.last_names_contains.toLowerCase())) return false;
+            if (activeFilters.full_name_contains && !c.full_name.toLowerCase().includes(activeFilters.full_name_contains.toLowerCase())) return false;
+            if (activeFilters.collaborator_id_contains && !String(c.collaborator_id).includes(activeFilters.collaborator_id_contains)) return false;
+            if (activeFilters.tribal_affiliations_contains && !c.tribal_affiliations.toLowerCase().includes(activeFilters.tribal_affiliations_contains.toLowerCase())) return false;
+            if (activeFilters.gender_contains && !c.gender.toLowerCase().includes(activeFilters.gender_contains.toLowerCase())) return false;
+            if (activeFilters.anonymous !== undefined && activeFilters.anonymous !== '' && c.anonymous !== (activeFilters.anonymous === 'yes')) return false;
+            return true;
+          });
+          
+          const ids = filteredCollaborators.map(c => c.id);
+          
+          // Check if large dataset (no filters = editing all rows)
+          const hasActiveFilters = Object.entries(activeFilters).some(([key, value]) => {
+            if (typeof value === 'boolean') return true;
+            if (typeof value === 'string' && value.trim()) return true;
+            return false;
+          });
+          const largeDataset = !hasActiveFilters;
+          
+          if (largeDataset) {
+            // Update dialog to show warning instead of loading
+            console.log('[CollaboratorsList] Large dataset detected, showing warning');
+            setLoadingDialogState({
+              cacheLoading: false,
+              cacheProgress: loadProgress,
+              totalCount: cache?.count || 0,
+              showLargeDatasetWarning: true,
+              rowCount: ids.length,
+              mode: loadingDialogState.mode,
+            });
+            setPendingBatchIds(ids);
+          } else {
+            // No warning needed, proceed automatically
+            console.log('[CollaboratorsList] Auto-proceeding to batch editor');
+            setLoadingDialogState(null);
+            sessionStorage.setItem('batch_edit_ids', JSON.stringify(ids));
+            setPendingBatchIds(null);
+            navigate('/collaborators/batch');
+          }
+        } catch (error) {
+          console.error('[CollaboratorsList] Error getting filtered IDs:', error);
+          setLoadingDialogState(null);
+          setPendingBatchIds(null);
+        }
+      };
+      
+      getFilteredIds();
+    }
+  }, [loadingDialogState, cache, cacheLoading, loadProgress, getCollaborators, activeFilters, navigate]);
+  
+  // Handle export mode execute
+  const handleExportExecute = useCallback(async (mode: ExportMode) => {
+    console.log('[CollaboratorsList] Export execute with mode:', mode);
+    
+    // Get IDs based on mode
+    let ids: number[];
+    
+    if (mode === 'selected') {
+      ids = Array.from(selectedIds);
+    } else {
+      // For 'filtered' mode, use cache to get ALL filtered IDs (not just current page)
+      try {
+        const allCollaborators = await getCollaborators();
+        
+        // Apply current filters to cache data (client-side filtering)
+        const filteredCollaborators = allCollaborators.filter(c => {
+          // Apply active filters
+          if (activeFilters.first_names_contains && !c.first_names.toLowerCase().includes(activeFilters.first_names_contains.toLowerCase())) return false;
+          if (activeFilters.last_names_contains && !c.last_names.toLowerCase().includes(activeFilters.last_names_contains.toLowerCase())) return false;
+          if (activeFilters.full_name_contains && !c.full_name.toLowerCase().includes(activeFilters.full_name_contains.toLowerCase())) return false;
+          if (activeFilters.collaborator_id_contains && !String(c.collaborator_id).includes(activeFilters.collaborator_id_contains)) return false;
+          if (activeFilters.tribal_affiliations_contains && !c.tribal_affiliations.toLowerCase().includes(activeFilters.tribal_affiliations_contains.toLowerCase())) return false;
+          if (activeFilters.gender_contains && !c.gender.toLowerCase().includes(activeFilters.gender_contains.toLowerCase())) return false;
+          if (activeFilters.anonymous !== undefined && activeFilters.anonymous !== '' && c.anonymous !== (activeFilters.anonymous === 'yes')) return false;
+          // TODO: Add other filter logic if needed
+          return true;
+        });
+        
+        ids = filteredCollaborators.map(c => c.id);
+        console.log('[CollaboratorsList] Filtered cache to', ids.length, 'IDs for export');
+      } catch (error) {
+        console.error('[CollaboratorsList] Error filtering cache for export:', error);
+        // Fallback to current page IDs
+        ids = collaborators.map(c => c.id);
+      }
+    }
+    
+    console.log('[CollaboratorsList] Export IDs count:', ids.length);
+    
+    try {
+      setExportStatus('preparing');
+      
+      const result = await collaboratorsAPI.export(mode, ids);
+      
+      // Check if async or sync export
+      if (typeof result === 'object' && 'async' in result) {
+        // Async export - start polling
+        const exportId = result.export_id;
+        console.log('[CollaboratorsList] Async export started:', exportId);
+        
+        // Clear any existing polling interval
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+      }
+        
+        // Start polling with setInterval (ONE timer, not recursive)
+        pollIntervalRef.current = setInterval(async () => {
+      try {
+        const statusResult = await collaboratorsAPI.exportStatus(exportId);
+            console.log('[CollaboratorsList] Export status:', statusResult.status);
+        
+        if (statusResult.status === 'completed') {
+              // Stop polling
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+                pollIntervalRef.current = null;
+              }
+              
+          // Download the file
+          setExportStatus('ready');
+          const blob = await collaboratorsAPI.exportDownload(exportId);
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = statusResult.filename || `collaborators_export_${exportId}.xlsx`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+          
+          setExportStatus('idle');
+        } else if (statusResult.status === 'failed') {
+              // Stop polling on failure
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+                pollIntervalRef.current = null;
+              }
+          setError('Export failed');
+          setExportStatus('idle');
+            }
+          } catch (pollErr) {
+            console.error('[CollaboratorsList] Export polling error:', pollErr);
+            // Stop polling on error
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            setError('Failed to check export status');
+            setExportStatus('idle');
+          }
+        }, 2000); // Poll every 2 seconds
+        
+        // Set timeout to stop polling after 2 minutes
+        setTimeout(() => {
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+            setError('Export timeout - The background task may not be running. Please check that Celery workers are active or try a smaller dataset.');
+            setExportStatus('idle');
+          }
+        }, 120000); // 2 minutes
+        } else {
+        // Sync export - trigger download
+        console.log('[CollaboratorsList] Sync export - triggering download');
+        const blob = result as Blob;
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `collaborators_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+          setExportStatus('idle');
+        }
+      } catch (err) {
+      console.error('[CollaboratorsList] Export error:', err);
+      setError(err instanceof Error ? err.message : 'Export failed');
+        setExportStatus('idle');
+      }
+  }, [selectedIds, collaborators, activeFilters, getCollaborators]);
 
   // Check if any filters are active
   const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
@@ -286,8 +680,9 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
   }).length;
 
   // Selection state
-  const isAllSelected = collaborators.length > 0 && selectedCollaborators.length === collaborators.length;
-  const isIndeterminate = selectedCollaborators.length > 0 && selectedCollaborators.length < collaborators.length;
+  const selectedCount = collaborators.filter(c => selectedIds.has(c.id)).length;
+  const isAllSelected = collaborators.length > 0 && selectedCount === collaborators.length;
+  const isIndeterminate = selectedCount > 0 && selectedCount < collaborators.length;
 
   // Show full-page loading only on initial load, not on subsequent filter/pagination changes
   if (!initialLoadComplete) {
@@ -304,11 +699,42 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Collaborators
-        </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography variant="h4" component="h1">
+            Collaborators
+          </Typography>
+          {/* Selection indicator */}
+          {selectedIds.size > 0 && (
+            <Chip
+              label={`${selectedIds.size} selected`}
+              color="primary"
+              size="medium"
+              onDelete={handleDeselectAll}
+              deleteIcon={<CheckBoxIcon />}
+            />
+          )}
+        </Box>
         {showActions && hasEditAccess(authState.user) && (
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <CollaboratorExportButton
+              mode={exportMode}
+              exportStatus={exportStatus}
+              onModeChange={setExportMode}
+              onExecute={handleExportExecute}
+              selectedCount={selectedIds.size}
+              filteredCount={totalCount}
+            />
+            <CollaboratorBatchEditButton
+              mode={batchEditMode}
+              onModeChange={setBatchEditMode}
+              onExecute={handleBatchEditExecute}
+              selectedCount={selectedIds.size}
+              filteredCount={totalCount}
+              totalCount={totalCount}
+              cacheLoading={cacheLoading}
+              cacheProgress={loadProgress}
+            />
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -317,6 +743,7 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
           >
             {isMobile ? 'Add' : 'Add Collaborator'}
           </Button>
+          </Box>
         )}
       </Box>
 
@@ -561,17 +988,26 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
             <Card 
               key={collaborator.id} 
               sx={{ 
-                cursor: selectable ? 'default' : 'pointer',
-                '&:hover': selectable ? {} : { backgroundColor: 'action.hover' }
+                cursor: 'pointer',
+                '&:hover': { backgroundColor: 'action.hover' }
               }}
-              onClick={() => !selectable && handleRowClick(collaborator)}
+              onClick={() => handleRowClick(collaborator)}
             >
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                   <Box sx={{ flex: 1 }}>
-                    <Typography variant="h6" component="h3">
+                    <Link
+                      component={RouterLink}
+                      to={`/collaborators/${collaborator.collaborator_id ? `id-${collaborator.collaborator_id}` : collaborator.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      variant="h6"
+                      sx={{ 
+                        textDecoration: 'none',
+                        '&:hover': { textDecoration: 'underline' }
+                      }}
+                    >
                       {collaborator.display_name}
-                    </Typography>
+                    </Link>
                     <Typography variant="body2" color="text.secondary">
                       ID: {collaborator.collaborator_id}
                     </Typography>
@@ -594,10 +1030,15 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
                     )}
                   </Box>
                   {selectable && (
-                    <Checkbox
-                      checked={selectedCollaborators.some(c => c.id === collaborator.id)}
-                      onChange={(e) => handleCollaboratorSelect(collaborator, e.target.checked)}
-                    />
+                    <Box>
+                      <Checkbox
+                        checked={selectedIds.has(collaborator.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCollaboratorSelect(collaborator, !selectedIds.has(collaborator.id));
+                        }}
+                      />
+                    </Box>
                   )}
                 </Box>
               </CardContent>
@@ -610,7 +1051,6 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
           <Table ref={tableRef} tabIndex={-1}>
             <TableHead>
               <TableRow>
-                {selectable && (
                   <TableCell padding="checkbox">
                     <Checkbox
                       indeterminate={isIndeterminate}
@@ -618,7 +1058,6 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
                       onChange={(e) => handleSelectAll(e.target.checked)}
                     />
                   </TableCell>
-                )}
                 <TableCell>Name</TableCell>
                 <TableCell>ID</TableCell>
                 <TableCell>Tribal Affiliations</TableCell>
@@ -631,28 +1070,36 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
               {collaborators.map((collaborator) => (
                 <TableRow
                   key={collaborator.id}
-                  hover={!selectable}
+                  hover
                   sx={{ 
-                    cursor: selectable ? 'default' : 'pointer',
-                    '&:hover': selectable ? {} : { backgroundColor: 'action.hover' }
+                    cursor: 'pointer',
+                    '&:hover': { backgroundColor: 'action.hover' }
                   }}
                   onClick={() => handleRowClick(collaborator)}
                 >
-                  {selectable && (
                     <TableCell padding="checkbox">
                       <Checkbox
-                        checked={selectedCollaborators.some(c => c.id === collaborator.id)}
-                        onChange={(e) => {
+                        checked={selectedIds.has(collaborator.id)}
+                        onClick={(e) => {
                           e.stopPropagation();
-                          handleCollaboratorSelect(collaborator, e.target.checked);
+                          handleCollaboratorSelect(collaborator, !selectedIds.has(collaborator.id));
                         }}
                       />
                     </TableCell>
-                  )}
                   <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                    <Link
+                      component={RouterLink}
+                      to={`/collaborators/${collaborator.collaborator_id ? `id-${collaborator.collaborator_id}` : collaborator.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      variant="body2"
+                      sx={{ 
+                        fontWeight: 'medium',
+                        textDecoration: 'none',
+                        '&:hover': { textDecoration: 'underline' }
+                      }}
+                    >
                       {collaborator.display_name}
-                    </Typography>
+                    </Link>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
@@ -725,6 +1172,14 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
         rowsPerPageOptions={[10, 25, 50, 100]}
         showFirstButton
         showLastButton
+      />
+      
+      {/* Batch Edit Loading/Warning Dialog */}
+      <CollaboratorBatchLoadingDialog
+        open={!!loadingDialogState}
+        state={loadingDialogState}
+        onCancel={handleDialogCancel}
+        onContinue={handleDialogContinue}
       />
     </Box>
   );

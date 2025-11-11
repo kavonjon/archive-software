@@ -1,18 +1,25 @@
 {
   "stage_1_batch_editing": {
-    "version": "5.1",
-    "last_updated": "2025-11-03",
-    "conversation_reference": "Detailed Stage 1 planning and implementation architecture for smart spreadsheet batch editing features. Version 5.1 adds comprehensive user guide system documentation with organizational principles and maintenance workflows.",
+    "version": "7.0",
+    "last_updated": "2025-11-11",
+    "conversation_reference": "Detailed Stage 1 planning and implementation architecture for smart spreadsheet batch editing features. Version 7.0 adds list page improvements (filter persistence, selection indicators, improved filtering) and languoid list display enhancements (Items column with cache versioning).",
     
     "stage_overview": {
       "decision_id": "stage1_001",
       "content": "Sophisticated batch editing system with smart spreadsheet interface replacing current import functionality",
       "added_date": "2025-01-04",
-      "updated_date": "2025-10-17",
+      "updated_date": "2025-11-10",
       "strategic_importance": "Provides immediate value to museum staff daily workflows, enables efficient bulk data management",
       "prerequisite": "Stage 0 React infrastructure must be complete",
       "confidence_level": "high",
-      "status": "in_progress"
+      "status": "in_progress",
+      "implementation_status": {
+        "languoid_batch_editor": "complete (production)",
+        "collaborator_batch_editor": "complete (production - fully harmonized with Languoid patterns, conflict detection implemented, user guide complete)",
+        "item_batch_editor": "not_started",
+        "document_batch_editor": "not_started"
+      },
+      "critical_reference": "See collaborator_batch_editor_lessons.json for comprehensive implementation protocol and lessons learned. This file contains 33-item conformance checklist PLUS 12 additional universal patterns established during Phase 6 harmonization that MUST be followed for all future batch editor implementations."
     },
     
     "technical_architecture": {
@@ -87,10 +94,12 @@
           "Redux state management (batchSpreadsheetSlice with undo/redo)"
         ],
         "model_specific_wrappers": [
-          "LanguoidBatchEditor.tsx (column config + languoid-specific validation + conflict detection)",
-          "CollaboratorBatchEditor.tsx (future - column config + collaborator-specific validation)",
-          "ItemBatchEditor.tsx (future - column config + item-specific validation)"
+          "LanguoidBatchEditor.tsx (COMPLETE - column config + languoid-specific validation + conflict detection)",
+          "CollaboratorBatchEditor.tsx (COMPLETE - column config + collaborator-specific validation + M2M language fields + conflict detection + full UX harmonization with Languoid)",
+          "ItemBatchEditor.tsx (PLANNED - column config + item-specific validation)",
+          "DocumentBatchEditor.tsx (PLANNED - column config + document-specific validation)"
         ],
+        "implementation_notes": "Collaborator batch editor implementation complete. All 33 conformance requirements met, plus 12 additional universal patterns established during final harmonization phase. User guide documentation complete. System ready for Item batch editor implementation using established patterns.",
         "component_hierarchy": "LanguoidBatchEditor → AdaptiveSpreadsheetGrid → TanStackSpreadsheetWrapper → TanStackSpreadsheet → MemoizedSpreadsheetCell → CellEditor",
         "code_reuse_percentage": "~95% shared core, ~5% model-specific configuration",
         "confidence_level": "high",
@@ -3021,7 +3030,7 @@
         "added_date": "2025-01-04",
         "updated_date": "2025-10-17",
         "functional_requirements": [
-          "Smart spreadsheet interface for all three models (Languages, Collaborators, Items)",
+          "Smart spreadsheet interface for all three models (Languoids: COMPLETE, Collaborators: COMPLETE, Items: PLANNED)",
           "Copy/paste batch editing with validation",
           "Spreadsheet upload integration with smart parsing",
           "Transaction-based saves with error handling",
@@ -3034,6 +3043,158 @@
         "replacement_ready": "Can completely replace existing Django import functionality",
         "confidence_level": "high",
         "status": "in_progress"
+      }
+    },
+    
+    "implementation_lessons_and_protocols": {
+      "collaborator_batch_editor_lessons": {
+        "decision_id": "stage1_065",
+        "content": "Comprehensive lessons learned from Collaborator batch editor implementation with 33-item conformance checklist",
+        "added_date": "2025-11-10",
+        "conversation_reference": "Complete Collaborator batch editor implementation session revealing all patterns that must be explicit for future implementations",
+        
+        "critical_importance": "The second batch editor implementation (Collaborator) revealed 33 specific items that were implicit in the first implementation (Languoid) but must be explicit requirements for all future implementations. These lessons prevent repeating mistakes when implementing Item and Document batch editors.",
+        
+        "key_lessons": {
+          "architectural_patterns": [
+            "Draft row initialization must reflect model-specific validity (hasChanges depends on auto-generated fields)",
+            "Save logic must separate draft rows (send all values) from existing rows (send only changed values)",
+            "M2M fields require explicit create() and update() methods in Django serializer",
+            "ViewSets must auto-populate modified_by field in perform_create() and perform_update()",
+            "Auto-scroll to new rows uses props-down state pattern with useEffect"
+          ],
+          
+          "ux_conformance_categories": {
+            "missing_features": "27 items covering layout, functionality, performance, caching, naming, M2M editors, selection, validation",
+            "accessibility": "3 items covering ARIA attributes for dialogs, form controls, and checkboxes",
+            "ux_messages": "3 items covering dialog messages, flow order, and focus behavior"
+          },
+          
+          "implementation_protocol": {
+            "phase_0": "Planning and model analysis",
+            "phase_1": "Backend (serializer with M2M handling, ViewSet with modified_by automation, API endpoints)",
+            "phase_2": "Frontend component (batch editor with correct draft row logic and save patterns)",
+            "phase_3": "Caching (for fast load performance)",
+            "phase_4": "Import/Export (transformers and hooks)",
+            "phase_5": "Integration (routing, list page buttons, detail page URLs)",
+            "phase_6": "Conformance check (all 33 items systematically verified)",
+            "phase_7": "Testing (functional, performance, accessibility, cross-browser)"
+          }
+        },
+        
+        "usage_instructions": "Before implementing batch editor for ANY new model (Item, Document, etc.), read collaborator_batch_editor_lessons.json in full. Follow the implementation protocol exactly and verify all 33 conformance checklist items. This file is the authoritative reference for batch editor implementation.",
+        
+        "file_location": "context/development/collaborator_batch_editor_lessons.json",
+        "related_files": [
+          "frontend/src/components/collaborators/CollaboratorBatchEditor.tsx (reference implementation)",
+          "frontend/src/components/languoids/LanguoidBatchEditor.tsx (original pattern)",
+          "app/internal_api/serializers.py (M2M serializer patterns)",
+          "app/internal_api/views.py (perform_create/update patterns)"
+        ],
+        
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "list_page_state_persistence": {
+        "decision_id": "stage1_066",
+        "content": "Unified pattern for persisting filter, pagination, and selection state across navigation on all list pages",
+        "added_date": "2025-11-11",
+        "conversation_reference": "Implementation of usePersistedListState hook for consistent UX across Collaborator, Languoid, Item, and Collection list pages",
+        
+        "motivation": "Users expect their filters, page position, and selections to persist when navigating away and returning to list pages. This is especially important for batch editing workflows where users select items, navigate to batch editor, then return to list.",
+        
+        "implementation": {
+          "reusable_hook": "frontend/src/hooks/usePersistedListState.ts",
+          "storage_mechanism": "sessionStorage (persists for browser session, cleared on tab close)",
+          "state_managed": [
+            "filters (all filter field values specific to each model)",
+            "selectedIds (Set<number> of selected item IDs)",
+            "page (current page number)",
+            "rowsPerPage (items per page)"
+          ],
+          "helper_functions": [
+            "toggleSelection(id, checked) - toggle individual item selection",
+            "setAllSelections(items, checked) - select/deselect all items on current page",
+            "clearFilters() - reset all filters to defaults while preserving selections"
+          ]
+        },
+        
+        "usage_pattern": {
+          "step_1": "Define FilterState interface with all filter fields for the model",
+          "step_2": "Define DEFAULT_FILTERS constant with initial values",
+          "step_3": "Call usePersistedListState hook with storage key and defaults",
+          "step_4": "Destructure returned values",
+          "step_5": "Use setFilters() to update filter state on field changes",
+          "step_6": "Use toggleSelection() for checkbox clicks, setAllSelections() for select-all"
+        },
+        
+        "applied_to": {
+          "collaborators": "CollaboratorsList.tsx - COMPLETE",
+          "languoids": "LanguoidsList.tsx - COMPLETE",
+          "items": "ItemsList.tsx - COMPLETE",
+          "collections": "CollectionsList.tsx - PENDING"
+        },
+        
+        "checkbox_click_isolation": {
+          "problem": "Clicking checkbox in list item row was also triggering navigation to detail page",
+          "solution": "Change checkbox from onChange to onClick handler, add e.stopPropagation() to prevent event bubbling",
+          "pattern": "onClick with e.stopPropagation() and manual state toggle"
+        },
+        
+        "selection_indicator_chip": {
+          "description": "Visual chip/badge showing count of selected items with clear-all icon",
+          "location": "Header area, next to filter controls",
+          "behavior": "Only visible when selectedIds.size > 0"
+        },
+        
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "languoid_list_items_column": {
+        "decision_id": "stage1_067",
+        "content": "Replaced 'Children' column with 'Items' column in Languoid list view to show item associations",
+        "added_date": "2025-11-11",
+        
+        "backend_changes": {
+          "serializer_field": "item_count = serializers.SerializerMethodField()",
+          "get_method": "get_item_count(obj): return obj.item_languages.count()",
+          "query_optimization": "Added .prefetch_related('item_languages') to prevent N+1 queries"
+        },
+        
+        "cache_versioning_enhancement": {
+          "problem": "Frontend sessionStorage cache persisted old data structure without item_count field",
+          "solution": "Implemented cache version checking in LanguoidCacheContext",
+          "pattern": "Increment CACHE_VERSION when interface changes to force automatic cache refresh"
+        },
+        
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "advanced_filter_improvements": {
+        "decision_id": "stage1_068",
+        "content": "Comprehensive filter enhancements across list pages including debouncing, empty field filters, and improved UX patterns",
+        "added_date": "2025-11-11",
+        
+        "filter_debouncing_pattern": {
+          "problem": "Text input filters caused page reloads and field blur on every keystroke",
+          "solution": "Two-state filter pattern: filters (UI) and activeFilters (API) with lodash debounce 500ms"
+        },
+        
+        "empty_field_filters": {
+          "description": "Buttons to filter for records with empty/null values in specific fields",
+          "ui_pattern": "Section with buttons formatted as '[FieldName]: Empty'"
+        },
+        
+        "filter_ui_standardization": {
+          "old_pattern": "Static 'Advanced Filters' header",
+          "new_pattern": "Show/Hide Filters button + Clear Filters button + Active filter count chip"
+        },
+        
+        "confidence_level": "high",
+        "status": "active"
       }
     }
   }

@@ -40,6 +40,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const multiSelectInitializedRef = useRef(false);
   const selectCommittedRef = useRef(false); // Track if select value was committed
+  const booleanCommittedRef = useRef(false); // Track if boolean value was committed
   
   // State for select editor (used conditionally but declared at top level)
   const [selectValue, setSelectValue] = useState(cell.value || '');
@@ -137,7 +138,17 @@ export const CellEditor: React.FC<CellEditorProps> = ({
         if (item.glottocode) {
           label = `${label} (${item.glottocode})`;
         }
-        return { value: item.id, label };
+        // Return option with full item data for later use
+        return { 
+          value: item.id, 
+          label,
+          // Store raw data for preserving after commit
+          itemData: {
+            id: item.id,
+            name: item.name,
+            glottocode: item.glottocode,
+          }
+        } as any;  // Cast to any to allow extra itemData property
       });
 
       setMultiSelectOptions(mappedOptions);
@@ -197,11 +208,23 @@ export const CellEditor: React.FC<CellEditorProps> = ({
     if (cell.type === 'multiselect' && multiSelectOptions.length > 0) {
       // Only initialize once per editor mount, using ref to track
       if (!multiSelectInitializedRef.current && cell.value && Array.isArray(cell.value) && cell.value.length > 0) {
-        // Map IDs from cell.value to full option objects from loaded options
-        const selected = multiSelectOptions.filter(opt => {
-          const optValue = typeof opt.value === 'number' ? opt.value : parseInt(String(opt.value));
-          const cellValues = cell.value.map((v: any) => typeof v === 'number' ? v : parseInt(String(v)));
-          return cellValues.includes(optValue);
+        // cell.value should be an array of objects with {id, name, glottocode} from collaboratorToRow
+        const selected = cell.value.map((item: any) => {
+          // Format label as "name (glottocode)" if glottocode exists
+          const label = item.glottocode 
+            ? `${item.name} (${item.glottocode})`
+            : item.name || String(item.id || item);
+          
+          return {
+            value: item.id || item,
+            label: label,
+            // Attach itemData so it's preserved when committing
+            itemData: {
+              id: item.id,
+              name: item.name,
+              glottocode: item.glottocode,
+            }
+          } as any;
         });
         
         setSelectedMultiSelectOptions(selected);
@@ -228,6 +251,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
         ref={inputRef}
         type="text"
         defaultValue={cell.text}
+        aria-label={`Edit ${columnConfig.header}`}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
@@ -351,6 +375,9 @@ export const CellEditor: React.FC<CellEditorProps> = ({
             onKeyDown={handleStringArrayKeyDown}
             onBlur={handleStringArrayBlur}
             autoFocus
+            inputProps={{
+              'aria-label': `Add item to ${columnConfig.header}`,
+            }}
             sx={{
               '& .MuiOutlinedInput-root': {
                 fontSize: 'inherit',
@@ -445,10 +472,11 @@ export const CellEditor: React.FC<CellEditorProps> = ({
         displayText = 'No';
       }
       
-      // Close dropdown and commit
+      // Mark as committed and close dropdown
+      booleanCommittedRef.current = true;
       setIsSelectOpen(false);
       setTimeout(() => {
-        onCommit({ value: newValue, text: displayText }, true);
+        onCommit({ value: boolValue, text: displayText }, true);
       }, 0);
     };
 
@@ -463,14 +491,14 @@ export const CellEditor: React.FC<CellEditorProps> = ({
       } else if (e.key === 'Enter') {
         e.preventDefault();
         e.stopPropagation();
+        booleanCommittedRef.current = true;
         setIsSelectOpen(false);
         
-        // Get current value from select
-        const currentValue = booleanValue === true ? 'true' : booleanValue === false ? 'false' : '';
+        // Get current boolean value (not string)
         const displayText = booleanValue === true ? 'Yes' : booleanValue === false ? 'No' : 'Not specified';
         
         setTimeout(() => {
-          onCommit({ value: currentValue, text: displayText }, true);
+          onCommit({ value: booleanValue, text: displayText }, true);
         }, 0);
       }
     };
@@ -478,13 +506,17 @@ export const CellEditor: React.FC<CellEditorProps> = ({
     const handleBooleanClose = () => {
       setIsSelectOpen(false);
       
-      // Commit current value on close
-      const currentValue = booleanValue === true ? 'true' : booleanValue === false ? 'false' : '';
+      // Only commit if we haven't already committed (prevents double-commit)
+      if (!booleanCommittedRef.current) {
+        // User clicked away without selecting - commit current value
       const displayText = booleanValue === true ? 'Yes' : booleanValue === false ? 'No' : 'Not specified';
       
       setTimeout(() => {
-        onCommit({ value: currentValue, text: displayText }, false);
+          onCommit({ value: booleanValue, text: displayText }, false);
       }, 0);
+      }
+      // Reset the flag for next time
+      booleanCommittedRef.current = false;
     };
 
     return (
@@ -500,6 +532,9 @@ export const CellEditor: React.FC<CellEditorProps> = ({
         fullWidth
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
+        inputProps={{
+          'aria-label': `Edit ${columnConfig.header}`,
+        }}
         sx={{
           '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
           '& .MuiSelect-select': {
@@ -575,6 +610,9 @@ export const CellEditor: React.FC<CellEditorProps> = ({
         autoFocus
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
+        inputProps={{
+          'aria-label': `Edit ${columnConfig.header}`,
+        }}
         sx={{
           width: '100%',
           height: '100%',
@@ -672,6 +710,9 @@ export const CellEditor: React.FC<CellEditorProps> = ({
             InputProps={{
               endAdornment: loading ? <CircularProgress size={20} /> : null,
             }}
+            inputProps={{
+              'aria-label': `Search ${columnConfig.header}`,
+            }}
             sx={{
               '& .MuiOutlinedInput-root': {
                 fontSize: 'inherit',
@@ -760,11 +801,22 @@ export const CellEditor: React.FC<CellEditorProps> = ({
     };
 
     const handleMultiSelectCommit = () => {
-      const ids = selectedMultiSelectOptions.map(opt => 
-        typeof opt.value === 'number' ? opt.value : parseInt(String(opt.value))
-      );
+      // Preserve full item data (id, name, glottocode) not just IDs
+      const itemsWithData = selectedMultiSelectOptions.map(opt => {
+        // If option has itemData from API, use that
+        if ((opt as any).itemData) {
+          return (opt as any).itemData;
+        }
+        // Otherwise, reconstruct from what we have (for pre-loaded values)
+        return {
+          id: typeof opt.value === 'number' ? opt.value : parseInt(String(opt.value)),
+          name: opt.label.replace(/\s*\([^)]*\)$/, ''),  // Remove (glottocode) suffix
+          glottocode: opt.label.match(/\(([^)]+)\)$/)?.[1],  // Extract glottocode from label
+        };
+      });
+      
       const text = selectedMultiSelectOptions.map(opt => opt.label).join(', ');
-      onCommit({ value: ids.length > 0 ? ids : null, text }, true);
+      onCommit({ value: itemsWithData.length > 0 ? itemsWithData : null, text }, true);
     };
 
     const handleMultiSelectBlur = () => {
@@ -812,6 +864,9 @@ export const CellEditor: React.FC<CellEditorProps> = ({
             autoFocus
             InputProps={{
               endAdornment: multiSelectLoading ? <CircularProgress size={20} /> : null,
+            }}
+            inputProps={{
+              'aria-label': `Search ${columnConfig.header}`,
             }}
             sx={{
               '& .MuiOutlinedInput-root': {

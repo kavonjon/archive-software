@@ -22,6 +22,7 @@ import {
   Stack,
   useTheme,
   useMediaQuery,
+  Link,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -30,7 +31,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { collectionsAPI, Collection, PaginatedResponse, APIError } from '../../services/api';
 
 interface CollectionsListProps {
@@ -468,9 +469,19 @@ const CollectionsList: React.FC<CollectionsListProps> = ({
                         </TableCell>
                       )}
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                        <Link
+                          component={RouterLink}
+                          to={`/collections/${collection.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          variant="body2"
+                          sx={{ 
+                            fontWeight: 'medium',
+                            textDecoration: 'none',
+                            '&:hover': { textDecoration: 'underline' }
+                          }}
+                        >
                           {collection.collection_abbr}
-                        </Typography>
+                        </Link>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">

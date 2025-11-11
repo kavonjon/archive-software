@@ -1,8 +1,8 @@
 {
   "documentation_structure": {
-    "version": "2.0",
-    "last_updated": "2025-11-03",
-    "conversation_reference": "Updated user guide section with complete implementation details for in-app documentation system",
+    "version": "2.1",
+    "last_updated": "2025-11-10",
+    "conversation_reference": "Updated user guide section with complete implementation details for in-app documentation system. Version 2.1 adds reference to collaborator_batch_editor_lessons.json for Stage 1 development guidance",
     
     "documentation_philosophy": {
       "decision_id": "docs_001",
@@ -142,16 +142,36 @@
       "decision_id": "docs_006",
       "content": "Process for keeping documentation current and accurate",
       "added_date": "2025-10-27",
+      "updated_date": "2025-11-10",
       "principles": [
         "Update documentation in same commit as code changes",
         "Date-stamp major documentation updates",
         "Review documentation quarterly for accuracy",
         "Cross-reference related documentation files"
       ],
+      "contextual_memory_files": {
+        "stage_1_batch_editing.json": {
+          "purpose": "Architecture and implementation details for Stage 1 batch editing system",
+          "audience": "Lead developers implementing batch editors",
+          "cross_references": [
+            "collaborator_batch_editor_lessons.json (implementation protocol and conformance checklist)"
+          ]
+        },
+        "collaborator_batch_editor_lessons.json": {
+          "purpose": "Comprehensive lessons learned from Collaborator batch editor with 33-item conformance checklist",
+          "audience": "Lead developers implementing future batch editors (Item, Document, etc.)",
+          "critical_importance": "MUST be read before implementing any new batch editor to prevent repeating 33 known mistakes",
+          "usage": "Read entire file, follow implementation protocol, verify all checklist items",
+          "cross_references": [
+            "stage_1_batch_editing.json (parent architecture document)"
+          ]
+        }
+      },
       "review_schedule": {
         "deployment_docs": "After any infrastructure changes",
         "development_docs": "After major dependency updates or architecture changes",
-        "operations_docs": "Quarterly or after operational procedure changes"
+        "operations_docs": "Quarterly or after operational procedure changes",
+        "contextual_memory": "After any significant implementation milestone or lessons learned session"
       },
       "confidence_level": "high",
       "status": "active"

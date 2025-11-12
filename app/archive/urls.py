@@ -20,6 +20,7 @@ from django.conf.urls import handler500
 from django.conf.urls.static import static
 from django.urls import path, include, re_path
 from django.views.generic import TemplateView
+from django.http import HttpResponsePermanentRedirect
 from metadata.views import collection_index, collection_detail, collection_add, collection_edit, collection_delete, item_index, item_migrate_list, item_detail, item_edit, item_add, item_delete,languoid_index, languoid_detail, languoid_edit, languoid_add, languoid_delete, languoid_stats, collaborator_index, collaborator_detail, collaborator_edit, collaborator_add, collaborator_delete, collaborator_role_edit, geographic_add, geographic_edit, geographic_delete, columns_export_index, columns_export_detail, columns_export_edit, columns_export_add, ImportView, document_upload, document_index, document_detail, document_edit, document_add, document_delete, ItemUpdateMigrateView, LanguoidListView, custom_error_500, custom_error_403, trigger_error, download_collaborator_export, collaborator_export_task_status, celery_health_check, cleanup_collaborator_export
 from frontend_views import ReactAppView
 from auth_api import CSRFTokenView, LoginView, LogoutView, UserStatusView
@@ -177,6 +178,11 @@ urlpatterns = [
     
     # Root path serves React SPA
     path("", ReactAppView.as_view(), name='react_home'),
+    
+    # Explicit redirects for backend paths without trailing slash
+    # Django's APPEND_SLASH would redirect these, but the catch-all intercepts them
+    re_path(r'^admin$', lambda request: HttpResponsePermanentRedirect('/admin/')),
+    re_path(r'^api$', lambda request: HttpResponsePermanentRedirect('/api/')),
     
     # Catch-all route - serves React SPA for any unmatched URL
     # This allows React Router to handle all frontend routing

@@ -1,12 +1,15 @@
 import React from 'react';
 import { Container, Box } from '@mui/material';
 import { Routes, Route } from 'react-router-dom';
+import { usePageTitle } from '../hooks/usePageTitle';
 import CollaboratorsList from '../components/collaborators/CollaboratorsList';
 import CollaboratorDetail from '../components/collaborators/CollaboratorDetail';
 import CollaboratorCreate from '../components/collaborators/CollaboratorCreate';
 import { CollaboratorBatchEditor } from '../components/collaborators/CollaboratorBatchEditor';
 
 const CollaboratorsPage: React.FC = () => {
+  usePageTitle('Collaborators');
+  
   return (
     <Routes>
       {/* Batch editor needs full width - render without Container */}

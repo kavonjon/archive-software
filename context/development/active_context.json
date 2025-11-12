@@ -21,7 +21,9 @@
               "Map API endpoint implemented (/api/v1/map/items/) with GeoJSON output",
               "API versioning strategy established (Strategy A: frozen stable versions)",
               "Beta API removed (unused complexity)",
-              "Version-specific documentation configured (/api/v1/docs/ and /api/docs/)"
+              "Version-specific documentation configured (/api/v1/docs/ and /api/docs/)",
+              "URL routing fix for production - explicit redirects for /admin and /api without trailing slashes",
+              "Dynamic page titles implemented with usePageTitle hook - 'NAL Archive | Page Name' branding"
             ],
             "current_phase": "Stage 0 - Continuing with remaining models (Document, Collection)",
         "next_priorities": [

@@ -3,10 +3,12 @@ import { Typography, Container, Paper, Box, Button } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { Login as LoginIcon } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { usePageTitle } from '../hooks/usePageTitle';
 import Footer from '../components/Footer';
 
 const HomePage: React.FC = () => {
   const { state } = useAuth();
+  usePageTitle('Home');
 
   return (
     <Box

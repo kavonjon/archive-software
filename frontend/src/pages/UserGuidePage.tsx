@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Box, Typography, List, ListItem, ListItemButton, Paper, CircularProgress } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 // Helper function to slugify headings for IDs
 const slugify = (text: any): string => {
@@ -26,6 +27,8 @@ interface Section {
 }
 
 export const UserGuidePage = () => {
+  usePageTitle('User Guide');
+  
   const location = useLocation();
   const navigate = useNavigate();
   const [sections, setSections] = useState<Section[]>([]);

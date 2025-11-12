@@ -1089,6 +1089,132 @@
       "confidence_level": "high",
       "status": "active",
       "cross_references": ["ui-enhancements-session.json", "stage_0_react_migration.json"]
+    },
+    
+    "django_url_routing_with_react_spa": {
+      "decision_id": "pattern_036",
+      "content": "Pattern for Django URL routing with React SPA catch-all while preserving backend routes",
+      "added_date": "2025-11-12",
+      "conversation_reference": "URL routing fix for /admin and /api paths in production",
+      
+      "problem": "React SPA catch-all route intercepts backend paths like /admin (without trailing slash) before Django's APPEND_SLASH middleware can redirect",
+      
+      "solution": "Add explicit redirect rules for backend paths without trailing slashes before the catch-all pattern",
+      
+      "implementation": {
+        "file": "app/archive/urls.py",
+        "order_critical": "Backend routes > Explicit redirects > React catch-all (MUST BE LAST)",
+        "explicit_redirects": [
+          "re_path(r'^admin$', lambda request: HttpResponsePermanentRedirect('/admin/'))",
+          "re_path(r'^api$', lambda request: HttpResponsePermanentRedirect('/api/'))"
+        ],
+        "catch_all_pattern": "re_path(r'^(?!admin/|api/|django/|...).*$', ReactAppView.as_view())",
+        "negative_lookahead": "Uses (?!...) to exclude specific prefixes from catch-all"
+      },
+      
+      "url_routing_order": [
+        "1. Django admin at path('admin/', admin.site.urls) - matches /admin/ with trailing slash",
+        "2. API routes at path('api/', ...) - matches /api/ and all sub-paths",
+        "3. Django template routes at path('django/', ...) - legacy template interface",
+        "4. React home at path('', ReactAppView) - matches root / exactly",
+        "5. Explicit redirects at re_path(r'^admin$', ...) - matches /admin without slash, redirects to /admin/",
+        "6. React catch-all at re_path(r'^(?!...).*$', ReactAppView) - matches everything else except excluded prefixes"
+      ],
+      
+      "append_slash_interaction": {
+        "issue": "Django's APPEND_SLASH=True middleware redirects /admin to /admin/, but catch-all intercepts before redirect happens",
+        "solution": "Explicit redirect rules run before catch-all, manually implementing APPEND_SLASH behavior for critical backend paths",
+        "affected_paths": ["/admin", "/api"],
+        "redirect_type": "301 Permanent Redirect"
+      },
+      
+      "safety_check_in_reactappview": {
+        "purpose": "Additional safety net if URL routing fails",
+        "implementation": "Check request.path against backend prefixes, return 404 if matched",
+        "location": "app/frontend_views.py::ReactAppView.get()",
+        "should_never_trigger": "If URL patterns are correct, this safety check should never execute"
+      },
+      
+      "production_vs_development": {
+        "development": "Both Django (8000) and React dev server (3000) can run, but React dev server should be stopped to test Django routing",
+        "production": "Only Django serves both API and React build, routing must work correctly"
+      },
+      
+      "testing_checklist": [
+        "/admin → should redirect to /admin/",
+        "/admin/ → should show Django admin",
+        "/api → should redirect to /api/",
+        "/api/docs/ → should show API documentation",
+        "/items/ → should show React items page",
+        "/ → should show React home page"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["deployment/url-routing.md"]
+    },
+    
+    "react_page_title_pattern": {
+      "decision_id": "pattern_037",
+      "content": "Pattern for dynamic page titles in React SPA using custom hook",
+      "added_date": "2025-11-12",
+      "conversation_reference": "Page title implementation - NAL Archive branding",
+      
+      "implementation": {
+        "custom_hook": "frontend/src/hooks/usePageTitle.ts",
+        "hook_signature": "usePageTitle(title: string): void",
+        "title_format": "'NAL Archive | {page_title}'",
+        "cleanup": "Restores previous title on component unmount"
+      },
+      
+      "usage_pattern": {
+        "in_component": "usePageTitle('Page Name') at top of component",
+        "examples": [
+          "usePageTitle('Home') → 'NAL Archive | Home'",
+          "usePageTitle('Items') → 'NAL Archive | Items'",
+          "usePageTitle('User Guide') → 'NAL Archive | User Guide'"
+        ]
+      },
+      
+      "base_html_title": {
+        "file": "frontend/public/index.html",
+        "default_title": "'NAL Archive'",
+        "fallback": "Used when JavaScript is disabled or before React loads",
+        "meta_description": "'NAL Archive - Native American Language Archive'"
+      },
+      
+      "pages_updated": [
+        "HomePage.tsx → 'Home'",
+        "ItemsPage.tsx → 'Items'",
+        "CollectionsPage.tsx → 'Collections'",
+        "CollaboratorsPage.tsx → 'Collaborators'",
+        "LanguoidsPage.tsx → 'Languoids'",
+        "UserGuidePage.tsx → 'User Guide'"
+      ],
+      
+      "benefits": [
+        "Improved browser tab identification",
+        "Better bookmark names",
+        "SEO benefits (page titles in search results)",
+        "Professional branding consistency",
+        "Accessibility improvement (screen readers announce page changes)"
+      ],
+      
+      "hook_implementation_details": {
+        "uses_useeffect": "Updates document.title when title prop changes",
+        "cleanup_function": "Returns previous title on unmount",
+        "dependency_array": "[title] - reruns if title changes"
+      },
+      
+      "when_to_use": [
+        "All page-level components",
+        "After navigation to new route",
+        "When page context changes significantly"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["stage_0_react_migration.json"]
     }
   }
 }

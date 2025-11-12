@@ -1,11 +1,14 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Container } from '@mui/material';
+import { usePageTitle } from '../hooks/usePageTitle';
 import CollectionsList from '../components/collections/CollectionsList';
 import CollectionDetail from '../components/collections/CollectionDetail';
 import CollectionCreate from '../components/collections/CollectionCreate';
 
 const CollectionsPage: React.FC = () => {
+  usePageTitle('Collections');
+  
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <Routes>

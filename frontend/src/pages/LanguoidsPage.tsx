@@ -1,8 +1,11 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { LanguoidsList, LanguoidDetail, LanguoidCreate, LanguoidBatchEditor } from '../components/languoids';
 
 const LanguoidsPage: React.FC = () => {
+  usePageTitle('Languoids');
+  
   return (
     <Routes>
       <Route path="/" element={<LanguoidsList />} />

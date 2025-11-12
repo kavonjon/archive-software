@@ -52,6 +52,18 @@
           "content": "Dump procedures, transfer methods, restore script usage, troubleshooting",
           "related_scripts": ["deploy-restore-db-private.sh", "init-db.sh"]
         },
+        "docs/deployment/url-routing.md": {
+          "purpose": "URL routing architecture for React SPA with Django backend",
+          "audience": "Developers, system administrators",
+          "content": "Django URL patterns, React Router integration, production vs development modes, catch-all route explanation, troubleshooting",
+          "added_date": "2025-11-12"
+        },
+        "docs/api/map-endpoint-guide.md": {
+          "purpose": "Developer integration guide for map API endpoint",
+          "audience": "External developers consuming the public API",
+          "content": "Quick start, GeoJSON format, filtering parameters, client-side integration examples (Leaflet, MapBox), performance best practices, error handling",
+          "added_date": "2025-11-12"
+        },
         "docs/development/dependencies.md": {
           "purpose": "Required software and packages for development",
           "audience": "Developers setting up local environment",

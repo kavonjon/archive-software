@@ -244,6 +244,11 @@ SPECTACULAR_SETTINGS = {
         {'name': 'collections', 'description': 'Operations with collections'},
         {'name': 'languoids', 'description': 'Operations with languoids'},
         {'name': 'collaborators', 'description': 'Operations with collaborators'},
+        {'name': 'map', 'description': 'Geographic data for map visualization'},
+    ],
+    # Exclude internal API from public documentation
+    'PREPROCESSING_HOOKS': [
+        'archive.spectacular_hooks.exclude_internal_api',
     ],
 }
 

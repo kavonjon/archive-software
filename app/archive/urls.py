@@ -55,7 +55,13 @@ urlpatterns = [
     # =============================================================================
 
     # API Schema and Documentation
-    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    # v1 documentation (version-specific)
+    path('api/v1/schema/', SpectacularAPIView.as_view(urlconf='api.urls'), name='schema-v1'),
+    path('api/v1/docs/', SpectacularSwaggerView.as_view(url_name='schema-v1'), name='swagger-ui-v1'),
+    path('api/v1/redoc/', SpectacularRedocView.as_view(url_name='schema-v1'), name='redoc-v1'),
+    
+    # Latest documentation (defaults to v1)
+    path('api/schema/', SpectacularAPIView.as_view(urlconf='api.urls'), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
@@ -175,7 +181,8 @@ urlpatterns = [
     # Catch-all route - serves React SPA for any unmatched URL
     # This allows React Router to handle all frontend routing
     # IMPORTANT: This must be the last route in the list!
-    re_path(r'^.*$', ReactAppView.as_view(), name='react_catchall'),
+    # IMPORTANT: Excludes backend paths but allows /items/, /collections/, /collaborators/, /languoids/ to go to React
+    re_path(r'^(?!admin/|api/|django/|accounts/|select2/|o/|auth/|metadata/|collaborators/export-|collaborators/download-|collaborators/cleanup-|celery-health/|media/|static/).*$', ReactAppView.as_view(), name='react_catchall'),
 ]
 
 #urlpatterns = path(r'dj/', include(urlpatterns)),  # prepend 'django/' to all URLs

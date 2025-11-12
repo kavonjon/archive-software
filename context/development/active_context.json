@@ -1,8 +1,8 @@
 {
   "active_context": {
-    "version": "2.1",
-    "last_updated": "2025-11-08",
-    "conversation_reference": "Collaborator model backend/frontend harmonization complete, Dialect/DialectInstance decommissioned, language relationship editing implemented",
+    "version": "2.2",
+    "last_updated": "2025-11-12",
+    "conversation_reference": "Map API implementation complete, API versioning strategy established (Strategy A: frozen stable versions), beta removed",
     
         "current_focus": {
           "primary_objective": {
@@ -10,14 +10,18 @@
             "content": "Stage 0 Collaborator and Item detail pages production-ready with comprehensive language relationship editing",
             "added_date": "2025-01-04",
             "updated_date": "2025-11-08",
-            "stage_0_status": "CollaboratorDetail and CollaboratorList pages complete and production-ready. ItemDetail language editing complete. Both models have full CRUD with advanced features.",
+            "stage_0_status": "CollaboratorDetail and CollaboratorList pages complete and production-ready. ItemDetail language editing complete. Both models have full CRUD with advanced features. Map API endpoint implemented for public API.",
             "recent_achievements": [
               "Collaborator name field restructuring complete (signal-based full_name computation)",
               "Dialect and DialectInstance models fully decommissioned",
               "Language relationships simplified to direct M2M with Languoid",
               "EditableMultiRelationshipField enhanced with hierarchical display and auto-add parent languages",
               "CollaboratorList advanced filtering complete (empty values, debouncing, anonymous status)",
-              "Item language field editing implemented with same patterns as Collaborator"
+              "Item language field editing implemented with same patterns as Collaborator",
+              "Map API endpoint implemented (/api/v1/map/items/) with GeoJSON output",
+              "API versioning strategy established (Strategy A: frozen stable versions)",
+              "Beta API removed (unused complexity)",
+              "Version-specific documentation configured (/api/v1/docs/ and /api/docs/)"
             ],
             "current_phase": "Stage 0 - Continuing with remaining models (Document, Collection)",
         "next_priorities": [

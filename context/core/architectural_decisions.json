@@ -278,6 +278,72 @@
         "status": "active",
         "cross_references": ["refactoring_roadmap.json", "decision_genealogy.json", "preservation_rules.json"]
       }
+    },
+    
+    "map_api_architecture": {
+      "client_side_clustering_decision": {
+        "decision_id": "arch_dec_021",
+        "content": "Decision to implement client-side map marker clustering rather than server-side clustering for geographic data visualization",
+        "added_date": "2025-11-12",
+        "conversation_reference": "Map API implementation discussion - clustering responsibility",
+        "rationale": "Better separation of concerns - API delivers data efficiently, clients handle visualization. Standard libraries exist (Leaflet.markercluster, MapBox Supercluster). Allows customization per application without API changes.",
+        "alternatives_considered": [
+          "Server-side clustering (rejected: complex, inflexible, tightly couples visualization to API)",
+          "Pre-computed cluster data (rejected: storage overhead, multiple zoom level variants needed)"
+        ],
+        "impact": "API remains simple and focused on efficient data delivery. Map consumers responsible for clustering implementation using standard libraries.",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["api_classification.json", "coding_patterns.json"]
+      },
+      
+      "custom_geojson_serializer": {
+        "decision_id": "arch_dec_022",
+        "content": "Decision to implement custom GeoJSON serialization rather than using djangorestframework-gis library",
+        "added_date": "2025-11-12",
+        "conversation_reference": "Map API implementation - serializer choice",
+        "rationale": "Avoids GDAL/PostGIS system dependencies. Simple implementation for basic Point geometries. Full control over output format. RFC 7946 compliant without heavy dependencies.",
+        "implementation": "Custom serializer transforms Item model's DecimalField latitude/longitude into GeoJSON Feature format with coordinates array [lng, lat]",
+        "alternatives_considered": [
+          "djangorestframework-gis (rejected: requires GDAL, overkill for simple Point geometries)",
+          "PostGIS extension (rejected: unnecessary complexity for current scale)"
+        ],
+        "impact": "Simpler deployment (no system dependencies), faster setup, sufficient for current needs (2,307 mappable items)",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["coding_patterns.json", "external_dependencies.json"]
+      },
+      
+      "database_level_filtering": {
+        "decision_id": "arch_dec_023",
+        "content": "Decision to implement geographic filtering as DRF FilterBackend components rather than serializer-level filtering",
+        "added_date": "2025-11-12",
+        "conversation_reference": "Map API implementation - filtering architecture",
+        "rationale": "Efficient database-level filtering prevents loading unnecessary data. Composable and reusable across endpoints. Applied before serialization saves processing overhead.",
+        "implementation": {
+          "BoundingBoxFilterBackend": "Required parameter - filters by geographic bounds at SQL level",
+          "DensityFilterBackend": "Optional zoom-based sampling using deterministic MOD(id, N) for consistent results",
+          "CollectionFilterBackend": "Optional collection abbreviation filtering"
+        },
+        "impact": "Efficient queries even at scale. Filters compose cleanly. Database indexes support geographic range queries.",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["coding_patterns.json"]
+      },
+      
+      "geographic_data_flattening": {
+        "decision_id": "arch_dec_024",
+        "content": "Decision to flatten geographic data from separate Geographic model into Item model latitude/longitude fields",
+        "added_date": "2025-11-12",
+        "conversation_reference": "Map API planning - data model discussion",
+        "rationale": "Geographic relationship is 1:1 with items. Separate model adds complexity without benefit. Direct fields enable simpler queries and serializers. Addresses underutilized Geographic model.",
+        "migration": "Migration 0103 added latitude/longitude DecimalFields (22 digits, 16 decimal places) to Item model",
+        "data_coverage": "2,307 items with coordinates (~52.5% of total items), good data quality",
+        "impact": "Simplified data model, more efficient queries, easier API implementation",
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": ["data_model_understanding.json"]
+      }
     }
   }
 }

@@ -77,6 +77,25 @@
             "viewset": "CollaboratorViewSet",
             "serializers": ["CollaboratorListSerializer", "CollaboratorDetailSerializer"],
             "openapi_documented": true
+          },
+          "map": {
+            "paths": ["/api/v1/map/items/"],
+            "methods": ["GET"],
+            "description": "Geographic data for map visualization in GeoJSON format",
+            "permission_class": "AllowAny",
+            "viewset": "ItemMapViewSet",
+            "serializers": ["ItemMapSerializer", "ItemMapFeatureCollectionSerializer"],
+            "openapi_documented": true,
+            "added_date": "2025-11-12",
+            "features": {
+              "format": "GeoJSON FeatureCollection (RFC 7946)",
+              "required_params": ["bbox (west,south,east,north)"],
+              "optional_params": ["zoom (0-20)", "collection (abbreviation)"],
+              "filtering": "Database-level via FilterBackends (BoundingBoxFilterBackend, DensityFilterBackend, CollectionFilterBackend)",
+              "title_source": "ItemTitle with default=True, fallback to catalog_number",
+              "query_optimization": "select_related('collection'), prefetch_related('title_item')",
+              "data_coverage": "2,307 items with coordinates (~52.5% of archive)"
+            }
           }
         }
       },
@@ -150,16 +169,41 @@
     },
     
     "api_versioning_strategy": {
-      "current_approach": {
+      "frozen_stable_versions": {
         "decision_id": "api_class_003",
-        "content": "Dual versioning with beta/v1 paths using same ViewSets but different URL routing",
+        "content": "Strategy A: Frozen stable versions (v1, v2, v3...) - each version is frozen and never changes",
         "added_date": "2025-01-04",
-        "implementation": "DefaultRouter instances for beta_router and stable_router",
-        "versioning_class": "ArchiveAPIVersioning",
-        "default_version": "beta.v1",
-        "allowed_versions": ["beta.v1", "v1"],
+        "updated_date": "2025-11-12",
+        "conversation_reference": "API versioning strategy discussion - removed beta, established frozen version approach",
+        "implementation": "Single router for v1, version-specific schema endpoints",
+        "current_structure": {
+          "api_routes": "/api/v1/ - Only stable v1 exists currently",
+          "schema_endpoints": [
+            "/api/v1/schema/ - v1-specific schema",
+            "/api/v1/docs/ - v1-specific Swagger UI",
+            "/api/v1/redoc/ - v1-specific ReDoc"
+          ],
+          "latest_endpoints": [
+            "/api/schema/ - Latest schema (currently v1)",
+            "/api/docs/ - Latest Swagger UI (currently v1)",
+            "/api/redoc/ - Latest ReDoc (currently v1)"
+          ]
+        },
+        "beta_removed": {
+          "date": "2025-11-12",
+          "reason": "Beta was unused and added unnecessary complexity. For infrequent changes, frozen versions are more appropriate than rolling beta.",
+          "cleanup": "Removed beta_router, beta endpoints, all beta references"
+        },
+        "future_evolution": {
+          "v2_when_needed": "When breaking changes required, release v2 alongside v1",
+          "migration_window": "Support both versions for 12-24 months",
+          "deprecation_process": "Announce v1 deprecation, provide migration guide, maintain overlap period"
+        },
+        "change_frequency": "Infrequent (not continuous development)",
+        "additive_changes_only": "v1 only receives additive changes (new fields, new endpoints) - no breaking changes",
         "confidence_level": "high",
-        "status": "active"
+        "status": "active",
+        "cross_references": ["architectural_decisions.json", "documentation_structure.json"]
       }
     },
     
@@ -180,12 +224,45 @@
     "documentation_strategy": {
       "public_documentation": {
         "tools": ["drf-spectacular", "OpenAPI 3.0"],
-        "endpoints": ["/api/schema/", "/api/docs/", "/api/redoc/"],
-        "includes": "All public API endpoints with full OpenAPI specs"
+        "endpoints": [
+          "/api/schema/ - Latest API schema",
+          "/api/docs/ - Latest Swagger UI", 
+          "/api/redoc/ - Latest ReDoc",
+          "/api/v1/schema/ - v1-specific schema",
+          "/api/v1/docs/ - v1-specific Swagger UI",
+          "/api/v1/redoc/ - v1-specific ReDoc"
+        ],
+        "includes": "All public API endpoints with full OpenAPI specs",
+        "organization": {
+          "principle": "Group by resource type (items, collections, languoids, collaborators, map), NOT by version",
+          "rationale": "Version is in URL, consumers care about 'what can I do' not 'what version am I using'",
+          "implementation": "TAGS list in SPECTACULAR_SETTINGS organized by resource",
+          "version_separation": "When v2 exists, separate schema/docs pages at /api/v1/docs and /api/v2/docs",
+          "updated_date": "2025-11-12"
+        },
+        "internal_api_exclusion": {
+          "mechanism": "PREPROCESSING_HOOKS with exclude_internal_api function",
+          "implementation_file": "app/archive/spectacular_hooks.py",
+          "excluded_paths": "Endpoints starting with /internal/",
+          "rationale": "Internal API for React frontend should not appear in public API documentation"
+        },
+        "tags": [
+          {"name": "items", "description": "Operations with archive items"},
+          {"name": "collections", "description": "Operations with collections"},
+          {"name": "languoids", "description": "Operations with languoids"},
+          {"name": "collaborators", "description": "Operations with collaborators"},
+          {"name": "map", "description": "Geographic data for map visualization"}
+        ]
       },
       "internal_documentation": {
         "approach": "Code comments and context files only",
         "rationale": "Internal endpoints not meant for external consumption"
+      },
+      "consumer_facing_guide": {
+        "location": "docs/api/map-endpoint-guide.md",
+        "purpose": "Developer integration guide for map API consumers",
+        "audience": "External developers integrating with the public API",
+        "content": "Quick start, client-side integration examples (Leaflet, MapBox), performance best practices, error handling"
       }
     },
     

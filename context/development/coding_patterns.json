@@ -163,6 +163,128 @@
       "benefits": ["Code reuse", "Consistent behavior", "Simplified maintenance"],
       "confidence_level": "high",
       "status": "active"
+    },
+    
+    "drf_filterbackend_pattern": {
+      "decision_id": "pattern_007",
+      "content": "Pattern for implementing database-level filtering using DRF FilterBackend classes for efficient query optimization",
+      "added_date": "2025-11-12",
+      "conversation_reference": "Map API implementation - filtering architecture",
+      "principle": "Implement complex filtering logic as FilterBackend classes rather than in serializers or views",
+      "benefits": [
+        "Database-level filtering (efficient - only loads needed data)",
+        "Composable (multiple filters work together)",
+        "Reusable across ViewSets",
+        "Applied before serialization (saves processing)",
+        "Testable in isolation"
+      ],
+      "implementation_pattern": {
+        "class_structure": "Inherit from rest_framework.filters.BaseFilterBackend",
+        "filter_queryset_method": "def filter_queryset(self, request, queryset, view): return queryset.filter(...)",
+        "parameter_extraction": "Get filter params from request.query_params",
+        "validation": "Validate parameters and return appropriate 400 errors",
+        "composability": "Multiple FilterBackends applied in sequence via filter_backends list"
+      },
+      "map_api_examples": {
+        "BoundingBoxFilterBackend": {
+          "purpose": "Filter items by geographic bounding box",
+          "parameters": "bbox (required): west,south,east,north",
+          "implementation": "queryset.filter(latitude__gte=south, latitude__lte=north, longitude__gte=west, longitude__lte=east)",
+          "file": "app/api/filters.py"
+        },
+        "DensityFilterBackend": {
+          "purpose": "Optional zoom-based sampling for performance",
+          "parameters": "zoom (optional): 0-20",
+          "implementation": "Uses MOD(metadata_item.id, N) for deterministic sampling based on zoom level",
+          "sampling_logic": "zoom<6: 10%, zoom 6-9: 33%, zoom>=10: 100%",
+          "file": "app/api/filters.py",
+          "critical_detail": "Must use fully qualified table name 'metadata_item.id' in MOD to avoid ambiguous column errors with joins"
+        },
+        "CollectionFilterBackend": {
+          "purpose": "Filter by collection abbreviation",
+          "parameters": "collection (optional): ACH,NAL (comma-separated)",
+          "implementation": "queryset.filter(collection__collection_abbr__in=[...]) with case-insensitive matching",
+          "file": "app/api/filters.py"
+        }
+      },
+      "usage_in_viewsets": {
+        "registration": "filter_backends = [BoundingBoxFilterBackend, DensityFilterBackend, ...]",
+        "execution_order": "Filters applied in list order",
+        "automatic_application": "DRF automatically calls filter_queryset on each backend"
+      },
+      "when_to_use": [
+        "Geographic filtering (bounding boxes, proximity)",
+        "Complex multi-parameter filtering",
+        "Performance-critical filters that benefit from database-level execution",
+        "Filters that might be reused across multiple endpoints"
+      ],
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["architectural_decisions.json::database_level_filtering", "api_classification.json"]
+    },
+    
+    "geojson_serialization_pattern": {
+      "decision_id": "pattern_008",
+      "content": "Pattern for custom GeoJSON serialization without external dependencies (djangorestframework-gis, GDAL)",
+      "added_date": "2025-11-12",
+      "conversation_reference": "Map API implementation - custom GeoJSON serializer",
+      "principle": "Implement RFC 7946 GeoJSON format manually for Point geometries to avoid heavy dependencies",
+      "implementation_approach": {
+        "feature_serializer": {
+          "purpose": "Transform Django model to GeoJSON Feature",
+          "base_class": "serializers.ModelSerializer",
+          "fields": "Include all property fields plus latitude/longitude",
+          "to_representation_override": "Extract lat/lng, build {type: 'Feature', geometry: {...}, properties: {...}}",
+          "coordinate_order": "GeoJSON uses [longitude, latitude] (NOT [lat, lng])"
+        },
+        "featurecollection_serializer": {
+          "purpose": "Wrap multiple Features in FeatureCollection",
+          "base_class": "serializers.Serializer (no model)",
+          "to_representation_override": "Serialize queryset with Feature serializer, wrap in {type: 'FeatureCollection', features: [...]}"
+        }
+      },
+      "geojson_structure": {
+        "feature": {
+          "type": "'Feature'",
+          "geometry": {"type": "'Point'", "coordinates": "[longitude, latitude]"},
+          "properties": "All other data fields (id, title, etc.)"
+        },
+        "feature_collection": {
+          "type": "'FeatureCollection'",
+          "features": "Array of Feature objects"
+        }
+      },
+      "title_retrieval_pattern": {
+        "approach": "Use SerializerMethodField for complex lookups",
+        "implementation": "get_title method queries related ItemTitle with default=True, fallback to catalog_number",
+        "query_optimization": "prefetch_related('title_item') in ViewSet queryset to avoid N+1 queries",
+        "coverage": "~79% of mappable items have ItemTitle records"
+      },
+      "viewset_integration": {
+        "list_method_override": "Override list() to use FeatureCollection serializer instead of default pagination",
+        "serializer_class": "Set to Feature serializer for schema generation",
+        "pagination_class": "None (maps don't paginate - return all items in bbox)"
+      },
+      "benefits": [
+        "No system dependencies (no GDAL, no PostGIS)",
+        "Simple implementation for Point geometries",
+        "Full control over output format",
+        "Fast deployment and setup",
+        "Sufficient for current scale"
+      ],
+      "when_to_use": [
+        "Simple Point geometries only",
+        "Want to avoid GDAL/PostGIS dependencies",
+        "Data scale doesn't require PostGIS optimizations (<10,000 items)",
+        "GeoJSON is the only spatial format needed"
+      ],
+      "files": [
+        "app/api/v1/serializers/map.py - ItemMapSerializer, ItemMapFeatureCollectionSerializer",
+        "app/api/v1/views/map.py - ItemMapViewSet with list() override"
+      ],
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["architectural_decisions.json::custom_geojson_serializer", "api_classification.json"]
     }
   },
 

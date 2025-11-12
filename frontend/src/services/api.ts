@@ -89,6 +89,8 @@ export interface Item {
   state_or_province: string;
   country_or_territory: string;
   global_region: string;
+  latitude: number | null;
+  longitude: number | null;
   recording_context: string;
   public_event: string;
   original_format_medium: string;

@@ -43,8 +43,10 @@ import {
   createAbbreviatedLabel
 } from '../common';
 import { EditableTitlesList } from './EditableTitlesList';
+import CoordinatesMapCard from './CoordinatesMapCard';
+import LocationEditorOverlay, { LocationData } from './LocationEditorOverlay';
 import { useAuth } from '../../contexts/AuthContext';
-import { hasDeleteAccess } from '../../utils/permissions';
+import { hasDeleteAccess, hasEditAccess } from '../../utils/permissions';
 
 const API_BASE_URL = process.env.NODE_ENV === 'development'
   ? 'http://localhost:8000/internal/v1'
@@ -186,6 +188,9 @@ const ItemDetail: React.FC<ItemDetailProps> = ({
   // State for date interpretation feedback - prevents cross-field re-renders
   const [dateInterpretationValues, setDateInterpretationValues] = useState<Record<string, string>>({});
 
+  // State for location editor overlay
+  const [locationOverlayOpen, setLocationOverlayOpen] = useState(false);
+
   // Handler for date interpretation feedback
   const handleDateInterpretationChange = (fieldName: string, value: string) => {
     setDateInterpretationValues(prev => ({ ...prev, [fieldName]: value }));
@@ -324,6 +329,54 @@ const ItemDetail: React.FC<ItemDetailProps> = ({
         newSet.delete(fieldName);
         return newSet;
       });
+    }
+  };
+
+  // Batch save coordinates (latitude and longitude together)
+  const saveBothCoordinates = async (latitude: number, longitude: number) => {
+    if (!item) return;
+
+    try {
+      setSavingFields(prev => new Set(prev).add('latitude').add('longitude'));
+      
+      // Use PATCH to update both coordinates in a single request
+      const updatedItem = await itemsAPI.patch(item.id, {
+        latitude,
+        longitude
+      });
+      
+      // Update the item state with the new data
+      setItem(updatedItem);
+      
+      // Clear editing state for both fields
+      cancelEditing('latitude');
+      cancelEditing('longitude');
+      
+    } catch (err: any) {
+      setError(`Failed to update coordinates: ${err.message}`);
+    } finally {
+      setSavingFields(prev => {
+        const newSet = new Set(prev);
+        newSet.delete('latitude');
+        newSet.delete('longitude');
+        return newSet;
+      });
+    }
+  };
+
+  // Handler for location overlay save
+  const handleLocationOverlaySave = async (locationData: LocationData) => {
+    if (!item) return;
+
+    try {
+      // Update all location fields at once
+      const updatedItem = await itemsAPI.patch(item.id, locationData);
+      
+      // Update the item state with the new data
+      setItem(updatedItem);
+      
+    } catch (err: any) {
+      throw new Error(`Failed to update location: ${err.message}`);
     }
   };
 
@@ -1255,21 +1308,125 @@ const ItemDetail: React.FC<ItemDetailProps> = ({
            {/* Location */}
            <Card sx={{ mb: 2 }} elevation={1}>
              <CardContent>
-               <Typography variant="h6" gutterBottom sx={{ fontWeight: 'medium', color: 'primary.main' }}>
-                 Location
-               </Typography>
+               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                 <Typography variant="h6" sx={{ fontWeight: 'medium', color: 'primary.main' }}>
+                   Location
+                 </Typography>
+                 {hasEditAccess(authState.user) && (
+                   <Button
+                     variant="outlined"
+                     size="small"
+                     onClick={() => setLocationOverlayOpen(true)}
+                   >
+                     Look up address
+                   </Button>
+                 )}
+               </Box>
                <Divider sx={{ mb: 2 }} />
                <Box>
-                 {renderField('Municipality or Township', item.municipality_or_township)}
-                 {renderField('County or Parish', item.county_or_parish)}
-                 {renderField('State or Province', item.state_or_province)}
-                 {renderField('Country or Territory', item.country_or_territory)}
-                 {renderField('Global Region', item.global_region)}
-                 {renderField('Recording Context', item.recording_context)}
-                 {renderField('Public Event', item.public_event)}
+                 <EditableTextField
+                   fieldName="municipality_or_township"
+                   label="Municipality or Township"
+                   value={item.municipality_or_township || ''}
+                   isEditing={editingFields.has('municipality_or_township')}
+                   isSaving={savingFields.has('municipality_or_township')}
+                   editValue={editValues.municipality_or_township || ''}
+                   startEditing={startEditing}
+                   cancelEditing={cancelEditing}
+                   saveField={saveField}
+                   updateEditValue={updateEditValue}
+                 />
+                 <EditableTextField
+                   fieldName="county_or_parish"
+                   label="County or Parish"
+                   value={item.county_or_parish || ''}
+                   isEditing={editingFields.has('county_or_parish')}
+                   isSaving={savingFields.has('county_or_parish')}
+                   editValue={editValues.county_or_parish || ''}
+                   startEditing={startEditing}
+                   cancelEditing={cancelEditing}
+                   saveField={saveField}
+                   updateEditValue={updateEditValue}
+                 />
+                 <EditableTextField
+                   fieldName="state_or_province"
+                   label="State or Province"
+                   value={item.state_or_province || ''}
+                   isEditing={editingFields.has('state_or_province')}
+                   isSaving={savingFields.has('state_or_province')}
+                   editValue={editValues.state_or_province || ''}
+                   startEditing={startEditing}
+                   cancelEditing={cancelEditing}
+                   saveField={saveField}
+                   updateEditValue={updateEditValue}
+                 />
+                 <EditableTextField
+                   fieldName="country_or_territory"
+                   label="Country or Territory"
+                   value={item.country_or_territory || ''}
+                   isEditing={editingFields.has('country_or_territory')}
+                   isSaving={savingFields.has('country_or_territory')}
+                   editValue={editValues.country_or_territory || ''}
+                   startEditing={startEditing}
+                   cancelEditing={cancelEditing}
+                   saveField={saveField}
+                   updateEditValue={updateEditValue}
+                 />
+                 <EditableTextField
+                   fieldName="global_region"
+                   label="Global Region"
+                   value={item.global_region || ''}
+                   isEditing={editingFields.has('global_region')}
+                   isSaving={savingFields.has('global_region')}
+                   editValue={editValues.global_region || ''}
+                   startEditing={startEditing}
+                   cancelEditing={cancelEditing}
+                   saveField={saveField}
+                   updateEditValue={updateEditValue}
+                 />
+                 <EditableTextField
+                   fieldName="recording_context"
+                   label="Recording Context"
+                   value={item.recording_context || ''}
+                   isEditing={editingFields.has('recording_context')}
+                   isSaving={savingFields.has('recording_context')}
+                   editValue={editValues.recording_context || ''}
+                   startEditing={startEditing}
+                   cancelEditing={cancelEditing}
+                   saveField={saveField}
+                   updateEditValue={updateEditValue}
+                   multiline
+                   rows={3}
+                 />
+                 <EditableTextField
+                   fieldName="public_event"
+                   label="Public Event"
+                   value={item.public_event || ''}
+                   isEditing={editingFields.has('public_event')}
+                   isSaving={savingFields.has('public_event')}
+                   editValue={editValues.public_event || ''}
+                   startEditing={startEditing}
+                   cancelEditing={cancelEditing}
+                   saveField={saveField}
+                   updateEditValue={updateEditValue}
+                 />
                </Box>
              </CardContent>
            </Card>
+
+           {/* Coordinates Map Card */}
+           <CoordinatesMapCard
+             latitude={item.latitude}
+             longitude={item.longitude}
+             editingFields={editingFields}
+             savingFields={savingFields}
+             editValues={editValues}
+             startEditing={startEditing}
+             cancelEditing={cancelEditing}
+             saveField={saveField}
+             updateEditValue={updateEditValue}
+             saveBothCoordinates={saveBothCoordinates}
+           />
 
            {/* External */}
            <Card sx={{ mb: 2 }} elevation={1}>
@@ -1407,6 +1564,24 @@ const ItemDetail: React.FC<ItemDetailProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Location Editor Overlay */}
+      {item && (
+        <LocationEditorOverlay
+          open={locationOverlayOpen}
+          onClose={() => setLocationOverlayOpen(false)}
+          onSave={handleLocationOverlaySave}
+          initialData={{
+            municipality_or_township: item.municipality_or_township || '',
+            county_or_parish: item.county_or_parish || '',
+            state_or_province: item.state_or_province || '',
+            country_or_territory: item.country_or_territory || '',
+            global_region: item.global_region || '',
+            latitude: item.latitude,
+            longitude: item.longitude,
+          }}
+        />
+      )}
     </Box>
   );
 };

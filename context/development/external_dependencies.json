@@ -39,6 +39,52 @@
         "configuration": "Allows localhost:3000 → localhost:8000 requests with credentials",
         "confidence_level": "high",
         "status": "active"
+      },
+      
+      "leaflet": {
+        "decision_id": "dep_005",
+        "content": "Leaflet - open-source JavaScript library for interactive maps",
+        "added_date": "2025-11-12",
+        "current_version": "1.9.x",
+        "context_impact": ["Geographic coordinate visualization", "Interactive map interfaces", "Click-to-set coordinates"],
+        "license": "BSD 2-Clause (permissive, FOSS)",
+        "architectural_significance": "Enables geographic features on Item and Languoid detail pages",
+        "configuration_required": "leafletConfig.ts utility to fix icon paths with webpack",
+        "tile_provider": "OpenStreetMap (free, no API key required)",
+        "upgrade_considerations": ["Icon path handling with bundlers", "API compatibility with react-leaflet"],
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "react_leaflet": {
+        "decision_id": "dep_006",
+        "content": "React-Leaflet - React components for Leaflet maps",
+        "added_date": "2025-11-12",
+        "current_version": "4.x",
+        "context_impact": ["MapContainer component", "Marker and Popup components", "useMap and useMapEvents hooks"],
+        "license": "Hippocratic License 3.0",
+        "dependency_on": "leaflet (peer dependency)",
+        "patterns_established": ["MapClickHandler component pattern", "MapUpdater component pattern", "Ref-based popup control"],
+        "upgrade_considerations": ["Breaking changes in major versions", "Hook API changes", "Leaflet version compatibility"],
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "nominatim_openstreetmap": {
+        "decision_id": "dep_007",
+        "content": "Nominatim - OpenStreetMap geocoding service (API, not package)",
+        "added_date": "2025-11-12",
+        "current_version": "API service (no package version)",
+        "context_impact": ["Address search and geocoding", "Location field auto-population"],
+        "license": "ODbL (Open Database License) - FOSS",
+        "api_endpoint": "https://nominatim.openstreetmap.org/search",
+        "usage_policy": "Must include User-Agent header (ArchiveManagementSystem/1.0)",
+        "rate_limiting": "Subject to fair use policy (debounced search queries)",
+        "architectural_significance": "Enables LocationEditorOverlay address lookup functionality",
+        "alternatives_considered": ["Google Maps API (rejected - not FOSS)", "Mapbox (rejected - not FOSS)"],
+        "no_api_key_required": true,
+        "confidence_level": "high",
+        "status": "active"
       }
     },
     

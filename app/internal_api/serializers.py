@@ -92,6 +92,22 @@ class InternalItemSerializer(serializers.ModelSerializer):
     # Description (using the correct field name)
     description = serializers.CharField(source='description_scope_and_content', required=False, allow_blank=True)
     
+    # Coordinate fields for geographic location
+    latitude = serializers.DecimalField(
+        max_digits=22, 
+        decimal_places=16, 
+        required=False, 
+        allow_null=True,
+        help_text="Latitude coordinate (-90 to 90)"
+    )
+    longitude = serializers.DecimalField(
+        max_digits=22, 
+        decimal_places=16, 
+        required=False, 
+        allow_null=True,
+        help_text="Longitude coordinate (-180 to 180)"
+    )
+    
     class Meta:
         model = Item
         fields = [
@@ -125,7 +141,8 @@ class InternalItemSerializer(serializers.ModelSerializer):
             
             # Location section (from Django template)
             'municipality_or_township', 'county_or_parish', 'state_or_province',
-            'country_or_territory', 'global_region', 'recording_context', 'public_event',
+            'country_or_territory', 'global_region', 'latitude', 'longitude',
+            'recording_context', 'public_event',
             'original_format_medium', 'original_format_medium_display', 'recorded_on',
             'equipment_used', 'software_used', 'digital_file_location', 'location_of_original',
             'other_information',
@@ -253,6 +270,21 @@ class InternalItemSerializer(serializers.ModelSerializer):
         if value:
             from metadata.signals import standardize_date_format
             return standardize_date_format(value)
+        return value
+    
+    # Coordinate field validation methods
+    def validate_latitude(self, value):
+        """Validate latitude is within valid range (-90 to 90)"""
+        if value is not None:
+            if value < -90 or value > 90:
+                raise serializers.ValidationError("Latitude must be between -90 and 90")
+        return value
+    
+    def validate_longitude(self, value):
+        """Validate longitude is within valid range (-180 to 180)"""
+        if value is not None:
+            if value < -180 or value > 180:
+                raise serializers.ValidationError("Longitude must be between -180 and 180")
         return value
     
     def update(self, instance, validated_data):

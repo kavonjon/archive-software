@@ -637,6 +637,8 @@ class Item(models.Model):
     # music_text = models.TextField(blank=True)
     language_description_type = MultiSelectField(choices=LANGUAGE_DESCRIPTION_CHOICES, blank=True)
     # descriptive_materials_text = models.TextField(blank=True)
+    latitude = models.DecimalField(max_digits=22, decimal_places=16, null=True, blank=True, verbose_name="latitude")
+    longitude = models.DecimalField(max_digits=22, decimal_places=16, null=True, blank=True, verbose_name="longitude")
     migrate = models.BooleanField(null=False, blank=False, default=False)
     added = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)

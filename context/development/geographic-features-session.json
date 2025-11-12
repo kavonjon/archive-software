@@ -1,0 +1,660 @@
+{
+  "geographic_features_session": {
+    "version": "1.0",
+    "date_implemented": "2025-11-12",
+    "conversation_reference": "Interactive map implementation for Item and Languoid detail pages with coordinate editing, geocoding, and validation",
+    
+    "overview": {
+      "scope": "Geographic coordinate management with interactive Leaflet maps, location field editing, and geocoding integration",
+      "motivation": "Enable users to view, edit, and validate geographic coordinates for Items and Languoids through intuitive map interfaces and text fields",
+      "session_goals": [
+        "Add editable location fields to Item detail page",
+        "Implement interactive coordinate map with click-to-set functionality",
+        "Create combined location editing overlay with geocoding",
+        "Add comprehensive coordinate validation (range, precision, format)",
+        "Apply map features to Languoid detail page",
+        "Ensure atomic coordinate updates to prevent visual glitches"
+      ]
+    },
+    
+    "changes_implemented": {
+      "phase_0_backend_preparation": {
+        "change_id": "geo_001",
+        "description": "Exposed latitude/longitude fields in API serializers with validation",
+        "added_date": "2025-11-12",
+        "files_modified": [
+          "app/internal_api/serializers.py",
+          "frontend/src/services/api.ts"
+        ],
+        "implementation": {
+          "serializer_fields_added": {
+            "latitude": "DecimalField(max_digits=22, decimal_places=16, required=False, allow_null=True)",
+            "longitude": "DecimalField(max_digits=22, decimal_places=16, required=False, allow_null=True)",
+            "range_validation": "validate_latitude (-90 to 90), validate_longitude (-180 to 180)"
+          },
+          "typescript_interface_updated": {
+            "Item": "Added latitude: number | null; longitude: number | null;",
+            "note": "DecimalField serializes to string in JSON, requires Number() conversion in frontend"
+          },
+          "existing_model_fields": {
+            "confirmation": "latitude and longitude already existed in Item and Languoid models",
+            "constraints": "max_digits=22, decimal_places=16, null=True, blank=True"
+          }
+        },
+        "status": "completed",
+        "confidence_level": "high"
+      },
+      
+      "phase_1_location_card_enhancements": {
+        "change_id": "geo_002",
+        "description": "Made location fields editable using EditableTextField pattern",
+        "added_date": "2025-11-12",
+        "file_modified": "frontend/src/components/items/ItemDetail.tsx",
+        "implementation": {
+          "fields_converted_to_editable": [
+            "municipality_or_township",
+            "county_or_parish",
+            "state_or_province",
+            "country_or_territory",
+            "global_region",
+            "recording_context",
+            "public_event"
+          ],
+          "pattern_used": "EditableTextField with existing startEditing/saveField/cancelEditing/updateEditValue props",
+          "permissions": "hasEditAccess() determines editability - Museum Staff can edit, Read-Only cannot"
+        },
+        "status": "completed",
+        "confidence_level": "high"
+      },
+      
+      "phase_2_coordinates_map_card": {
+        "change_id": "geo_003",
+        "description": "Created interactive map card for viewing and editing coordinates",
+        "added_date": "2025-11-12",
+        "files_created": [
+          "frontend/src/components/items/CoordinatesMapCard.tsx",
+          "frontend/src/utils/leafletConfig.ts"
+        ],
+        "files_modified": [
+          "frontend/src/components/items/ItemDetail.tsx"
+        ],
+        "implementation": {
+          "map_library": "Leaflet via react-leaflet",
+          "tile_provider": "OpenStreetMap (free, open-source)",
+          "default_view": {
+            "center": "[39.8283, -98.5795] (US geographic center)",
+            "zoom": 4,
+            "rationale": "When coordinates are present, zoom level 4 shows enough context to recognize region"
+          },
+          "features": {
+            "main_marker": "Blue marker at current coordinates when they exist",
+            "click_to_set": "Click anywhere on map to place temporary red marker with popup",
+            "coordinate_popup": "Shows clicked lat/lng with 'Set Coordinates' button",
+            "editable_fields": "EditableTextField components for manual text entry of lat/lng",
+            "auto_centering": "MapUpdater component uses map.flyTo() to recenter when coordinates change",
+            "validation": "Real-time validation with visual feedback (MUI Alert components)"
+          },
+          "map_components": {
+            "MapClickHandler": "useMapEvents hook to capture map clicks",
+            "MapUpdater": "useMap + useEffect to call map.flyTo() when center/zoom props change",
+            "Marker": "react-leaflet Marker component with Popup for existing and temporary markers"
+          },
+          "leaflet_icon_fix": {
+            "problem": "Leaflet default marker icons break with modern bundlers (webpack)",
+            "solution": "Created leafletConfig.ts to explicitly set icon paths",
+            "pattern": "L.Marker.prototype.options.icon = custom DefaultIcon with correct image URLs"
+          }
+        },
+        "status": "completed",
+        "confidence_level": "high"
+      },
+      
+      "phase_3_coordinate_validation": {
+        "change_id": "geo_004",
+        "description": "Comprehensive client-side validation for coordinate precision and range",
+        "added_date": "2025-11-12",
+        "files_modified": [
+          "frontend/src/components/items/CoordinatesMapCard.tsx",
+          "frontend/src/components/languoids/LanguoidDetail.tsx"
+        ],
+        "implementation": {
+          "validation_rules": {
+            "latitude_range": "-90 to 90 degrees",
+            "longitude_range": "-180 to 180 degrees",
+            "decimal_places": "Maximum 16 decimal places (backend constraint)",
+            "total_digits": "Maximum 22 total digits (backend constraint)",
+            "number_format": "Must be valid number (not NaN)",
+            "empty_allowed": "Null/empty values are valid (coordinates are optional)"
+          },
+          "validation_state": {
+            "structure": "{ isValidating: boolean, error: string | null, isValid: boolean }",
+            "separate_state": "latitudeValidation and longitudeValidation managed independently",
+            "timing": "Validation triggered via onValueChange callback from EditableTextField"
+          },
+          "visual_feedback": {
+            "error_display": "MUI Alert severity='error' below field when validation fails",
+            "success_display": "MUI Alert severity='success' when value is valid",
+            "pattern_source": "Matches glottocode validation UI on Languoid detail page",
+            "user_experience": "Clear, immediate feedback without modal dialogs or inline text"
+          },
+          "integration_with_editable_field": {
+            "custom_save_field": "Checks validation.isValid before calling actual saveField",
+            "custom_cancel_editing": "Resets validation state when canceling",
+            "on_value_change": "Triggers validation function on every keystroke"
+          }
+        },
+        "validation_examples": {
+          "valid": ["37.7749", "-122.4194", "0", "-90", "90", null, ""],
+          "invalid_range": ["91.0", "-181.0", "100.5"],
+          "invalid_precision": ["-123.08969780000000001 (18 decimal places)"],
+          "invalid_total_digits": ["12345678901234567890123 (23 digits)"],
+          "invalid_format": ["abc", "12.34.56", "N/A"]
+        },
+        "status": "completed",
+        "confidence_level": "high"
+      },
+      
+      "phase_4_location_editor_overlay": {
+        "change_id": "geo_005",
+        "description": "Combined location editing overlay with address search and interactive map",
+        "added_date": "2025-11-12",
+        "files_created": [
+          "frontend/src/components/items/LocationEditorOverlay.tsx"
+        ],
+        "files_modified": [
+          "frontend/src/components/items/ItemDetail.tsx"
+        ],
+        "implementation": {
+          "trigger": "\"Look up address\" button on Location card (only visible to users with edit access)",
+          "layout": {
+            "type": "MUI Dialog (full-screen on mobile, modal on desktop)",
+            "sections": [
+              "Address section (left) - location field editing and geocoding search",
+              "Map section (right) - interactive map with coordinate fields"
+            ],
+            "responsive": "Flexbox layout - column on mobile, row on desktop"
+          },
+          "address_section": {
+            "editable_fields": [
+              "municipality_or_township",
+              "county_or_parish", 
+              "state_or_province",
+              "country_or_territory",
+              "global_region"
+            ],
+            "input_type": "Standard MUI TextField (not EditableTextField)",
+            "geocoding_search": {
+              "service": "Nominatim (OpenStreetMap)",
+              "why_nominatim": "FOSS (ODbL license), popular, trusted, reliable",
+              "api_endpoint": "https://nominatim.openstreetmap.org/search",
+              "debouncing": "lodash debounce for search queries",
+              "result_display": "MUI List with clickable ListItemButton components",
+              "field_mapping": {
+                "municipality": "address.village || address.town || address.city",
+                "county": "address.county",
+                "state": "address.state",
+                "country": "address.country",
+                "coordinates": "lat and lon from result"
+              }
+            },
+            "user_workflow": {
+              "option_1": "Search for address → click result → fields auto-populate",
+              "option_2": "Manually type into any field",
+              "option_3": "Combination of both (search then manually adjust)",
+              "flexibility": "No validation - supports non-standard addresses and backward compatibility"
+            }
+          },
+          "map_section": {
+            "identical_to_detail_card": "Same MapContainer, MapClickHandler, MapUpdater, Marker setup",
+            "zoom_level": 4,
+            "click_to_set": "Same temporary marker with popup functionality",
+            "coordinate_fields": "Standard MUI TextField (not EditableTextField)",
+            "sync_behavior": "Selecting geocoding result updates map marker and coordinate fields"
+          },
+          "save_behavior": {
+            "no_editablefield_architecture": "Overlay manages its own form state (formData)",
+            "save_button": "Single button posts all 7 fields to API in one PATCH request",
+            "on_close_after_save": "Detail page reloads data via handleLocationOverlaySave",
+            "on_cancel": "All changes discarded, no API calls made"
+          },
+          "permissions": {
+            "visibility": "Button only shown when hasEditAccess() returns true",
+            "enforcement": "Same permissions as EditableField components"
+          }
+        },
+        "status": "completed",
+        "confidence_level": "high"
+      },
+      
+      "phase_5_languoid_map_integration": {
+        "change_id": "geo_006",
+        "description": "Applied interactive map to Languoid detail Geographic Information card",
+        "added_date": "2025-11-12",
+        "file_modified": "frontend/src/components/languoids/LanguoidDetail.tsx",
+        "implementation": {
+          "visibility_condition": "Only appears when level_glottocode === 'language' (existing card condition)",
+          "features_applied": [
+            "Interactive Leaflet map above latitude/longitude EditableTextField components",
+            "Click-to-set coordinates with temporary marker and popup",
+            "Auto-centering when coordinates updated",
+            "Same validation UI as Item (MUI Alert components)",
+            "MapClickHandler and MapUpdater components (copied from CoordinatesMapCard)"
+          ],
+          "code_reuse": {
+            "components": "MapClickHandler, MapUpdater, handleMapClick, handleSetCoordinates",
+            "validation": "validateLatitude, validateLongitude functions and state",
+            "pattern": "Identical implementation to Item detail for consistency"
+          },
+          "coordinate_save": "Uses languoidsAPI.patch() with batch coordinate update (both lat/lng in single request)"
+        },
+        "status": "completed",
+        "confidence_level": "high"
+      },
+      
+      "phase_6_ux_refinements": {
+        "change_id": "geo_007",
+        "description": "Fixed popup auto-open, button click propagation, and ghost marker bugs",
+        "added_date": "2025-11-12",
+        "files_modified": [
+          "frontend/src/components/items/CoordinatesMapCard.tsx",
+          "frontend/src/components/items/LocationEditorOverlay.tsx",
+          "frontend/src/components/languoids/LanguoidDetail.tsx"
+        ],
+        "bugs_fixed": {
+          "popup_not_opening_on_first_click": {
+            "problem": "Temporary marker popup only opened on second and subsequent clicks",
+            "root_cause": "tempMarkerRef.current was null when useEffect ran because Marker hadn't mounted yet",
+            "solution": "useEffect with setTimeout(() => { tempMarkerRef.current.openPopup(); }, 0)",
+            "explanation": "setTimeout(..., 0) defers execution to next event loop tick, ensuring Marker is mounted",
+            "applied_to": ["CoordinatesMapCard", "LocationEditorOverlay", "LanguoidDetail"]
+          },
+          "button_clicks_creating_new_markers": {
+            "problem": "Clicking 'Set Coordinates' or 'Cancel' in popup also created new marker at click location",
+            "root_cause": "Click events propagating from button to map",
+            "solution": "Added e.stopPropagation() to all button onClick handlers",
+            "applied_to": ["CoordinatesMapCard", "LocationEditorOverlay", "LanguoidDetail"]
+          },
+          "ghost_marker_flicker": {
+            "problem": "Brief ghost marker appeared between old and new coordinates when clicking 'Set Coordinates'",
+            "root_cause": "Two sequential API calls - saveField('latitude') caused re-render with [newLat, oldLon], then saveField('longitude') caused re-render with [newLat, newLon]",
+            "solution": "Created saveBothCoordinates() function that updates both lat/lng in single API PATCH request",
+            "implementation": {
+              "item_detail": "saveBothCoordinates() in ItemDetail.tsx, passed as prop to CoordinatesMapCard",
+              "languoid_detail": "saveBothCoordinates() in LanguoidDetail.tsx, called directly from handleSetCoordinates",
+              "benefits": ["Atomic update", "Single re-render", "Faster (one API call)", "No intermediate state"]
+            },
+            "handle_set_coordinates_pattern": {
+              "sequence": [
+                "Store tempMarker.lat and tempMarker.lng in local variables",
+                "setTempMarker(null) immediately (clears marker before any async work)",
+                "await saveBothCoordinates(newLat, newLng) (single API call)",
+                "State updates with final coordinates, no intermediate renders"
+              ]
+            },
+            "applied_to": ["CoordinatesMapCard", "LanguoidDetail"]
+          }
+        },
+        "status": "completed",
+        "confidence_level": "high"
+      }
+    },
+    
+    "technical_patterns_established": {
+      "leaflet_marker_icon_fix": {
+        "pattern_id": "geo_pattern_001",
+        "problem": "Leaflet's default marker icons break with webpack/modern bundlers",
+        "solution": "Explicit icon configuration in dedicated utility file",
+        "implementation": {
+          "file": "frontend/src/utils/leafletConfig.ts",
+          "imports": "icon and iconShadow from 'leaflet/dist/images/'",
+          "configuration": "L.Marker.prototype.options.icon = L.icon({...})",
+          "usage": "import '../../utils/leafletConfig' in components using Leaflet"
+        },
+        "reusability": "Import once per component, applies globally to all markers",
+        "status": "active"
+      },
+      
+      "decimal_field_type_conversion": {
+        "pattern_id": "geo_pattern_002",
+        "problem": "Django DecimalField serializes to string in JSON, but TypeScript expects number",
+        "solution": "Explicit Number() conversion with null checks",
+        "implementation": {
+          "pattern": "const lat = latitude !== null ? Number(latitude) : null;",
+          "null_check": "Check !== null before conversion",
+          "nan_check": "Use !isNaN(lat) to verify successful conversion",
+          "where_applied": "CoordinatesMapCard, LocationEditorOverlay, LanguoidDetail"
+        },
+        "typescript_typing": "Interface defines latitude: number | null; (correct TypeScript type)",
+        "runtime_reality": "API returns string '37.7749' not number 37.7749",
+        "why_this_works": "Number('37.7749') === 37.7749, Number(null) === 0, Number(undefined) === NaN",
+        "status": "active"
+      },
+      
+      "map_auto_centering_with_flyto": {
+        "pattern_id": "geo_pattern_003",
+        "problem": "MapContainer center prop doesn't update after initial render",
+        "solution": "MapUpdater component using useMap() and map.flyTo()",
+        "implementation": {
+          "component": "MapUpdater: React.FC<{ center: [number, number], zoom: number }>",
+          "hook": "const map = useMap() (react-leaflet hook)",
+          "effect": "useEffect(() => { map.flyTo(center, zoom, { duration: 1.5 }); }, [center, zoom, map])",
+          "placement": "Inside MapContainer as child component"
+        },
+        "benefits": ["Smooth animated transition", "Works after initial render", "Responds to prop changes"],
+        "reusability": "Exact same component copied to CoordinatesMapCard, LocationEditorOverlay, LanguoidDetail",
+        "status": "active"
+      },
+      
+      "map_click_handler_pattern": {
+        "pattern_id": "geo_pattern_004",
+        "problem": "Need to capture click events on Leaflet map",
+        "solution": "MapClickHandler component using useMapEvents() hook",
+        "implementation": {
+          "component": "MapClickHandler: React.FC<{ onMapClick: (lat: number, lng: number) => void }>",
+          "hook": "useMapEvents({ click: (e) => onMapClick(e.latlng.lat, e.latlng.lng) })",
+          "returns": "null (doesn't render anything, just event handling)",
+          "placement": "Inside MapContainer as child component"
+        },
+        "reusability": "Exact same component in all three map implementations",
+        "status": "active"
+      },
+      
+      "coordinate_validation_pattern": {
+        "pattern_id": "geo_pattern_005",
+        "problem": "Need client-side validation for DecimalField constraints",
+        "solution": "Validation state + validation functions + MUI Alert visual feedback",
+        "implementation": {
+          "state_structure": "{ isValidating: boolean, error: string | null, isValid: boolean }",
+          "validation_function": "validateLatitude(value: string) - checks range, format, precision",
+          "checks_performed": [
+            "Empty/null allowed (optional field)",
+            "Valid number (isNaN check)",
+            "Range (-90 to 90 for lat, -180 to 180 for lon)",
+            "Decimal precision (max 16 decimal places)",
+            "Total digits (max 22 digits)"
+          ],
+          "visual_feedback": {
+            "error": "<Alert severity='error'>{validation.error}</Alert>",
+            "success": "<Alert severity='success'>Latitude is valid</Alert>",
+            "placement": "Below EditableTextField, conditional on editingFields.has(fieldName)"
+          },
+          "integration": {
+            "editable_text_field": "onValueChange prop triggers validation",
+            "custom_save_field": "Checks validation.isValid before calling saveField",
+            "custom_cancel_editing": "Resets validation state"
+          }
+        },
+        "visual_style_source": "Matches glottocode validation on Languoid detail page",
+        "reusability": "Pattern copied to both Item and Languoid coordinate validation",
+        "status": "active"
+      },
+      
+      "batch_coordinate_update_pattern": {
+        "pattern_id": "geo_pattern_006",
+        "problem": "Sequential saves cause ghost markers due to intermediate state renders",
+        "solution": "Batch save function that updates both coordinates in single API call",
+        "implementation": {
+          "function_signature": "saveBothCoordinates(latitude: number, longitude: number): Promise<void>",
+          "api_call": "itemsAPI.patch(id, { latitude, longitude }) or languoidsAPI.patch(id, { latitude, longitude })",
+          "state_management": [
+            "setSavingFields adds both 'latitude' and 'longitude'",
+            "setItem/setLanguoid updates with returned data (single update)",
+            "cancelEditing called for both fields",
+            "setSavingFields removes both in finally block"
+          ],
+          "usage_in_handle_set_coordinates": [
+            "const newLat = tempMarker.lat; const newLng = tempMarker.lng;",
+            "setTempMarker(null); (clear immediately, before async work)",
+            "await saveBothCoordinates(newLat, newLng); (single API call)"
+          ]
+        },
+        "benefits": [
+          "Atomic update - coordinates always in sync",
+          "Single API request - faster, more efficient",
+          "Single re-render - no intermediate state, no ghost markers",
+          "Better error handling - either both save or neither saves"
+        ],
+        "when_to_use": "Whenever updating related fields that should stay synchronized",
+        "status": "active"
+      },
+      
+      "ref_with_timeout_for_popup": {
+        "pattern_id": "geo_pattern_007",
+        "problem": "React ref is null when useEffect runs because component hasn't mounted yet",
+        "solution": "setTimeout(..., 0) to defer execution to next event loop tick",
+        "implementation": {
+          "ref_creation": "const tempMarkerRef = useRef<any>(null);",
+          "marker_assignment": "<Marker ref={tempMarkerRef} ... />",
+          "effect": [
+            "useEffect(() => {",
+            "  if (tempMarker && tempMarkerRef.current) {",
+            "    setTimeout(() => {",
+            "      if (tempMarkerRef.current) {",
+            "        tempMarkerRef.current.openPopup();",
+            "      }",
+            "    }, 0);",
+            "  }",
+            "}, [tempMarker]);"
+          ]
+        },
+        "why_it_works": "setTimeout defers callback until current call stack clears, by which time React has mounted component and assigned ref",
+        "double_null_check": "Check ref both before and inside setTimeout to prevent race conditions",
+        "status": "active"
+      },
+      
+      "event_stop_propagation_for_nested_clicks": {
+        "pattern_id": "geo_pattern_008",
+        "problem": "Button clicks inside map popup also trigger map click handler",
+        "solution": "e.stopPropagation() in button onClick handlers",
+        "implementation": {
+          "pattern": "onClick={(e) => { e.stopPropagation(); /* actual handler logic */ }}",
+          "where_applied": ["Set Coordinates button", "Cancel button in popup"]
+        },
+        "prevents": "Click event from bubbling up to MapContainer's click handler",
+        "status": "active"
+      }
+    },
+    
+    "files_created": [
+      "frontend/src/components/items/CoordinatesMapCard.tsx",
+      "frontend/src/components/items/LocationEditorOverlay.tsx",
+      "frontend/src/utils/leafletConfig.ts"
+    ],
+    
+    "files_modified": [
+      "app/internal_api/serializers.py",
+      "frontend/src/services/api.ts",
+      "frontend/src/components/items/ItemDetail.tsx",
+      "frontend/src/components/languoids/LanguoidDetail.tsx"
+    ],
+    
+    "dependencies_added": {
+      "leaflet": "^1.9.x (open-source JavaScript library for interactive maps)",
+      "react-leaflet": "^4.x (React components for Leaflet)",
+      "leaflet_css": "import 'leaflet/dist/leaflet.css' required in components",
+      "nominatim": "OpenStreetMap geocoding API (free, no API key required)",
+      "lodash": "debounce function for geocoding search optimization (already in project)"
+    },
+    
+    "api_endpoints_used": {
+      "item_coordinates": {
+        "method": "PATCH",
+        "endpoint": "/api/internal/items/{id}/",
+        "payload": "{ latitude: number, longitude: number }",
+        "response": "Updated Item object"
+      },
+      "languoid_coordinates": {
+        "method": "PATCH",
+        "endpoint": "/api/internal/languoids/{id}/",
+        "payload": "{ latitude: number, longitude: number }",
+        "response": "Updated Languoid object"
+      },
+      "item_location": {
+        "method": "PATCH",
+        "endpoint": "/api/internal/items/{id}/",
+        "payload": "{ municipality_or_township, county_or_parish, state_or_province, country_or_territory, global_region, latitude, longitude }",
+        "response": "Updated Item object"
+      },
+      "nominatim_geocoding": {
+        "method": "GET",
+        "endpoint": "https://nominatim.openstreetmap.org/search",
+        "params": "format=json, q={query}, addressdetails=1, limit=5",
+        "headers": "User-Agent: ArchiveManagementSystem/1.0 (required by Nominatim usage policy)",
+        "response": "Array of geocoding results with lat, lon, display_name, address details"
+      }
+    },
+    
+    "user_workflows_enabled": {
+      "view_coordinates_on_map": {
+        "description": "Users can see item/languoid location on interactive map",
+        "trigger": "Navigate to Item or Languoid detail page with coordinates",
+        "result": "Map displays blue marker at coordinates, zoomed to level 4"
+      },
+      "edit_coordinates_manually": {
+        "description": "Users can type latitude/longitude values directly",
+        "trigger": "Click edit icon on latitude or longitude field",
+        "result": "EditableTextField allows text entry with real-time validation feedback"
+      },
+      "set_coordinates_by_clicking_map": {
+        "description": "Users can click map to set coordinates visually",
+        "trigger": "Click anywhere on map in Coordinates card or Geographic Information card",
+        "result": "Red temporary marker appears with popup showing coordinates and 'Set Coordinates' button"
+      },
+      "look_up_address_and_geocode": {
+        "description": "Users can search for known addresses to populate location fields",
+        "trigger": "Click 'Look up address' button on Location card",
+        "result": "Overlay opens with address search, map updates when result selected"
+      },
+      "bulk_location_editing": {
+        "description": "Users can edit multiple location fields and coordinates together",
+        "trigger": "Open LocationEditorOverlay via 'Look up address' button",
+        "result": "All location fields + coordinates editable in single interface with one save"
+      }
+    },
+    
+    "accessibility_compliance": {
+      "keyboard_navigation": {
+        "map_click": "Not keyboard-accessible (limitation of Leaflet), but text fields provide full keyboard alternative",
+        "buttons": "All buttons fully keyboard accessible with Enter/Space",
+        "text_fields": "All text fields fully keyboard accessible",
+        "popup_close": "Escape key closes popups (Leaflet default)"
+      },
+      "screen_reader_support": {
+        "map": "aria-label on MapContainer describes map purpose",
+        "markers": "Popups have proper heading structure",
+        "validation": "MUI Alert components properly announced by screen readers",
+        "buttons": "All buttons have descriptive aria-labels"
+      },
+      "visual_design": {
+        "color_contrast": "All text meets WCAG 2.1 AA contrast requirements",
+        "touch_targets": "All buttons minimum 44x44px (Material-UI default)",
+        "focus_indicators": "Visible focus states on all interactive elements"
+      },
+      "alternative_workflows": {
+        "map_not_required": "All coordinate editing achievable via text fields alone",
+        "geocoding_optional": "Manual text entry works for all location fields",
+        "validation_feedback": "Visual and screen-reader-accessible"
+      }
+    },
+    
+    "testing_considerations": {
+      "visual_testing": [
+        "Map displays correctly with OpenStreetMap tiles",
+        "Markers appear at correct positions",
+        "Popups open and close properly",
+        "Validation alerts display correctly",
+        "Overlay layout responsive on mobile"
+      ],
+      "functional_testing": [
+        "Click map creates temporary marker",
+        "Set Coordinates button updates fields correctly",
+        "Cancel button removes temporary marker",
+        "EditableTextField save/cancel works",
+        "Geocoding search returns results",
+        "Selecting result populates fields",
+        "Validation prevents invalid saves",
+        "Batch save updates both coordinates atomically"
+      ],
+      "edge_cases": [
+        "Coordinates = null (map shows default US center)",
+        "Invalid coordinates (validation catches)",
+        "Rapid clicking (debounce prevents issues)",
+        "Geocoding API failure (error message shown)",
+        "Network timeout (loading state handled)",
+        "Concurrent edits (optimistic locking at batch editor level)"
+      ]
+    },
+    
+    "lessons_learned": {
+      "decimal_field_serialization": {
+        "lesson": "Django DecimalField serializes to string in JSON, not number",
+        "impact": "Required explicit Number() conversion in all components using coordinates",
+        "solution": "Pattern: const lat = latitude !== null ? Number(latitude) : null;",
+        "future_prevention": "Document in serializer comments, add to coding patterns"
+      },
+      "leaflet_icon_paths": {
+        "lesson": "Leaflet default marker icons break with webpack due to relative path issues",
+        "impact": "Markers would not display without explicit icon configuration",
+        "solution": "Created leafletConfig.ts to set icon paths explicitly",
+        "future_prevention": "Always import leafletConfig utility when using Leaflet"
+      },
+      "react_ref_timing": {
+        "lesson": "useEffect runs before child component ref assignment",
+        "impact": "tempMarkerRef.current was null on first click",
+        "solution": "setTimeout(..., 0) defers to next event loop tick after ref assignment",
+        "future_prevention": "Pattern documented, use whenever needing ref access in effect"
+      },
+      "sequential_saves_cause_flicker": {
+        "lesson": "Sequential API calls for related fields cause intermediate renders",
+        "impact": "Ghost marker appeared between old and new coordinates",
+        "solution": "Batch update function that saves both fields in single API call",
+        "future_prevention": "Always batch updates for fields that should stay synchronized"
+      },
+      "validation_must_match_backend": {
+        "lesson": "Client validation rules must exactly match backend DecimalField constraints",
+        "impact": "User could enter valid-looking values that backend would reject",
+        "solution": "Validation checks max_digits=22, decimal_places=16, and range",
+        "future_prevention": "Always reference backend model/serializer when implementing validation"
+      }
+    },
+    
+    "future_enhancement_opportunities": {
+      "map_improvements": [
+        "Add drawing tools for regions/areas (Leaflet.draw)",
+        "Display multiple items on single map (clustering)",
+        "Show related items/languoids nearby",
+        "Add satellite imagery layer option"
+      ],
+      "geocoding_enhancements": [
+        "Save frequently used locations",
+        "Autocomplete for location fields",
+        "Reverse geocoding (click map to get address)",
+        "Support for historical place names"
+      ],
+      "coordinate_features": [
+        "Coordinate format converter (DMS, UTM, etc.)",
+        "Uncertainty radius (coordinate precision indicator)",
+        "Multiple coordinate systems support",
+        "Import coordinates from files"
+      ],
+      "validation_improvements": [
+        "Backend validation error messages displayed in UI",
+        "Coordinate range based on selected country",
+        "Plausibility checks (ocean vs land)",
+        "Duplicate coordinate detection"
+      ]
+    },
+    
+    "related_context_files": [
+      "coding_patterns.json (component architecture, accessibility patterns)",
+      "stage_0_react_migration.json (React architecture)",
+      "ui-enhancements-session.json (UI polish and UX patterns)",
+      "external_dependencies.json (leaflet, react-leaflet)"
+    ],
+    
+    "confidence_level": "high",
+    "status": "completed",
+    "ready_for_deployment": true
+  }
+}
+

@@ -154,6 +154,13 @@
         "update_frequency": "When new UI enhancement patterns established",
         "cross_references": ["coding_patterns.json", "login-ux-improvements.json", "stage_0_react_migration.json"],
         "added_date": "2025-11-11"
+      },
+      "geographic-features-session.json": {
+        "purpose": "Interactive map implementation with Leaflet - coordinate editing, geocoding, validation, and click-to-set functionality",
+        "when_to_reference": "When working with maps, coordinates, geographic features, or implementing Leaflet integrations",
+        "update_frequency": "When new geographic features or map patterns established",
+        "cross_references": ["coding_patterns.json", "stage_0_react_migration.json", "external_dependencies.json"],
+        "added_date": "2025-11-12"
       }
     },
     

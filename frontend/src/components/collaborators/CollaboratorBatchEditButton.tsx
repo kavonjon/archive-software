@@ -14,7 +14,7 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material';
 
-export type BatchEditMode = 'filtered' | 'selected';
+export type BatchEditMode = 'filtered' | 'selected' | 'empty';
 
 interface CollaboratorBatchEditButtonProps {
   mode: BatchEditMode;
@@ -44,9 +44,18 @@ const CollaboratorBatchEditButton: React.FC<CollaboratorBatchEditButtonProps> = 
 
   // Get button label based on mode and cache status
   const getButtonLabel = (currentMode: BatchEditMode): string => {
-    const baseLabel = currentMode === 'filtered' 
-      ? 'Batch Edit Filtered Results'
-      : 'Batch Edit Selected';
+    let baseLabel: string;
+    switch (currentMode) {
+      case 'filtered':
+        baseLabel = 'Batch Edit Filtered Results';
+        break;
+      case 'selected':
+        baseLabel = 'Batch Edit Selected';
+        break;
+      case 'empty':
+        baseLabel = 'Batch Edit (Empty)';
+        break;
+    }
     
     if (cacheLoading && cacheProgress < 100) {
       return `${baseLabel} (loading...)`;
@@ -166,6 +175,21 @@ const CollaboratorBatchEditButton: React.FC<CollaboratorBatchEditButtonProps> = 
             secondary={
               <Typography variant="caption" color="text.secondary">
                 {selectedCount} collaborator{selectedCount !== 1 ? 's' : ''} selected
+              </Typography>
+            }
+          />
+        </MenuItem>
+
+        {/* Option 3: Batch Edit (Empty) */}
+        <MenuItem
+          onClick={() => handleMenuItemClick('empty')}
+          selected={mode === 'empty'}
+        >
+          <ListItemText
+            primary="Batch Edit (Empty)"
+            secondary={
+              <Typography variant="caption" color="text.secondary">
+                Start with empty grid
               </Typography>
             }
           />

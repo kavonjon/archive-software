@@ -95,7 +95,7 @@ export const validateFile = async (
   
   // Get example columns based on model
   const exampleColumns = modelName === 'Collaborator'
-    ? 'Collaborator ID, First Name(s), Last Name(s), Native/First Languages, etc.'
+    ? 'Collaborator ID, First and Middle Name(s), Last Name(s), Native/First Languages, etc.'
     : 'Name, Glottocode, Level (Glottolog), Parent Languoid Glottocode, etc.';
   
   // Check file type

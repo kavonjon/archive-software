@@ -1,8 +1,8 @@
 {
   "stage_1_batch_editing": {
-    "version": "7.0",
-    "last_updated": "2025-11-11",
-    "conversation_reference": "Detailed Stage 1 planning and implementation architecture for smart spreadsheet batch editing features. Version 7.0 adds list page improvements (filter persistence, selection indicators, improved filtering) and languoid list display enhancements (Items column with cache versioning).",
+    "version": "7.1",
+    "last_updated": "2025-11-13",
+    "conversation_reference": "Detailed Stage 1 planning and implementation architecture for smart spreadsheet batch editing features. Version 7.1 adds universal batch editor patterns (session persistence, order preservation, empty mode, warning dialogs, batch modes, cell pagination) discovered during Collaborator implementation maturation.",
     
     "stage_overview": {
       "decision_id": "stage1_001",
@@ -19,7 +19,7 @@
         "item_batch_editor": "not_started",
         "document_batch_editor": "not_started"
       },
-      "critical_reference": "See collaborator_batch_editor_lessons.json for comprehensive implementation protocol and lessons learned. This file contains 33-item conformance checklist PLUS 12 additional universal patterns established during Phase 6 harmonization that MUST be followed for all future batch editor implementations."
+      "critical_reference": "See collaborator_batch_editor_lessons.json for comprehensive implementation protocol and lessons learned. This file contains 33-item conformance checklist PLUS 12 additional universal patterns established during Phase 6 harmonization. Also see batch-editor-universal-patterns.json for 6 MANDATORY architectural patterns (session persistence, order preservation, empty mode, warning dialogs, batch modes, cell pagination) that MUST be implemented in all batch editors."
     },
     
     "technical_architecture": {
@@ -146,6 +146,51 @@
         },
         "confidence_level": "high",
         "status": "active"
+      },
+      
+      "universal_batch_editor_patterns": {
+        "decision_id": "stage1_058",
+        "content": "Six universal patterns that MUST be implemented in ALL batch editors for data integrity and UX consistency",
+        "added_date": "2025-11-13",
+        "conversation_reference": "Session persistence, order preservation, empty mode, and other patterns discovered during Collaborator implementation and refinement",
+        
+        "critical_importance": "These patterns are MANDATORY architectural requirements, not optional enhancements. Failure to implement any pattern will result in data loss, UX inconsistencies, or false change detection.",
+        
+        "pattern_summary": {
+          "session_persistence": "useRef<Set<number>> to track row IDs across refreshes and saves (pattern_001 in batch-editor-universal-patterns.json)",
+          "order_preserving_refresh": "Maintain row order within session by iterating existing rows and updating from map (pattern_002)",
+          "empty_mode_workflow": "Support starting with blank grid via 'empty' mode in batch edit button (pattern_003)",
+          "warning_dialog_patterns": "Show warnings ONLY for filtered mode without active filters, never for selected/empty (pattern_004)",
+          "batch_edit_modes": "Three modes (selected/filtered/empty) with standard config format (pattern_005)",
+          "cell_editor_pagination": "Standard page_size=200 for relationship and multiselect cell editors (pattern_006)"
+        },
+        
+        "detailed_documentation": "See context/development/batch-editor-universal-patterns.json for complete implementation guides, code templates, and anti-patterns for each pattern",
+        
+        "implementation_checklist_reference": "See collaborator_batch_editor_lessons.json for 25-item checklist covering all universal patterns plus model-specific requirements",
+        
+        "when_to_reference": [
+          "Before starting batch editor implementation for new model",
+          "When debugging session persistence or refresh issues",
+          "When users report rows disappearing or moving after operations",
+          "When implementing empty mode for first time",
+          "When setting up warning dialogs for batch edit buttons"
+        ],
+        
+        "files_implementing_patterns": [
+          "frontend/src/components/languoids/LanguoidBatchEditor.tsx (reference implementation)",
+          "frontend/src/components/collaborators/CollaboratorBatchEditor.tsx (reference implementation)",
+          "frontend/src/components/batch/CellEditor.tsx (pagination standards)",
+          "frontend/src/components/{models}/{Model}BatchEditButton.tsx (three-mode pattern)",
+          "frontend/src/services/{model}ImportTransformer.ts (import/export patterns)"
+        ],
+        
+        "confidence_level": "high",
+        "status": "active",
+        "cross_references": [
+          "context/development/batch-editor-universal-patterns.json (complete pattern documentation)",
+          "context/development/collaborator_batch_editor_lessons.json (conformance checklist)"
+        ]
       }
     },
     

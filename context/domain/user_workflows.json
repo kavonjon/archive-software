@@ -1,8 +1,8 @@
 {
   "user_workflows": {
-    "version": "1.1",
-    "last_updated": "2025-01-12",
-    "conversation_reference": "Initial context memory system setup discussion + group-based permission system update",
+    "version": "1.2",
+    "last_updated": "2025-11-13",
+    "conversation_reference": "Initial context memory system setup discussion + group-based permission system update + collaborator list page workflows (filters, batch edit modes)",
     "note": "Initial population - needs expansion with actual user behavior analysis",
     
     "user_types": {
@@ -100,6 +100,45 @@
         "added_date": "2025-01-04",
         "export_formats": ["Excel workbooks with styled headers"],
         "user_benefit": "Researchers and archivists can export filtered data for external analysis",
+        "confidence_level": "high",
+        "status": "active"
+      },
+      
+      "collaborator_list_page_workflows": {
+        "decision_id": "workflow_006",
+        "content": "Collaborator list page filter UI and batch edit workflows",
+        "added_date": "2025-11-13",
+        "conversation_reference": "Collaborator list page enhancements - filters, empty buttons, batch edit modes",
+        
+        "empty_filter_buttons": {
+          "purpose": "Quick access to find records with unspecified/empty fields",
+          "button_order": [
+            "Other Names: Empty",
+            "Anonymous: Not Specified",
+            "First and Middle Name(s): Empty",
+            "Tribal Affiliations: Empty",
+            "Native Languages: Empty",
+            "Other Languages: Empty"
+          ],
+          "pattern": "Each button toggles corresponding filter (e.g., anonymous_isnull=true)",
+          "ux_convention": "Order reflects logical data entry workflow and field importance"
+        },
+        
+        "language_filters": {
+          "native_languages_contains": "Free text search in native language names (case-insensitive)",
+          "other_languages_contains": "Free text search in other language names (case-insensitive)",
+          "implementation_note": "Requires .distinct() on queryset to prevent duplicate results from M2M joins",
+          "label_text": "Uses 'First and Middle Name Contains' (not 'First Name Contains')"
+        },
+        
+        "batch_edit_modes": {
+          "selected": "User checked specific rows via checkboxes - no warning dialog",
+          "filtered": "User applied filters - warning dialog ONLY if no advanced filters active",
+          "empty": "Start with blank grid - no warning dialog",
+          "warning_logic": "Warnings appear for filtered mode without advanced filters (editing 'all' rows)",
+          "config_format": "{ mode: 'selected' | 'filtered' | 'empty', ids: number[], timestamp: number }"
+        },
+        
         "confidence_level": "high",
         "status": "active"
       }

@@ -61,13 +61,13 @@ export const COLLABORATOR_IMPORT_COLUMN_MAP: Record<string, ImportColumnConfig> 
   // NAME FIELDS
   // ============================================================================
   
-  'first name(s)': {
+  'first and middle name(s)': {
     batchEditorField: 'first_names',
     cellType: 'text',
     required: false,
   },
   
-  'first names': {
+  'first and middle names': {
     batchEditorField: 'first_names',
     cellType: 'text',
     required: false,

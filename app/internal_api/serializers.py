@@ -3,7 +3,7 @@ Internal API serializers for React frontend
 Simplified, flat structure optimized for frontend consumption
 """
 from rest_framework import serializers
-from metadata.models import Item, Collection, Collaborator, Languoid, ItemTitle
+from metadata.models import Item, Collection, Collaborator, Languoid, ItemTitle, CollaboratorRole
 
 
 class InternalItemTitleSerializer(serializers.ModelSerializer):
@@ -81,9 +81,17 @@ class InternalItemSerializer(serializers.ModelSerializer):
     type_of_accession_display = serializers.CharField(source='get_type_of_accession_display', read_only=True)
     original_format_medium_display = serializers.CharField(source='get_original_format_medium_display', read_only=True)
     
+    # MultiSelectField - writable as list, stored as comma-separated string
+    genre = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+    language_description_type = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+    
+    # Browse categories - read-only, calculated field (automatically set by pre_save signal)
+    browse_categories = serializers.SerializerMethodField()
+    
     # MultiSelectField display values
     genre_display = serializers.SerializerMethodField()
     language_description_type_display = serializers.SerializerMethodField()
+    browse_categories_display = serializers.SerializerMethodField()
     
     # Boolean field display
     permission_to_publish_online_display = serializers.SerializerMethodField()
@@ -124,6 +132,7 @@ class InternalItemSerializer(serializers.ModelSerializer):
             # Content & Description  
             'description', 'resource_type', 'resource_type_display',
             'genre', 'genre_display', 'language_description_type', 'language_description_type_display',
+            'browse_categories', 'browse_categories_display',
             'language_names', 'collaborator_names', 'creation_date',
             'associated_ephemera', 'access_level_restrictions', 'copyrighted_notes',
             'permission_to_publish_online', 'permission_to_publish_online_display',
@@ -167,7 +176,7 @@ class InternalItemSerializer(serializers.ModelSerializer):
             # Keep existing fields for compatibility
             'language', 'collaborator'
         ]
-        read_only_fields = ['id', 'uuid', 'slug', 'added', 'updated']
+        read_only_fields = ['id', 'uuid', 'slug', 'added', 'updated', 'browse_categories', 'browse_categories_display']
     
     def get_primary_title(self, obj):
         """Get the primary/default title"""
@@ -217,6 +226,38 @@ class InternalItemSerializer(serializers.ModelSerializer):
         
         # Return display names for selected values
         return [lang_desc_dict.get(value, value) for value in obj.language_description_type]
+    
+    def get_browse_categories(self, obj):
+        """Get browse categories as a list (read-only calculated field)"""
+        raw_value = obj.browse_categories
+        
+        if not raw_value:
+            return []
+        
+        # Convert to list if it's a string (MultiSelectField can return either)
+        if isinstance(raw_value, str):
+            return [v.strip() for v in raw_value.split(',') if v.strip()]
+        return list(raw_value) if raw_value else []
+    
+    def get_browse_categories_display(self, obj):
+        """Get human-readable browse category labels for MultiSelectField"""
+        if not obj.browse_categories:
+            return []
+        
+        # Import choices here to avoid circular imports
+        from metadata.models import BROWSE_CATEGORY_CHOICES
+        
+        # Create a lookup dict for efficiency
+        browse_cat_dict = dict(BROWSE_CATEGORY_CHOICES)
+        
+        # Convert to list if it's a string (MultiSelectField can return either)
+        if isinstance(obj.browse_categories, str):
+            categories_list = [v.strip() for v in obj.browse_categories.split(',') if v.strip()]
+        else:
+            categories_list = list(obj.browse_categories) if obj.browse_categories else []
+        
+        # Return display names for selected values
+        return [browse_cat_dict.get(value, value) for value in categories_list]
     
     def get_permission_to_publish_online_display(self, obj):
         """Get human-readable boolean display"""
@@ -287,6 +328,21 @@ class InternalItemSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Longitude must be between -180 and 180")
         return value
     
+    def validate_genre(self, value):
+        """Validate genre field - ensure it's a list and convert to comma-separated string for MultiSelectField"""
+        if value is None:
+            return []
+        
+        # If it's already a list, return it as-is (DRF will handle conversion)
+        if isinstance(value, list):
+            return value
+        
+        # If it's a string (shouldn't happen, but handle it), split it
+        if isinstance(value, str):
+            return [v.strip() for v in value.split(',') if v.strip()]
+        
+        return value
+    
     def update(self, instance, validated_data):
         """
         Custom update to handle M2M language field.
@@ -313,6 +369,7 @@ class InternalItemSerializer(serializers.ModelSerializer):
             validated_data['modified_by'] = modified_by_value
         
         # Update the instance with non-M2M fields
+        # Note: browse_categories is calculated in pre_save signal and will be saved automatically
         instance = super().update(instance, validated_data)
         
         # Update language M2M relationship
@@ -773,3 +830,81 @@ class InternalLanguoidSerializer(serializers.ModelSerializer):
         if request and hasattr(request, 'user'):
             validated_data['modified_by'] = str(request.user)
         return super().update(instance, validated_data)
+
+
+class InternalCollaboratorRoleSerializer(serializers.ModelSerializer):
+    """
+    Serializer for CollaboratorRole - handles Item-Collaborator relationships with roles.
+    
+    Used for reading existing roles and creating/updating roles in the editable collaborator field.
+    """
+    # Include full collaborator data for display
+    collaborator_data = serializers.SerializerMethodField()
+    
+    # MultiSelectField for roles - writable as list
+    role = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+    
+    # Display values for roles
+    role_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CollaboratorRole
+        fields = [
+            'id',
+            'collaborator',  # ID for writing
+            'collaborator_data',  # Full object for display
+            'role',  # List of role values
+            'role_display',  # Human-readable role labels
+            'citation_author',
+            'modified_by',
+            'updated'
+        ]
+        read_only_fields = ['id', 'collaborator_data', 'role_display', 'modified_by', 'updated']
+    
+    def get_collaborator_data(self, obj):
+        """Return full collaborator object for display"""
+        from metadata.models import Collaborator
+        collaborator = obj.collaborator
+        
+        # Use the same display logic as InternalCollaboratorSerializer
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            display_name = f"Anonymous {collaborator.collaborator_id}"
+        else:
+            user = request.user
+            has_privileged_access = (
+                user.is_staff or 
+                user.groups.filter(name__in=['Archivist', 'Museum Staff']).exists()
+            )
+            
+            if has_privileged_access:
+                if collaborator.first_names and collaborator.last_names:
+                    display_name = f"{collaborator.first_names} {collaborator.last_names}"
+                elif collaborator.full_name:
+                    display_name = collaborator.full_name
+                elif collaborator.first_names:
+                    display_name = collaborator.first_names
+                elif collaborator.last_names:
+                    display_name = collaborator.last_names
+                else:
+                    display_name = f"Collaborator {collaborator.collaborator_id}"
+            else:
+                display_name = f"Anonymous {collaborator.collaborator_id}"
+        
+        return {
+            'id': collaborator.id,
+            'collaborator_id': collaborator.collaborator_id,
+            'display_name': display_name,
+            'full_name': collaborator.full_name,
+            'slug': collaborator.slug,
+        }
+    
+    def get_role_display(self, obj):
+        """Get human-readable role labels"""
+        if not obj.role:
+            return []
+        
+        from metadata.models import ROLE_CHOICES
+        role_dict = dict(ROLE_CHOICES)
+        
+        return [role_dict.get(role_value, role_value) for role_value in obj.role]

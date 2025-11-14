@@ -901,7 +901,8 @@
       "decision_id": "pattern_030",
       "content": "Use pre_save signals to compute derived fields for consistency, auditability, and guaranteed execution",
       "added_date": "2025-11-08",
-      "conversation_reference": "Collaborator model harmonization and full_name computation",
+      "updated_date": "2025-11-14",
+      "conversation_reference": "Collaborator model harmonization and full_name computation, browse categories and collection auto-assignment",
       
       "principle": "All derived fields should be computed in pre_save signals rather than overriding save() or using property decorators",
       
@@ -918,12 +919,100 @@
         "slug generated from name or title fields",
         "Date standardization (MM/DD/YYYY → YYYY/MM/DD)",
         "Min/max date calculation from date ranges",
-        "Hierarchy-derived fields (family_languoid, level_nal) in Languoid model"
+        "Hierarchy-derived fields (family_languoid, level_nal) in Languoid model",
+        "browse_categories computed from genre, resource_type, language_description_type, public_event (Item)",
+        "collection auto-assigned from catalog_number prefix pattern (Item)"
       ],
       
       "confidence_level": "high",
       "status": "active",
       "cross_references": ["collaborator-harmonization.json", "data_model_understanding.json"]
+    },
+    
+    "multiselectfield_value_handling": {
+      "decision_id": "pattern_038",
+      "content": "Pattern for consistently handling MultiSelectField values which can be lists or comma-separated strings",
+      "added_date": "2025-11-14",
+      "conversation_reference": "Browse categories implementation - discovered MultiSelectField storage format inconsistency",
+      
+      "problem": "MultiSelectField values can be returned as either list/tuple or comma-separated string depending on context (ORM access vs direct DB access, signals vs migrations)",
+      
+      "solution": {
+        "helper_functions": {
+          "field_includes": {
+            "purpose": "Safely check if a value exists in a MultiSelectField",
+            "signature": "def field_includes(field_value, check_value):",
+            "handles": ["list/tuple (Python ORM)", "comma-separated string (DB storage format)", "None/empty values"],
+            "implementation": "Converts string to list by splitting on comma, then checks membership"
+          },
+          "to_list": {
+            "purpose": "Convert MultiSelectField value to consistent list format",
+            "signature": "def to_list(value):",
+            "handles": ["list/tuple → list", "comma-separated string → list", "None/empty → []", "single value → [value]"],
+            "implementation": "Splits comma-separated strings, preserves lists, handles edge cases"
+          }
+        },
+        "usage_locations": [
+          "pre_save signals (for field value checks)",
+          "data migrations (for processing existing data)",
+          "Any code that processes MultiSelectField values"
+        ]
+      },
+      
+      "critical_requirement": "Migrations MUST use same helper functions as signals to ensure identical results",
+      
+      "example_usage": {
+        "signal": "lang_desc_type = to_list(instance.language_description_type); if field_includes(lang_desc_type, 'grammar'): ...",
+        "migration": "lang_desc_type = to_list(item.language_description_type); if field_includes(lang_desc_type, 'grammar'): ..."
+      },
+      
+      "files": [
+        "app/metadata/signals.py - field_includes() and to_list() helper functions",
+        "app/metadata/migrations/0104_add_browse_categories_field.py - same helpers for consistency"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["data_model_understanding.json", "signal_driven_computed_fields"]
+    },
+    
+    "computed_field_sorting_by_choice_order": {
+      "decision_id": "pattern_039",
+      "content": "Pattern for sorting computed MultiSelectField values by their order in CHOICES tuple rather than alphabetically",
+      "added_date": "2025-11-14",
+      "conversation_reference": "Browse categories implementation - preserving group organization in BROWSE_CATEGORY_CHOICES",
+      
+      "principle": "When computed fields represent choice values, sort by their defined order in CHOICES tuple to preserve logical grouping",
+      
+      "implementation": {
+        "step_1": "Create lookup dictionary: category_order = {choice[0]: idx for idx, choice in enumerate(CHOICES_TUPLE)}",
+        "step_2": "Sort using key function: sorted(values, key=lambda x: category_order.get(x, 9999))",
+        "fallback": "Unknown values get index 9999 (sorted to end)"
+      },
+      
+      "benefits": [
+        "Preserves logical grouping (e.g., Educational materials, Language description, Music, Texts, Videos)",
+        "Maintains intentional ordering within groups",
+        "Consistent display order in UI and API",
+        "Respects domain organization over arbitrary alphabetical sorting"
+      ],
+      
+      "use_case": "browse_categories field - sorted by BROWSE_CATEGORY_CHOICES order to maintain group structure",
+      
+      "example": {
+        "choices_structure": "BROWSE_CATEGORY_CHOICES = (('for-administrators', ...), ('for-families', ...), ..., ('dictionaries', ...), ..., ('powwow', ...), ...)",
+        "sorting_result": "Categories appear in same order as defined in choices, not alphabetically"
+      },
+      
+      "files": [
+        "app/metadata/models.py - BROWSE_CATEGORY_CHOICES definition",
+        "app/metadata/signals.py - sorting logic in update_item_date_ranges signal",
+        "app/metadata/migrations/0104_add_browse_categories_field.py - same sorting for consistency"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["data_model_understanding.json", "signal_driven_computed_fields"]
     },
     
     "m2m_consistency_signals": {

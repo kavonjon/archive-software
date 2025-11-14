@@ -112,6 +112,168 @@ def update_item_date_ranges(sender, instance, **kwargs):
         setattr(instance, min_field, min_date)
         setattr(instance, max_field, max_date)
 
+    # Sort MultiSelectField values alphabetically for consistent display and storage
+    # MultiSelectField stores values as comma-separated strings internally
+    multiselectfields_to_sort = ['genre', 'language_description_type']
+    
+    for field_name in multiselectfields_to_sort:
+        current_value = getattr(instance, field_name)
+        
+        # MultiSelectField values are stored as lists in Python but comma-separated in DB
+        if current_value and isinstance(current_value, (list, tuple)):
+            # Sort the values alphabetically and set them back
+            sorted_values = sorted(current_value)
+            
+            # Only update if the order changed (avoid unnecessary saves)
+            if list(current_value) != sorted_values:
+                setattr(instance, field_name, sorted_values)
+    
+    # Calculate browse_categories based on other field values
+    # This is a fully automated field that categorizes items for browsing
+    categories = []
+    
+    # Helper function to safely check if a value is in a field
+    # MultiSelectField can return either a list or a comma-separated string
+    def field_includes(field_value, check_value):
+        if not field_value:
+            return False
+        if isinstance(field_value, (list, tuple)):
+            return check_value in field_value
+        if isinstance(field_value, str):
+            # Handle comma-separated string (MultiSelectField storage format)
+            values = [v.strip() for v in field_value.split(',') if v.strip()]
+            return check_value in values
+        return check_value == field_value
+    
+    # Get field values - MultiSelectField may return string or list
+    # Convert to list for consistent handling
+    def to_list(value):
+        if not value:
+            return []
+        if isinstance(value, (list, tuple)):
+            return list(value)
+        if isinstance(value, str):
+            return [v.strip() for v in value.split(',') if v.strip()]
+        return [value]
+    
+    lang_desc_type = to_list(instance.language_description_type)
+    genre = to_list(instance.genre)
+    resource_type = instance.resource_type or ''
+    public_event = instance.public_event
+    
+    # Language description materials
+    if field_includes(lang_desc_type, 'grammar'):
+        categories.append('grammars')
+    if field_includes(lang_desc_type, 'grammar-specific-feature'):
+        categories.append('specific-features')
+    if field_includes(lang_desc_type, 'lexicon-dictionary'):
+        categories.append('dictionaries')
+    
+    # Music categories (check for specific music_* genres)
+    if field_includes(genre, 'music_powwow'):
+        categories.append('powwow')
+    if field_includes(genre, 'music_stomp_dance'):
+        categories.append('stomp-dance')
+    if field_includes(genre, 'music_hymn'):
+        categories.append('hymns')
+    if field_includes(genre, 'music_for_children'):
+        categories.append('for-children-music')
+    if field_includes(genre, 'music_forty_nine'):
+        categories.append('forty-nine')
+    if field_includes(genre, 'music_hand_game'):
+        categories.append('hand-game')
+    if field_includes(genre, 'music_native_american_church'):
+        categories.append('nac')
+    if field_includes(genre, 'music_war_dance'):
+        categories.append('war-dance')
+    if field_includes(genre, 'music_round_dance'):
+        categories.append('round-dance')
+    if field_includes(genre, 'music_sundance'):
+        categories.append('sundance')
+    
+    # Other ceremonial (music_ceremonial, but excluding specific types)
+    if field_includes(genre, 'music_ceremonial'):
+        excluded = ['music_powwow', 'music_stomp_dance', 'music_hymn', 'music_for_children', 
+                   'music_forty_nine', 'music_hand_game', 'music_native_american_church', 
+                   'music_war_dance', 'music_round_dance', 'music_sundance']
+        if not any(field_includes(genre, exc) for exc in excluded):
+            categories.append('other-ceremonial')
+    
+    # Educational materials
+    if field_includes(genre, 'educational_material_family'):
+        categories.append('for-families')
+    if field_includes(genre, 'educational_material_teachers'):
+        categories.append('for-teachers')
+    if field_includes(genre, 'educational_material_learners'):
+        categories.append('for-learners')
+    if field_includes(genre, 'educational_material_planning'):
+        categories.append('for-administrators')
+    
+    # Texts (various primary-text subcategories)
+    if field_includes(lang_desc_type, 'primary-text-igt'):
+        categories.append('interlinear-glossed-texts')
+    
+    if field_includes(lang_desc_type, 'primary-text'):
+        if field_includes(genre, 'traditional_story'):
+            categories.append('literature-and-stories')
+        if field_includes(genre, 'conversation'):
+            categories.append('conversation')
+        if field_includes(genre, 'ceremonial'):
+            categories.append('religious-material')
+        if field_includes(genre, 'correspondence'):
+            categories.append('correspondence')
+        if field_includes(genre, 'narrative'):
+            categories.append('narrative')
+        if field_includes(genre, 'popular_production'):
+            categories.append('popular-media-text')
+    
+    # Videos (including audio-video)
+    if resource_type in ('video', 'audio-video'):
+        # For children videos - check both general for_children and music_for_children
+        if field_includes(genre, 'for_children') or field_includes(genre, 'music_for_children'):
+            categories.append('for-children-video')
+        if public_event:
+            categories.append('events')
+        if field_includes(genre, 'popular_production'):
+            categories.append('popular-media-video')
+    
+    # Set the calculated categories, sorted according to BROWSE_CATEGORY_CHOICES order
+    # Remove duplicates first
+    unique_categories = list(set(categories))
+    
+    # Sort according to the order defined in BROWSE_CATEGORY_CHOICES
+    from metadata.models import BROWSE_CATEGORY_CHOICES
+    # Create a lookup dict: category_value -> index in BROWSE_CATEGORY_CHOICES
+    category_order = {choice[0]: idx for idx, choice in enumerate(BROWSE_CATEGORY_CHOICES)}
+    # Sort by index in BROWSE_CATEGORY_CHOICES, with any unknown values at the end
+    sorted_categories = sorted(unique_categories, key=lambda x: category_order.get(x, 9999))
+    
+    instance.browse_categories = sorted_categories
+    
+    # Set collection based on catalog_number prefix
+    # Extract 3-letter prefix from catalog_number if it matches "ABC-..." pattern
+    import re
+    catalog_number = instance.catalog_number or ''
+    
+    # Match pattern: 3 letters followed by a hyphen (e.g., "CAR-123", "ABC-456")
+    pattern_match = re.match(r'^([A-Za-z]{3})-', catalog_number)
+    
+    if pattern_match:
+        collection_abbr = pattern_match.group(1).upper()  # Normalize to uppercase
+        
+        try:
+            # Look up Collection by collection_abbr
+            from metadata.models import Collection
+            collection = Collection.objects.get(collection_abbr=collection_abbr)
+            instance.collection = collection
+        except Collection.DoesNotExist:
+            # Pattern matched but no collection found - set to None
+            instance.collection = None
+        except Collection.MultipleObjectsReturned:
+            # Multiple collections with same abbr - set to None (shouldn't happen, but handle gracefully)
+            instance.collection = None
+    # If pattern doesn't match, leave collection unchanged (don't modify it)
+
 @receiver([post_save, post_delete], sender=Item)
 def update_collection_dates_on_item_change(sender, instance, **kwargs):
     """

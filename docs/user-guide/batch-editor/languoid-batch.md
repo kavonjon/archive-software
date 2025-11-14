@@ -2,7 +2,7 @@
 
 The Languoid Batch Editor provides a spreadsheet-style interface for efficiently editing multiple languoid records at once. This section covers languoid-specific features and workflows.
 
-## Overview
+## Overview {#languoid-batch-overview}
 
 The batch editor allows you to:
 - Edit multiple languoids simultaneously in a spreadsheet view
@@ -169,7 +169,7 @@ If your spreadsheet contains glottocodes that match existing database records:
 
 This makes the "export → edit → import" workflow seamless for bulk updates.
 
-## Common Batch Editing Tasks
+## Common Batch Editing Tasks {#languoid-batch-common-tasks}
 
 ### Adding Multiple New Languoids
 
@@ -238,7 +238,7 @@ If several languoids share the same geographic location:
 5. Check affected rows
 6. Save
 
-## Validation in Batch Mode
+## Validation in Batch Mode {#languoid-batch-validation}
 
 ### Real-Time Validation
 
@@ -247,7 +247,7 @@ As you edit cells, validation runs immediately:
 - **Orange cells** - Warnings or conflicts (review required)
 - **Yellow cells** - Edited but valid (unsaved changes)
 
-### Common Validation Errors
+### Common Validation Errors {#languoid-batch-validation-errors}
 
 **"Glottocode must be unique"**
 - Another languoid already has this glottocode
@@ -291,7 +291,7 @@ The batch editor uses virtualization to handle large datasets efficiently:
 - Save in batches (check 50-100 rows at a time)
 - Use import for very large additions (more efficient than manual entry)
 
-## Tips for Efficient Batch Editing
+## Tips for Efficient Batch Editing {#languoid-batch-tips}
 
 1. **Use export as a template** - Export existing languoids, modify in Excel, re-import
 2. **Copy/paste liberally** - Spread data across rows quickly

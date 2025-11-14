@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FormControl, Select, MenuItem, Chip, Box, CircularProgress } from '@mui/material';
+import { Autocomplete, TextField, Chip, Box, CircularProgress } from '@mui/material';
+import { Check as CheckIcon } from '@mui/icons-material';
 import { EditableField, EditableFieldProps } from './EditableField';
 
 export interface SelectOption {
@@ -13,6 +14,7 @@ export interface EditableMultiSelectFieldProps extends Omit<EditableFieldProps, 
   apiEndpoint?: string; // API endpoint for dynamic options (new feature)
   getOptionLabel?: (option: any) => string; // Custom label formatting for API responses
   maxDisplayChips?: number; // Maximum chips to display before showing "+N more"
+  displayLabels?: string[]; // Optional: Pre-formatted display labels for view mode (e.g., from genre_display)
 }
 
 /**
@@ -32,6 +34,7 @@ export const EditableMultiSelectField: React.FC<EditableMultiSelectFieldProps> =
   apiEndpoint,
   getOptionLabel = (option) => option.name || option.title || option.display_name || `ID: ${option.id}`,
   maxDisplayChips = 3,
+  displayLabels,
   isEditing = false,
   isSaving = false,
   editValue = '',
@@ -73,8 +76,8 @@ export const EditableMultiSelectField: React.FC<EditableMultiSelectFieldProps> =
       const baseUrl = process.env.NODE_ENV === 'development' ? 'http://localhost:8000' : '';
       const url = new URL(apiEndpoint, baseUrl || window.location.origin);
       
-      // Limit results for performance
-      url.searchParams.append('page_size', '100');
+      // Limit results for performance (increase for better search experience)
+      url.searchParams.append('page_size', '500');
       
       const response = await fetch(url.toString(), {
         headers: {
@@ -91,7 +94,15 @@ export const EditableMultiSelectField: React.FC<EditableMultiSelectFieldProps> =
       
       // Map API response to SelectOption format
       const mappedOptions: SelectOption[] = (data.results || data).map((item: any) => {
-        // Create label using getOptionLabel or default logic
+        // If the item already has value and label properties (simple choices API), use them directly
+        if (item.value !== undefined && item.label !== undefined) {
+          return {
+            value: item.value,
+            label: item.label,
+          };
+        }
+        
+        // Otherwise, use getOptionLabel for complex API responses (e.g., languoids, collaborators)
         let label = getOptionLabel(item);
         
         // If this is a languoid with a glottocode, append it (if not already included)
@@ -100,7 +111,7 @@ export const EditableMultiSelectField: React.FC<EditableMultiSelectFieldProps> =
         }
         
         return {
-          value: item.id,
+          value: item.id || item.value,
           label,
         };
       });
@@ -119,12 +130,13 @@ export const EditableMultiSelectField: React.FC<EditableMultiSelectFieldProps> =
     if (isEditing && apiEndpoint) {
       loadOptions();
     }
-  }, [isEditing, apiEndpoint, loadOptions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing, apiEndpoint]); // loadOptions is stable via useCallback
 
-  // Handle select changes
-  const handleSelectChange = (e: any) => {
-    const newValue = e.target.value as (string | number)[];
-    const jsonValue = JSON.stringify(newValue);
+  // Handle autocomplete changes
+  const handleAutocompleteChange = (event: any, newValue: SelectOption[]) => {
+    const selectedValues = newValue.map(option => option.value);
+    const jsonValue = JSON.stringify(selectedValues);
     
     if (updateEditValue) {
       updateEditValue(fieldName, jsonValue);
@@ -135,13 +147,24 @@ export const EditableMultiSelectField: React.FC<EditableMultiSelectFieldProps> =
     }
   };
 
+  // Convert current values to SelectOption objects for Autocomplete
+  const selectedOptions = currentValue
+    .map(val => effectiveOptions.find(opt => opt.value === val))
+    .filter((opt): opt is SelectOption => opt !== undefined);
+
+  // Custom save handler to pass the array of values (not JSON string)
+  const handleSave = () => {
+    if (saveField) {
+      // Send the array of values directly to the API
+      saveField(fieldName, currentValue);
+    }
+  };
+
   // Handle keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (saveField) {
-        saveField(fieldName, currentValue);
-      }
+      handleSave();
     } else if (e.key === 'Escape') {
       e.preventDefault();
       if (cancelEditing) {
@@ -157,28 +180,28 @@ export const EditableMultiSelectField: React.FC<EditableMultiSelectFieldProps> =
     }
   };
 
-  // Display value as chips
+  // Display value as chips - show all chips with wrapping in view mode
   const displayValue = currentValue.length > 0 ? (
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-      {currentValue.slice(0, maxDisplayChips).map((val) => {
+      {currentValue.map((val, index) => {
+        // In view mode, use displayLabels if provided, otherwise look up from options
+        let chipLabel: string;
+        if (!isEditing && displayLabels && displayLabels[index]) {
+          chipLabel = displayLabels[index];
+        } else {
         const option = effectiveOptions.find(opt => opt.value === val);
+          chipLabel = option?.label || String(val);
+        }
+        
         return (
           <Chip
             key={val}
-            label={option?.label || val}
+            label={chipLabel}
             size="small"
             variant="outlined"
           />
         );
       })}
-      {currentValue.length > maxDisplayChips && (
-        <Chip
-          label={`+${currentValue.length - maxDisplayChips} more`}
-          size="small"
-          variant="outlined"
-          color="primary"
-        />
-      )}
     </Box>
   ) : '(none selected)';
 
@@ -192,75 +215,111 @@ export const EditableMultiSelectField: React.FC<EditableMultiSelectFieldProps> =
       editValue={editValue}
       validationState={validationState}
       startEditing={handleStartEditing}
-      saveField={saveField}
+      saveField={handleSave}
       cancelEditing={cancelEditing}
       updateEditValue={updateEditValue}
       onValueChange={onValueChange}
     >
       {isEditing && (
-        <FormControl 
-          size="small" 
+        <Box sx={{ flex: 1, minWidth: 0, maxWidth: '100%' }}>
+          <Autocomplete
+            multiple
+            options={effectiveOptions}
+            value={selectedOptions}
+            onChange={handleAutocompleteChange}
+            loading={loading}
           disabled={isSaving || loading}
+            disableCloseOnSelect
+            disableClearable
+            getOptionLabel={(option) => option.label}
+            isOptionEqualToValue={(option, value) => option.value === value.value}
+            componentsProps={{
+              popper: {
+                placement: 'bottom-start',
+                modifiers: [
+                  {
+                    name: 'flip',
+                    enabled: false, // Disable flipping to prevent dropdown from opening upwards
+                  },
+                  {
+                    name: 'offset',
+                    enabled: true,
+                    options: {
+                      offset: [0, 8], // Add 8px space below the input field
+                    },
+                  },
+                ],
+              },
+            }}
+            renderOption={(props, option, { selected }) => {
+              const { key, ...otherProps } = props;
+              return (
+                <Box
+                  key={key}
+                  component="li"
+                  {...otherProps}
           sx={{ 
-            flex: 1,
-            minWidth: 0,
-            maxWidth: '100%'
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
           }}
         >
-          <Select
-            multiple
-            value={currentValue}
-            onChange={handleSelectChange}
+                  <CheckIcon
+                    sx={{
+                      fontSize: 18,
+                      visibility: selected ? 'visible' : 'hidden',
+                      color: 'primary.main',
+                      opacity: 0.8,
+                    }}
+                  />
+                  <Box sx={{ flex: 1 }}>
+                    {option.label}
+                  </Box>
+                </Box>
+              );
+            }}
+            renderTags={(tagValue, getTagProps) =>
+              tagValue.map((option, index) => (
+                <Chip
+                  label={option.label}
+                  size="small"
+                  {...getTagProps({ index })}
+                />
+              ))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                size="small"
+                placeholder="Search and select..."
             autoFocus
             onKeyDown={handleKeyDown}
-            renderValue={(selected) => (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {(selected as (string | number)[]).map((value) => {
-                  const option = effectiveOptions.find(opt => opt.value === value);
-                  return (
-                    <Chip 
-                      key={value} 
-                      label={option?.label || value} 
-                      size="small"
-                    />
-                  );
-                })}
-              </Box>
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {loading ? <CircularProgress size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
             )}
-            endAdornment={loading ? <CircularProgress size={20} sx={{ mr: 2 }} /> : null}
             sx={{
               width: '100%',
-              minWidth: 0,
+              '& .MuiAutocomplete-inputRoot': {
+                flexWrap: 'wrap',
+              },
             }}
-            MenuProps={{
-              PaperProps: {
-                sx: {
-                  maxWidth: 'min(400px, 90vw)',
+            ListboxProps={{
+              style: {
                   maxHeight: '300px',
-                  '& .MuiMenuItem-root': {
-                    whiteSpace: 'normal',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word',
-                    padding: '12px 16px',
-                    lineHeight: 1.4,
-                  }
-                }
-              }
+              },
             }}
-          >
-            {effectiveOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-            {loading && effectiveOptions.length === 0 && (
-              <MenuItem disabled>
-                Loading options...
-              </MenuItem>
-            )}
-          </Select>
-        </FormControl>
+          />
+        </Box>
       )}
     </EditableField>
   );
 };
+

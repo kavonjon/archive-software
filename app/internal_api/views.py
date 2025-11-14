@@ -3,18 +3,19 @@ Internal API for React frontend
 Provides CRUD operations for all core models with proper filtering and serialization
 """
 from rest_framework import viewsets, filters, status, permissions, serializers
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import FilterSet, CharFilter, DateFilter, NumberFilter, BooleanFilter
 from django.db.models import Q
-from metadata.models import Item, Collection, Collaborator, Languoid, ItemTitle
+from metadata.models import Item, Collection, Collaborator, Languoid, ItemTitle, CollaboratorRole, GENRE_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES
 from .serializers import (
     InternalItemSerializer, 
     InternalCollectionSerializer, 
     InternalCollaboratorSerializer, 
     InternalLanguoidSerializer,
-    InternalItemTitleSerializer
+    InternalItemTitleSerializer,
+    InternalCollaboratorRoleSerializer
 )
 
 
@@ -211,6 +212,10 @@ class CollaboratorFilter(FilterSet):
     tribal_affiliations_contains = CharFilter(field_name='tribal_affiliations', lookup_expr='icontains')
     gender_contains = CharFilter(field_name='gender', lookup_expr='icontains')
     
+    # M2M relationship filters - search by related Languoid name
+    native_languages_contains = CharFilter(field_name='native_languages__name', lookup_expr='icontains')
+    other_languages_contains = CharFilter(field_name='other_languages__name', lookup_expr='icontains')
+    
     # Empty value filters - for finding incomplete records
     # CharField/TextField: Check for both NULL and empty string ('')
     first_names_isnull = BooleanFilter(method='filter_first_names_empty')
@@ -223,6 +228,8 @@ class CollaboratorFilter(FilterSet):
     deathdate_isnull = BooleanFilter(method='filter_deathdate_empty')
     # ArrayField: Check for NULL, empty array, or array with empty strings
     other_names_isnull = BooleanFilter(method='filter_other_names_empty')
+    # BooleanField: Check for NULL (not specified)
+    anonymous_isnull = BooleanFilter(method='filter_anonymous_empty')
     # ManyToManyField: Check for no related records
     native_languages_isnull = BooleanFilter(method='filter_native_languages_empty')
     other_languages_isnull = BooleanFilter(method='filter_other_languages_empty')
@@ -296,18 +303,24 @@ class CollaboratorFilter(FilterSet):
             ).distinct()
         return queryset
     
+    def filter_anonymous_empty(self, queryset, name, value):
+        """Filter for collaborators with anonymous field set to NULL (not specified)"""
+        if value:
+            return queryset.filter(anonymous__isnull=True).distinct()
+        return queryset
+    
     def filter_native_languages_empty(self, queryset, name, value):
         """Filter for collaborators with no native languages (M2M relationship)"""
         if value:
-            # Find collaborators with no native language DialectInstance records
-            return queryset.filter(collaborator_native_languages_dialectinstances__isnull=True).distinct()
+            # Find collaborators with no native language records
+            return queryset.filter(native_languages__isnull=True).distinct()
         return queryset
     
     def filter_other_languages_empty(self, queryset, name, value):
         """Filter for collaborators with no other languages (M2M relationship)"""
         if value:
-            # Find collaborators with no other language DialectInstance records
-            return queryset.filter(collaborator_other_languages_dialectinstances__isnull=True).distinct()
+            # Find collaborators with no other language records
+            return queryset.filter(other_languages__isnull=True).distinct()
         return queryset
     
     class Meta:
@@ -315,9 +328,11 @@ class CollaboratorFilter(FilterSet):
         fields = ['collaborator_id', 'first_names_contains', 'last_names_contains', 'full_name_contains', 
                   'collaborator_id_contains', 'tribal_affiliations_contains', 
                   'gender_contains', 'anonymous',
+                  'native_languages_contains', 'other_languages_contains',
                   'first_names_isnull', 'nickname_isnull', 'last_names_isnull', 'name_suffix_isnull',
                   'tribal_affiliations_isnull', 'other_names_isnull', 'gender_isnull',
-                  'birthdate_isnull', 'deathdate_isnull', 'native_languages_isnull', 'other_languages_isnull']
+                  'birthdate_isnull', 'deathdate_isnull', 'anonymous_isnull',
+                  'native_languages_isnull', 'other_languages_isnull']
 
 
 class InternalCollaboratorViewSet(viewsets.ModelViewSet):
@@ -361,6 +376,12 @@ class InternalCollaboratorViewSet(viewsets.ModelViewSet):
             Collate(Lower('full_name'), 'en-US-x-icu'),
             'collaborator_id'
         )
+        
+        # Apply distinct() if filtering by M2M relationships to avoid duplicates
+        # Check if any M2M relationship filters are being used
+        m2m_filters = ['native_languages_contains', 'other_languages_contains']
+        if any(param in self.request.GET for param in m2m_filters):
+            queryset = queryset.distinct()
         
         return queryset
     
@@ -564,9 +585,13 @@ class InternalCollaboratorViewSet(viewsets.ModelViewSet):
         
         # SYNCHRONOUS EXPORT (≤ 100 collaborators)
         try:
+            from django.db.models import Count
+            
             queryset = Collaborator.objects.filter(id__in=ids).prefetch_related(
                 'native_languages',
                 'other_languages'
+            ).annotate(
+                item_count=Count('item_collaborators')
             )
             
             collaborators = list(queryset.order_by('last_names', 'first_names', 'collaborator_id'))
@@ -580,8 +605,9 @@ class InternalCollaboratorViewSet(viewsets.ModelViewSet):
             # Define column headers (finalized order)
             headers = [
                 'Collaborator ID',
-                'First Name(s)',
-                'Full Name',  # Position 3 - export only, read-only
+                'Full Name',  # Position 2 - export only, read-only
+                '# of Items',
+                'First and Middle Name(s)',
                 'Last Name(s)',
                 'Name Suffix',
                 'Nickname',
@@ -623,32 +649,33 @@ class InternalCollaboratorViewSet(viewsets.ModelViewSet):
             # Write data rows
             for row_num, collab in enumerate(collaborators, 2):
                 ws.cell(row=row_num, column=1).value = collab.collaborator_id if collab.collaborator_id else ''
-                ws.cell(row=row_num, column=2).value = safe_value(collab.first_names)
-                ws.cell(row=row_num, column=3).value = safe_value(collab.full_name)  # Export only
-                ws.cell(row=row_num, column=4).value = safe_value(collab.last_names)
-                ws.cell(row=row_num, column=5).value = safe_value(collab.name_suffix)
-                ws.cell(row=row_num, column=6).value = safe_value(collab.nickname)
-                ws.cell(row=row_num, column=7).value = safe_value(collab.other_names)
+                ws.cell(row=row_num, column=2).value = safe_value(collab.full_name)  # Export only
+                ws.cell(row=row_num, column=3).value = collab.item_count  # # of Items
+                ws.cell(row=row_num, column=4).value = safe_value(collab.first_names)
+                ws.cell(row=row_num, column=5).value = safe_value(collab.last_names)
+                ws.cell(row=row_num, column=6).value = safe_value(collab.name_suffix)
+                ws.cell(row=row_num, column=7).value = safe_value(collab.nickname)
+                ws.cell(row=row_num, column=8).value = safe_value(collab.other_names)
                 
                 # Anonymous - convert None/True/False to Not specified/Yes/No
                 if collab.anonymous is None:
-                    ws.cell(row=row_num, column=8).value = 'Not specified'
+                    ws.cell(row=row_num, column=9).value = 'Not specified'
                 else:
-                    ws.cell(row=row_num, column=8).value = 'Yes' if collab.anonymous else 'No'
+                    ws.cell(row=row_num, column=9).value = 'Yes' if collab.anonymous else 'No'
                 
                 # Languages - display as comma-separated names
-                native_langs = ', '.join([lang.display_name for lang in collab.native_languages.all()])
-                other_langs = ', '.join([lang.display_name for lang in collab.other_languages.all()])
-                ws.cell(row=row_num, column=9).value = native_langs
-                ws.cell(row=row_num, column=10).value = other_langs
+                native_langs = ', '.join([lang.name for lang in collab.native_languages.all()])
+                other_langs = ', '.join([lang.name for lang in collab.other_languages.all()])
+                ws.cell(row=row_num, column=10).value = native_langs
+                ws.cell(row=row_num, column=11).value = other_langs
                 
-                ws.cell(row=row_num, column=11).value = safe_value(collab.birthdate)
-                ws.cell(row=row_num, column=12).value = safe_value(collab.deathdate)
-                ws.cell(row=row_num, column=13).value = safe_value(collab.gender)
-                ws.cell(row=row_num, column=14).value = safe_value(collab.tribal_affiliations)
-                ws.cell(row=row_num, column=15).value = safe_value(collab.clan_society)
-                ws.cell(row=row_num, column=16).value = safe_value(collab.origin)
-                ws.cell(row=row_num, column=17).value = safe_value(collab.other_info)
+                ws.cell(row=row_num, column=12).value = safe_value(collab.birthdate)
+                ws.cell(row=row_num, column=13).value = safe_value(collab.deathdate)
+                ws.cell(row=row_num, column=14).value = safe_value(collab.gender)
+                ws.cell(row=row_num, column=15).value = safe_value(collab.tribal_affiliations)
+                ws.cell(row=row_num, column=16).value = safe_value(collab.clan_society)
+                ws.cell(row=row_num, column=17).value = safe_value(collab.origin)
+                ws.cell(row=row_num, column=18).value = safe_value(collab.other_info)
             
             # Auto-size columns (approximate)
             for col in ws.columns:
@@ -1814,11 +1841,15 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
         
         # SYNCHRONOUS EXPORT (≤ 100 languoids)
         try:
+            from django.db.models import Count
+            
             queryset = Languoid.objects.filter(id__in=ids).select_related(
                 'parent_languoid',
                 'family_languoid',
                 'pri_subgroup_languoid',
                 'sec_subgroup_languoid'
+            ).annotate(
+                item_count=Count('item_languages')
             )
             
             languoids = list(queryset)
@@ -1873,6 +1904,7 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
                 'Name Abbreviation',
                 'Glottocode',
                 'ISO 639-3',
+                '# of Items',
                 'Level (Glottolog)',
                 'Level (NAL)',
                 'Parent Languoid',
@@ -1923,36 +1955,43 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
                 ws.cell(row=row_num, column=2).value = safe_value(languoid.name_abbrev)
                 ws.cell(row=row_num, column=3).value = safe_value(languoid.glottocode)
                 ws.cell(row=row_num, column=4).value = safe_value(languoid.iso)
-                ws.cell(row=row_num, column=5).value = languoid.get_level_glottolog_display() if languoid.level_glottolog else ''
-                ws.cell(row=row_num, column=6).value = languoid.get_level_nal_display() if languoid.level_nal else ''
+                
+                # Item count - blank for families, show count for languages/dialects
+                if languoid.level_glottolog == 'family':
+                    ws.cell(row=row_num, column=5).value = ''
+                else:
+                    ws.cell(row=row_num, column=5).value = languoid.item_count
+                
+                ws.cell(row=row_num, column=6).value = languoid.get_level_glottolog_display() if languoid.level_glottolog else ''
+                ws.cell(row=row_num, column=7).value = languoid.get_level_nal_display() if languoid.level_nal else ''
                 
                 # Parent Languoid + denormalized fields (Name, Abbrev, Glottocode)
-                ws.cell(row=row_num, column=7).value = languoid.parent_languoid.name if languoid.parent_languoid else ''
-                ws.cell(row=row_num, column=8).value = safe_value(languoid.parent_languoid.name_abbrev) if languoid.parent_languoid else ''
-                ws.cell(row=row_num, column=9).value = safe_value(languoid.parent_languoid.glottocode) if languoid.parent_languoid else ''
+                ws.cell(row=row_num, column=8).value = languoid.parent_languoid.name if languoid.parent_languoid else ''
+                ws.cell(row=row_num, column=9).value = safe_value(languoid.parent_languoid.name_abbrev) if languoid.parent_languoid else ''
+                ws.cell(row=row_num, column=10).value = safe_value(languoid.parent_languoid.glottocode) if languoid.parent_languoid else ''
                 
                 # Family + denormalized fields (Name, Abbrev, Glottocode)
-                ws.cell(row=row_num, column=10).value = languoid.family_languoid.name if languoid.family_languoid else ''
-                ws.cell(row=row_num, column=11).value = safe_value(languoid.family_languoid.name_abbrev) if languoid.family_languoid else ''
-                ws.cell(row=row_num, column=12).value = safe_value(languoid.family_languoid.glottocode) if languoid.family_languoid else ''
+                ws.cell(row=row_num, column=11).value = languoid.family_languoid.name if languoid.family_languoid else ''
+                ws.cell(row=row_num, column=12).value = safe_value(languoid.family_languoid.name_abbrev) if languoid.family_languoid else ''
+                ws.cell(row=row_num, column=13).value = safe_value(languoid.family_languoid.glottocode) if languoid.family_languoid else ''
                 
                 # Primary Subfamily + denormalized fields (Name, Abbrev, Glottocode)
-                ws.cell(row=row_num, column=13).value = languoid.pri_subgroup_languoid.name if languoid.pri_subgroup_languoid else ''
-                ws.cell(row=row_num, column=14).value = safe_value(languoid.pri_subgroup_languoid.name_abbrev) if languoid.pri_subgroup_languoid else ''
-                ws.cell(row=row_num, column=15).value = safe_value(languoid.pri_subgroup_languoid.glottocode) if languoid.pri_subgroup_languoid else ''
+                ws.cell(row=row_num, column=14).value = languoid.pri_subgroup_languoid.name if languoid.pri_subgroup_languoid else ''
+                ws.cell(row=row_num, column=15).value = safe_value(languoid.pri_subgroup_languoid.name_abbrev) if languoid.pri_subgroup_languoid else ''
+                ws.cell(row=row_num, column=16).value = safe_value(languoid.pri_subgroup_languoid.glottocode) if languoid.pri_subgroup_languoid else ''
                 
                 # Secondary Subfamily + denormalized fields (Name, Abbrev, Glottocode)
-                ws.cell(row=row_num, column=16).value = languoid.sec_subgroup_languoid.name if languoid.sec_subgroup_languoid else ''
-                ws.cell(row=row_num, column=17).value = safe_value(languoid.sec_subgroup_languoid.name_abbrev) if languoid.sec_subgroup_languoid else ''
-                ws.cell(row=row_num, column=18).value = safe_value(languoid.sec_subgroup_languoid.glottocode) if languoid.sec_subgroup_languoid else ''
+                ws.cell(row=row_num, column=17).value = languoid.sec_subgroup_languoid.name if languoid.sec_subgroup_languoid else ''
+                ws.cell(row=row_num, column=18).value = safe_value(languoid.sec_subgroup_languoid.name_abbrev) if languoid.sec_subgroup_languoid else ''
+                ws.cell(row=row_num, column=19).value = safe_value(languoid.sec_subgroup_languoid.glottocode) if languoid.sec_subgroup_languoid else ''
                 
                 # Other fields
-                ws.cell(row=row_num, column=19).value = safe_value(languoid.alt_names)
-                ws.cell(row=row_num, column=20).value = safe_value(languoid.region)
-                ws.cell(row=row_num, column=21).value = str(languoid.latitude) if languoid.latitude else ''
-                ws.cell(row=row_num, column=22).value = str(languoid.longitude) if languoid.longitude else ''
-                ws.cell(row=row_num, column=23).value = safe_value(languoid.tribes)
-                ws.cell(row=row_num, column=24).value = safe_value(languoid.notes)
+                ws.cell(row=row_num, column=20).value = safe_value(languoid.alt_names)
+                ws.cell(row=row_num, column=21).value = safe_value(languoid.region)
+                ws.cell(row=row_num, column=22).value = str(languoid.latitude) if languoid.latitude else ''
+                ws.cell(row=row_num, column=23).value = str(languoid.longitude) if languoid.longitude else ''
+                ws.cell(row=row_num, column=24).value = safe_value(languoid.tribes)
+                ws.cell(row=row_num, column=25).value = safe_value(languoid.notes)
             
             # Auto-size columns (approximate)
             for col_num in range(1, len(headers) + 1):
@@ -2161,3 +2200,192 @@ class InternalItemTitleViewSet(viewsets.ModelViewSet):
                 {'error': 'Title not found'}, 
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticatedWithEditAccess])
+def item_genre_choices(request):
+    """
+    API endpoint to return genre choices for items.
+    Returns list of {value, label} pairs matching Django GENRE_CHOICES.
+    
+    Used by EditableMultiSelectField in ItemDetail for genre field editing.
+    """
+    # Convert Django GENRE_CHOICES tuple to list of dicts
+    choices = [
+        {'value': value, 'label': label}
+        for value, label in GENRE_CHOICES
+    ]
+    
+    return Response(choices)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticatedWithEditAccess])
+def item_language_description_type_choices(request):
+    """
+    API endpoint to return language description type choices for items.
+    Returns list of {value, label} pairs matching Django LANGUAGE_DESCRIPTION_CHOICES.
+    
+    Used by EditableMultiSelectField in ItemDetail for language_description_type field editing.
+    """
+    # Convert Django LANGUAGE_DESCRIPTION_CHOICES tuple to list of dicts
+    choices = [
+        {'value': value, 'label': label}
+        for value, label in LANGUAGE_DESCRIPTION_CHOICES
+    ]
+    
+    return Response(choices)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticatedWithEditAccess])
+def collaborator_role_choices(request):
+    """
+    API endpoint to return role choices for collaborators.
+    Returns list of {value, label} pairs matching Django ROLE_CHOICES.
+    
+    Used by EditableCollaboratorRolesField in ItemDetail for role selection.
+    """
+    # Convert Django ROLE_CHOICES tuple to list of dicts
+    choices = [
+        {'value': value, 'label': label}
+        for value, label in ROLE_CHOICES
+    ]
+    
+    return Response(choices)
+
+
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticatedWithEditAccess])
+def item_collaborator_roles(request, item_id):
+    """
+    GET: Retrieve all collaborator roles for a specific item
+    PATCH: Update all collaborator roles for a specific item atomically
+    
+    This endpoint handles the CollaboratorRole through-model relationships,
+    allowing inline editing of which collaborators are associated with an item
+    and what roles they have.
+    
+    GET returns:
+        [{
+            id: 123,
+            collaborator: 45,
+            collaborator_data: {id, display_name, full_name, ...},
+            role: ['author', 'performer'],
+            role_display: ['Author', 'Performer'],
+            citation_author: true
+        }, ...]
+    
+    PATCH expects:
+        [{
+            collaborator: 45,  # Required: collaborator ID
+            role: ['author', 'performer'],  # Required: list of role values
+            citation_author: true  # Optional: defaults to false
+        }, ...]
+    
+    The PATCH operation will:
+    - Create new CollaboratorRole records for collaborators not already associated
+    - Update existing CollaboratorRole records if roles/citation_author changed
+    - Delete CollaboratorRole records for collaborators not in the request
+    """
+    from django.db import transaction
+    
+    # Get the item
+    try:
+        item = Item.objects.get(pk=item_id)
+    except Item.DoesNotExist:
+        return Response(
+            {'error': f'Item with id {item_id} not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    if request.method == 'GET':
+        # Return all existing collaborator roles for this item, sorted by collaborator name
+        roles = CollaboratorRole.objects.filter(item=item).select_related('collaborator').order_by('collaborator__full_name')
+        serializer = InternalCollaboratorRoleSerializer(
+            roles,
+            many=True,
+            context={'request': request}
+        )
+        return Response(serializer.data)
+    
+    elif request.method == 'PATCH':
+        # Validate request data
+        if not isinstance(request.data, list):
+            return Response(
+                {'error': 'Expected a list of collaborator-role objects'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Extract collaborator IDs from request
+        requested_collaborators = {}
+        for item_data in request.data:
+            collab_id = item_data.get('collaborator')
+            if not collab_id:
+                return Response(
+                    {'error': 'Each entry must include a collaborator ID'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Validate collaborator exists
+            try:
+                Collaborator.objects.get(pk=collab_id)
+            except Collaborator.DoesNotExist:
+                return Response(
+                    {'error': f'Collaborator with id {collab_id} not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            requested_collaborators[collab_id] = {
+                'role': item_data.get('role', []),
+                'citation_author': item_data.get('citation_author', False)
+            }
+        
+        # Perform atomic update
+        with transaction.atomic():
+            # Get existing roles for this item
+            existing_roles = CollaboratorRole.objects.filter(item=item)
+            existing_collab_ids = set(existing_roles.values_list('collaborator_id', flat=True))
+            requested_collab_ids = set(requested_collaborators.keys())
+            
+            # Track user for modified_by
+            modified_by = str(request.user) if request.user else 'unknown'
+            
+            # Delete roles for collaborators not in request
+            to_delete = existing_collab_ids - requested_collab_ids
+            if to_delete:
+                CollaboratorRole.objects.filter(
+                    item=item,
+                    collaborator_id__in=to_delete
+                ).delete()
+            
+            # Create or update roles for requested collaborators
+            for collab_id, role_data in requested_collaborators.items():
+                role_obj, created = CollaboratorRole.objects.get_or_create(
+                    item=item,
+                    collaborator_id=collab_id,
+                    defaults={
+                        'role': role_data['role'],
+                        'citation_author': role_data['citation_author'],
+                        'modified_by': modified_by
+                    }
+                )
+                
+                # Update if it already existed and data changed
+                if not created:
+                    if (list(role_obj.role) != role_data['role'] or 
+                        role_obj.citation_author != role_data['citation_author']):
+                        role_obj.role = role_data['role']
+                        role_obj.citation_author = role_data['citation_author']
+                        role_obj.modified_by = modified_by
+                        role_obj.save()
+        
+        # Return updated roles, sorted by collaborator name
+        roles = CollaboratorRole.objects.filter(item=item).select_related('collaborator').order_by('collaborator__full_name')
+        serializer = InternalCollaboratorRoleSerializer(
+            roles,
+            many=True,
+            context={'request': request}
+        )
+        return Response(serializer.data)

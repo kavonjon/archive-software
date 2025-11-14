@@ -1076,6 +1076,100 @@
         }
       },
       
+      "session_persistence_and_order_preservation": {
+        "description": "Additional universal patterns discovered during post-implementation refinement (2025-11-13) addressing session persistence, row order, and batch edit modes",
+        "added_date": "2025-11-13",
+        "conversation_reference": "Session persistence fixes, order-preserving refresh, empty mode, warning dialog corrections, and import false positives",
+        
+        "lesson_019_session_persistence_pattern": {
+          "decision_id": "collab_batch_019",
+          "content": "Session persistence using sessionIds ref to track rows across refreshes and new row saves",
+          "added_date": "2025-11-13",
+          "applies_to": "ALL batch editors (MANDATORY pattern)",
+          "problem": "After saving a new row and clicking refresh, the row disappeared. Batch editor was not maintaining persistent record of which rows belong to current session.",
+          "solution": "Use useRef<Set<number>> to track all row IDs in current session. Initialize from batch config, grow when new rows saved, filter to sessionIds on refresh.",
+          "pattern_for_future": "ALWAYS implement sessionIds ref pattern. Initialize from config.ids, add new IDs after save, filter refresh data to sessionIds Set.",
+          "implementation_steps": [
+            "Declare: const sessionIds = useRef<Set<number>>(new Set());",
+            "Initialize on load: sessionIds.current = new Set(config.ids);",
+            "Update after save: newIds.forEach(id => sessionIds.current.add(id));",
+            "Filter on refresh: allRows.filter(row => sessionIds.current.has(row.id));"
+          ],
+          "files": [
+            "frontend/src/components/languoids/LanguoidBatchEditor.tsx",
+            "frontend/src/components/collaborators/CollaboratorBatchEditor.tsx"
+          ],
+          "confidence_level": "high",
+          "status": "active",
+          "cross_references": ["context/development/batch-editor-universal-patterns.json::pattern_001"]
+        },
+        
+        "lesson_020_order_preserving_refresh": {
+          "decision_id": "collab_batch_020",
+          "content": "Order-preserving refresh strategy that maintains row positions across refresh operations",
+          "added_date": "2025-11-13",
+          "applies_to": "ALL batch editors (MANDATORY pattern)",
+          "problem": "After saving new row and clicking refresh, row moved due to resorting by ID. Users lost track of their newly added rows.",
+          "solution": "Iterate through existing rows in their current order, fetching fresh data for each from a lookup map. Never resort during session.",
+          "pattern_for_future": "Create Map<ID, Data> from fresh data for O(1) lookup. Iterate rowsRef.current preserving order. Update each with fresh data from map.",
+          "implementation_steps": [
+            "Create lookup: const freshDataMap = new Map(allFreshRows.map(r => [r.id, r]));",
+            "Iterate existing order: for (const currentRow of rowsRef.current) { ... }",
+            "Update with fresh data: const freshRow = freshDataMap.get(currentRow.id); if (freshRow) newRows.push(modelToRow(freshRow));"
+          ],
+          "when_rows_resort": "Only when: (1) starting new batch edit session, (2) user applies sort (future feature), (3) user manually reorders (future feature)",
+          "files": [
+            "frontend/src/components/languoids/LanguoidBatchEditor.tsx (lines 437-464)",
+            "frontend/src/components/collaborators/CollaboratorBatchEditor.tsx (lines 477-506)"
+          ],
+          "confidence_level": "high",
+          "status": "active",
+          "cross_references": ["context/development/batch-editor-universal-patterns.json::pattern_002"]
+        },
+        
+        "lesson_021_empty_mode_workflow": {
+          "decision_id": "collab_batch_021",
+          "content": "Empty mode workflow for starting batch editor with blank grid",
+          "added_date": "2025-11-13",
+          "applies_to": "ALL batch editors (MANDATORY pattern)",
+          "problem": "Users wanted to create multiple new records without pre-populating from existing data. Original design only supported 'selected' and 'filtered' modes.",
+          "solution": "Add 'empty' mode to batch edit button menu. Empty mode starts with zero rows, sessionIds=empty Set, isEmptyMode=true. Users add rows manually.",
+          "pattern_for_future": "Add three-mode pattern to all batch edit buttons: selected, filtered, empty. Handle empty mode in list page (create config with ids=[]) and batch editor (initialize with empty grid).",
+          "implementation_steps": [
+            "Add empty option to batch edit button menu",
+            "List page: if (mode === 'empty') { config = { mode: 'empty', ids: [], timestamp: Date.now() }; navigate(); }",
+            "Batch editor: if (config.mode === 'empty') { isEmptyMode.current = true; sessionIds.current = new Set(); initializeSpreadsheet({ rows: [] }); }"
+          ],
+          "files": [
+            "frontend/src/components/collaborators/CollaboratorBatchEditButton.tsx (lines 46-57, 183-196)",
+            "frontend/src/components/collaborators/CollaboratorsList.tsx (lines 336-346)",
+            "frontend/src/components/collaborators/CollaboratorBatchEditor.tsx (empty mode handling)"
+          ],
+          "confidence_level": "high",
+          "status": "active",
+          "cross_references": ["context/development/batch-editor-universal-patterns.json::pattern_003"]
+        },
+        
+        "lesson_022_batch_config_format": {
+          "decision_id": "collab_batch_022",
+          "content": "Standard batch edit config format with mode, ids, and timestamp",
+          "added_date": "2025-11-13",
+          "applies_to": "ALL batch editors (MANDATORY pattern)",
+          "problem": "Old format (sessionStorage.setItem('batch_edit_ids', ...)) was ambiguous about whether rows were selected or filtered, no mode information.",
+          "solution": "New format: { mode: 'selected' | 'filtered' | 'empty', ids: number[], timestamp: number }. Store with model-specific key: '{model}-batch-config'.",
+          "pattern_for_future": "Always use new config format. Store with model-specific key. Include mode for clarity, ids for data, timestamp for staleness detection.",
+          "deprecated_pattern": "sessionStorage.setItem('batch_edit_ids', JSON.stringify(ids)) - DO NOT USE",
+          "new_pattern": "sessionStorage.setItem('collaborator-batch-config', JSON.stringify({ mode, ids, timestamp }))",
+          "files": [
+            "frontend/src/components/collaborators/CollaboratorsList.tsx (lines 446-454, 472-480, 547-555)",
+            "frontend/src/components/languoids/LanguoidsList.tsx (similar pattern)"
+          ],
+          "confidence_level": "high",
+          "status": "active",
+          "cross_references": ["context/development/batch-editor-universal-patterns.json::pattern_005"]
+        }
+      },
+      
       "documentation_completeness": {
         "user_guide_sections_created": {
           "decision_id": "collab_batch_018",
@@ -1128,6 +1222,7 @@
       
       "cross_references": {
         "main_architecture": "stage_1_batch_editing.json",
+        "universal_patterns": "batch-editor-universal-patterns.json",
         "coding_patterns": "coding_patterns.json",
         "accessibility_requirements": "project_requirements.json::accessibility",
         "user_documentation": "docs/user-guide/batch-editor/"

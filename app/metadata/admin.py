@@ -16,7 +16,30 @@ class ItemTitleInline(admin.TabularInline):
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
     inlines = [ItemTitleInline]
-    # readonly_fields = ['uuid']
+    readonly_fields = ['browse_categories_display']
+    
+    def browse_categories_display(self, obj):
+        """Display browse categories as readable list"""
+        if not obj.browse_categories:
+            return "-"
+        
+        # Convert to list if it's a string (MultiSelectField can return either)
+        if isinstance(obj.browse_categories, str):
+            values = [v.strip() for v in obj.browse_categories.split(',') if v.strip()]
+        else:
+            values = list(obj.browse_categories) if obj.browse_categories else []
+        
+        if not values:
+            return "-"
+        
+        # Get display names from choices
+        from .models import BROWSE_CATEGORY_CHOICES
+        choices_dict = dict(BROWSE_CATEGORY_CHOICES)
+        display_names = [choices_dict.get(value, value) for value in values]
+        
+        return ", ".join(display_names)
+    
+    browse_categories_display.short_description = "Browse Categories"
 
 admin.site.register(Columns_export)
 admin.site.register(Document)

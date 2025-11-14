@@ -1,7 +1,7 @@
 {
   "file_index": {
-    "version": "1.0",
-    "last_updated": "2025-01-04",
+    "version": "1.1",
+    "last_updated": "2025-11-13",
     "purpose": "Directory of all context files and their specific purposes",
     
     "meta_files": {
@@ -161,6 +161,13 @@
         "update_frequency": "When new geographic features or map patterns established",
         "cross_references": ["coding_patterns.json", "stage_0_react_migration.json", "external_dependencies.json"],
         "added_date": "2025-11-12"
+      },
+      "batch-editor-universal-patterns.json": {
+        "purpose": "Universal patterns that MUST be implemented in ALL batch editors (session persistence, order preservation, empty mode, warning dialogs, batch modes, cell pagination)",
+        "when_to_reference": "Before starting batch editor for new model, debugging session persistence or refresh issues, implementing empty mode or warning dialogs",
+        "update_frequency": "When new universal patterns discovered, when patterns refined, when implementing batch editor for new model",
+        "cross_references": ["stage_1_batch_editing.json", "collaborator_batch_editor_lessons.json"],
+        "added_date": "2025-11-13"
       }
     },
     

@@ -18,7 +18,7 @@ export interface WarningConfig {
   type: WarningType;
   count: number;
   mode: 'filtered' | 'selected';
-  preset?: 'all' | 'languages' | 'dialects' | 'languages_dialects' | 'families';
+  preset?: 'all' | 'languages' | 'dialects' | 'languages_dialects' | 'families_only' | 'families_subfamilies';
 }
 
 interface BatchEditWarningDialogProps {
@@ -103,10 +103,20 @@ const BatchEditWarningDialog: React.FC<BatchEditWarningDialogProps> = ({
             ],
           };
 
-        case 'families':
+        case 'families_only':
           return {
             title: 'Load All Families?',
             body: `You are about to load all families (${count} total) into the batch editor.`,
+            suggestions: [
+              'Applying advanced filters',
+              'Selecting specific items with checkboxes',
+            ],
+          };
+
+        case 'families_subfamilies':
+          return {
+            title: 'Load All Families & Subfamilies?',
+            body: `You are about to load all families and subfamilies (${count} total) into the batch editor.`,
             suggestions: [
               'Applying advanced filters',
               'Selecting specific items with checkboxes',

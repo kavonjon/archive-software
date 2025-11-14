@@ -19,13 +19,15 @@ import {
   Divider,
   CircularProgress,
   Container,
+  Autocomplete,
+  Chip,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
 } from '@mui/icons-material';
-import { collaboratorsAPI, type Collaborator } from '../../services/api';
+import { collaboratorsAPI, languoidsAPI, type Collaborator, type Languoid } from '../../services/api';
 import { DateFormatHelp } from '../common';
 
 interface CollaboratorFormData {
@@ -40,6 +42,10 @@ interface CollaboratorFormData {
   
   // Privacy
   anonymous: boolean | null;
+  
+  // Languages
+  native_languages: Languoid[];
+  other_languages: Languoid[];
   
   // Cultural information
   clan_society: string;
@@ -80,6 +86,10 @@ const CollaboratorCreate: React.FC<CollaboratorCreateProps> = ({
     // Privacy
     anonymous: null,
     
+    // Languages
+    native_languages: [],
+    other_languages: [],
+    
     // Cultural information
     clan_society: '',
     tribal_affiliations: '',
@@ -109,6 +119,39 @@ const CollaboratorCreate: React.FC<CollaboratorCreateProps> = ({
     error: null,
     isValid: true
   });
+
+  // Languoid options and search state
+  const [languoidOptions, setLanguoidOptions] = useState<Languoid[]>([]);
+  const [languoidSearchQuery, setLanguoidSearchQuery] = useState('');
+  const [loadingLanguoids, setLoadingLanguoids] = useState(false);
+
+  // Calculate full name from components (matches backend signal logic)
+  const calculatedFullName = useMemo(() => {
+    const parts: string[] = [];
+    
+    // Add first names
+    if (formData.first_names?.trim()) {
+      parts.push(formData.first_names.trim());
+    }
+    
+    // Add nickname with quotes
+    if (formData.nickname?.trim()) {
+      parts.push(`"${formData.nickname.trim()}"`);
+    }
+    
+    // Add last names
+    if (formData.last_names?.trim()) {
+      parts.push(formData.last_names.trim());
+    }
+    
+    // Add name suffix
+    if (formData.name_suffix?.trim()) {
+      parts.push(formData.name_suffix.trim());
+    }
+    
+    // Join with single spaces
+    return parts.join(' ');
+  }, [formData.first_names, formData.nickname, formData.last_names, formData.name_suffix]);
 
   // Auto-generate next collaborator ID on component mount
   useEffect(() => {
@@ -190,6 +233,37 @@ const CollaboratorCreate: React.FC<CollaboratorCreateProps> = ({
     []
   );
 
+  // Debounced languoid search
+  const searchLanguoids = useMemo(
+    () => debounce(async (searchQuery: string) => {
+      if (!searchQuery || searchQuery.trim().length < 2) {
+        setLanguoidOptions([]);
+        return;
+      }
+
+      setLoadingLanguoids(true);
+      try {
+        const response = await languoidsAPI.list({
+          search: searchQuery,
+          level_glottolog__in: 'language,dialect', // Only languages and dialects
+          page_size: 50,
+        });
+        setLanguoidOptions(response.results);
+      } catch (error) {
+        console.error('Error searching languoids:', error);
+        setLanguoidOptions([]);
+      } finally {
+        setLoadingLanguoids(false);
+      }
+    }, 300),
+    []
+  );
+
+  // Trigger search when query changes
+  useEffect(() => {
+    searchLanguoids(languoidSearchQuery);
+  }, [languoidSearchQuery, searchLanguoids]);
+
   // Handle form field changes
   const handleFieldChange = (field: keyof CollaboratorFormData) => (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -231,9 +305,9 @@ const CollaboratorCreate: React.FC<CollaboratorCreateProps> = ({
 
     try {
       // Prepare data for submission
+      // Note: full_name is NOT sent - it's calculated server-side by a signal
       const submitData: Partial<Collaborator> = {
         collaborator_id: parseInt(formData.collaborator_id, 10),
-        full_name: formData.full_name.trim() || undefined,
         first_names: formData.first_names.trim() || undefined,
         last_names: formData.last_names.trim() || undefined,
         name_suffix: formData.name_suffix.trim() || undefined,
@@ -243,6 +317,9 @@ const CollaboratorCreate: React.FC<CollaboratorCreateProps> = ({
           ? formData.other_names.split(',').map(name => name.trim()).filter(name => name.length > 0)
           : [],
         anonymous: formData.anonymous,
+        // Convert Languoid arrays to ID arrays for M2M relationships
+        native_languages: formData.native_languages.map(lang => lang.id) as any,
+        other_languages: formData.other_languages.map(lang => lang.id) as any,
         clan_society: formData.clan_society.trim() || undefined,
         tribal_affiliations: formData.tribal_affiliations.trim() || undefined,
         origin: formData.origin.trim() || undefined,
@@ -367,17 +444,27 @@ const CollaboratorCreate: React.FC<CollaboratorCreateProps> = ({
                       </FormControl>
                     </Box>
                     
-                    <TextField
-                      label="Full Name"
-                      value={formData.full_name}
-                      onChange={handleFieldChange('full_name')}
-                      fullWidth
-                      helperText="Complete name as it should appear"
-                    />
+                    {/* Full Name - Calculated Display (not editable) */}
+                    <Box
+                      sx={{
+                        p: 2,
+                        backgroundColor: 'grey.50',
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: 'grey.300',
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                        Full Name (calculated automatically)
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 'medium', color: calculatedFullName ? 'text.primary' : 'text.disabled' }}>
+                        {calculatedFullName || '(will be generated from name fields)'}
+                      </Typography>
+                    </Box>
                     
                     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
                       <TextField
-                        label="First Name(s)"
+                        label="First and Middle Name(s)"
                         value={formData.first_names}
                         onChange={handleFieldChange('first_names')}
                         fullWidth
@@ -413,6 +500,114 @@ const CollaboratorCreate: React.FC<CollaboratorCreateProps> = ({
                         fullWidth
                       helperText="Alternative names or spellings (comma-separated)"
                       />
+                  </Stack>
+                </CardContent>
+              </Card>
+
+              {/* Languages */}
+              <Card sx={{ mb: 3, elevation: 1 }}>
+                <CardContent>
+                  <Typography variant="h6" sx={{ fontWeight: 'medium', color: 'primary.main', mb: 2 }}>
+                    Languages
+                  </Typography>
+                  <Divider sx={{ mb: 3 }} />
+                  
+                  <Stack spacing={3}>
+                    <Box>
+                      <Autocomplete
+                        multiple
+                        options={languoidOptions}
+                        value={formData.native_languages}
+                        onChange={(_event, newValue) => {
+                          setFormData(prev => ({ ...prev, native_languages: newValue }));
+                        }}
+                        onInputChange={(_event, newInputValue) => {
+                          setLanguoidSearchQuery(newInputValue);
+                        }}
+                        getOptionLabel={(option) => `${option.name}${option.glottocode ? ` (${option.glottocode})` : ''}`}
+                        loading={loadingLanguoids}
+                        autoHighlight
+                        clearOnEscape
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Native/First Languages"
+                            placeholder="Search for languages or dialects..."
+                            helperText="Languages and dialects that are native or first languages for this collaborator"
+                            InputProps={{
+                              ...params.InputProps,
+                              endAdornment: (
+                                <>
+                                  {loadingLanguoids ? <CircularProgress size={20} /> : null}
+                                  {params.InputProps.endAdornment}
+                                </>
+                              ),
+                            }}
+                          />
+                        )}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              label={option.name}
+                              {...getTagProps({ index })}
+                              size="small"
+                              color={option.level_glottolog === 'language' ? 'primary' : 'default'}
+                            />
+                          ))
+                        }
+                      />
+                      <Alert severity="info" sx={{ mt: 1 }}>
+                        You can add both languages and dialects directly. When you add a dialect, its parent language will be automatically added as well.
+                      </Alert>
+                    </Box>
+                    
+                    <Box>
+                      <Autocomplete
+                        multiple
+                        options={languoidOptions}
+                        value={formData.other_languages}
+                        onChange={(_event, newValue) => {
+                          setFormData(prev => ({ ...prev, other_languages: newValue }));
+                        }}
+                        onInputChange={(_event, newInputValue) => {
+                          setLanguoidSearchQuery(newInputValue);
+                        }}
+                        getOptionLabel={(option) => `${option.name}${option.glottocode ? ` (${option.glottocode})` : ''}`}
+                        loading={loadingLanguoids}
+                        autoHighlight
+                        clearOnEscape
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Other Languages"
+                            placeholder="Search for languages or dialects..."
+                            helperText="Additional languages known by this collaborator"
+                            InputProps={{
+                              ...params.InputProps,
+                              endAdornment: (
+                                <>
+                                  {loadingLanguoids ? <CircularProgress size={20} /> : null}
+                                  {params.InputProps.endAdornment}
+                                </>
+                              ),
+                            }}
+                          />
+                        )}
+                        renderTags={(value, getTagProps) =>
+                          value.map((option, index) => (
+                            <Chip
+                              label={option.name}
+                              {...getTagProps({ index })}
+                              size="small"
+                              color={option.level_glottolog === 'language' ? 'primary' : 'default'}
+                            />
+                          ))
+                        }
+                      />
+                      <Alert severity="info" sx={{ mt: 1 }}>
+                        You can add both languages and dialects directly. When you add a dialect, its parent language will be automatically added as well.
+                      </Alert>
+                    </Box>
                   </Stack>
                 </CardContent>
               </Card>

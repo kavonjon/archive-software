@@ -2,7 +2,7 @@
 
 Welcome to the Native American Languages Archive (NAL) management system! This guide will help you navigate and use the various features of the platform.
 
-## Overview
+## Overview {#getting-started-overview}
 
 The NAL system provides tools for:
 - Managing languoid data (languages, dialects, families)

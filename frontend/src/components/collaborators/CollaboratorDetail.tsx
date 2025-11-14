@@ -710,7 +710,7 @@ const CollaboratorDetail: React.FC = () => {
                   </Typography>
                 </Box>
                 
-                {renderEditableField('first_names', 'First Name(s)')}
+                {renderEditableField('first_names', 'First and Middle Name(s)')}
                 {renderEditableField('last_names', 'Last Name(s)')}
                 {renderEditableField('name_suffix', 'Name Suffix')}
                 {renderEditableField('nickname', 'Nickname')}
@@ -944,7 +944,7 @@ const CollaboratorDetail: React.FC = () => {
 
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'medium' }}>
-                        First Name(s) & Last Name(s):
+                        First and Middle Name(s) & Last Name(s):
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {displayVariations.firstAndLastName || '(none)'}
@@ -953,7 +953,7 @@ const CollaboratorDetail: React.FC = () => {
 
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'medium' }}>
-                        Last Name(s), First Name(s):
+                        Last Name(s), First and Middle Name(s):
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {displayVariations.lastNameFirst || '(none)'}
@@ -971,7 +971,7 @@ const CollaboratorDetail: React.FC = () => {
 
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 'medium' }}>
-                        First Name(s) Only:
+                        First and Middle Name(s) Only:
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {displayVariations.firstNameOnly || '(none)'}

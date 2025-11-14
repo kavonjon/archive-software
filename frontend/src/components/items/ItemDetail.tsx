@@ -32,13 +32,15 @@ import {
   Save as SaveIcon,
   Cancel as CancelIcon,
 } from '@mui/icons-material';
-import { itemsAPI, type Item } from '../../services/api';
+import { itemsAPI, itemCollaboratorRolesAPI, type Item, type CollaboratorRole, type CollaboratorRoleMutationData } from '../../services/api';
 import { 
   DateInterpretationFeedback,
   EditableTextField,
   EditableSelectField,
   EditableBooleanField,
   EditableMultiRelationshipField,
+  EditableMultiSelectField,
+  EditableCollaboratorRolesField,
   SelectOption,
   createAbbreviatedLabel
 } from '../common';
@@ -179,6 +181,10 @@ const ItemDetail: React.FC<ItemDetailProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  
+  // Collaborator roles state (for through-model editing)
+  const [collaboratorRoles, setCollaboratorRoles] = useState<CollaboratorRole[]>([]);
+  const [loadingCollaboratorRoles, setLoadingCollaboratorRoles] = useState(false);
 
   // In-place editing state
   const [editingFields, setEditingFields] = useState<Set<string>>(new Set());
@@ -223,6 +229,19 @@ const ItemDetail: React.FC<ItemDetailProps> = ({
         setError(null);
         const itemData = await itemsAPI.get(parseInt(id, 10));
         setItem(itemData);
+        
+        // Fetch collaborator roles for this item
+        try {
+          setLoadingCollaboratorRoles(true);
+          const roles = await itemCollaboratorRolesAPI.list(parseInt(id, 10));
+          setCollaboratorRoles(roles);
+        } catch (err) {
+          console.error('Failed to load collaborator roles:', err);
+          // Don't fail the whole page if roles fail to load
+          setCollaboratorRoles([]);
+        } finally {
+          setLoadingCollaboratorRoles(false);
+        }
       } catch (err: any) {
         const errorMessage = err.message || 'Failed to load item';
         setError(errorMessage);
@@ -758,9 +777,40 @@ const ItemDetail: React.FC<ItemDetailProps> = ({
                  Collaborators
                </Typography>
                <Divider sx={{ mb: 2 }} />
+               <Alert severity="info" sx={{ mb: 2 }}>
+                 Collaborators shown in blue are marked as citation authors and will appear in this item's citation.
+               </Alert>
                <Box>
-                 {renderField('Collaborators', item.collaborator_names, true)}
-                 {/* TODO: Add collaborator roles and citation author info from through table */}
+                 <EditableCollaboratorRolesField
+                   itemId={item.id}
+                   fieldName="collaborators"
+                   label="Collaborators"
+                   value={collaboratorRoles}
+                   isEditing={editingFields.has('collaborators')}
+                   isSaving={savingFields.has('collaborators')}
+                   editValue={editValues.collaborators}
+                   startEditing={startEditing}
+                   saveField={undefined}  // Custom save handler provided via onSave
+                   cancelEditing={cancelEditing}
+                   updateEditValue={updateEditValue}
+                   onSave={async (roles) => {
+                     try {
+                       setSavingFields(prev => new Set(prev).add('collaborators'));
+                       const updatedRoles = await itemCollaboratorRolesAPI.update(item.id, roles);
+                       setCollaboratorRoles(updatedRoles);
+                       cancelEditing('collaborators');
+                     } catch (err: any) {
+                       setError(`Failed to update collaborators: ${err.message}`);
+                       throw err;
+                     } finally {
+                       setSavingFields(prev => {
+                         const newSet = new Set(prev);
+                         newSet.delete('collaborators');
+                         return newSet;
+                       });
+                     }
+                   }}
+                 />
                </Box>
              </CardContent>
            </Card>
@@ -1226,15 +1276,44 @@ const ItemDetail: React.FC<ItemDetailProps> = ({
              </CardContent>
            </Card>
 
-           {/* Genre */}
+          {/* Tags */}
            <Card sx={{ mb: 2 }} elevation={1}>
              <CardContent>
                <Typography variant="h6" gutterBottom sx={{ fontWeight: 'medium', color: 'primary.main' }}>
-                 Genre
+                Tags
                </Typography>
                <Divider sx={{ mb: 2 }} />
                <Box>
-                 {renderField('Genres', item.genre_display, true)}
+                <EditableMultiSelectField
+                  fieldName="genre"
+                  label="Genres"
+                  value={item.genre || []}
+                  displayLabels={item.genre_display || []}
+                  apiEndpoint="/internal/v1/item-genre-choices/"
+                  isEditing={editingFields.has('genre')}
+                  isSaving={savingFields.has('genre')}
+                  editValue={editValues.genre}
+                  startEditing={startEditing}
+                  saveField={saveField}
+                  cancelEditing={cancelEditing}
+                  updateEditValue={updateEditValue}
+                  maxDisplayChips={3}
+                />
+                <EditableMultiSelectField
+                  fieldName="language_description_type"
+                  label="Language Description Types"
+                  value={item.language_description_type || []}
+                  displayLabels={item.language_description_type_display || []}
+                  apiEndpoint="/internal/v1/item-language-description-type-choices/"
+                  isEditing={editingFields.has('language_description_type')}
+                  isSaving={savingFields.has('language_description_type')}
+                  editValue={editValues.language_description_type}
+                  startEditing={startEditing}
+                  saveField={saveField}
+                  cancelEditing={cancelEditing}
+                  updateEditValue={updateEditValue}
+                  maxDisplayChips={3}
+                />
                </Box>
              </CardContent>
            </Card>
@@ -1247,10 +1326,71 @@ const ItemDetail: React.FC<ItemDetailProps> = ({
                </Typography>
                <Divider sx={{ mb: 2 }} />
                <Box>
-                 {/* TODO: Implement browse categories functionality */}
+                 {item.browse_categories && item.browse_categories.length > 0 ? (
+                   (() => {
+                     // Ensure browse_categories is an array
+                     const categories = Array.isArray(item.browse_categories) 
+                       ? item.browse_categories 
+                       : [];
+                     const displayLabels = Array.isArray(item.browse_categories_display)
+                       ? item.browse_categories_display
+                       : [];
+                     
+                     // Define category groups
+                     const categoryGroups: Record<string, string[]> = {
+                       'Language description materials': ['grammars', 'specific-features', 'dictionaries'],
+                       'Music': ['powwow', 'stomp-dance', 'hymns', 'other-ceremonial', 'for-children-music', 
+                                 'forty-nine', 'hand-game', 'nac', 'war-dance', 'round-dance', 'sundance'],
+                       'Educational materials': ['for-families', 'for-teachers', 'for-learners', 'for-administrators'],
+                       'Texts': ['interlinear-glossed-texts', 'literature-and-stories', 'conversation', 
+                                 'religious-material', 'correspondence', 'narrative', 'popular-media-text'],
+                       'Videos': ['for-children-video', 'events', 'popular-media-video']
+                     };
+
+                     // Group categories
+                     const grouped: Record<string, Array<{value: string, label: string}>> = {};
+                     
+                     categories.forEach((cat, idx) => {
+                       const label = displayLabels[idx] || cat;
+                       for (const [groupName, cats] of Object.entries(categoryGroups)) {
+                         if (cats.includes(cat)) {
+                           if (!grouped[groupName]) {
+                             grouped[groupName] = [];
+                           }
+                           grouped[groupName].push({value: cat, label});
+                           break;
+                         }
+                       }
+                     });
+
+                     return (
+                       <Box>
+                         {Object.entries(grouped).map(([groupName, categories]) => (
+                           <Box key={groupName} sx={{ mb: 2 }}>
+                             <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 'medium' }}>
+                               {groupName}
+                             </Typography>
+                             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                               {categories.map(cat => (
+                                 <Chip 
+                                   key={cat.value} 
+                                   label={cat.label} 
+                                   size="small" 
+                                   variant="outlined"
+                                   color="primary"
+                                 />
+                               ))}
+                             </Box>
+                           </Box>
+                         ))}
+                       </Box>
+                     );
+                   })()
+                 ) : (
                  <Typography variant="body2" color="text.secondary" fontStyle="italic">
-                   Browse categories will be displayed here
+                     No browse categories assigned
                  </Typography>
+                 )}
                </Box>
              </CardContent>
            </Card>

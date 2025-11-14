@@ -44,6 +44,8 @@ export interface Item {
   genre_display: string[];
   language_description_type: string[];
   language_description_type_display: string[];
+  browse_categories: string[];
+  browse_categories_display: string[];
   language_names: string[];  // DEPRECATED - use language instead
   language: Languoid[];  // Full Languoid objects for editing
   collaborator_names: string[];
@@ -147,6 +149,30 @@ export interface ItemTitle {
   language_iso: string;   // Language ISO code for display
   default: boolean;
 }
+
+export interface CollaboratorRole {
+  id: number;
+  collaborator: number;  // Collaborator ID
+  collaborator_data: {
+    id: number;
+    collaborator_id: number;
+    display_name: string;
+    full_name: string;
+    slug: string;
+  };
+  role: string[];  // Array of role values (e.g., ['author', 'performer'])
+  role_display: string[];  // Human-readable role labels
+  citation_author: boolean;
+  modified_by: string;
+  updated: string;
+}
+
+// Type for creating/updating collaborator roles
+export type CollaboratorRoleMutationData = {
+  collaborator: number;
+  role: string[];
+  citation_author?: boolean;
+};
 
 export interface Collection {
   // Basic identifiers
@@ -830,6 +856,22 @@ export const itemTitlesAPI = {
   setDefault: (itemId: number, titleId: number): Promise<ItemTitle> => {
     return apiRequest<ItemTitle>(`/items/${itemId}/titles/${titleId}/set_default/`, {
       method: 'POST',
+    });
+  },
+};
+
+// Item Collaborator Roles API - handles CollaboratorRole through-model
+export const itemCollaboratorRolesAPI = {
+  // Get all collaborator roles for an item
+  list: (itemId: number): Promise<CollaboratorRole[]> => {
+    return apiRequest<CollaboratorRole[]>(`/items/${itemId}/collaborator-roles/`);
+  },
+
+  // Update all collaborator roles for an item (atomic)
+  update: (itemId: number, roles: CollaboratorRoleMutationData[]): Promise<CollaboratorRole[]> => {
+    return apiRequest<CollaboratorRole[]>(`/items/${itemId}/collaborator-roles/`, {
+      method: 'PATCH',
+      body: JSON.stringify(roles),
     });
   },
 };

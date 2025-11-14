@@ -464,18 +464,20 @@ const LanguoidsList: React.FC = () => {
     // No warning for empty mode
     if (mode === 'empty') return null;
     
-    // Only warn if no advanced filters are active (user is editing ALL rows)
-    // The count doesn't matter - what matters is whether they're editing everything
-    if (!hasAdvancedFilters) {
-      // Preset-only warning (no advanced filters)
-      if (mode === 'filtered') {
+    // No warning for selected mode - user explicitly selected specific rows
+    if (mode === 'selected') return null;
+    
+    // Only warn for filtered mode if no advanced filters are active
+    // (user is editing ALL rows in a preset category)
+    if (mode === 'filtered' && !hasAdvancedFilters) {
       // Map preset key to warning preset type
-      const presetMap: Record<string, 'all' | 'languages' | 'dialects' | 'languages_dialects' | 'families'> = {
+      const presetMap: Record<string, 'all' | 'languages' | 'dialects' | 'languages_dialects' | 'families_only' | 'families_subfamilies'> = {
         'all': 'all',
         'languages': 'languages',
         'dialects': 'dialects',
         'languages_dialects': 'languages_dialects',
-        'families': 'families',
+        'families_only': 'families_only',
+        'families_subfamilies': 'families_subfamilies',
       };
       
       return { 
@@ -484,16 +486,6 @@ const LanguoidsList: React.FC = () => {
         preset: presetMap[selectedLevelFilter] || 'all',
         mode 
       };
-    }
-    
-      // Also show warning for selected mode if no advanced filters
-      if (mode === 'selected') {
-      return {
-        type: 'large-selected',
-        count,
-        mode
-      };
-      }
     }
     
     return null;

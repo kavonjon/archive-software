@@ -284,6 +284,43 @@ LANGUAGE_DESCRIPTION_CHOICES = (('primary-text', 'Primary text'),
                                 ('transcribed_texts', 'Transcribed texts'))
 
 
+BROWSE_CATEGORY_CHOICES = (
+    # Educational materials
+    ('for-administrators', 'For administrators'),
+    ('for-families', 'For families'),
+    ('for-learners', 'For learners'),
+    ('for-teachers', 'For teachers'),
+    # Language description materials
+    ('dictionaries', 'Dictionaries'),
+    ('grammars', 'Grammars'),
+    ('specific-features', 'Specific features'),
+    # Music
+    ('forty-nine', '49'),
+    ('for-children-music', 'For children (Music)'),
+    ('hand-game', 'Hand game'),
+    ('hymns', 'Hymns'),
+    ('nac', 'Native American Church'),
+    ('other-ceremonial', 'Other ceremonial'),
+    ('powwow', 'Powwow'),
+    ('round-dance', 'Round dance'),
+    ('stomp-dance', 'Stomp dance'),
+    ('sundance', 'Sundance'),
+    ('war-dance', 'War dance'),
+    # Texts
+    ('conversation', 'Conversation'),
+    ('correspondence', 'Correspondence'),
+    ('interlinear-glossed-texts', 'Interlinear glossed texts'),
+    ('literature-and-stories', 'Literature and stories'),
+    ('narrative', 'Narrative'),
+    ('popular-media-text', 'Popular media (Text)'),
+    ('religious-material', 'Religious material'),
+    # Videos
+    ('events', 'Events'),
+    ('for-children-video', 'For children (Video)'),
+    ('popular-media-video', 'Popular media (Video)'),
+)
+
+
 
 def reverse_lookup_choices(choices, entry, strict=False):
     for choice in list(choices):
@@ -637,6 +674,7 @@ class Item(models.Model):
     # music_text = models.TextField(blank=True)
     language_description_type = MultiSelectField(choices=LANGUAGE_DESCRIPTION_CHOICES, blank=True)
     # descriptive_materials_text = models.TextField(blank=True)
+    browse_categories = MultiSelectField(choices=BROWSE_CATEGORY_CHOICES, blank=True, editable=False)  # Automatically calculated in pre_save signal
     latitude = models.DecimalField(max_digits=22, decimal_places=16, null=True, blank=True, verbose_name="latitude")
     longitude = models.DecimalField(max_digits=22, decimal_places=16, null=True, blank=True, verbose_name="longitude")
     migrate = models.BooleanField(null=False, blank=False, default=False)

@@ -114,13 +114,24 @@ export const parseCommaSeparatedLanguoids = async (
  * Used to determine if a cell has changed during import
  */
 export const areCellValuesEqual = (a: any, b: any): boolean => {
-  // Handle null/undefined
+  // Handle null/undefined/empty string equivalence
   if (a === null && b === null) return true;
   if (a === undefined && b === undefined) return true;
   if (a === null && b === '') return true;
   if (a === '' && b === null) return true;
   if (a === undefined && b === '') return true;
   if (a === '' && b === undefined) return true;
+  if (a === null && b === undefined) return true;
+  if (a === undefined && b === null) return true;
+  
+  // Handle booleans explicitly (before string conversion)
+  if (typeof a === 'boolean' && typeof b === 'boolean') {
+    return a === b;
+  }
+  if (typeof a === 'boolean' || typeof b === 'boolean') {
+    // One is boolean, one is not - they're different
+    return false;
+  }
   
   // Handle arrays (order-insensitive comparison for M2M fields)
   if (Array.isArray(a) && Array.isArray(b)) {
@@ -144,7 +155,10 @@ export const areCellValuesEqual = (a: any, b: any): boolean => {
     return JSON.stringify(a) === JSON.stringify(b);
   }
   
-  // Handle primitives
-  return String(a).trim() === String(b).trim();
+  // Handle primitives (strings, numbers)
+  // Trim whitespace and convert to lowercase for case-insensitive comparison
+  const aStr = String(a).trim().toLowerCase();
+  const bStr = String(b).trim().toLowerCase();
+  return aStr === bStr;
 };
 

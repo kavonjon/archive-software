@@ -1252,12 +1252,16 @@ def generate_languoid_export_task(self, export_id, mode, ids):
     logger.info(f"[EXPORT TASK] Starting export {export_id}: {len(ids)} languoids")
     
     try:
+        from django.db.models import Count
+        
         # Fetch languoids with optimized queries
         queryset = Languoid.objects.filter(id__in=ids).select_related(
             'parent_languoid',
             'family_languoid',
             'pri_subgroup_languoid',
             'sec_subgroup_languoid'
+        ).annotate(
+            item_count=Count('item_languages')
         )
         
         languoids = list(queryset)
@@ -1297,7 +1301,7 @@ def generate_languoid_export_task(self, export_id, mode, ids):
         
         # Define headers
         headers = [
-            'Name', 'Name Abbreviation', 'Glottocode', 'ISO 639-3',
+            'Name', 'Name Abbreviation', 'Glottocode', 'ISO 639-3', '# of Items',
             'Level (Glottolog)', 'Level (NAL)',
             'Parent Languoid', 'Parent Languoid Abbreviation', 'Parent Languoid Glottocode',
             'Family', 'Family Abbreviation', 'Family Glottocode',
@@ -1332,36 +1336,43 @@ def generate_languoid_export_task(self, export_id, mode, ids):
             ws.cell(row=row_num, column=2).value = safe_value(languoid.name_abbrev)
             ws.cell(row=row_num, column=3).value = safe_value(languoid.glottocode)
             ws.cell(row=row_num, column=4).value = safe_value(languoid.iso)
-            ws.cell(row=row_num, column=5).value = languoid.get_level_glottolog_display() if languoid.level_glottolog else ''
-            ws.cell(row=row_num, column=6).value = languoid.get_level_nal_display() if languoid.level_nal else ''
+            
+            # Item count - blank for families, show count for languages/dialects
+            if languoid.level_glottolog == 'family':
+                ws.cell(row=row_num, column=5).value = ''
+            else:
+                ws.cell(row=row_num, column=5).value = languoid.item_count
+            
+            ws.cell(row=row_num, column=6).value = languoid.get_level_glottolog_display() if languoid.level_glottolog else ''
+            ws.cell(row=row_num, column=7).value = languoid.get_level_nal_display() if languoid.level_nal else ''
             
             # Parent Languoid
-            ws.cell(row=row_num, column=7).value = languoid.parent_languoid.name if languoid.parent_languoid else ''
-            ws.cell(row=row_num, column=8).value = safe_value(languoid.parent_languoid.name_abbrev) if languoid.parent_languoid else ''
-            ws.cell(row=row_num, column=9).value = safe_value(languoid.parent_languoid.glottocode) if languoid.parent_languoid else ''
+            ws.cell(row=row_num, column=8).value = languoid.parent_languoid.name if languoid.parent_languoid else ''
+            ws.cell(row=row_num, column=9).value = safe_value(languoid.parent_languoid.name_abbrev) if languoid.parent_languoid else ''
+            ws.cell(row=row_num, column=10).value = safe_value(languoid.parent_languoid.glottocode) if languoid.parent_languoid else ''
             
             # Family
-            ws.cell(row=row_num, column=10).value = languoid.family_languoid.name if languoid.family_languoid else ''
-            ws.cell(row=row_num, column=11).value = safe_value(languoid.family_languoid.name_abbrev) if languoid.family_languoid else ''
-            ws.cell(row=row_num, column=12).value = safe_value(languoid.family_languoid.glottocode) if languoid.family_languoid else ''
+            ws.cell(row=row_num, column=11).value = languoid.family_languoid.name if languoid.family_languoid else ''
+            ws.cell(row=row_num, column=12).value = safe_value(languoid.family_languoid.name_abbrev) if languoid.family_languoid else ''
+            ws.cell(row=row_num, column=13).value = safe_value(languoid.family_languoid.glottocode) if languoid.family_languoid else ''
             
             # Primary Subfamily
-            ws.cell(row=row_num, column=13).value = languoid.pri_subgroup_languoid.name if languoid.pri_subgroup_languoid else ''
-            ws.cell(row=row_num, column=14).value = safe_value(languoid.pri_subgroup_languoid.name_abbrev) if languoid.pri_subgroup_languoid else ''
-            ws.cell(row=row_num, column=15).value = safe_value(languoid.pri_subgroup_languoid.glottocode) if languoid.pri_subgroup_languoid else ''
+            ws.cell(row=row_num, column=14).value = languoid.pri_subgroup_languoid.name if languoid.pri_subgroup_languoid else ''
+            ws.cell(row=row_num, column=15).value = safe_value(languoid.pri_subgroup_languoid.name_abbrev) if languoid.pri_subgroup_languoid else ''
+            ws.cell(row=row_num, column=16).value = safe_value(languoid.pri_subgroup_languoid.glottocode) if languoid.pri_subgroup_languoid else ''
             
             # Secondary Subfamily
-            ws.cell(row=row_num, column=16).value = languoid.sec_subgroup_languoid.name if languoid.sec_subgroup_languoid else ''
-            ws.cell(row=row_num, column=17).value = safe_value(languoid.sec_subgroup_languoid.name_abbrev) if languoid.sec_subgroup_languoid else ''
-            ws.cell(row=row_num, column=18).value = safe_value(languoid.sec_subgroup_languoid.glottocode) if languoid.sec_subgroup_languoid else ''
+            ws.cell(row=row_num, column=17).value = languoid.sec_subgroup_languoid.name if languoid.sec_subgroup_languoid else ''
+            ws.cell(row=row_num, column=18).value = safe_value(languoid.sec_subgroup_languoid.name_abbrev) if languoid.sec_subgroup_languoid else ''
+            ws.cell(row=row_num, column=19).value = safe_value(languoid.sec_subgroup_languoid.glottocode) if languoid.sec_subgroup_languoid else ''
             
             # Other fields
-            ws.cell(row=row_num, column=19).value = safe_value(languoid.alt_names)
-            ws.cell(row=row_num, column=20).value = safe_value(languoid.region)
-            ws.cell(row=row_num, column=21).value = str(languoid.latitude) if languoid.latitude else ''
-            ws.cell(row=row_num, column=22).value = str(languoid.longitude) if languoid.longitude else ''
-            ws.cell(row=row_num, column=23).value = safe_value(languoid.tribes)
-            ws.cell(row=row_num, column=24).value = safe_value(languoid.notes)
+            ws.cell(row=row_num, column=20).value = safe_value(languoid.alt_names)
+            ws.cell(row=row_num, column=21).value = safe_value(languoid.region)
+            ws.cell(row=row_num, column=22).value = str(languoid.latitude) if languoid.latitude else ''
+            ws.cell(row=row_num, column=23).value = str(languoid.longitude) if languoid.longitude else ''
+            ws.cell(row=row_num, column=24).value = safe_value(languoid.tribes)
+            ws.cell(row=row_num, column=25).value = safe_value(languoid.notes)
         
         # Auto-size columns
         for col_num in range(1, len(headers) + 1):
@@ -1418,10 +1429,13 @@ def generate_collaborator_export_task(self, export_id, mode, ids):
     try:
         # Fetch collaborators with optimized queries and locale-aware sorting
         from django.db.models.functions import Lower, Collate
+        from django.db.models import Count
         
         queryset = Collaborator.objects.filter(id__in=ids).prefetch_related(
             'native_languages',
             'other_languages'
+        ).annotate(
+            item_count=Count('item_collaborators')
         )
         
         collaborators = list(queryset.order_by(
@@ -1440,7 +1454,8 @@ def generate_collaborator_export_task(self, export_id, mode, ids):
         headers = [
             'Collaborator ID',
             'Full Name',  # Position 2 - export only, read-only
-            'First Name(s)',
+            '# of Items',
+            'First and Middle Name(s)',
             'Last Name(s)',
             'Name Suffix',
             'Nickname',
@@ -1481,31 +1496,32 @@ def generate_collaborator_export_task(self, export_id, mode, ids):
         for row_num, collab in enumerate(collaborators, 2):
             ws.cell(row=row_num, column=1).value = collab.collaborator_id if collab.collaborator_id else ''
             ws.cell(row=row_num, column=2).value = safe_value(collab.full_name)  # Export only
-            ws.cell(row=row_num, column=3).value = safe_value(collab.first_names)
-            ws.cell(row=row_num, column=4).value = safe_value(collab.last_names)
-            ws.cell(row=row_num, column=5).value = safe_value(collab.name_suffix)
-            ws.cell(row=row_num, column=6).value = safe_value(collab.nickname)
-            ws.cell(row=row_num, column=7).value = safe_value(collab.other_names)
+            ws.cell(row=row_num, column=3).value = collab.item_count  # # of Items
+            ws.cell(row=row_num, column=4).value = safe_value(collab.first_names)
+            ws.cell(row=row_num, column=5).value = safe_value(collab.last_names)
+            ws.cell(row=row_num, column=6).value = safe_value(collab.name_suffix)
+            ws.cell(row=row_num, column=7).value = safe_value(collab.nickname)
+            ws.cell(row=row_num, column=8).value = safe_value(collab.other_names)
             
             # Anonymous - convert None/True/False to Not specified/Yes/No
             if collab.anonymous is None:
-                ws.cell(row=row_num, column=8).value = 'Not specified'
+                ws.cell(row=row_num, column=9).value = 'Not specified'
             else:
-                ws.cell(row=row_num, column=8).value = 'Yes' if collab.anonymous else 'No'
+                ws.cell(row=row_num, column=9).value = 'Yes' if collab.anonymous else 'No'
             
             # Languages - display as comma-separated names
             native_langs = ', '.join([lang.name for lang in collab.native_languages.all()])
             other_langs = ', '.join([lang.name for lang in collab.other_languages.all()])
-            ws.cell(row=row_num, column=9).value = native_langs
-            ws.cell(row=row_num, column=10).value = other_langs
+            ws.cell(row=row_num, column=10).value = native_langs
+            ws.cell(row=row_num, column=11).value = other_langs
             
-            ws.cell(row=row_num, column=11).value = safe_value(collab.birthdate)
-            ws.cell(row=row_num, column=12).value = safe_value(collab.deathdate)
-            ws.cell(row=row_num, column=13).value = safe_value(collab.gender)
-            ws.cell(row=row_num, column=14).value = safe_value(collab.tribal_affiliations)
-            ws.cell(row=row_num, column=15).value = safe_value(collab.clan_society)
-            ws.cell(row=row_num, column=16).value = safe_value(collab.origin)
-            ws.cell(row=row_num, column=17).value = safe_value(collab.other_info)
+            ws.cell(row=row_num, column=12).value = safe_value(collab.birthdate)
+            ws.cell(row=row_num, column=13).value = safe_value(collab.deathdate)
+            ws.cell(row=row_num, column=14).value = safe_value(collab.gender)
+            ws.cell(row=row_num, column=15).value = safe_value(collab.tribal_affiliations)
+            ws.cell(row=row_num, column=16).value = safe_value(collab.clan_society)
+            ws.cell(row=row_num, column=17).value = safe_value(collab.origin)
+            ws.cell(row=row_num, column=18).value = safe_value(collab.other_info)
         
         # Auto-size columns
         for col_num in range(1, len(headers) + 1):

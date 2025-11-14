@@ -1,8 +1,8 @@
 {
   "technical_debt_registry": {
-    "version": "1.0",
-    "last_updated": "2025-01-04",
-    "conversation_reference": "Initial context memory system setup discussion", 
+    "version": "1.1",
+    "last_updated": "2025-11-13",
+    "conversation_reference": "Initial context memory system setup discussion + batch editor session persistence, collaborator filters, and import transformer resolutions", 
     "note": "Initial population - needs audit and expansion",
     
     "legacy_components": {
@@ -37,6 +37,60 @@
         "confidence_level": "high",
         "status": "resolved",
         "cross_references": ["dependency_upgrade_plan.json", "stage_4_miscellaneous_improvements.json"]
+      },
+      
+      "batch_editor_refresh_persistence": {
+        "decision_id": "debt_resolved_002",
+        "content": "Batch editor session persistence and order preservation issues resolved",
+        "added_date": "2025-11-13",
+        "completion_date": "2025-11-13",
+        "debt_type": "data_loss_and_ux_consistency",
+        "problems_resolved": [
+          "Newly saved rows disappeared after refresh",
+          "Rows moved/resorted after refresh (user lost track)",
+          "Warning dialogs appeared incorrectly for selected mode",
+          "No support for empty mode (starting with blank grid)"
+        ],
+        "solution_summary": "Implemented universal patterns: sessionIds ref for persistence, order-preserving refresh via Map lookup, three-mode config format, warning dialog logic corrections",
+        "benefits_achieved": ["No data loss on refresh", "Consistent row order within session", "Correct warning behavior", "Empty mode workflow support"],
+        "patterns_established": ["Session persistence (sessionIds ref)", "Order-preserving refresh", "Empty mode workflow", "Warning dialog patterns", "Batch edit modes", "Cell editor pagination"],
+        "priority": "critical",
+        "confidence_level": "high",
+        "status": "resolved",
+        "cross_references": ["context/development/batch-editor-universal-patterns.json", "context/development/stage_1_batch_editing.json"]
+      },
+      
+      "collaborator_filter_dialect_instance_references": {
+        "decision_id": "debt_resolved_003",
+        "content": "Collaborator filters referencing deprecated DialectInstance model resolved",
+        "added_date": "2025-11-13",
+        "completion_date": "2025-11-13",
+        "debt_type": "deprecated_model_references",
+        "problem": "CollaboratorFilter methods filter_native_languages_empty and filter_other_languages_empty referenced collaborator_native_languages_dialectinstances and collaborator_other_languages_dialectinstances (deprecated)",
+        "solution": "Replaced with native_languages__isnull=True and other_languages__isnull=True respectively",
+        "impact": "Fixed FieldError on collaborator list page load",
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "resolved"
+      },
+      
+      "import_false_positives": {
+        "decision_id": "debt_resolved_004",
+        "content": "Import transformer false positives for boolean and text fields resolved",
+        "added_date": "2025-11-13",
+        "completion_date": "2025-11-13",
+        "debt_type": "data_comparison_bugs",
+        "problems_resolved": [
+          "Anonymous field (boolean false) marked as changed due to || operator converting to empty string",
+          "Gender, Clan/Society, Origin fields marked as changed due to missing fieldTypeMap entries",
+          "Case-sensitive text comparison causing false positives"
+        ],
+        "solution_summary": "Use ?? instead of || for default values, add all fields to fieldTypeMap, implement case-insensitive text comparison with boolean type checking",
+        "benefits_achieved": ["Accurate change detection on import", "No false positives for unchanged data", "Correct round-trip export/import"],
+        "priority": "high",
+        "confidence_level": "high",
+        "status": "resolved",
+        "cross_references": ["context/development/batch-editor-universal-patterns.json::import_export_patterns"]
       }
     },
     

@@ -148,9 +148,9 @@ When you change a languoid's parent:
 - Descendants remain attached (children move with the parent)
 - Validation ensures no circular references are created
 
-## Validation Rules
+## Validation Rules {#languoids-validation-rules}
 
-### Required Fields
+### Required Fields {#languoids-required-fields}
 These fields must have a value before saving:
 - **Name**
 - **Glottocode**
@@ -201,7 +201,7 @@ Most fields support inline editing:
 - Click X to remove
 - Reorder by clicking and dragging
 
-## Common Single-Edit Tasks
+## Common Single-Edit Tasks {#languoids-common-tasks}
 
 ### Creating a New Languoid
 1. Navigate to **Languages** page
@@ -249,7 +249,7 @@ On the languoid detail page, you can see:
 
 This helps you understand the languoid's place in the hierarchy.
 
-## Tips for Single Editing
+## Tips for Single Editing {#languoids-tips-single-editing}
 
 - **Use search** - Find languoids quickly by name or glottocode
 - **Check relationships** - Verify parent-child links are correct

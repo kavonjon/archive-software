@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkCustomHeaderId from 'remark-custom-header-id';
 import { Box, Typography, List, ListItem, ListItemButton, Paper, CircularProgress } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { usePageTitle } from '../hooks/usePageTitle';
@@ -225,10 +226,11 @@ export const UserGuidePage = () => {
             }}
           >
             <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
+              remarkPlugins={[remarkGfm, remarkCustomHeaderId]}
               components={{
                 h1: ({ node, children, ...props }) => {
-                  const id = slugify(children);
+                  // Use custom ID from markdown {#custom-id} syntax if present, otherwise slugify
+                  const id = (node as any).data?.id || (node as any).properties?.id || slugify(children);
                   return (
                     <Typography
                       variant="h3"
@@ -250,7 +252,8 @@ export const UserGuidePage = () => {
                   );
                 },
             h2: ({ node, children, ...props }) => {
-              const id = slugify(children);
+              // Use custom ID from markdown {#custom-id} syntax if present, otherwise slugify
+              const id = (node as any).data?.id || (node as any).properties?.id || slugify(children);
               return (
                 <Typography
                   variant="h4"
@@ -269,7 +272,8 @@ export const UserGuidePage = () => {
               );
             },
             h3: ({ node, children, ...props }) => {
-              const id = slugify(children);
+              // Use custom ID from markdown {#custom-id} syntax if present, otherwise slugify
+              const id = (node as any).data?.id || (node as any).properties?.id || slugify(children);
               return (
                 <Typography
                   variant="h5"

@@ -2,7 +2,7 @@
 
 The Collaborator Batch Editor provides a spreadsheet-style interface for efficiently editing multiple collaborator records at once. This section covers collaborator-specific features and workflows.
 
-## Overview
+## Overview {#collaborator-batch-overview}
 
 The batch editor allows you to:
 - Edit multiple collaborators simultaneously in a spreadsheet view
@@ -130,26 +130,13 @@ Spreadsheet has:
 
 ### Name Component Import
 
-When importing name data, you can use either approach:
+When importing name data, **Full name** is calculated from the component fields:
 
-**Option 1: Component Fields (Recommended)**
 ```
 First Name(s) | Nickname | Last Name(s) | Name Suffix
 Jane          | JJ       | Doe          | Jr.
 ```
 - System uses these to calculate Full Name
-- Most flexible and searchable
-
-**Option 2: Full Name Only (Not Recommended)**
-```
-Full Name
-Jane "JJ" Doe Jr.
-```
-- System **ignores** this column
-- You must provide First Name(s) and/or Last Name(s) for the name to import
-- Full Name will be recalculated from components
-
-**Best Practice**: Always provide First Name(s) and Last Name(s) in separate columns. The system will calculate Full Name automatically.
 
 ### Other Names Import
 
@@ -216,7 +203,7 @@ If your spreadsheet contains Collaborator IDs that match existing database recor
 
 This makes the "export → edit → import" workflow seamless for bulk updates.
 
-## Common Batch Editing Tasks
+## Common Batch Editing Tasks {#collaborator-batch-common-tasks}
 
 ### Adding Multiple New Collaborators
 
@@ -224,7 +211,7 @@ This makes the "export → edit → import" workflow seamless for bulk updates.
 2. Click **"Add Row"** for each collaborator you want to create
 3. Fill in name fields for each:
    - First Name(s)
-   - Last Name(s)
+   - Last Name(s) (required)
    - Nickname (optional)
    - Name Suffix (optional)
 4. Notice Full Name calculates automatically
@@ -247,7 +234,7 @@ This makes the "export → edit → import" workflow seamless for bulk updates.
 ### Importing a Collaborator List
 
 1. Prepare a spreadsheet with collaborators:
-   - Columns: First Name(s), Last Name(s), and any other fields
+   - Columns: Last Name(s) (required), First Name(s), and any other fields
    - One row per collaborator
    - Use comma-separated values for Other Names and Languages
 2. Import the spreadsheet (drag & drop or upload button)
@@ -256,20 +243,6 @@ This makes the "export → edit → import" workflow seamless for bulk updates.
 5. Check for validation errors (red cells)
 6. Click **"Save"**
 
-### Standardizing Name Format
-
-If collaborators have inconsistent name formatting:
-
-1. Select collaborators that need standardization
-2. Open batch editor
-3. For each row, distribute Full Name into components:
-   - Copy first name portion to First Name(s) column
-   - Copy last name portion to Last Name(s) column
-   - Copy nickname to Nickname column (if present)
-   - Copy suffix to Name Suffix column (if present)
-4. Full Name recalculates automatically in standard format
-5. Check affected rows
-6. Click **"Save"**
 
 ### Adding Languages to Multiple Collaborators
 
@@ -285,14 +258,13 @@ If several collaborators speak the same languages:
 8. Check affected rows
 9. Save
 
-### Bulk Adding Alternative Names
+### Bulk Adding Tribal Affiliation
 
-1. Open batch editor with collaborators needing alternative names
-2. Edit **Other Names** column (list editor)
-3. Type name and press Enter to add
-4. Copy/paste between rows if names are similar
-5. Check affected rows
-6. Save
+1. Open batch editor with collaborators needing tribal affiliation filled in
+2. Edit **Tribal Affiliations** column
+3. Copy/paste between rows if names are similar
+4. Check affected rows
+5. Save
 
 ### Managing Anonymous Status
 
@@ -307,7 +279,7 @@ To mark multiple collaborators as anonymous:
 
 **Warning**: Consult with archive administration before bulk-changing anonymity status, especially when removing anonymous flags.
 
-## Validation in Batch Mode
+## Validation in Batch Mode {#collaborator-batch-validation}
 
 ### Real-Time Validation
 
@@ -317,7 +289,7 @@ As you edit cells, validation runs immediately:
 - **Yellow cells** - Edited but valid (unsaved changes)
 - **Blue cells** - Validation in progress
 
-### Common Validation Errors
+### Common Validation Errors {#collaborator-batch-validation-errors}
 
 **"Collaborator ID must be unique"**
 - Another collaborator already has this ID
@@ -366,7 +338,7 @@ The batch editor uses virtualization to handle large datasets efficiently:
 - Save in batches (check 50-100 rows at a time)
 - Use import for very large additions (more efficient than manual entry)
 
-## Tips for Efficient Batch Editing
+## Tips for Efficient Batch Editing {#collaborator-batch-tips}
 
 1. **Use export as a template** - Export existing collaborators, modify in Excel, re-import
 2. **Let Full Name calculate** - Never manually edit Full Name; edit components instead

@@ -76,6 +76,7 @@ interface FilterState {
   gender_isnull?: boolean;
   birthdate_isnull?: boolean;
   deathdate_isnull?: boolean;
+  anonymous_isnull?: boolean;
 }
 
 const DEFAULT_FILTERS: FilterState = {
@@ -331,6 +332,20 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
   const handleBatchEditExecute = useCallback(async (mode: BatchEditMode) => {
     console.log('[CollaboratorsList] Batch edit execute with mode:', mode);
     
+    // Handle 'empty' mode - no IDs, just navigate
+    if (mode === 'empty') {
+      const batchConfig = {
+        mode: 'empty',
+        ids: [],
+        timestamp: Date.now(),
+      };
+      console.log('[CollaboratorsList] Saving empty batch config to sessionStorage:', batchConfig);
+      sessionStorage.setItem('collaborator-batch-config', JSON.stringify(batchConfig));
+      console.log('[CollaboratorsList] Navigating to /collaborators/batch');
+      navigate('/collaborators/batch');
+      return;
+    }
+    
     // Check cache status FIRST before doing anything else
     const cacheReady = cache && !cacheLoading && loadProgress >= 100;
     
@@ -399,36 +414,46 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
     
     console.log('[CollaboratorsList] Batch edit IDs:', ids.length, 'collaborators');
     
-    // Check if any filters are active
-    const hasActiveFilters = Object.entries(activeFilters).some(([key, value]) => {
-      if (typeof value === 'boolean') return true; // Boolean filters (isnull) are active
-      if (typeof value === 'string' && value.trim()) return true; // String filters are active
-      return false;
-    });
-    
-    console.log('[CollaboratorsList] Has active filters:', hasActiveFilters);
-    
-    // Only warn if no filters are applied (i.e., user is editing ALL rows)
-    const largeDataset = !hasActiveFilters;
-    
-    console.log('[CollaboratorsList] Cache ready:', cacheReady, 'Large dataset warning:', largeDataset);
-    
-    // Show dialog if large dataset (cache is already ready at this point)
-    if (largeDataset) {
-      setLoadingDialogState({
-        cacheLoading: false,
-        cacheProgress: loadProgress,
-        totalCount: cache?.count || 0,
-        showLargeDatasetWarning: largeDataset,
-        rowCount: ids.length,
-        mode: mode,
+    // Only warn for filtered mode with no active filters
+    // Never warn for selected mode - user explicitly chose specific rows
+    if (mode === 'filtered') {
+      // Check if any filters are active
+      const hasActiveFilters = Object.entries(activeFilters).some(([key, value]) => {
+        if (typeof value === 'boolean') return true; // Boolean filters (isnull) are active
+        if (typeof value === 'string' && value.trim()) return true; // String filters are active
+        return false;
       });
-      setPendingBatchIds(ids);
-      return; // Wait for user to confirm in dialog
+      
+      console.log('[CollaboratorsList] Has active filters:', hasActiveFilters);
+      
+      // Only warn if no filters are applied (i.e., user is editing ALL rows)
+      const shouldShowWarning = !hasActiveFilters;
+      
+      console.log('[CollaboratorsList] Cache ready:', cacheReady, 'Large dataset warning:', shouldShowWarning);
+      
+      // Show dialog if large dataset (cache is already ready at this point)
+      if (shouldShowWarning) {
+        setLoadingDialogState({
+          cacheLoading: false,
+          cacheProgress: loadProgress,
+          totalCount: cache?.count || 0,
+          showLargeDatasetWarning: shouldShowWarning,
+          rowCount: ids.length,
+          mode: mode,
+        });
+        setPendingBatchIds(ids);
+        return; // Wait for user to confirm in dialog
+      }
     }
     
     // No dialog needed, proceed directly
-    sessionStorage.setItem('batch_edit_ids', JSON.stringify(ids));
+    const batchConfig = {
+      mode: mode,
+      ids: ids,
+      timestamp: Date.now(),
+    };
+    console.log('[CollaboratorsList] Saving batch config to sessionStorage:', batchConfig);
+    sessionStorage.setItem('collaborator-batch-config', JSON.stringify(batchConfig));
     console.log('[CollaboratorsList] Navigating to /collaborators/batch');
     navigate('/collaborators/batch');
   }, [selectedIds, collaborators, activeFilters, navigate, cache, cacheLoading, loadProgress, getCollaborators]);
@@ -447,8 +472,14 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
     // Close dialog
     setLoadingDialogState(null);
     
-    // Store IDs and navigate
-    sessionStorage.setItem('batch_edit_ids', JSON.stringify(pendingBatchIds));
+    // Store IDs and navigate using new config format
+    const batchConfig = {
+      mode: loadingDialogState?.mode || 'filtered',
+      ids: pendingBatchIds,
+      timestamp: Date.now(),
+    };
+    console.log('[CollaboratorsList] (After dialog) Saving batch config to sessionStorage:', batchConfig);
+    sessionStorage.setItem('collaborator-batch-config', JSON.stringify(batchConfig));
     setPendingBatchIds(null);
     navigate('/collaborators/batch');
   }, [pendingBatchIds, loadingDialogState, getCollaborators, navigate]);
@@ -517,7 +548,13 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
             // No warning needed, proceed automatically
             console.log('[CollaboratorsList] Auto-proceeding to batch editor');
             setLoadingDialogState(null);
-            sessionStorage.setItem('batch_edit_ids', JSON.stringify(ids));
+            const batchConfig = {
+              mode: loadingDialogState.mode,
+              ids: ids,
+              timestamp: Date.now(),
+            };
+            console.log('[CollaboratorsList] (Auto-proceed) Saving batch config to sessionStorage:', batchConfig);
+            sessionStorage.setItem('collaborator-batch-config', JSON.stringify(batchConfig));
             setPendingBatchIds(null);
             navigate('/collaborators/batch');
           }
@@ -799,7 +836,7 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
           </Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
             <TextField
-              label="First Name Contains"
+              label="First and Middle Name Contains"
               value={filters.first_names_contains}
               onChange={handleFilterChange('first_names_contains')}
               size="small"
@@ -889,7 +926,7 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
                 color={filters.first_names_isnull ? "primary" : "secondary"}
                 onClick={() => handleEmptyFilterToggle('first_names_isnull')}
               >
-                First Name(s): Empty
+                First and Middle Name(s): Empty
               </Button>
               <Button
                 variant={filters.nickname_isnull ? "contained" : "outlined"}
@@ -924,12 +961,12 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
                 Other Names: Empty
               </Button>
               <Button
-                variant={filters.tribal_affiliations_isnull ? "contained" : "outlined"}
+                variant={filters.anonymous_isnull ? "contained" : "outlined"}
                 size="small"
-                color={filters.tribal_affiliations_isnull ? "primary" : "secondary"}
-                onClick={() => handleEmptyFilterToggle('tribal_affiliations_isnull')}
+                color={filters.anonymous_isnull ? "primary" : "secondary"}
+                onClick={() => handleEmptyFilterToggle('anonymous_isnull')}
               >
-                Tribal Affiliations: Empty
+                Anonymous: Not Specified
               </Button>
               <Button
                 variant={filters.native_languages_isnull ? "contained" : "outlined"}
@@ -946,6 +983,14 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
                 onClick={() => handleEmptyFilterToggle('other_languages_isnull')}
               >
                 Other Languages: Empty
+              </Button>
+              <Button
+                variant={filters.tribal_affiliations_isnull ? "contained" : "outlined"}
+                size="small"
+                color={filters.tribal_affiliations_isnull ? "primary" : "secondary"}
+                onClick={() => handleEmptyFilterToggle('tribal_affiliations_isnull')}
+              >
+                Tribal Affiliations: Empty
               </Button>
               <Button
                 variant={filters.gender_isnull ? "contained" : "outlined"}

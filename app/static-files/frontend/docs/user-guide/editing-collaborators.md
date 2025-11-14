@@ -167,13 +167,14 @@ Free-form text field for any additional information.
 - Use for biographical notes, context, special considerations
 - Can include historical information, cultural context, etc.
 
-## Validation Rules
+## Validation Rules {#collaborators-validation-rules}
 
-### Required Fields
-Only one field is required before saving:
+### Required Fields {#collaborators-required-fields}
+Two fields are required before saving:
 - **Collaborator ID** (auto-generated, so always present)
+- **Last Name(s)** (must be provided)
 
-All other fields are optional, but **at least one name component** (First, Last, or Nickname) should typically be provided for the Full Name to be meaningful.
+All other fields are optional, but **First Name(s)** is recommended for the Full Name to be meaningful.
 
 ### Uniqueness Constraints
 - **Collaborator ID**: Must be unique (enforced automatically)
@@ -216,14 +217,14 @@ Most fields support inline editing:
 - Can select multiple languages
 - Clear individual selections as needed
 
-## Common Single-Edit Tasks
+## Common Single-Edit Tasks {#collaborators-common-tasks}
 
 ### Creating a New Collaborator
 1. Navigate to **Collaborators** page
 2. Click **"Add New Collaborator"** button
 3. Fill in name fields:
-   - First Name(s)
-   - Last Name(s) (recommended)
+   - First Name(s) (recommended)
+   - Last Name(s) (required)
    - Nickname (optional)
    - Name Suffix (optional)
 4. Notice Full Name updates automatically
@@ -273,7 +274,7 @@ You cannot edit Full Name directly. Instead:
 
 **Warning**: Review with archive administration before changing anonymity status, especially when removing anonymous status, as this may affect published catalogs or exports.
 
-## Tips for Single Editing
+## Tips for Single Editing {#collaborators-tips-single-editing}
 
 - **Use structured name fields** - Enter First, Last, Nickname, and Suffix separately rather than editing Full Name (which is calculated)
 - **Add alternative names** - Use "Other Names" for variant spellings to improve searchability

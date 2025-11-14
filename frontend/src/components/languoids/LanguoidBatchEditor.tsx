@@ -347,6 +347,13 @@ export const LanguoidBatchEditor: React.FC = () => {
   // Track if we've already loaded (prevents double-load in React Strict Mode)
   const hasLoadedRef = React.useRef(false);
   
+  // Track the IDs that should be in this batch editing session
+  // This gets updated when new rows are saved and is used on refresh
+  const sessionIds = useRef<Set<number>>(new Set());
+  
+  // Track if we're in empty mode (started with no rows)
+  const isEmptyMode = useRef(false);
+  
   // Load languoids on mount
   useEffect(() => {
     // Prevent double-load in React Strict Mode (development)
@@ -378,6 +385,8 @@ export const LanguoidBatchEditor: React.FC = () => {
         
         // Handle empty mode
         if (config.mode === 'empty') {
+          isEmptyMode.current = true; // Mark that we're in empty mode
+          sessionIds.current = new Set(); // Start with no IDs
           dispatch(initializeSpreadsheet({
             modelName: 'Languoid',
             rows: [],
@@ -388,6 +397,10 @@ export const LanguoidBatchEditor: React.FC = () => {
         
         // Fetch ALL languoids from cache (not paginated API)
         let languoids = await getLanguoids();
+        
+        // Store the initial IDs in sessionIds (always initialize, even if empty)
+        sessionIds.current = new Set(config.ids || []);
+        console.log('[LanguoidBatchEditor] Initialized sessionIds with', sessionIds.current.size, 'IDs');
         
         // Filter to just the IDs we want (client-side filtering)
         if (config.ids && config.ids.length > 0) {
@@ -409,18 +422,57 @@ export const LanguoidBatchEditor: React.FC = () => {
         }));
         
       } else {
-        // No configuration (direct navigation) - load all from cache (existing behavior)
-        const languoids = await getLanguoids();
-        const spreadsheetRows = languoids.map(languoidToRow);
+        // No config in sessionStorage
+        // This happens on refresh (config was already consumed on initial load)
         
-        // Preserve any existing draft rows
-        const existingDraftRows = rowsRef.current.filter(r => r.isDraft);
-        spreadsheetRows.push(...existingDraftRows);
-        
-        dispatch(initializeSpreadsheet({
-          modelName: 'Languoid',
-          rows: spreadsheetRows,
-        }));
+        // Check if we have sessionIds from a previous load
+        if (sessionIds.current.size > 0) {
+          // Refresh: Reload the IDs from our session
+          console.log('[LanguoidBatchEditor] Refresh - reloading from sessionIds');
+          console.log('[LanguoidBatchEditor] Current sessionIds:', Array.from(sessionIds.current));
+          
+          // Get all languoids from cache
+          const allLanguoids = await getLanguoids();
+          
+          // Create a map of ID -> languoid for quick lookup
+          const languoidMap = new Map(allLanguoids.map(l => [l.id, l]));
+          
+          // Preserve current row order by iterating through existing rows
+          // and updating with fresh data from cache
+          const spreadsheetRows: typeof rowsRef.current = [];
+          
+          for (const currentRow of rowsRef.current) {
+            if (currentRow.isDraft) {
+              // Keep draft rows as-is
+              spreadsheetRows.push(currentRow);
+            } else if (typeof currentRow.id === 'number' && sessionIds.current.has(currentRow.id)) {
+              // Row is in our session - update with fresh data
+              const freshLanguoid = languoidMap.get(currentRow.id);
+              if (freshLanguoid) {
+                spreadsheetRows.push(languoidToRow(freshLanguoid));
+              }
+            }
+            // Skip rows not in sessionIds (shouldn't happen)
+          }
+          
+          console.log('[LanguoidBatchEditor] Preserved order with', spreadsheetRows.length, 'rows');
+          
+          // Initialize spreadsheet
+          dispatch(initializeSpreadsheet({
+            modelName: 'Languoid',
+            rows: spreadsheetRows,
+          }));
+        } else if (isEmptyMode.current) {
+          // Empty mode refresh: Just keep existing rows (already in Redux state)
+          console.log('[LanguoidBatchEditor] Empty mode refresh - keeping existing rows');
+          // Nothing to do - rows are already in state
+        } else {
+          // No config and no sessionIds - this shouldn't happen in normal flow
+          // This would only occur if someone navigates directly to /languoids/batch
+          console.error('[LanguoidBatchEditor] No config and no sessionIds');
+          dispatch(setError('No languoids selected for batch editing'));
+          return;
+        }
       }
     } catch (err: any) {
       console.error('[LanguoidBatchEditor] Error loading languoids:', err);
@@ -1104,6 +1156,13 @@ export const LanguoidBatchEditor: React.FC = () => {
           
           // Update the row with saved data
           const newRow = languoidToRow(savedLanguoid);
+          
+          // If this was a draft (new row), add its ID to sessionIds
+          if (oldRow.isDraft && typeof newRow.id === 'number') {
+            sessionIds.current.add(newRow.id);
+            console.log('[LanguoidBatchEditor] Added new row ID to sessionIds:', newRow.id, '| Total sessionIds:', sessionIds.current.size);
+          }
+          
           dispatch(updateRowAfterSave({ oldId: oldRow.id, newRow }));
         }
         

@@ -61,7 +61,7 @@ const COLLABORATOR_COLUMNS: ColumnConfig[] = [
   },
   {
     fieldName: 'first_names',
-    header: 'First Name(s)',
+    header: 'First and Middle Name(s)',
     cellType: 'text',
     width: 200,
     required: false,
@@ -358,6 +358,13 @@ export const CollaboratorBatchEditor: React.FC = () => {
   // Track if initial load is done
   const initialLoadDone = useRef(false);
   
+  // Track if we're in empty mode (started with no rows)
+  const isEmptyMode = useRef(false);
+  
+  // Track the IDs that should be in this batch editing session
+  // This gets updated when new rows are saved and is used on refresh
+  const sessionIds = useRef<Set<number>>(new Set());
+  
   // Ref to track current rows (for preserving drafts during reload without triggering re-renders)
   const rowsRef = useRef<SpreadsheetRow[]>([]);
   
@@ -375,64 +382,140 @@ export const CollaboratorBatchEditor: React.FC = () => {
     try {
       dispatch(setLoading(true));
       
-      // Get collaborator IDs from sessionStorage
-      const idsString = sessionStorage.getItem('batch_edit_ids');
-      if (!idsString) {
-        dispatch(setError('No collaborators selected for batch editing'));
-        return;
-      }
+      // Check for new format config first
+      const configStr = sessionStorage.getItem('collaborator-batch-config');
       
-      const ids = JSON.parse(idsString) as number[];
-      console.log('[CollaboratorBatchEditor] Loading', ids.length, 'collaborators');
-      
-      // Get collaborators from cache (cache should be ready - list page waits for it)
-      console.log('[CollaboratorBatchEditor] Getting collaborators from cache...');
-      const allCollaborators = await getCollaborators();
-      console.log('[CollaboratorBatchEditor] Cache returned', allCollaborators.length, 'total collaborators');
-      
-      // Preserve any existing draft rows (only if preserveDrafts is true)
-      const existingDraftRows = preserveDrafts ? rowsRef.current.filter(r => r.isDraft) : [];
-      console.log('[CollaboratorBatchEditor] Preserving', existingDraftRows.length, 'draft rows');
-      
-      const filteredCollaborators = allCollaborators.filter(c => ids.includes(c.id));
-      console.log('[CollaboratorBatchEditor] Filtered to', filteredCollaborators.length, 'collaborators');
-      
-      // Convert to rows - use setTimeout to yield to the browser for UI updates
-      console.log('[CollaboratorBatchEditor] Converting to rows...');
-      console.time('[CollaboratorBatchEditor] Row conversion');
-      
-      // Break into chunks to avoid freezing UI
-      const CHUNK_SIZE = 1000;
-      const newRows: SpreadsheetRow[] = [];
-      
-      for (let i = 0; i < filteredCollaborators.length; i += CHUNK_SIZE) {
-        const chunk = filteredCollaborators.slice(i, i + CHUNK_SIZE);
+      if (configStr) {
+        const config = JSON.parse(configStr);
+        sessionStorage.removeItem('collaborator-batch-config'); // Clean up immediately
         
-        // Process chunk
-        const chunkRows = chunk.map(collaboratorToRow);
-        newRows.push(...chunkRows);
+        // Handle empty mode
+        if (config.mode === 'empty') {
+          console.log('[CollaboratorBatchEditor] Empty mode - initializing with empty grid');
+          isEmptyMode.current = true; // Mark that we're in empty mode
+          sessionIds.current = new Set(); // Start with no IDs
+          dispatch(initializeSpreadsheet({
+            modelName: 'Collaborator',
+            rows: [],
+          }));
+          dispatch(setLoading(false));
+          initialLoadDone.current = true;
+          return;
+        }
         
-        console.log(`[CollaboratorBatchEditor] Converted ${newRows.length}/${filteredCollaborators.length} rows`);
+        // Get collaborators from cache (cache should be ready - list page waits for it)
+        console.log('[CollaboratorBatchEditor] Getting collaborators from cache...');
+        let allCollaborators = await getCollaborators();
+        console.log('[CollaboratorBatchEditor] Cache returned', allCollaborators.length, 'total collaborators');
         
-        // Yield to browser every chunk to keep UI responsive
-        if (i + CHUNK_SIZE < filteredCollaborators.length) {
-          await new Promise(resolve => setTimeout(resolve, 0));
+        // Store the initial IDs in sessionIds (always initialize, even if empty)
+        sessionIds.current = new Set(config.ids || []);
+        console.log('[CollaboratorBatchEditor] Initialized sessionIds with', sessionIds.current.size, 'IDs');
+        
+        // Filter to just the IDs we want (client-side filtering)
+        if (config.ids && config.ids.length > 0) {
+          const idSet = new Set(config.ids);
+          allCollaborators = allCollaborators.filter(c => idSet.has(c.id));
+        }
+        
+        console.log('[CollaboratorBatchEditor] Filtered to', allCollaborators.length, 'collaborators');
+        
+        // Convert to rows - use setTimeout to yield to the browser for UI updates
+        console.log('[CollaboratorBatchEditor] Converting to rows...');
+        console.time('[CollaboratorBatchEditor] Row conversion');
+        
+        // Break into chunks to avoid freezing UI
+        const CHUNK_SIZE = 1000;
+        const newRows: SpreadsheetRow[] = [];
+        
+        for (let i = 0; i < allCollaborators.length; i += CHUNK_SIZE) {
+          const chunk = allCollaborators.slice(i, i + CHUNK_SIZE);
+          
+          // Process chunk
+          const chunkRows = chunk.map(collaboratorToRow);
+          newRows.push(...chunkRows);
+          
+          console.log(`[CollaboratorBatchEditor] Converted ${newRows.length}/${allCollaborators.length} rows`);
+          
+          // Yield to browser every chunk to keep UI responsive
+          if (i + CHUNK_SIZE < allCollaborators.length) {
+            await new Promise(resolve => setTimeout(resolve, 0));
+          }
+        }
+        
+        console.timeEnd('[CollaboratorBatchEditor] Row conversion');
+        console.log('[CollaboratorBatchEditor] Converted', newRows.length, 'rows');
+        
+        // Preserve any existing draft rows (add them at the end)
+        if (preserveDrafts) {
+          const existingDraftRows = rowsRef.current.filter(r => r.isDraft);
+          console.log('[CollaboratorBatchEditor] Preserving', existingDraftRows.length, 'draft rows');
+          newRows.push(...existingDraftRows);
+        }
+        
+        // Initialize spreadsheet
+        dispatch(initializeSpreadsheet({
+          modelName: 'Collaborator',
+          rows: newRows,
+        }));
+        
+        initialLoadDone.current = true;
+        
+      } else {
+        // No config in sessionStorage
+        // This happens on refresh (config was already consumed on initial load)
+        
+        // Check if we have sessionIds from a previous load
+        if (sessionIds.current.size > 0) {
+          // Refresh: Reload the IDs from our session
+          console.log('[CollaboratorBatchEditor] Refresh - reloading from sessionIds');
+          console.log('[CollaboratorBatchEditor] Current sessionIds:', Array.from(sessionIds.current));
+          
+          // Get all collaborators from cache
+          const allCollaborators = await getCollaborators();
+          
+          // Create a map of ID -> collaborator for quick lookup
+          const collaboratorMap = new Map(allCollaborators.map(c => [c.id, c]));
+          
+          // Preserve current row order by iterating through existing rows
+          // and updating with fresh data from cache
+          const newRows: SpreadsheetRow[] = [];
+          
+          for (const currentRow of rowsRef.current) {
+            if (currentRow.isDraft) {
+              // Keep draft rows as-is (only if preserveDrafts is true)
+              if (preserveDrafts) {
+                newRows.push(currentRow);
+              }
+            } else if (typeof currentRow.id === 'number' && sessionIds.current.has(currentRow.id)) {
+              // Row is in our session - update with fresh data
+              const freshCollaborator = collaboratorMap.get(currentRow.id);
+              if (freshCollaborator) {
+                newRows.push(collaboratorToRow(freshCollaborator));
+              }
+            }
+            // Skip rows not in sessionIds (shouldn't happen)
+          }
+          
+          console.log('[CollaboratorBatchEditor] Preserved order with', newRows.length, 'rows');
+          
+          // Initialize spreadsheet with refreshed data
+          dispatch(initializeSpreadsheet({
+            modelName: 'Collaborator',
+            rows: newRows,
+          }));
+        } else if (isEmptyMode.current) {
+          // Empty mode refresh: Just keep existing rows (already in Redux state)
+          console.log('[CollaboratorBatchEditor] Empty mode refresh - keeping existing rows');
+          // Nothing to do - rows are already in state
+        } else {
+          // No config and no sessionIds - this shouldn't happen in normal flow
+          // This would only occur if someone navigates directly to /collaborators/batch
+          console.error('[CollaboratorBatchEditor] No config and no sessionIds');
+          dispatch(setError('No collaborators selected for batch editing'));
+          return;
         }
       }
-      
-      console.timeEnd('[CollaboratorBatchEditor] Row conversion');
-      console.log('[CollaboratorBatchEditor] Converted', newRows.length, 'rows');
-      
-      // Append any draft rows that were preserved (add them at the end)
-      newRows.push(...existingDraftRows);
-      
-      // Initialize spreadsheet
-      dispatch(initializeSpreadsheet({
-        modelName: 'Collaborator',
-        rows: newRows,
-      }));
-      
-      initialLoadDone.current = true;
       
     } catch (err) {
       console.error('[CollaboratorBatchEditor] Load error:', err);
@@ -825,50 +908,35 @@ export const CollaboratorBatchEditor: React.FC = () => {
       dispatch(setLoading(true));
       console.log('[CollaboratorBatchEditor] Setting loading to TRUE');
       
-      // Get collaborator IDs from sessionStorage
-      const idsString = sessionStorage.getItem('batch_edit_ids');
-      if (!idsString) {
+      // Check if we have sessionIds
+      if (sessionIds.current.size === 0 && !isEmptyMode.current) {
         dispatch(setError('No collaborators selected for batch editing'));
         dispatch(setLoading(false));
         return;
       }
       
-      const ids = JSON.parse(idsString) as number[];
+      // Get IDs from sessionIds
+      const ids = Array.from(sessionIds.current);
       console.log('[CollaboratorBatchEditor] Refreshing', ids.length, 'collaborators from database...');
       
       // Force refresh cache from database (bypasses Redis cache)
       const freshCollaborators = await refreshCache();
       console.log('[CollaboratorBatchEditor] Got', freshCollaborators.length, 'fresh collaborators from database');
       
-      // Log the specific row you're testing (change ID as needed)
-      const testRow = freshCollaborators.find(c => c.id === 571); // Change this to your test row ID
-      if (testRow) {
-        console.log('[CollaboratorBatchEditor] Test row from DB:', {
-          id: testRow.id,
-          first_names: testRow.first_names,
-          last_names: testRow.last_names,
-          updated: testRow.updated
-        });
+      // Filter to just the IDs we want (skip if empty mode)
+      let filteredCollaborators: Collaborator[];
+      if (ids.length > 0) {
+        filteredCollaborators = freshCollaborators.filter(c => sessionIds.current.has(c.id));
+        console.log('[CollaboratorBatchEditor] Filtered to', filteredCollaborators.length, 'collaborators');
+      } else {
+        // Empty mode - no rows to reload
+        filteredCollaborators = [];
+        console.log('[CollaboratorBatchEditor] Empty mode - no rows to reload');
       }
-      
-      // Filter to just the IDs we want
-      const filteredCollaborators = freshCollaborators.filter(c => ids.includes(c.id));
-      console.log('[CollaboratorBatchEditor] Filtered to', filteredCollaborators.length, 'collaborators');
       
       // Convert to rows (no drafts preserved on manual refresh)
       const newRows: SpreadsheetRow[] = filteredCollaborators.map(collaboratorToRow);
       console.log('[CollaboratorBatchEditor] Converted to', newRows.length, 'rows');
-      
-      // Log the converted test row
-      const testRowConverted = newRows.find(r => r.id === 571); // Change this to your test row ID
-      if (testRowConverted) {
-        console.log('[CollaboratorBatchEditor] Test row after conversion:', {
-          id: testRowConverted.id,
-          first_names: testRowConverted.cells.first_names?.text,
-          last_names: testRowConverted.cells.last_names?.text,
-          _updated: (testRowConverted as any)._updated
-        });
-      }
       
       // Initialize spreadsheet with fresh data
       console.log('[CollaboratorBatchEditor] About to dispatch initializeSpreadsheet with', newRows.length, 'rows');
@@ -1181,6 +1249,13 @@ export const CollaboratorBatchEditor: React.FC = () => {
           // Update the row with saved data
           const newRow = collaboratorToRow(savedCollaborator);
           console.log('[CollaboratorBatchEditor] New row after save - id:', newRow.id, '_updated:', (newRow as any)._updated);
+          
+          // If this was a draft (new row), add its ID to sessionIds
+          if (oldRow.isDraft && typeof newRow.id === 'number') {
+            sessionIds.current.add(newRow.id);
+            console.log('[CollaboratorBatchEditor] Added new row ID to sessionIds:', newRow.id, '| Total sessionIds:', sessionIds.current.size);
+          }
+          
           dispatch(updateRowAfterSave({ oldId: oldRow.id, newRow }));
         }
         

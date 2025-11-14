@@ -434,7 +434,10 @@ const collaboratorToSpreadsheetRow = (collaborator: Collaborator): SpreadsheetRo
     'other_languages': 'multiselect',
     'birthdate': 'text',
     'deathdate': 'text',
+    'gender': 'text',
     'tribal_affiliations': 'text',
+    'clan_society': 'text',
+    'origin': 'text',
     'other_info': 'text',
   };
   
@@ -457,10 +460,10 @@ const collaboratorToSpreadsheetRow = (collaborator: Collaborator): SpreadsheetRo
     
     cells[fieldName] = {
       text: displayValue,
-      value: value || (Array.isArray(value) ? [] : ''),
+      value: value ?? (Array.isArray(value) ? [] : ''),  // Use ?? instead of || to preserve false/0
       type: fieldTypeMap[fieldName],
       isEdited: false,
-      originalValue: value || (Array.isArray(value) ? [] : ''),
+      originalValue: value ?? (Array.isArray(value) ? [] : ''),  // Use ?? instead of || to preserve false/0
       validationState: 'valid',
       hasConflict: false,
       fieldName: fieldName,

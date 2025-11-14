@@ -10,8 +10,12 @@ export type { EditableSelectFieldProps, SelectOption } from './EditableSelectFie
 
 export { EditableMultiSelectField } from './EditableMultiSelectField';
 export type { EditableMultiSelectFieldProps } from './EditableMultiSelectField';
+
 export { EditableMultiRelationshipField } from './EditableMultiRelationshipField';
 export type { EditableMultiRelationshipFieldProps } from './EditableMultiRelationshipField';
+
+export { EditableCollaboratorRolesField } from './EditableCollaboratorRolesField';
+export type { EditableCollaboratorRolesFieldProps } from './EditableCollaboratorRolesField';
 
 export { EditableBooleanField } from './EditableBooleanField';
 export type { EditableBooleanFieldProps } from './EditableBooleanField';

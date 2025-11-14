@@ -78,7 +78,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
       if (query) {
         url.searchParams.append('search', query);
       }
-      url.searchParams.append('page_size', '50');
+      url.searchParams.append('page_size', '200');
 
       const response = await fetch(url.toString(), {
         headers: { 'Content-Type': 'application/json' },
@@ -121,7 +121,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
       if (query) {
         url.searchParams.append('search', query);
       }
-      url.searchParams.append('page_size', '50');
+      url.searchParams.append('page_size', '200');
 
       const response = await fetch(url.toString(), {
         headers: { 'Content-Type': 'application/json' },

@@ -1,0 +1,578 @@
+{
+  "batch_editor_universal_patterns": {
+    "version": "1.0",
+    "last_updated": "2025-11-13",
+    "conversation_reference": "Session persistence, order preservation, empty mode, warning dialogs, and import/export patterns discovered during batch editor maturation",
+    "purpose": "Centralized reference for universal patterns that MUST be implemented in ALL batch editors (Item, Document, future models). These patterns emerged from Languoid and Collaborator implementations and represent mandatory architectural requirements.",
+    
+    "overview": {
+      "critical_importance": "These 6 universal patterns are NOT optional. They are architectural requirements that ensure data integrity, UX consistency, and system reliability across all batch editors.",
+      "discovery_timeline": "Patterns discovered incrementally during Collaborator batch editor implementation and post-implementation refinement (2025-11-10 to 2025-11-13)",
+      "cross_references": {
+        "architecture_overview": "context/development/stage_1_batch_editing.json",
+        "conformance_checklist": "context/development/collaborator_batch_editor_lessons.json",
+        "implementation_examples": [
+          "frontend/src/components/languoids/LanguoidBatchEditor.tsx",
+          "frontend/src/components/collaborators/CollaboratorBatchEditor.tsx"
+        ]
+      }
+    },
+    
+    "pattern_001_session_persistence": {
+      "decision_id": "universal_pattern_001",
+      "content": "Session persistence using sessionIds ref to track rows across refreshes and new row saves",
+      "added_date": "2025-11-13",
+      "conversation_reference": "Fixed issue where newly saved rows disappeared on refresh; established persistent session tracking",
+      
+      "problem_statement": "After saving a new row in batch editor, refreshing the page caused the row to disappear. The batch editor was not maintaining a persistent record of which rows belong to the current editing session.",
+      
+      "solution_architecture": {
+        "core_mechanism": "useRef<Set<number>> to track all row IDs that are part of current session",
+        "persistence_scope": "Survives component re-renders, state updates, and refresh operations within same browser session",
+        "initialization": "Populated from batch edit config on first load (selected/filtered IDs or empty Set for empty mode)",
+        "growth": "Grows when new draft rows are successfully saved - their IDs are added to sessionIds",
+        "usage": "On refresh, only fetch and display rows whose IDs are in sessionIds Set"
+      },
+      
+      "implementation_requirements": {
+        "step_1_declare_refs": {
+          "code_template": "const sessionIds = useRef<Set<number>>(new Set());\nconst isEmptyMode = useRef<boolean>(false);",
+          "location": "Top of model-specific batch editor component (before useEffect hooks)"
+        },
+        
+        "step_2_initialize_on_load": {
+          "purpose": "Populate sessionIds from batch edit config",
+          "code_template": "if (config.mode === 'empty') {\n  isEmptyMode.current = true;\n  sessionIds.current = new Set();\n} else {\n  isEmptyMode.current = false;\n  sessionIds.current = new Set(config.ids);\n}",
+          "location": "Initial load useEffect, after reading batch config from sessionStorage"
+        },
+        
+        "step_3_update_on_save": {
+          "purpose": "Add new row IDs to session after successful save",
+          "code_template": "// After successful save of draft rows\nconst newIds = savedRows.filter(r => r.isDraft).map(r => r.id);\nnewIds.forEach(id => sessionIds.current.add(id));",
+          "location": "handleSaveAllConfirm function, after successful API responses"
+        },
+        
+        "step_4_filter_on_refresh": {
+          "purpose": "Only load rows in current session",
+          "code_template": "const sessionRows = allRows.filter(row => sessionIds.current.has(row.id));",
+          "location": "handleRefreshConfirm function, after fetching fresh data"
+        }
+      },
+      
+      "why_refs_not_state": "Refs chosen over state because: (1) Survives re-renders without triggering new renders, (2) Mutable without setState overhead, (3) Persists across useEffect cycles, (4) No dependency array concerns",
+      
+      "integration_with_config": {
+        "config_format": "{ mode: 'selected' | 'filtered' | 'empty', ids: number[], timestamp: number }",
+        "storage_key": "'{model}-batch-config' (e.g., 'collaborator-batch-config')",
+        "list_page_responsibility": "List page creates config and stores in sessionStorage before navigation",
+        "batch_editor_responsibility": "Batch editor reads config on mount, initializes sessionIds, then can delete config from sessionStorage"
+      },
+      
+      "files_to_update": [
+        "frontend/src/components/{models}/{Model}BatchEditor.tsx (sessionIds and isEmptyMode refs)",
+        "frontend/src/components/{models}/{Models}List.tsx (batch config creation and storage)"
+      ],
+      
+      "anti_patterns_to_avoid": [
+        "Using state instead of refs (causes unnecessary re-renders and dependency issues)",
+        "Storing session IDs in sessionStorage (can exceed quota with large datasets)",
+        "Not adding new IDs after save (defeats purpose of session persistence)",
+        "Using old 'batch_edit_ids' format (deprecated, use new config format)"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["pattern_002_order_preserving_refresh", "pattern_003_empty_mode"]
+    },
+    
+    "pattern_002_order_preserving_refresh": {
+      "decision_id": "universal_pattern_002",
+      "content": "Order-preserving refresh strategy that maintains row positions across refresh operations",
+      "added_date": "2025-11-13",
+      "conversation_reference": "Fixed issue where newly saved rows moved/resorted after refresh",
+      
+      "problem_statement": "After saving a new row and clicking refresh, the row would move to a different position (sorted by ID or other field). Users lost track of where their newly added rows went, creating confusion and inefficiency.",
+      
+      "solution_architecture": {
+        "core_principle": "Within a session, row order is determined by user actions (when they added/selected rows), NOT by database sort order",
+        "preservation_mechanism": "Iterate through existing rows in their current order, fetching fresh data for each from a lookup map",
+        "rationale": "User expects rows to stay where they put them until they explicitly resort or start a new session"
+      },
+      
+      "implementation_requirements": {
+        "step_1_create_lookup_map": {
+          "purpose": "Enable O(1) lookup of fresh data by ID",
+          "code_template": "const freshDataMap = new Map(allFreshRows.map(r => [r.id, r]));",
+          "timing": "After fetching fresh data from cache/API, before building new rows array"
+        },
+        
+        "step_2_iterate_existing_order": {
+          "purpose": "Preserve current row order, updating each with fresh data",
+          "code_template": "const newRows: SpreadsheetRow[] = [];\nfor (const currentRow of rowsRef.current) {\n  if (currentRow.isDraft) {\n    // Keep draft rows as-is (only if preserveDrafts is true)\n    if (preserveDrafts) {\n      newRows.push(currentRow);\n    }\n  } else if (typeof currentRow.id === 'number' && sessionIds.current.has(currentRow.id)) {\n    // Row is in our session - update with fresh data\n    const freshRow = freshDataMap.get(currentRow.id);\n    if (freshRow) {\n      newRows.push(modelToRow(freshRow));\n    }\n  }\n}",
+          "timing": "In handleRefreshConfirm or load{Model}s function when reloading data"
+        },
+        
+        "step_3_dispatch_ordered_rows": {
+          "purpose": "Replace spreadsheet rows with order-preserved data",
+          "code_template": "dispatch(initializeSpreadsheet({ rows: newRows, columnConfig: COLUMN_CONFIG }));",
+          "timing": "After building newRows array"
+        }
+      },
+      
+      "draft_row_handling": {
+        "preserveDrafts_parameter": "Some operations preserve drafts (normal reload), others discard (refresh button)",
+        "refresh_button": "Sets preserveDrafts=false - discards all unsaved changes including drafts",
+        "normal_reload": "Sets preserveDrafts=true - keeps draft rows during background updates"
+      },
+      
+      "when_rows_resort": "Rows resort ONLY when: (1) User starts new batch edit session, (2) User applies sort in spreadsheet toolbar (future feature), (3) User manually reorders (future feature)",
+      
+      "rowsRef_synchronization": {
+        "purpose": "Keep ref synchronized with Redux state for access in callbacks",
+        "code_template": "const rowsRef = useRef<SpreadsheetRow[]>([]);\n\nuseEffect(() => {\n  rowsRef.current = rows;\n}, [rows]);",
+        "location": "Near top of component, after rows from Redux"
+      },
+      
+      "files_to_update": [
+        "frontend/src/components/{models}/{Model}BatchEditor.tsx (order-preserving refresh logic)"
+      ],
+      
+      "anti_patterns_to_avoid": [
+        "Re-mapping filtered data without preserving order (causes resort)",
+        "Sorting fresh data before building new rows (defeats purpose)",
+        "Not using rowsRef for current order (stale closure issues)",
+        "Skipping rows not in sessionIds without logging (silent data loss)"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["pattern_001_session_persistence"]
+    },
+    
+    "pattern_003_empty_mode": {
+      "decision_id": "universal_pattern_003",
+      "content": "Empty mode workflow for starting batch editor with blank grid",
+      "added_date": "2025-11-13",
+      "conversation_reference": "Added 'Batch edit (empty)' option to allow users to start with empty grid and add rows manually",
+      
+      "problem_statement": "Users sometimes want to create multiple new records without pre-populating from existing data. Original design only supported 'selected' and 'filtered' modes.",
+      
+      "solution_architecture": {
+        "three_modes": "selected (explicit IDs), filtered (filtered IDs), empty (no IDs)",
+        "empty_mode_behavior": {
+          "initial_state": "Grid loads with zero rows",
+          "user_workflow": "User clicks 'Add Row' to create draft rows one at a time",
+          "session_tracking": "As draft rows are saved, their IDs added to sessionIds",
+          "refresh_behavior": "Refresh loads only the saved rows from current session (draft rows discarded)"
+        }
+      },
+      
+      "implementation_requirements": {
+        "step_1_add_mode_to_button": {
+          "purpose": "Add 'empty' option to batch edit button menu",
+          "code_template": "<MenuItem onClick={() => handleMenuItemClick('empty')}>\n  <ListItemText\n    primary=\"Batch Edit (Empty)\"\n    secondary=\"Start with empty grid\"\n  />\n</MenuItem>",
+          "location": "BatchEditButton component (model-specific or generic)"
+        },
+        
+        "step_2_handle_empty_in_list_page": {
+          "purpose": "Create config and navigate without loading data",
+          "code_template": "if (mode === 'empty') {\n  const batchConfig = {\n    mode: 'empty',\n    ids: [],\n    timestamp: Date.now(),\n  };\n  sessionStorage.setItem('{model}-batch-config', JSON.stringify(batchConfig));\n  navigate('/{models}/batch');\n  return;\n}",
+          "location": "handleBatchEditExecute function in list page"
+        },
+        
+        "step_3_handle_empty_in_batch_editor": {
+          "purpose": "Initialize with empty grid and set isEmptyMode flag",
+          "code_template": "if (config.mode === 'empty') {\n  isEmptyMode.current = true;\n  sessionIds.current = new Set();\n  dispatch(initializeSpreadsheet({ rows: [], columnConfig: COLUMN_CONFIG }));\n  initialLoadDone.current = true;\n  return;\n}",
+          "location": "Initial load useEffect in batch editor"
+        },
+        
+        "step_4_handle_refresh_in_empty_mode": {
+          "purpose": "On refresh, load only saved rows from session",
+          "code_template": "if (isEmptyMode.current && sessionIds.current.size === 0) {\n  // Still no saved rows, keep empty grid\n  dispatch(initializeSpreadsheet({ rows: [], columnConfig: COLUMN_CONFIG }));\n  return;\n}\n// Otherwise, load rows in sessionIds",
+          "location": "handleRefreshConfirm or reload logic"
+        }
+      },
+      
+      "warning_dialog_behavior": {
+        "empty_mode_no_warning": "Empty mode NEVER shows warning dialog (no data to warn about)",
+        "implementation": "Check for mode === 'empty' before showing any warning"
+      },
+      
+      "files_to_update": [
+        "frontend/src/components/{models}/{Model}BatchEditButton.tsx (add empty option)",
+        "frontend/src/components/{models}/{Models}List.tsx (handle empty mode)",
+        "frontend/src/components/{models}/{Model}BatchEditor.tsx (empty mode initialization)"
+      ],
+      
+      "anti_patterns_to_avoid": [
+        "Showing 'no items selected' error for empty mode (it's intentional)",
+        "Not setting isEmptyMode flag (causes reload issues)",
+        "Treating empty mode as error condition (it's a valid workflow)",
+        "Showing warning dialog for empty mode (nothing to warn about)"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["pattern_001_session_persistence", "pattern_004_warning_dialogs"]
+    },
+    
+    "pattern_004_warning_dialogs": {
+      "decision_id": "universal_pattern_004",
+      "content": "Warning dialog patterns for filtered mode without active filters",
+      "added_date": "2025-11-13",
+      "conversation_reference": "Fixed erroneous warnings appearing for 'selected' mode; established when warnings should/shouldn't appear",
+      
+      "problem_statement": "Warning dialogs were appearing incorrectly for 'selected' mode (where user explicitly chose rows) and not appearing correctly for preset filters on filtered mode.",
+      
+      "solution_architecture": {
+        "core_rule": "Warnings ONLY for 'filtered' mode when user has not applied advanced filters (editing 'all' rows)",
+        "never_warn_for": ["selected mode (user explicitly chose)", "empty mode (no data)", "filtered mode with active filters (user deliberately limited scope)"],
+        "always_warn_for": "filtered mode with ONLY preset filters (All, Languages Only, Families Only, etc.) and no advanced filters"
+      },
+      
+      "implementation_requirements": {
+        "step_1_check_mode": {
+          "purpose": "Immediately return null for selected/empty modes",
+          "code_template": "if (mode === 'selected' || mode === 'empty') {\n  return null; // No warning\n}",
+          "location": "getWarningConfig or handleBatchEditExecute function"
+        },
+        
+        "step_2_check_active_filters": {
+          "purpose": "Determine if user has applied advanced filters",
+          "code_template": "const hasActiveFilters = Object.entries(filters).some(([key, value]) => {\n  // Exclude preset filters from this check\n  if (key === 'preset') return false;\n  // Check if filter has a value\n  return value !== null && value !== undefined && value !== '';\n});",
+          "location": "Before showing warning dialog"
+        },
+        
+        "step_3_warning_for_no_filters": {
+          "purpose": "Show warning only if filtered mode with no active filters",
+          "code_template": "if (mode === 'filtered' && !hasActiveFilters) {\n  // Show warning dialog\n  setWarningConfig({ ... });\n}",
+          "location": "handleBatchEditExecute function"
+        },
+        
+        "step_4_preset_specific_warnings": {
+          "purpose": "Customize warning text for each preset filter",
+          "code_template": "const presetMap: Record<string, PresetKey> = {\n  'languages_dialects': 'languages_dialects',\n  'families_only': 'families_only',\n  'families_subfamilies': 'families_subfamilies',\n  // etc.\n};\n\nconst warningContent = getWarningContent(presetMap[filters.preset]);",
+          "location": "Warning dialog component or list page"
+        }
+      },
+      
+      "warning_dialog_content": {
+        "title_format": "Load All {PresetName}?",
+        "body_format": "You are about to load all {preset description} ({count} total) into the batch editor.",
+        "examples": {
+          "all_languoids": "Load All Languoids?\nYou are about to load all languoids (2500 total) into the batch editor.",
+          "families_only": "Load All Families?\nYou are about to load all families (150 total) into the batch editor.",
+          "languages_dialects": "Load All Languages & Dialects?\nYou are about to load all languages and dialects (1759 total) into the batch editor."
+        },
+        "suggestions": [
+          "Applying advanced filters",
+          "Selecting specific items with checkboxes"
+        ],
+        "dont_show_again": "Checkbox option to suppress future warnings"
+      },
+      
+      "files_to_update": [
+        "frontend/src/components/{models}/{Models}List.tsx (warning logic)",
+        "frontend/src/components/{models}/BatchEditWarningDialog.tsx (preset-specific content)"
+      ],
+      
+      "anti_patterns_to_avoid": [
+        "Showing warning for selected mode (user made explicit choice)",
+        "Showing warning for empty mode (nothing to warn about)",
+        "Showing warning when advanced filters applied (user deliberately limited scope)",
+        "Generic warning text for all presets (should be specific)",
+        "Including preset filters in hasActiveFilters check (defeats purpose)"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["pattern_003_empty_mode"]
+    },
+    
+    "pattern_005_batch_edit_modes": {
+      "decision_id": "universal_pattern_005",
+      "content": "Three batch edit modes with distinct workflows and config formats",
+      "added_date": "2025-11-13",
+      "conversation_reference": "Established standard three-mode pattern across all batch editors",
+      
+      "three_modes_summary": {
+        "selected": {
+          "description": "User explicitly selected specific rows via checkboxes",
+          "ids_source": "Selected row IDs from list page",
+          "warning": "Never (user made explicit choice)",
+          "use_case": "Editing small number of specific records"
+        },
+        "filtered": {
+          "description": "User applied filters to limit dataset",
+          "ids_source": "All IDs matching current filters",
+          "warning": "Only if no advanced filters applied (editing 'all' rows)",
+          "use_case": "Bulk editing records matching criteria"
+        },
+        "empty": {
+          "description": "Start with blank grid, add rows manually",
+          "ids_source": "Empty array (no pre-loaded rows)",
+          "warning": "Never (nothing to warn about)",
+          "use_case": "Creating multiple new records from scratch"
+        }
+      },
+      
+      "config_format_standard": {
+        "storage_key": "'{model}-batch-config' (e.g., 'languoid-batch-config', 'collaborator-batch-config')",
+        "format": "{ mode: 'selected' | 'filtered' | 'empty', ids: number[], timestamp: number }",
+        "example_selected": "{ mode: 'selected', ids: [123, 456, 789], timestamp: 1699900000000 }",
+        "example_filtered": "{ mode: 'filtered', ids: [1, 2, 3, ...], timestamp: 1699900000000 }",
+        "example_empty": "{ mode: 'empty', ids: [], timestamp: 1699900000000 }",
+        "why_timestamp": "Helps detect stale configs if user navigates back after long delay"
+      },
+      
+      "button_component_pattern": {
+        "dropdown_menu": "Three options in menu: Batch Edit Selected, Batch Edit Filtered Results, Batch Edit (Empty)",
+        "selection_count_display": "Show count for selected/filtered modes in button label",
+        "disable_logic": {
+          "selected": "Disable if no rows selected",
+          "filtered": "Always enabled (can always edit filtered results)",
+          "empty": "Always enabled (can always start with empty grid)"
+        }
+      },
+      
+      "list_page_responsibilities": {
+        "create_config": "Build config object with correct mode and IDs",
+        "store_config": "Save to sessionStorage with model-specific key",
+        "navigate": "Navigate to batch editor route",
+        "cleanup": "Config can be deleted after batch editor reads it (batch editor owns session after that)"
+      },
+      
+      "batch_editor_responsibilities": {
+        "read_config": "Check sessionStorage for config on mount",
+        "initialize_session": "Initialize sessionIds and isEmptyMode from config",
+        "handle_no_config": "If no config, either reload from sessionIds (if exists) or show error",
+        "delete_config": "Optional cleanup after reading (to prevent stale configs)"
+      },
+      
+      "files_to_update": [
+        "frontend/src/components/{models}/{Model}BatchEditButton.tsx (three-mode dropdown)",
+        "frontend/src/components/{models}/{Models}List.tsx (config creation)",
+        "frontend/src/components/{models}/{Model}BatchEditor.tsx (config reading)"
+      ],
+      
+      "deprecated_patterns": {
+        "old_format": "sessionStorage.setItem('batch_edit_ids', JSON.stringify(ids))",
+        "why_deprecated": "No mode information, ambiguous whether selected or filtered",
+        "migration": "Replace all instances with new config format"
+      },
+      
+      "anti_patterns_to_avoid": [
+        "Using old 'batch_edit_ids' format (deprecated)",
+        "Not including mode in config (ambiguous intent)",
+        "Sharing config key across models (causes conflicts)",
+        "Forgetting to handle empty mode case",
+        "Not initializing sessionIds from config.ids"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["pattern_001_session_persistence", "pattern_003_empty_mode", "pattern_004_warning_dialogs"]
+    },
+    
+    "pattern_006_cell_editor_pagination": {
+      "decision_id": "universal_pattern_006",
+      "content": "Cell editor pagination standards for relationship and multiselect cell types",
+      "added_date": "2025-11-13",
+      "conversation_reference": "Increased page_size from 25 to 200 to allow scrolling through more filtered results",
+      
+      "problem_statement": "Users wanted to scroll through filtered results in M2M cell editors (e.g., native languages), but pagination limited them to first 25 results. No UI for 'next page' - list just cut off.",
+      
+      "solution_architecture": {
+        "standard_page_size": 200,
+        "rationale": "Balances scrollability (users can scroll through substantial results) with performance (not loading thousands unnecessarily)",
+        "applies_to": ["relationship cell type (Many-to-One FK)", "multiselect cell type (Many-to-Many)"],
+        "user_workflow": "User types search query to filter, scrolls through up to 200 filtered results, no pagination buttons needed"
+      },
+      
+      "implementation_requirements": {
+        "location": "frontend/src/components/batch/CellEditor.tsx",
+        "multiselect_cell_type": {
+          "code_template": "url.searchParams.append('page_size', '200');",
+          "line_reference": "Around line 124 in current implementation"
+        },
+        "relationship_cell_type": {
+          "code_template": "url.searchParams.append('page_size', '200');",
+          "line_reference": "Around line 81 in current implementation"
+        }
+      },
+      
+      "performance_considerations": {
+        "dataset_size": "~2500 languoids in full dataset",
+        "filtered_size": "Typically <200 after user types search query",
+        "render_performance": "200 items in dropdown is acceptable for modern browsers",
+        "network_performance": "200 rows * ~50 bytes = ~10KB response, negligible",
+        "scroll_performance": "Virtual scrolling not needed for 200 items (browsers handle natively)"
+      },
+      
+      "alternative_approaches_rejected": {
+        "infinite_scroll": "Too complex, users don't expect it in dropdowns",
+        "full_dataset": "Unnecessary - users filter via search",
+        "pagination_buttons": "Poor UX in dropdown context, users want scrolling",
+        "25_results": "Too limiting, users complained"
+      },
+      
+      "when_to_increase_further": "If users report needing to scroll through more than 200 items even after filtering, increase to 500. Beyond that, consider virtual scrolling.",
+      
+      "files_to_update": [
+        "frontend/src/components/batch/CellEditor.tsx (both relationship and multiselect sections)"
+      ],
+      
+      "anti_patterns_to_avoid": [
+        "Different page_size for relationship vs multiselect (inconsistent UX)",
+        "Page_size < 100 (too limiting for scroll-through workflow)",
+        "Page_size > 500 (diminishing returns, performance concerns)",
+        "Adding pagination UI (defeats scroll-through purpose)"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active"
+    },
+    
+    "import_export_patterns": {
+      "export_column_standards": {
+        "decision_id": "universal_pattern_007",
+        "content": "Standard patterns for export column ordering, formatting, and conditional values",
+        "added_date": "2025-11-13",
+        "conversation_reference": "Added '# of Items' column to exports with conditional blank cells for families",
+        
+        "column_ordering": {
+          "general_rule": "Primary identifier → human-readable name → relationship counts → descriptive fields",
+          "languoid_example": "Glottocode → Name → Name Abbrev → ISO 639-3 → # of Items → Level → ...",
+          "collaborator_example": "Collaborator ID → Full Name → # of Items → First and Middle Name(s) → ..."
+        },
+        
+        "relationship_count_columns": {
+          "format": "'# of {Related Model}' (e.g., '# of Items', '# of Documents')",
+          "placement": "After primary identification columns, before descriptive fields",
+          "annotation_required": "Use .annotate(count_field=Count('related_field')) in queryset",
+          "conditional_blank": "For hierarchical models (e.g., Languoid families), may want blank instead of 0"
+        },
+        
+        "boolean_formatting": {
+          "database_values": "True, False, None",
+          "export_values": "'Yes', 'No', 'Not specified' or blank",
+          "implementation": "safe_value() helper or inline ternary in export loop"
+        },
+        
+        "array_field_formatting": {
+          "database_values": "PostgreSQL ArrayField (list of strings)",
+          "export_values": "Comma-separated string",
+          "implementation": "', '.join(field_value) if field_value else ''"
+        },
+        
+        "conditional_blank_cells": {
+          "use_case": "Hierarchical models where relationship count doesn't apply to certain levels",
+          "example": "Languoid families don't have items (conceptually), so show blank instead of 0",
+          "implementation": "if languoid.level_glottolog == 'family': ws.cell(...).value = '' else: ws.cell(...).value = languoid.item_count"
+        },
+        
+        "files_to_update": [
+          "app/internal_api/views.py (synchronous export methods)",
+          "app/metadata/tasks.py (asynchronous export tasks)"
+        ]
+      },
+      
+      "import_value_comparison": {
+        "decision_id": "universal_pattern_008",
+        "content": "Robust value comparison for import change detection",
+        "added_date": "2025-11-13",
+        "conversation_reference": "Fixed false positives where unchanged values marked as 'changed' due to type mismatches",
+        
+        "nullish_coalescing_operator": {
+          "critical_rule": "Use ?? instead of || for default values",
+          "problem_with_or": "false || '' → '' (converts false to empty string), 0 || '' → '' (converts 0 to empty string)",
+          "solution_with_nullish": "false ?? '' → false (preserves boolean), 0 ?? '' → 0 (preserves number)",
+          "application": "collaboratorToSpreadsheetRow, languoidToSpreadsheetRow, any import transformer converting DB → spreadsheet",
+          "code_example": "value: value ?? (Array.isArray(value) ? [] : ''),  // NOT value || ..."
+        },
+        
+        "boolean_comparison": {
+          "rule": "Compare booleans BEFORE string conversion",
+          "implementation": "if (typeof a === 'boolean' && typeof b === 'boolean') return a === b;\nif (typeof a === 'boolean' || typeof b === 'boolean') return false;",
+          "rationale": "Prevents false === 'false' being treated as equal",
+          "location": "areCellValuesEqual function"
+        },
+        
+        "case_insensitive_text": {
+          "rule": "Text comparisons should be case-insensitive and whitespace-trimmed",
+          "implementation": "String(a).trim().toLowerCase() === String(b).trim().toLowerCase()",
+          "rationale": "Users shouldn't see 'Male' vs 'male' as a change",
+          "location": "areCellValuesEqual function"
+        },
+        
+        "null_undefined_empty_equivalence": {
+          "rule": "Treat null, undefined, and empty string as equivalent for comparison",
+          "implementation": "Multiple cross-checks in areCellValuesEqual: (a === null && b === ''), (a === undefined && b === ''), etc.",
+          "rationale": "Database may store null, spreadsheet may show empty string - these represent same 'no value'",
+          "location": "areCellValuesEqual function"
+        },
+        
+        "field_type_map_completeness": {
+          "critical_requirement": "ALL model fields must be in fieldTypeMap",
+          "problem": "Missing fields result in existing: undefined during comparison, causing false positives",
+          "solution": "Audit all editable fields on model, ensure each is in fieldTypeMap",
+          "example_bug": "gender, clan_society, origin were missing → all cells marked as 'changed'",
+          "location": "collaboratorToSpreadsheetRow, languoidToSpreadsheetRow"
+        },
+        
+        "files_to_update": [
+          "frontend/src/services/{model}ImportTransformer.ts (fieldTypeMap, {model}ToSpreadsheetRow)",
+          "frontend/src/services/{model}ImportValueParsers.ts (areCellValuesEqual)"
+        ]
+      }
+    },
+    
+    "checklist_for_new_batch_editors": {
+      "purpose": "Quick reference checklist when implementing batch editor for new model",
+      "checklist": [
+        "☐ Declare sessionIds and isEmptyMode refs",
+        "☐ Initialize sessionIds from batch config on first load",
+        "☐ Add new row IDs to sessionIds after successful save",
+        "☐ Filter refresh data to sessionIds Set",
+        "☐ Implement order-preserving refresh (iterate existing rows, update from map)",
+        "☐ Add 'empty' mode to batch edit button menu",
+        "☐ Handle empty mode in list page (create config, navigate)",
+        "☐ Handle empty mode in batch editor (initialize with empty grid)",
+        "☐ Check mode === 'selected' or 'empty' → no warning dialog",
+        "☐ Check mode === 'filtered' && !hasActiveFilters → show warning",
+        "☐ Use new config format: { mode, ids, timestamp }",
+        "☐ Store config with model-specific key: '{model}-batch-config'",
+        "☐ Set page_size=200 for relationship cell editor",
+        "☐ Set page_size=200 for multiselect cell editor",
+        "☐ Add '# of Items' column to export after primary identifier",
+        "☐ Use ?? instead of || for default values in import transformer",
+        "☐ Implement boolean comparison before string conversion",
+        "☐ Make text comparison case-insensitive",
+        "☐ Include ALL editable fields in fieldTypeMap",
+        "☐ Test: Save new row → refresh → row persists and stays in place",
+        "☐ Test: Empty mode → add rows → save → refresh → rows persist",
+        "☐ Test: Selected mode → no warning dialog",
+        "☐ Test: Filtered mode with filters → no warning dialog",
+        "☐ Test: Filtered mode without filters → warning dialog shows",
+        "☐ Test: Export → import → no false 'changed' cells for boolean/text fields"
+      ]
+    },
+    
+    "maintenance_notes": {
+      "when_to_update": [
+        "When implementing batch editor for new model and discovering new universal patterns",
+        "When fixing bugs that reveal gaps in existing patterns",
+        "When refactoring patterns for better clarity or performance",
+        "When user feedback reveals UX issues with current patterns"
+      ],
+      
+      "cross_reference_maintenance": [
+        "Update stage_1_batch_editing.json with references to new patterns",
+        "Update collaborator_batch_editor_lessons.json conformance checklist",
+        "Update file_index.json with this new file",
+        "Keep code examples synchronized with actual implementation files"
+      ]
+    }
+  }
+}
+

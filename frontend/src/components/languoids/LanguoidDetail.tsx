@@ -1377,6 +1377,12 @@ const LanguoidDetail: React.FC = () => {
                 </Typography>
               </Box>
             )}
+            {!isFamily && (
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">Items</Typography>
+                <Typography variant="body1">{languoid.item_count || 0}</Typography>
+              </Box>
+            )}
           </Stack>
         </CardContent>
       </Card>

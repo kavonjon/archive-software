@@ -50,6 +50,130 @@ class InternalItemTitleSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
+class InternalItemBatchSerializer(serializers.ModelSerializer):
+    """
+    Lightweight Item serializer for batch operations.
+    
+    This serializer is used when batch=true query param is present.
+    It provides a minimal, flat structure optimized for:
+    - Fast serialization of 4000+ items
+    - Spreadsheet-like editing in batch editor
+    - Reduced memory footprint
+    
+    Only includes actual model fields - no SerializerMethodFields, no computed fields.
+    """
+    # Language relationships - flat list of IDs for batch operations
+    language = serializers.SerializerMethodField()
+    
+    # Collaborator relationships with roles - simplified for batch
+    collaborators = serializers.SerializerMethodField()
+    
+    # Title fields (ItemTitle management)
+    titles = serializers.SerializerMethodField()  # All titles for filtering
+    primary_title = serializers.SerializerMethodField()
+    secondary_title = serializers.SerializerMethodField()
+    
+    # MultiSelectField - stored as comma-separated string in DB, exposed as list
+    genre = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+    language_description_type = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+    
+    class Meta:
+        model = Item
+        read_only_fields = ['id', 'uuid', 'slug', 'added', 'updated', 'modified_by', 'browse_categories']
+        # Exclude the M2M field 'collaborator' - we use 'collaborators' SerializerMethodField instead
+        exclude = ['collaborator']
+    
+    def get_language(self, obj):
+        """Return list of language dictionaries with minimal data for batch editor"""
+        languoids = obj.language.all()
+        return [{
+            'id': lang.id,
+            'name': lang.name,
+            'glottocode': lang.glottocode
+        } for lang in languoids]
+    
+    def get_collaborators(self, obj):
+        """
+        Return list of collaborator dictionaries with roles and citation status.
+        Format: [{id, name, roles: [...], citation_author: bool}, ...]
+        """
+        roles = CollaboratorRole.objects.filter(item=obj).select_related('collaborator')
+        return [{
+            'id': role.collaborator.id,
+            'name': role.collaborator.full_name,
+            'roles': role.role if isinstance(role.role, list) else (role.role.split(',') if role.role else []),
+            'citation_author': role.citation_author
+        } for role in roles]
+    
+    def get_titles(self, obj):
+        """
+        Return all titles for this item (for filtering support).
+        Format: [{id?, title, language, language_name, language_iso, default}, ...]
+        """
+        return [{
+            'id': title.id,
+            'title': title.title,
+            'language': title.language.id,
+            'language_name': title.language.name,
+            'language_iso': title.language.glottocode,
+            'default': title.default
+        } for title in obj.title_item.all()]
+    
+    def get_primary_title(self, obj):
+        """
+        Get the default title (ItemTitle with default=True).
+        Returns: { title: string, language: { id, name, glottocode } } | null
+        """
+        try:
+            default_title = obj.title_item.filter(default=True).first()
+            if default_title:
+                return {
+                    'title': default_title.title,
+                    'language': {
+                        'id': default_title.language.id,
+                        'name': default_title.language.name,
+                        'glottocode': default_title.language.glottocode
+                    } if default_title.language else None
+                }
+        except Exception as e:
+            import logging
+            logging.error(f"Error in get_primary_title for item {obj.id}: {str(e)}")
+        return None
+    
+    def get_secondary_title(self, obj):
+        """
+        Get the first non-default title (ItemTitle with default=False, lowest PK).
+        Returns: { title: string, language: { id, name, glottocode } } | null
+        """
+        try:
+            first_additional = obj.title_item.filter(default=False).order_by('id').first()
+            if first_additional:
+                return {
+                    'title': first_additional.title,
+                    'language': {
+                        'id': first_additional.language.id,
+                        'name': first_additional.language.name,
+                        'glottocode': first_additional.language.glottocode
+                    } if first_additional.language else None
+                }
+        except Exception as e:
+            import logging
+            logging.error(f"Error in get_secondary_title for item {obj.id}: {str(e)}")
+        return None
+    
+    def to_representation(self, instance):
+        """Override to handle MultiSelectField serialization"""
+        data = super().to_representation(instance)
+        
+        # Convert MultiSelectField comma-separated strings to lists
+        if 'genre' in data and isinstance(data['genre'], str):
+            data['genre'] = [g.strip() for g in data['genre'].split(',') if g.strip()]
+        if 'language_description_type' in data and isinstance(data['language_description_type'], str):
+            data['language_description_type'] = [t.strip() for t in data['language_description_type'].split(',') if t.strip()]
+        
+        return data
+
+
 class InternalItemSerializer(serializers.ModelSerializer):
     """Comprehensive Item serializer for internal API - provides flat structure matching Django template sections"""
     
@@ -67,8 +191,11 @@ class InternalItemSerializer(serializers.ModelSerializer):
     # Language relationships (full objects for editing) - nested serializer for read, IDs for write
     language = serializers.SerializerMethodField()
     
-    # Collaborator names (simplified) 
+    # Collaborator names (simplified) - DEPRECATED in favor of full objects with roles
     collaborator_names = serializers.SerializerMethodField()
+    
+    # Collaborator relationships with roles and citation status (full objects for editing)
+    collaborators = serializers.SerializerMethodField()
     
     # Access level field (writable)
     item_access_level = serializers.CharField(required=False, allow_blank=True)
@@ -96,9 +223,6 @@ class InternalItemSerializer(serializers.ModelSerializer):
     # Boolean field display
     permission_to_publish_online_display = serializers.SerializerMethodField()
     migrate_display = serializers.SerializerMethodField()
-    
-    # Description (using the correct field name)
-    description = serializers.CharField(source='description_scope_and_content', required=False, allow_blank=True)
     
     # Coordinate fields for geographic location
     latitude = serializers.DecimalField(
@@ -130,7 +254,7 @@ class InternalItemSerializer(serializers.ModelSerializer):
             'primary_title', 'titles', 'indigenous_title', 'english_title',
             
             # Content & Description  
-            'description', 'resource_type', 'resource_type_display',
+            'description_scope_and_content', 'resource_type', 'resource_type_display',
             'genre', 'genre_display', 'language_description_type', 'language_description_type_display',
             'browse_categories', 'browse_categories_display',
             'language_names', 'collaborator_names', 'creation_date',
@@ -174,9 +298,9 @@ class InternalItemSerializer(serializers.ModelSerializer):
             'added', 'updated', 'modified_by',
             
             # Keep existing fields for compatibility
-            'language', 'collaborator'
+            'language', 'collaborator', 'collaborators'
         ]
-        read_only_fields = ['id', 'uuid', 'slug', 'added', 'updated', 'browse_categories', 'browse_categories_display']
+        read_only_fields = ['id', 'uuid', 'slug', 'added', 'updated', 'modified_by', 'browse_categories', 'browse_categories_display']
     
     def get_primary_title(self, obj):
         """Get the primary/default title"""
@@ -196,8 +320,32 @@ class InternalItemSerializer(serializers.ModelSerializer):
         return InternalLanguoidSerializer(obj.language.all(), many=True).data
     
     def get_collaborator_names(self, obj):
-        """Get simple list of collaborator names"""
+        """Get simple list of collaborator names - DEPRECATED, use get_collaborators instead"""
         return [collab.full_name for collab in obj.collaborator.all()]
+    
+    def get_collaborators(self, obj):
+        """Return full collaborator data with roles and citation status through CollaboratorRole"""
+        from metadata.models import CollaboratorRole
+        
+        roles_qs = CollaboratorRole.objects.filter(item=obj).select_related('collaborator')
+        result = []
+        for collab_role in roles_qs:
+            # Convert MultiSelectField roles to list if it's a string
+            roles_value = collab_role.role
+            if isinstance(roles_value, str):
+                roles_list = [r.strip() for r in roles_value.split(',') if r.strip()]
+            elif roles_value:
+                roles_list = list(roles_value)
+            else:
+                roles_list = []
+            
+            result.append({
+                'id': collab_role.collaborator.id,
+                'name': collab_role.collaborator.full_name,
+                'roles': roles_list,
+                'citation_author': collab_role.citation_author
+            })
+        return result
     
     def get_genre_display(self, obj):
         """Get human-readable genre labels for MultiSelectField"""
@@ -343,22 +491,116 @@ class InternalItemSerializer(serializers.ModelSerializer):
         
         return value
     
-    def update(self, instance, validated_data):
-        """
-        Custom update to handle M2M language field.
+    def validate_language_description_type(self, value):
+        """Validate language_description_type field - ensure it's a list and convert to comma-separated string for MultiSelectField"""
+        if value is None:
+            return []
         
-        For language field, we need to:
-        1. Extract the M2M data from the initial request data (not validated_data, since it's a SerializerMethodField)
-        2. Update the regular fields first
-        3. Update the M2M relationships using Django's built-in .set() method
+        # If it's already a list, return it as-is (DRF will handle conversion)
+        if isinstance(value, list):
+            return value
+        
+        # If it's a string (shouldn't happen, but handle it), split it
+        if isinstance(value, str):
+            return [v.strip() for v in value.split(',') if v.strip()]
+        
+        return value
+    
+    def create(self, validated_data):
         """
-        from metadata.models import Languoid
+        Custom create to handle M2M fields (language and collaborators through CollaboratorRole).
+        Also handles ItemTitle objects for primary_title and secondary_title fields.
+        
+        For M2M fields, we need to:
+        1. Extract the M2M data from the initial request data (not validated_data)
+        2. Create the item instance without M2M fields
+        3. Set up M2M relationships using Django's built-in methods and through models
+        
+        For ItemTitle fields:
+        1. Extract title data from initial_data (primary_title, secondary_title)
+        2. Create ItemTitle objects after the Item is created
+        3. Respect the default flag (primary_title: default=True, secondary_title: default=False)
+        """
+        from metadata.models import Languoid, CollaboratorRole, ItemTitle
         
         # Extract M2M field data from initial_data (raw request data)
-        # Since language is a SerializerMethodField (read-only),
-        # it won't be in validated_data. We need to get it from initial_data.
         initial_data = self.initial_data
         language_ids = initial_data.get('language', None)
+        collaborators_data = initial_data.get('collaborators', None)
+        primary_title_data = initial_data.get('primary_title', None)
+        secondary_title_data = initial_data.get('secondary_title', None)
+        
+        # Get modified_by value for tracking
+        request = self.context.get('request')
+        modified_by_value = str(request.user) if request and request.user else 'unknown'
+        
+        # Create the item instance without M2M fields
+        item = Item.objects.create(**validated_data)
+        
+        # Set up language M2M relationship (simple M2M)
+        if language_ids is not None:
+            item.language.set(language_ids)
+        
+        # Set up collaborator M2M relationship through CollaboratorRole
+        if collaborators_data is not None:
+            for collab_data in collaborators_data:
+                CollaboratorRole.objects.create(
+                    item=item,
+                    collaborator_id=collab_data['id'],
+                    role=collab_data.get('roles', []),
+                    citation_author=collab_data.get('citation_author', False),
+                    modified_by=modified_by_value
+                )
+        
+        # Create primary_title (default=True ItemTitle)
+        if primary_title_data and primary_title_data != '' and primary_title_data != {}:
+            if isinstance(primary_title_data, dict) and primary_title_data.get('title'):
+                ItemTitle.objects.create(
+                    item=item,
+                    title=primary_title_data['title'],
+                    language_id=primary_title_data.get('language_id'),
+                    default=True,
+                    modified_by=modified_by_value
+                )
+        
+        # Create secondary_title (first non-default ItemTitle, default=False)
+        if secondary_title_data and secondary_title_data != '' and secondary_title_data != {}:
+            if isinstance(secondary_title_data, dict) and secondary_title_data.get('title'):
+                ItemTitle.objects.create(
+                    item=item,
+                    title=secondary_title_data['title'],
+                    language_id=secondary_title_data.get('language_id'),
+                    default=False,
+                    modified_by=modified_by_value
+                )
+        
+        return item
+    
+    def update(self, instance, validated_data):
+        """
+        Custom update to handle M2M fields (language and collaborators through CollaboratorRole).
+        Also handles ItemTitle objects for primary_title and secondary_title fields.
+        
+        For M2M fields, we need to:
+        1. Extract the M2M data from the initial request data (not validated_data, since they're SerializerMethodFields)
+        2. Update the regular fields first
+        3. Update the M2M relationships using Django's built-in .set() method and through models
+        
+        For ItemTitle fields:
+        1. Extract title data from initial_data (primary_title, secondary_title)
+        2. Create/update/delete ItemTitle objects as needed
+        3. Respect the default flag (primary_title: default=True, secondary_title: default=False)
+        """
+        from metadata.models import Languoid, CollaboratorRole, ItemTitle
+        
+        # Extract M2M field data from initial_data (raw request data)
+        # Since language and collaborators are SerializerMethodFields (read-only),
+        # they won't be in validated_data. We need to get them from initial_data.
+        initial_data = self.initial_data
+        language_ids = initial_data.get('language', None)
+        collaborators_data = initial_data.get('collaborators', None)
+        primary_title_data = initial_data.get('primary_title', None)
+        secondary_title_data = initial_data.get('secondary_title', None)
         
         # Get modified_by value for tracking who made the change
         request = self.context.get('request')
@@ -377,6 +619,77 @@ class InternalItemSerializer(serializers.ModelSerializer):
             # Use Django's built-in set() method for M2M relationships
             # This will automatically trigger m2m_changed signals
             instance.language.set(language_ids)
+        
+        # Update collaborator M2M relationship through CollaboratorRole
+        if collaborators_data is not None:
+            # Clear existing CollaboratorRoles for this item
+            CollaboratorRole.objects.filter(item=instance).delete()
+            
+            # Create new CollaboratorRoles
+            for collab_data in collaborators_data:
+                CollaboratorRole.objects.create(
+                    item=instance,
+                    collaborator_id=collab_data['id'],
+                    role=collab_data.get('roles', []),
+                    citation_author=collab_data.get('citation_author', False),
+                    modified_by=modified_by_value
+                )
+        
+        # Update primary_title (default=True ItemTitle)
+        if primary_title_data is not None:
+            # Get or create the default title
+            default_title = instance.title_item.filter(default=True).first()
+            
+            if primary_title_data == '' or primary_title_data == {} or (isinstance(primary_title_data, dict) and not primary_title_data.get('title')):
+                # Delete the default title if it exists
+                if default_title:
+                    default_title.delete()
+            else:
+                # Create or update the default title
+                title_text = primary_title_data.get('title') if isinstance(primary_title_data, dict) else primary_title_data
+                language_id = primary_title_data.get('language_id') if isinstance(primary_title_data, dict) else None
+                
+                if default_title:
+                    default_title.title = title_text
+                    default_title.language_id = language_id
+                    default_title.modified_by = modified_by_value
+                    default_title.save()
+                else:
+                    ItemTitle.objects.create(
+                        item=instance,
+                        title=title_text,
+                        language_id=language_id,
+                        default=True,
+                        modified_by=modified_by_value
+                    )
+        
+        # Update secondary_title (first non-default ItemTitle, default=False)
+        if secondary_title_data is not None:
+            # Get the first non-default title (lowest PK)
+            first_additional = instance.title_item.filter(default=False).order_by('id').first()
+            
+            if secondary_title_data == '' or secondary_title_data == {} or (isinstance(secondary_title_data, dict) and not secondary_title_data.get('title')):
+                # Delete the first additional title if it exists
+                if first_additional:
+                    first_additional.delete()
+            else:
+                # Create or update the first additional title
+                title_text = secondary_title_data.get('title') if isinstance(secondary_title_data, dict) else secondary_title_data
+                language_id = secondary_title_data.get('language_id') if isinstance(secondary_title_data, dict) else None
+                
+                if first_additional:
+                    first_additional.title = title_text
+                    first_additional.language_id = language_id
+                    first_additional.modified_by = modified_by_value
+                    first_additional.save()
+                else:
+                    ItemTitle.objects.create(
+                        item=instance,
+                        title=title_text,
+                        language_id=language_id,
+                        default=False,
+                        modified_by=modified_by_value
+                    )
         
         return instance
 
@@ -444,6 +757,36 @@ class InternalCollectionSerializer(serializers.ModelSerializer):
         if obj.expecting_additions is None:
             return 'Not specified'
         return 'Yes' if obj.expecting_additions else 'No'
+
+
+class CollaboratorPickerSerializer(serializers.ModelSerializer):
+    """
+    Ultra-lightweight serializer for picker/dropdown components.
+    
+    Used by EditableCollaboratorRolesField on Item detail page for
+    client-side filtering in the collaborator search dropdown.
+    
+    NOT used by batch editor - that uses InternalCollaboratorBatchSerializer.
+    
+    Only includes the minimal data needed for:
+    - Displaying collaborator name in dropdown
+    - Client-side search/filtering
+    - Creating relationships
+    """
+    # Display name that respects privacy settings
+    display_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Collaborator
+        fields = ['id', 'full_name', 'display_name', 'slug']
+        read_only_fields = ['id', 'slug', 'display_name']
+    
+    def get_display_name(self, obj):
+        """Return display name respecting privacy settings"""
+        request = self.context.get('request')
+        if obj.anonymous and request and not (request.user.is_staff or request.user.groups.filter(name='Archivist').exists()):
+            return f"Collaborator {obj.collaborator_id} (anonymous)"
+        return obj.full_name or f"Collaborator {obj.collaborator_id}"
 
 
 class InternalCollaboratorBatchSerializer(serializers.ModelSerializer):

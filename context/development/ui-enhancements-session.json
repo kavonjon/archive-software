@@ -265,6 +265,34 @@
         },
         "status": "completed",
         "confidence_level": "high"
+      },
+      
+      "6_chip_text_wrapping": {
+        "change_id": "ui_enh_006",
+        "description": "Enhanced MUI Chips to wrap long text instead of extending horizontally",
+        "added_date": "2025-11-16",
+        "files_modified": ["frontend/src/components/common/EditableCollaboratorRolesField.tsx"],
+        "problem": "Collaborator chips with many roles extended horizontally, breaking card layouts",
+        "solution": "Configure Chip to allow text wrapping: maxWidth: '100%', height: 'auto', whiteSpace: 'normal'",
+        "status": "completed",
+        "confidence_level": "high"
+      },
+      
+      "7_client_side_filtering_optimization": {
+        "change_id": "ui_enh_007",
+        "description": "Optimized collaborator picker with instant client-side filtering using CollaboratorPickerSerializer",
+        "added_date": "2025-11-16",
+        "files_modified": [
+          "app/internal_api/serializers.py",
+          "app/internal_api/views.py",
+          "frontend/src/components/common/EditableCollaboratorRolesField.tsx"
+        ],
+        "problem": "Server-side filtering caused flickering, network latency, and race conditions",
+        "solution": "Load full lightweight dataset once (picker=true), filter client-side for instant results",
+        "isolation_note": "Completely separate from batch editor infrastructure (picker=true not batch=true)",
+        "status": "completed",
+        "confidence_level": "high",
+        "cross_references": ["coding_patterns.json::client_side_filtering_with_picker_serializers"]
       }
     },
     

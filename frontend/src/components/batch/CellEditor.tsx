@@ -9,6 +9,8 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Select, MenuItem, SelectChangeEvent, TextField, CircularProgress, Box, MenuList, Chip } from '@mui/material';
 import { SpreadsheetCell, ColumnConfig } from '../../types/spreadsheet';
+import { CollaboratorRolesCellEditor } from './CollaboratorRolesCellEditor';
+import { TitleWithLanguageCellEditor } from './TitleWithLanguageCellEditor';
 
 interface RelationshipOption {
   value: number | string;
@@ -195,12 +197,26 @@ export const CellEditor: React.FC<CellEditorProps> = ({
   // Load initial options for multiselect editor
   useEffect(() => {
     if (cell.type === 'multiselect') {
+      // Check if we have static choices (choice-based multiselect)
+      if (columnConfig.choices && Array.isArray(columnConfig.choices)) {
+        // Use static choices instead of API endpoint
+        const choiceOptions: MultiSelectOption[] = columnConfig.choices.map(choice => ({
+          value: choice.value,
+          label: choice.label,
+        }));
+        setMultiSelectOptions(choiceOptions);
+      } else if (columnConfig.relationshipEndpoint) {
+        // Use API endpoint (relationship-based multiselect)
       loadMultiSelectOptions('');
+      } else {
+        console.error('[CellEditor] Multiselect cell requires either choices or relationshipEndpoint');
+      }
+      
       if (searchInputRef.current) {
         searchInputRef.current.focus();
       }
     }
-  }, [cell.type, loadMultiSelectOptions]);
+  }, [cell.type, loadMultiSelectOptions, columnConfig.choices, columnConfig.relationshipEndpoint]);
 
   // Update selectedMultiSelectOptions when options load (for multiselect)
   // Only run once when options first load, not on every options change
@@ -208,9 +224,31 @@ export const CellEditor: React.FC<CellEditorProps> = ({
     if (cell.type === 'multiselect' && multiSelectOptions.length > 0) {
       // Only initialize once per editor mount, using ref to track
       if (!multiSelectInitializedRef.current && cell.value && Array.isArray(cell.value) && cell.value.length > 0) {
-        // cell.value should be an array of objects with {id, name, glottocode} from collaboratorToRow
-        const selected = cell.value.map((item: any) => {
-          // Format label as "name (glottocode)" if glottocode exists
+        let selected: MultiSelectOption[];
+        
+        // Check if this is a choice-based multiselect (values are strings) or relationship-based (values are objects)
+        if (columnConfig.choices && Array.isArray(columnConfig.choices)) {
+          // CHOICE-BASED: cell.value is an array of strings like ['article', 'book']
+          selected = cell.value.map((val: string) => {
+            const choice = columnConfig.choices!.find(c => c.value === val);
+            return {
+              value: val,
+              label: choice ? choice.label : val,
+            };
+          });
+        } else {
+          // RELATIONSHIP-BASED: cell.value is an array of objects with {id, name, glottocode}
+          // Split into valid and invalid items
+          const validItems = cell.value.filter((item: any) => {
+            return item && item.id !== null && item.id !== undefined;
+          });
+          
+          const invalidItems = cell.value.filter((item: any) => {
+            return item && (item.id === null || item.id === undefined);
+          });
+          
+          // Create chips for valid items
+          const validSelected = validItems.map((item: any) => {
           const label = item.glottocode 
             ? `${item.name} (${item.glottocode})`
             : item.name || String(item.id || item);
@@ -218,30 +256,68 @@ export const CellEditor: React.FC<CellEditorProps> = ({
           return {
             value: item.id || item,
             label: label,
-            // Attach itemData so it's preserved when committing
             itemData: {
               id: item.id,
               name: item.name,
               glottocode: item.glottocode,
-            }
+              },
+              isValid: true,  // Mark as valid
           } as any;
         });
+          
+          // Create chips for invalid items (with id: null, but with negative temporary value for tracking)
+          const invalidSelected = invalidItems.map((item: any, idx: number) => {
+            const label = item.glottocode 
+              ? `${item.name} (${item.glottocode})`
+              : item.name;
+            
+            return {
+              value: `invalid-${idx}`,  // Temporary unique ID
+              label: label,
+              itemData: {
+                id: null,
+                name: item.name,
+                glottocode: item.glottocode,
+              },
+              isValid: false,  // Mark as invalid
+            } as any;
+          });
+          
+          // Combine valid and invalid chips
+          selected = [...validSelected, ...invalidSelected];
+        }
         
         setSelectedMultiSelectOptions(selected);
         multiSelectInitializedRef.current = true; // Mark as initialized
       }
     }
-  }, [cell.type, multiSelectOptions, cell.value]);
+  }, [cell.type, multiSelectOptions, cell.value, columnConfig.choices]);
 
   // Debounced search for multiselect editor
   useEffect(() => {
     if (cell.type === 'multiselect') {
+      // For choice-based multiselects, filter the static choices locally
+      if (columnConfig.choices && Array.isArray(columnConfig.choices)) {
+        const query = multiSelectSearchQuery.toLowerCase().trim();
+        if (query) {
+          const filtered = columnConfig.choices.filter(choice => 
+            choice.label.toLowerCase().includes(query) || 
+            String(choice.value).toLowerCase().includes(query)
+          );
+          setMultiSelectOptions(filtered.map(c => ({ value: c.value, label: c.label })));
+        } else {
+          // Show all choices when no search query
+          setMultiSelectOptions(columnConfig.choices.map(c => ({ value: c.value, label: c.label })));
+        }
+      } else if (columnConfig.relationshipEndpoint) {
+        // For relationship-based multiselects, fetch from API with debounce
       const timeoutId = setTimeout(() => {
         loadMultiSelectOptions(multiSelectSearchQuery);
       }, 300);
       return () => clearTimeout(timeoutId);
     }
-  }, [multiSelectSearchQuery, cell.type, loadMultiSelectOptions]);
+    }
+  }, [multiSelectSearchQuery, cell.type, loadMultiSelectOptions, columnConfig.choices, columnConfig.relationshipEndpoint]);
 
   // Phase 3.1 & 3.5: Text and StringArray editors
   if (cell.type === 'text' || cell.type === 'decimal') {
@@ -772,6 +848,30 @@ export const CellEditor: React.FC<CellEditorProps> = ({
     );
   }
 
+  // Phase 3.3.5: Collaborator roles editor (through-model with metadata)
+  if (cell.type === 'collaborator_roles') {
+    return (
+      <CollaboratorRolesCellEditor
+        cell={cell}
+        onCommit={onCommit}
+        onCancel={onCancel}
+      />
+    );
+  }
+
+  // Phase 3.3.6: Title with language editor (ItemTitle management)
+  if (cell.type === 'title_with_language') {
+    return (
+      <TitleWithLanguageCellEditor
+        cell={cell}
+        onCommit={onCommit}
+        onCancel={onCancel}
+        languoidOptions={columnConfig.metadata?.languoidOptions || []}
+        loadingLanguoids={columnConfig.metadata?.loadingLanguoids || false}
+      />
+    );
+  }
+
   // Phase 3.4: MultiSelect editor (chip-based multi-selection)
   if (cell.type === 'multiselect') {
     const handleMultiSelectAdd = (option: MultiSelectOption) => {
@@ -801,7 +901,93 @@ export const CellEditor: React.FC<CellEditorProps> = ({
     };
 
     const handleMultiSelectCommit = () => {
-      // Preserve full item data (id, name, glottocode) not just IDs
+      // Check if this is a choice-based multiselect or relationship-based
+      if (columnConfig.choices && Array.isArray(columnConfig.choices)) {
+        // CHOICE-BASED: Return array of string values like ['article', 'book']
+        
+        // Determine sorting strategy based on field
+        const useChoiceOrder = columnConfig.fieldName === 'language_description_type';
+        
+        let sortedValues: any[];
+        let sortedLabels: string[];
+        
+        if (useChoiceOrder) {
+          // Sort by choice order (preserves logical grouping)
+          const choiceOrder = new Map(columnConfig.choices.map((choice, idx) => [choice.value, idx]));
+          sortedValues = selectedMultiSelectOptions
+            .map(opt => opt.value)
+            .sort((a, b) => (choiceOrder.get(a) ?? 9999) - (choiceOrder.get(b) ?? 9999));
+          sortedLabels = sortedValues.map(val => {
+            const choice = columnConfig.choices!.find(c => c.value === val);
+            return choice ? choice.label : String(val);
+          });
+        } else {
+          // Sort alphabetically (default for genre, etc.)
+          sortedValues = selectedMultiSelectOptions
+            .map(opt => opt.value)
+            .sort((a, b) => String(a).localeCompare(String(b)));
+          sortedLabels = selectedMultiSelectOptions
+            .map(opt => opt.label)
+            .sort((a, b) => a.localeCompare(b));
+        }
+        
+        const text = sortedLabels.join(', ');
+        onCommit({ value: sortedValues.length > 0 ? sortedValues : null, text }, true);
+      } else {
+        // RELATIONSHIP-BASED: Preserve full item data (id, name, glottocode) not just IDs
+        
+        // Check if there are any invalid chips remaining
+        const hasInvalidChips = selectedMultiSelectOptions.some((opt: any) => opt.isValid === false);
+        
+        // If invalid chips remain, don't commit - cancel to keep cell red
+        if (hasInvalidChips) {
+          onCancel();
+          return;
+        }
+        
+        // Check if user made changes by comparing with original (including checking if invalid items were removed)
+        const originalValidItems = Array.isArray(cell.value) 
+          ? cell.value.filter((item: any) => item && item.id !== null && item.id !== undefined)
+          : [];
+        
+        const originalInvalidItems = Array.isArray(cell.value)
+          ? cell.value.filter((item: any) => item && (item.id === null || item.id === undefined))
+          : [];
+        
+        const hadInvalidItems = originalInvalidItems.length > 0;
+        
+        // If there were invalid items and user removed them, that's a change
+        if (hadInvalidItems && !hasInvalidChips) {
+          // User fixed the error by removing invalid items - commit the change
+          const itemsWithData = selectedMultiSelectOptions.map(opt => {
+            if ((opt as any).itemData) {
+              return (opt as any).itemData;
+            }
+            return {
+              id: typeof opt.value === 'number' ? opt.value : parseInt(String(opt.value)),
+              name: opt.label.replace(/\s*\([^)]*\)$/, ''),
+              glottocode: opt.label.match(/\(([^)]+)\)$/)?.[1],
+            };
+          });
+          
+          const text = selectedMultiSelectOptions.map(opt => opt.label).join(', ');
+          onCommit({ value: itemsWithData.length > 0 ? itemsWithData : null, text }, true);
+          return;
+        }
+        
+        // Otherwise, check if valid items changed
+        const currentSelectedIds = selectedMultiSelectOptions.map(opt => opt.value).sort();
+        const originalValidIds = originalValidItems.map((item: any) => item.id).sort();
+        
+        // If no changes were made to valid items, cancel
+        if (
+          currentSelectedIds.length === originalValidIds.length &&
+          currentSelectedIds.every((id, idx) => id === originalValidIds[idx])
+        ) {
+          onCancel();
+          return;
+        }
+        
       const itemsWithData = selectedMultiSelectOptions.map(opt => {
         // If option has itemData from API, use that
         if ((opt as any).itemData) {
@@ -817,6 +1003,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
       
       const text = selectedMultiSelectOptions.map(opt => opt.label).join(', ');
       onCommit({ value: itemsWithData.length > 0 ? itemsWithData : null, text }, true);
+      }
     };
 
     const handleMultiSelectBlur = () => {
@@ -838,6 +1025,28 @@ export const CellEditor: React.FC<CellEditorProps> = ({
         handleMultiSelectCommit();
       }
     };
+
+    // For choice-based multiselects, sort chips for display
+    // - language_description_type: Sort by choice order (preserves logical grouping)
+    // - genre: Sort alphabetically
+    // For relationship-based, keep original order
+    const displayOptions = (() => {
+      if (!(columnConfig.choices && Array.isArray(columnConfig.choices))) {
+        // Relationship-based: keep original order
+        return selectedMultiSelectOptions;
+      }
+      
+      if (columnConfig.fieldName === 'language_description_type') {
+        // Sort by choice order
+        const choiceOrder = new Map(columnConfig.choices.map((choice, idx) => [choice.value, idx]));
+        return [...selectedMultiSelectOptions].sort((a, b) => 
+          (choiceOrder.get(a.value) ?? 9999) - (choiceOrder.get(b.value) ?? 9999)
+        );
+      } else {
+        // Sort alphabetically (genre, etc.)
+        return [...selectedMultiSelectOptions].sort((a, b) => a.label.localeCompare(b.label));
+      }
+    })();
 
     return (
       <div
@@ -914,7 +1123,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
                 e.stopPropagation();
               }}
             >
-              {selectedMultiSelectOptions.map((option) => (
+              {displayOptions.map((option) => (
                 <Chip
                   key={option.value}
                   label={option.label}
@@ -930,8 +1139,10 @@ export const CellEditor: React.FC<CellEditorProps> = ({
                     e.stopPropagation();
                   }}
                   sx={{
-                    backgroundColor: '#1976d2',
+                    // Invalid chips (parser errors) get red styling
+                    backgroundColor: (option as any).isValid === false ? '#f44336' : '#1976d2',
                     color: '#fff',
+                    border: (option as any).isValid === false ? '2px solid #d32f2f' : 'none',
                     '& .MuiChip-deleteIcon': {
                       color: '#fff',
                       '&:hover': {

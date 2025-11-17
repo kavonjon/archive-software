@@ -28,7 +28,7 @@ import styles from './TanStackSpreadsheet.module.css';
 
 /**
  * Serialize a cell for clipboard storage
- * For complex types (relationship, multiselect, stringarray), embeds machine-readable value AND display text
+ * For complex types (relationship, multiselect, stringarray, collaborator_roles, title_with_language), embeds machine-readable value AND display text
  * For simple types (text, decimal), uses plain text
  */
 const serializeCellForClipboard = (cell: SpreadsheetCell | undefined): string => {
@@ -38,6 +38,8 @@ const serializeCellForClipboard = (cell: SpreadsheetCell | undefined): string =>
     case 'relationship':
     case 'multiselect':
     case 'stringarray':
+    case 'collaborator_roles':
+    case 'title_with_language':
       // Store BOTH machine value AND display text for rich types
       // Format: __CELL__<type>__<json>__<text>__
       try {
@@ -91,7 +93,7 @@ const deserializeCellFromClipboard = (text: string, targetCellType?: CellType): 
         // Allow pasting between compatible types
         if (sourceType === targetCellType) {
           // Return object with both value and text for complex types
-          if (sourceType === 'relationship' || sourceType === 'multiselect' || sourceType === 'stringarray') {
+          if (sourceType === 'relationship' || sourceType === 'multiselect' || sourceType === 'stringarray' || sourceType === 'collaborator_roles' || sourceType === 'title_with_language') {
             return { value: parsedValue, text: displayText };
           }
           return parsedValue;
@@ -102,11 +104,12 @@ const deserializeCellFromClipboard = (text: string, targetCellType?: CellType): 
           if (targetCellType === 'multiselect' || targetCellType === 'stringarray') {
             return { value: parsedValue, text: displayText };
           }
+          // collaborator_roles and title_with_language expect specific structures, keep strict (only same-type paste)
         }
       }
       
       // Default: return object with value and text for complex types
-      if (sourceType === 'relationship' || sourceType === 'multiselect' || sourceType === 'stringarray') {
+      if (sourceType === 'relationship' || sourceType === 'multiselect' || sourceType === 'stringarray' || sourceType === 'collaborator_roles' || sourceType === 'title_with_language') {
         return { value: parsedValue, text: displayText };
       }
       return parsedValue;
@@ -139,7 +142,7 @@ export interface TanStackSpreadsheetProps {
   columns: ColumnConfig[];
   
   /** Callback when cell value changes */
-  onCellChange: (rowId: string | number, fieldName: string, newValue: any) => void;
+  onCellChange: (rowId: string | number, fieldName: string, newValue: any, text?: string) => void;
   
   /** Optional: Callback for batch cell changes (paste operations) */
   onBatchCellChange?: (changes: Array<{ rowId: string | number; fieldName: string; newValue: any }>, description: string) => void;
@@ -287,7 +290,28 @@ export const TanStackSpreadsheet = forwardRef<TanStackSpreadsheetHandle, TanStac
     const row = rows[rowIndex];
     if (!row) return;
     
+    if (columnId === 'collaborators') {
+      console.log('[TanStackSpreadsheet] handleCellCommit - collaborators field');
+      console.log('[TanStackSpreadsheet] newValue:', newValue);
+      console.log('[TanStackSpreadsheet] newValue.value:', newValue?.value);
+      console.log('[TanStackSpreadsheet] newValue.text:', newValue?.text);
+    }
+    
+    // Check if newValue is an object with { value, text } structure (from custom editors)
+    // If so, destructure it and pass both value and text to onCellChange
+    if (newValue && typeof newValue === 'object' && 'value' in newValue && 'text' in newValue) {
+      if (columnId === 'collaborators') {
+        console.log('[TanStackSpreadsheet] About to call onCellChange with:');
+        console.log('  arg1 (rowId):', row.id);
+        console.log('  arg2 (columnId):', columnId);
+        console.log('  arg3 (value):', newValue.value);
+        console.log('  arg4 (text):', newValue.text);
+      }
+      onCellChange(row.id, columnId, newValue.value, newValue.text);
+    } else {
     onCellChange(row.id, columnId, newValue);
+    }
+    
     setEditingCell(null);
     
     // If Enter was pressed, move to next row (spreadsheet UX convention)

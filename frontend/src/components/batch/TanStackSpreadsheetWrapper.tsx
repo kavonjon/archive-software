@@ -193,15 +193,22 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
   }, [changedRowsCount, selectedRowsCount, selectedChangedRowsCount, hasChanges]);
 
   // Adapter: SpreadsheetGrid passes (rowId, fieldName, newValue, newText)
-  // TanStackSpreadsheet passes (rowId, fieldName, newValue)
-  // We need to extract text from newValue if it's an object
-  const handleCellChange = (rowId: string | number, fieldName: string, newValue: any) => {
-    let text = '';
+  // TanStackSpreadsheet passes (rowId, fieldName, newValue, newText) for custom editors
+  // We need to extract text from newValue if it's an object (for backward compatibility)
+  const handleCellChange = (rowId: string | number, fieldName: string, newValue: any, text?: string) => {
+    // If text is provided explicitly (from custom editors), use it
+    if (text !== undefined) {
+      onCellChange(rowId, fieldName, newValue, text);
+      return;
+    }
+    
+    // Otherwise, try to extract text from newValue for backward compatibility
+    let derivedText = '';
     
     if (typeof newValue === 'object' && newValue !== null && 'text' in newValue) {
       // Complex cell type (relationship, multiselect, etc.)
-      text = newValue.text;
-      onCellChange(rowId, fieldName, newValue.value, text);
+      derivedText = newValue.text;
+      onCellChange(rowId, fieldName, newValue.value, derivedText);
     } else {
       // Simple value - need to derive text
       const column = columns.find(c => c.fieldName === fieldName);
@@ -209,12 +216,12 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
       // For select type, look up the label from choices
       if (column?.cellType === 'select' && column.choices) {
         const choice = column.choices.find(c => c.value === newValue);
-        text = choice ? choice.label : String(newValue || '');
+        derivedText = choice ? choice.label : String(newValue || '');
       } else {
-        text = String(newValue || '');
+        derivedText = String(newValue || '');
       }
       
-      onCellChange(rowId, fieldName, newValue, text);
+      onCellChange(rowId, fieldName, newValue, derivedText);
     }
   };
 
@@ -375,6 +382,26 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
           height="100%"
         />
         
+        {/* Loading overlay */}
+        {loading && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(255, 255, 255, 0.7)',
+              zIndex: 1000,
+            }}
+          >
+            <CircularProgress size={60} />
+          </Box>
+        )}
+        
         {/* Import Loading Overlay */}
         {isImporting && importProgress && (
           <Box
@@ -407,26 +434,6 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
           </Box>
         )}
       </Box>
-      
-      {/* Loading overlay */}
-      {loading && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(255, 255, 255, 0.7)',
-            zIndex: 1000,
-          }}
-        >
-          <CircularProgress size={60} />
-        </Box>
-      )}
       
       {/* Import Success Snackbar */}
       <Snackbar

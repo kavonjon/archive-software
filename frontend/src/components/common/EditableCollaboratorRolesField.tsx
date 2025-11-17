@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Box,
   Chip,
@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { Check as CheckIcon } from '@mui/icons-material';
+import { debounce } from 'lodash';
 import { EditableField, EditableFieldProps } from './EditableField';
 import { CollaboratorRole, CollaboratorRoleMutationData, Collaborator } from '../../services/api';
 import { EditableMultiSelectField } from './EditableMultiSelectField';
@@ -67,11 +68,15 @@ export const EditableCollaboratorRolesField: React.FC<EditableCollaboratorRolesF
   const [roleStateOnOpen, setRoleStateOnOpen] = useState<Record<number, string[]>>({});
   
   // State for loading collaborator/role options
-  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [allCollaborators, setAllCollaborators] = useState<Collaborator[]>([]); // Full list loaded once
+  const [filteredCollaborators, setFilteredCollaborators] = useState<Collaborator[]>([]); // Filtered by search
   const [roleChoices, setRoleChoices] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingCollaborators, setLoadingCollaborators] = useState(false);
   const [loadingRoles, setLoadingRoles] = useState(false);
   const [collaboratorSearchQuery, setCollaboratorSearchQuery] = useState('');
+  
+  // Track request counter to handle race conditions (only for initial load)
+  const requestCounterRef = useRef(0);
 
   // Initialize editing state when entering edit mode
   useEffect(() => {
@@ -119,17 +124,17 @@ export const EditableCollaboratorRolesField: React.FC<EditableCollaboratorRolesF
     }
   }, [isEditing, roleChoicesEndpoint]);
 
-  // Load collaborators for search dropdown
-  const loadCollaborators = useCallback(async (search: string = '') => {
+  // Load all collaborators once when entering edit mode (client-side filtering)
+  const loadAllCollaborators = useCallback(async () => {
     setLoadingCollaborators(true);
     try {
       const baseUrl = process.env.NODE_ENV === 'development' ? 'http://localhost:8000' : '';
       const url = new URL(collaboratorSearchEndpoint, baseUrl || window.location.origin);
       
-      if (search) {
-        url.searchParams.append('search', search);
-      }
-      url.searchParams.append('page_size', '50');
+      // Use picker=true to get ultra-lightweight serializer (NOT batch=true - that's for batch editor)
+      url.searchParams.append('picker', 'true');
+      // Request all collaborators without pagination
+      url.searchParams.append('page_size', '10000');
 
       const response = await fetch(url.toString(), {
         headers: { 'Content-Type': 'application/json' },
@@ -139,22 +144,50 @@ export const EditableCollaboratorRolesField: React.FC<EditableCollaboratorRolesF
       if (!response.ok) throw new Error('Failed to fetch collaborators');
       
       const data = await response.json();
-      setCollaborators(data.results || data);
+      const collaboratorList = data.results || data;
+      
+      setAllCollaborators(collaboratorList);
+      setFilteredCollaborators(collaboratorList); // Initially show all
+      setLoadingCollaborators(false);
     } catch (error) {
       console.error('Error loading collaborators:', error);
-      setCollaborators([]);
-    } finally {
+      setAllCollaborators([]);
+      setFilteredCollaborators([]);
       setLoadingCollaborators(false);
     }
   }, [collaboratorSearchEndpoint]);
+  
+  // Client-side filter collaborators based on search query
+  const filterCollaborators = useCallback((query: string) => {
+    if (!query || query.length < 2) {
+      // Show all if no search query
+      setFilteredCollaborators(allCollaborators);
+      return;
+    }
+    
+    // Simple case-insensitive filtering on display_name and full_name
+    const lowerQuery = query.toLowerCase();
+    const filtered = allCollaborators.filter(collab => {
+      const displayName = (collab.display_name || '').toLowerCase();
+      const fullName = (collab.full_name || '').toLowerCase();
+      return displayName.includes(lowerQuery) || fullName.includes(lowerQuery);
+    });
+    
+    setFilteredCollaborators(filtered);
+  }, [allCollaborators]);
 
   // Load data when entering edit mode
   useEffect(() => {
     if (isEditing) {
       loadRoleChoices();
-      loadCollaborators();
+      loadAllCollaborators(); // Load full list once for client-side filtering
     }
-  }, [isEditing, loadRoleChoices, loadCollaborators]);
+  }, [isEditing, loadRoleChoices, loadAllCollaborators]);
+  
+  // Filter collaborators whenever search query or full list changes
+  useEffect(() => {
+    filterCollaborators(collaboratorSearchQuery);
+  }, [collaboratorSearchQuery, filterCollaborators]);
 
   // Handle adding a collaborator
   const handleAddCollaborator = (collaborator: Collaborator | null) => {
@@ -187,23 +220,15 @@ export const EditableCollaboratorRolesField: React.FC<EditableCollaboratorRolesF
     
     // Reset search query after adding
     setCollaboratorSearchQuery('');
-    // Reload full list to show remaining collaborators
-    loadCollaborators('');
   };
 
   // Handle removing a collaborator
   const handleRemoveCollaborator = (collaboratorId: number) => {
     setEditingRoles(prev => prev.filter(r => r.collaborator.id !== collaboratorId));
-    // Reload collaborators list to include the removed collaborator
-    if (collaboratorSearchQuery) {
-      loadCollaborators(collaboratorSearchQuery);
-    } else {
-      loadCollaborators('');
-    }
   };
   
   // Filter out already-added collaborators from the dropdown options
-  const availableCollaborators = collaborators.filter(
+  const availableCollaborators = filteredCollaborators.filter(
     collab => !editingRoles.some(r => r.collaborator.id === collab.id)
   );
 
@@ -255,7 +280,7 @@ export const EditableCollaboratorRolesField: React.FC<EditableCollaboratorRolesF
 
   // Display value as chips with collaborator names and roles
   const displayValue = value.length > 0 ? (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start', maxWidth: '100%' }}>
       {value.map((collabRole) => {
         const roleLabels = collabRole.role_display.join(', ');
         const chipLabel = roleLabels
@@ -269,6 +294,17 @@ export const EditableCollaboratorRolesField: React.FC<EditableCollaboratorRolesF
             size="small"
             variant="outlined"
             color={collabRole.citation_author ? 'primary' : 'default'}
+            sx={{
+              maxWidth: '100%',
+              height: 'auto',
+              '& .MuiChip-label': {
+                whiteSpace: 'normal',
+                wordBreak: 'break-word',
+                lineHeight: 1.4,
+                padding: '4px 8px',
+                maxWidth: '100%',
+              },
+            }}
           />
         );
       })}
@@ -303,15 +339,8 @@ export const EditableCollaboratorRolesField: React.FC<EditableCollaboratorRolesF
               loading={loadingCollaborators}
               inputValue={collaboratorSearchQuery}
               onInputChange={(event, value, reason) => {
-                // Update search query
+                // Update search query for instant client-side filtering
                 setCollaboratorSearchQuery(value);
-                // Load collaborators when user types (at least 2 characters)
-                if (value.length >= 2) {
-                  loadCollaborators(value);
-                } else if (value.length === 0) {
-                  // Load all when search is cleared
-                  loadCollaborators('');
-                }
               }}
               onChange={(event, value) => {
                 handleAddCollaborator(value);

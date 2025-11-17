@@ -33,8 +33,8 @@ const Navigation: React.FC = () => {
   const navItems = [
     { label: 'Home', path: '/' },
     ...(state.isAuthenticated ? [
-      { label: 'Items', path: '/items' },
       { label: 'Collections', path: '/collections' },
+      { label: 'Items', path: '/items' },
       { label: 'Collaborators', path: '/collaborators' },
       { label: 'Languages', path: '/languoids' },
       { label: 'User Guide', path: '/user-guide' },

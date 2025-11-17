@@ -1,19 +1,22 @@
 {
   "batch_editor_universal_patterns": {
-    "version": "1.0",
-    "last_updated": "2025-11-13",
-    "conversation_reference": "Session persistence, order preservation, empty mode, warning dialogs, and import/export patterns discovered during batch editor maturation",
-    "purpose": "Centralized reference for universal patterns that MUST be implemented in ALL batch editors (Item, Document, future models). These patterns emerged from Languoid and Collaborator implementations and represent mandatory architectural requirements.",
+    "version": "2.0",
+    "last_updated": "2025-11-17",
+    "conversation_reference": "Version 2.0: Updated with refinements from Item batch editor implementation. See item-batch-editor-lessons.json for detailed new patterns (invalid data preservation, complex through-models, virtual fields).",
+    "purpose": "Centralized reference for universal patterns that MUST be implemented in ALL batch editors (Item, Document, future models). These patterns emerged from Languoid and Collaborator implementations and represent mandatory architectural requirements. Item batch editor (2025-11-17) added significant refinements and new patterns - see item-batch-editor-lessons.json for comprehensive state-of-the-art.",
     
     "overview": {
       "critical_importance": "These 6 universal patterns are NOT optional. They are architectural requirements that ensure data integrity, UX consistency, and system reliability across all batch editors.",
-      "discovery_timeline": "Patterns discovered incrementally during Collaborator batch editor implementation and post-implementation refinement (2025-11-10 to 2025-11-13)",
+      "discovery_timeline": "Patterns discovered incrementally during Collaborator batch editor implementation and post-implementation refinement (2025-11-10 to 2025-11-13). Significantly refined and extended during Item batch editor implementation (2025-11-17).",
+      "latest_refinements": "Item batch editor revealed additional pattern requirements: invalid data preservation, complex through-model handling, virtual field patterns. See item-batch-editor-lessons.json for comprehensive documentation.",
       "cross_references": {
         "architecture_overview": "context/development/stage_1_batch_editing.json",
         "conformance_checklist": "context/development/collaborator_batch_editor_lessons.json",
+        "latest_state_of_the_art": "context/development/item-batch-editor-lessons.json (MUST READ for Document implementation)",
         "implementation_examples": [
-          "frontend/src/components/languoids/LanguoidBatchEditor.tsx",
-          "frontend/src/components/collaborators/CollaboratorBatchEditor.tsx"
+          "frontend/src/components/items/ItemBatchEditor.tsx (REFERENCE IMPLEMENTATION)",
+          "frontend/src/components/collaborators/CollaboratorBatchEditor.tsx",
+          "frontend/src/components/languoids/LanguoidBatchEditor.tsx"
         ]
       }
     },

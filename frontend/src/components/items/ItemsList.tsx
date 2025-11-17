@@ -44,6 +44,13 @@ import { debounce } from 'lodash';
 import { itemsAPI, Item, PaginatedResponse, APIError, ACCESS_LEVEL_CHOICES, RESOURCE_TYPE_CHOICES } from '../../services/api';
 import { ariaLabels, focusUtils, tableUtils, formUtils } from '../../utils/accessibility';
 import { touchTargets } from '../../utils/responsive';
+import { useAuth } from '../../contexts/AuthContext';
+import { useItemCache } from '../../contexts/ItemCacheContext';
+import { usePersistedListState } from '../../hooks/usePersistedListState';
+import { hasEditAccess } from '../../utils/permissions';
+import ItemBatchEditButton, { BatchEditMode } from './ItemBatchEditButton';
+import ItemExportButton, { ExportMode, ExportStatus } from './ItemExportButton';
+import ItemBatchLoadingDialog, { LoadingDialogState } from './ItemBatchLoadingDialog';
 
 interface ItemsListProps {
   showActions?: boolean;
@@ -89,6 +96,24 @@ interface FilterState {
   recording_context_isnull?: boolean;
 }
 
+const DEFAULT_FILTERS: FilterState = {
+  keyword_contains: '',
+  catalog_number_contains: '',
+  access_level: [],
+  call_number_contains: '',
+  accession_date_min: '',
+  accession_date_max: '',
+  titles_contains: '',
+  resource_type: [],
+  language_contains: '',
+  creation_date_min: '',
+  creation_date_max: '',
+  description_scope_and_content_contains: '',
+  genre_contains: '',
+  collaborator_contains: '',
+  depositor_name_contains: '',
+};
+
 const ItemsList: React.FC<ItemsListProps> = ({
   showActions = true,
   selectable = false,
@@ -97,44 +122,68 @@ const ItemsList: React.FC<ItemsListProps> = ({
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { state: authState } = useAuth();
+  
+  // Start cache loading on mount
+  const { getItems, cache, isLoading: cacheLoading, loadProgress } = useItemCache();
+  
+  useEffect(() => {
+    // Trigger cache load in background when list page loads
+    getItems().catch(err => {
+      console.error('[ItemsList] Failed to pre-load cache:', err);
+    });
+  }, [getItems]);
   
   // Refs for focus management
   const tableRef = useRef<HTMLTableElement>(null);
+  
+  // Persisted state (filters, selections, pagination)
+  const {
+    filters,
+    setFilters,
+    selectedIds,
+    setSelectedIds,
+    page,
+    setPage,
+    rowsPerPage,
+    setRowsPerPage,
+    toggleSelection,
+    setAllSelections,
+    clearFilters: clearPersistedFilters,
+  } = usePersistedListState<FilterState, Item>({
+    storageKey: 'item-list-state',
+    defaultFilters: DEFAULT_FILTERS,
+    defaultPagination: { page: 0, rowsPerPage: 25 },
+  });
   
   // State management
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
   const [showFilters, setShowFilters] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   
-  // Selection state (always enabled, using Set for efficient lookups)
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-
-  // Filter state
-  const [filters, setFilters] = useState<FilterState>({
-    keyword_contains: '',
-    catalog_number_contains: '',
-    access_level: [],
-    call_number_contains: '',
-    accession_date_min: '',
-    accession_date_max: '',
-    titles_contains: '',
-    resource_type: [],
-    language_contains: '',
-    creation_date_min: '',
-    creation_date_max: '',
-    description_scope_and_content_contains: '',
-    genre_contains: '',
-    collaborator_contains: '',
-    depositor_name_contains: '',
-  });
-
   // Active filters state - these are the filters actually applied to the API
   const [activeFilters, setActiveFilters] = useState<FilterState>(filters);
+  
+  // Batch edit state
+  const [batchEditMode, setBatchEditMode] = useState<BatchEditMode>(() => {
+    return (localStorage.getItem('item-batch-edit-mode') as BatchEditMode) || 'filtered';
+  });
+  
+  // Loading/warning dialog state for batch editor
+  const [loadingDialogState, setLoadingDialogState] = useState<LoadingDialogState | null>(null);
+  const [pendingBatchIds, setPendingBatchIds] = useState<number[] | null>(null);
+  
+  // Export state
+  const [exportMode, setExportMode] = useState<ExportMode>(() => {
+    return (localStorage.getItem('item-export-mode') as ExportMode) || 'filtered';
+  });
+  const [exportStatus, setExportStatus] = useState<ExportStatus>('idle');
+  
+  // Ref to track polling interval
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load items from API
   const loadItems = useCallback(async () => {
@@ -242,47 +291,9 @@ const ItemsList: React.FC<ItemsListProps> = ({
 
   // Clear all filters
   const handleClearFilters = () => {
-    const clearedFilters = {
-      keyword_contains: '',
-      catalog_number_contains: '',
-      access_level: [],
-      call_number_contains: '',
-      accession_date_min: '',
-      accession_date_max: '',
-      titles_contains: '',
-      resource_type: [],
-      language_contains: '',
-      creation_date_min: '',
-      creation_date_max: '',
-      description_scope_and_content_contains: '',
-      genre_contains: '',
-      collaborator_contains: '',
-      depositor_name_contains: '',
-      // Reset all empty field filters
-      collection_isnull: undefined,
-      access_level_restrictions_isnull: undefined,
-      accession_date_isnull: undefined,
-      accession_number_isnull: undefined,
-      call_number_isnull: undefined,
-      collaborator_isnull: undefined,
-      creation_date_isnull: undefined,
-      depositor_name_isnull: undefined,
-      description_scope_and_content_isnull: undefined,
-      genre_isnull: undefined,
-      indigenous_title_isnull: undefined,
-      english_title_isnull: undefined,
-      item_access_level_isnull: undefined,
-      language_isnull: undefined,
-      resource_type_isnull: undefined,
-      original_format_medium_isnull: undefined,
-      publisher_isnull: undefined,
-      recording_context_isnull: undefined,
-    };
-    setFilters(clearedFilters);
-    
-    // Immediately apply cleared filters
-    debouncedApplyFilters.cancel();
-    setActiveFilters(clearedFilters);
+    clearPersistedFilters();
+    debouncedApplyFilters.cancel(); // Cancel any pending debounced calls
+    setActiveFilters(DEFAULT_FILTERS); // Immediately apply cleared filters
     setPage(0);
     focusUtils.announce('All filters cleared', 'polite');
   };
@@ -303,15 +314,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
   // Handle item selection
   // Handle individual item selection
   const handleItemSelection = useCallback((item: Item, checked: boolean) => {
-    setSelectedIds(prev => {
-      const newSet = new Set(prev);
-      if (checked) {
-        newSet.add(item.id);
-      } else {
-        newSet.delete(item.id);
-      }
-      return newSet;
-    });
+    toggleSelection(item.id, checked);
     
     focusUtils.announce(
       checked 
@@ -319,7 +322,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
         : `Deselected item ${item.catalog_number}`,
       'polite'
     );
-  }, []);
+  }, [toggleSelection]);
 
   // Handle "Deselect All" button
   const handleDeselectAll = () => {
@@ -332,15 +335,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
   // Handle select all on current page
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
     const checked = event.target.checked;
-    setSelectedIds(prev => {
-      const newSet = new Set(prev);
-      if (checked) {
-        items.forEach(item => newSet.add(item.id));
-      } else {
-        items.forEach(item => newSet.delete(item.id));
-      }
-      return newSet;
-    });
+    setAllSelections(items, checked);
     
     // If parent component needs full objects
     if (onSelectionChange) {
@@ -353,6 +348,171 @@ const ItemsList: React.FC<ItemsListProps> = ({
     );
   };
 
+  // Get active filter count (needed by batch edit handler)
+  // Uses activeFilters (not filters) to ensure we count filters that have been applied
+  const activeFilterCount = Object.values(activeFilters).filter(value => {
+    if (Array.isArray(value)) {
+      return value.length > 0;
+    }
+    if (typeof value === 'boolean') {
+      return value === true;
+    }
+    return value && value.trim();
+  }).length;
+
+  // Helper function to apply client-side filters to cached items
+  const applyFiltersToCache = useCallback((allItems: Item[]) => {
+    console.log('[ItemsList] applyFiltersToCache called with', allItems.length, 'items');
+    console.log('[ItemsList] applyFiltersToCache activeFilters:', activeFilters);
+    
+    // Sample first few items to see their structure
+    if (allItems.length > 0) {
+      console.log('[ItemsList] Sample item structure:', {
+        catalog_number: allItems[0].catalog_number,
+        description_scope_and_content: allItems[0].description_scope_and_content,
+        call_number: allItems[0].call_number,
+        titles_count: allItems[0].titles?.length,
+        collaborators_count: allItems[0].collaborators?.length,
+        hasDescription: !!allItems[0].description_scope_and_content,
+        hasCatalogNumber: !!allItems[0].catalog_number,
+        hasCallNumber: !!allItems[0].call_number,
+      });
+    }
+    
+    const filtered = allItems.filter(item => {
+      // Apply active filters (matching the backend filter logic)
+      if (activeFilters.keyword_contains) {
+        const keyword = activeFilters.keyword_contains.toLowerCase();
+        const catalogMatch = item.catalog_number?.toLowerCase().includes(keyword);
+        const descMatch = item.description_scope_and_content?.toLowerCase().includes(keyword);
+        const callMatch = item.call_number?.toLowerCase().includes(keyword);
+        
+        // Also check titles (matching backend behavior)
+        const titlesMatch = item.titles?.some((title: any) => 
+          title.title?.toLowerCase().includes(keyword)
+        );
+        
+        // Check collaborators (matching backend behavior)  
+        const collaboratorsMatch = item.collaborators?.some((collab: any) =>
+          collab.name?.toLowerCase().includes(keyword)
+        );
+        
+        const matches = catalogMatch || descMatch || callMatch || titlesMatch || collaboratorsMatch;
+        
+        // Debug first non-matching item
+        if (!matches && allItems.indexOf(item) === 0) {
+          console.log('[ItemsList] First item does NOT match keyword filter:', {
+            keyword,
+            catalog_number: item.catalog_number,
+            description_scope_and_content: item.description_scope_and_content,
+            call_number: item.call_number,
+            catalogMatch,
+            descMatch,
+            callMatch,
+            titlesMatch,
+            collaboratorsMatch,
+          });
+        }
+        
+        if (!matches) {
+          return false;
+        }
+      }
+      
+      if (activeFilters.catalog_number_contains && 
+          !item.catalog_number?.toLowerCase().includes(activeFilters.catalog_number_contains.toLowerCase())) {
+        return false;
+      }
+      
+      if (activeFilters.access_level.length > 0 && 
+          !activeFilters.access_level.includes(item.item_access_level)) {
+        return false;
+      }
+      
+      if (activeFilters.call_number_contains && 
+          !item.call_number?.toLowerCase().includes(activeFilters.call_number_contains.toLowerCase())) {
+        return false;
+      }
+      
+      // Date range filters - checking if item's date range overlaps with filter range
+      // Backend logic: accession_date_min filter uses gte on item.accession_date_min
+      //               accession_date_max filter uses lte on item.accession_date_max
+      // This finds items whose date range falls within the filter range
+      if (activeFilters.accession_date_min && item.accession_date_min && 
+          item.accession_date_min < activeFilters.accession_date_min) {
+        return false;
+      }
+      
+      if (activeFilters.accession_date_max && item.accession_date_max && 
+          item.accession_date_max > activeFilters.accession_date_max) {
+        return false;
+      }
+      
+      if (activeFilters.creation_date_min && item.creation_date_min && 
+          item.creation_date_min < activeFilters.creation_date_min) {
+        return false;
+      }
+      
+      if (activeFilters.creation_date_max && item.creation_date_max && 
+          item.creation_date_max > activeFilters.creation_date_max) {
+        return false;
+      }
+      
+      if (activeFilters.titles_contains) {
+        // Check if any title contains the search string
+        const titlesMatch = (item as any).title_item?.some((title: any) => 
+          title.title?.toLowerCase().includes(activeFilters.titles_contains.toLowerCase())
+        );
+        if (!titlesMatch) return false;
+      }
+      
+      if (activeFilters.resource_type.length > 0 && 
+          !activeFilters.resource_type.includes(item.resource_type)) {
+        return false;
+      }
+      
+      if (activeFilters.language_contains) {
+        // Check if any language name or glottocode contains the search string
+        const languagesMatch = item.language?.some((lang: any) =>
+          lang.name?.toLowerCase().includes(activeFilters.language_contains.toLowerCase()) ||
+          lang.glottocode?.toLowerCase().includes(activeFilters.language_contains.toLowerCase())
+        );
+        if (!languagesMatch) return false;
+      }
+      
+      if (activeFilters.description_scope_and_content_contains && 
+          !item.description_scope_and_content?.toLowerCase().includes(activeFilters.description_scope_and_content_contains.toLowerCase())) {
+        return false;
+      }
+      
+      if (activeFilters.genre_contains) {
+        // Check if any genre contains the search string
+        const genreMatch = item.genre?.some((g: string) => 
+          g.toLowerCase().includes(activeFilters.genre_contains.toLowerCase())
+        );
+        if (!genreMatch) return false;
+      }
+      
+      if (activeFilters.collaborator_contains) {
+        // Check if any collaborator name contains the search string
+        const collaboratorsMatch = (item as any).item_collaboratorroles?.some((cr: any) =>
+          cr.collaborator?.full_name?.toLowerCase().includes(activeFilters.collaborator_contains.toLowerCase())
+        );
+        if (!collaboratorsMatch) return false;
+      }
+      
+      if (activeFilters.depositor_name_contains && 
+          !item.depositor_name?.toLowerCase().includes(activeFilters.depositor_name_contains.toLowerCase())) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    console.log('[ItemsList] applyFiltersToCache filtered to', filtered.length, 'items');
+    return filtered;
+  }, [activeFilters]);
+
   // Navigation handlers
   const handleViewItem = useCallback((item: Item) => {
     navigate(`/items/${item.id}`);
@@ -362,16 +522,381 @@ const ItemsList: React.FC<ItemsListProps> = ({
     navigate('/items/create');
   };
 
-  // Get active filter count
-  const activeFilterCount = Object.values(filters).filter(value => {
-    if (Array.isArray(value)) {
-      return value.length > 0;
+  // Batch edit handler
+  const handleBatchEditExecute = useCallback(async (mode: BatchEditMode) => {
+    console.log('[ItemsList] Batch edit execute with mode:', mode);
+    console.log('[ItemsList] filters:', filters);
+    console.log('[ItemsList] activeFilters:', activeFilters);
+    console.log('[ItemsList] activeFilterCount:', activeFilterCount);
+    
+    // Handle 'empty' mode - no IDs, just navigate
+    if (mode === 'empty') {
+      const batchConfig = {
+        mode: 'empty',
+        ids: [],
+        timestamp: Date.now(),
+      };
+      sessionStorage.setItem('item-batch-config', JSON.stringify(batchConfig));
+      navigate('/items/batch');
+      return;
     }
-    if (typeof value === 'boolean') {
-      return value === true;
+    
+    // Check cache status
+    const cacheReady = cache && !cacheLoading && loadProgress >= 100;
+    
+    // Get IDs based on mode
+    let ids: number[];
+    
+    if (mode === 'selected') {
+      ids = Array.from(selectedIds);
+    } else {
+      // For 'filtered' mode, we need IDs from cache
+      if (!cacheReady) {
+        const filteredRowCount = totalCount;
+        const hasActiveFilters = activeFilterCount > 0;
+        const shouldShowWarning = !hasActiveFilters;
+        
+        setLoadingDialogState({
+          cacheLoading: true,
+          cacheProgress: loadProgress,
+          totalCount: cache?.count || 0,
+          showLargeDatasetWarning: shouldShowWarning,
+          rowCount: filteredRowCount,
+          mode: mode,
+        });
+        setPendingBatchIds([]);
+        return;
+      }
+      
+      // Cache is ready, but we need to force refresh from backend to get authoritative cache state
+      // This will trigger polling if backend cache is rebuilding (202 response)
+      console.log('[ItemsList] Force refreshing cache from backend for batch edit...');
+      
+      // Check if we should show warning (no active filters = large dataset)
+      const hasActiveFilters = activeFilterCount > 0;
+      const shouldShowWarning = !hasActiveFilters;
+      
+      // Strategy: Make a quick check to backend first to see if polling is needed
+      // This avoids showing/hiding dialogs based on race conditions
+      (async () => {
+        try {
+          const allCachedItems = await getItems(true);
+          
+          // If we get here without dialog appearing, cache was ready immediately
+          // Apply current filters to cached items
+          const filteredItems = activeFilterCount === 0 
+            ? allCachedItems 
+            : applyFiltersToCache(allCachedItems);
+          
+          const ids = filteredItems.map(i => i.id);
+          console.log('[ItemsList] Using', ids.length, 'IDs from', activeFilterCount === 0 ? 'all cached items' : 'filtered cache');
+          
+          // Check if dialog was already shown (meaning polling happened)
+          if (loadingDialogState && loadingDialogState.cacheLoading) {
+            // Polling happened, dialog is already open
+            // Data is now ready - don't show another dialog, let useEffect handle it
+            console.log('[ItemsList] Cache loaded after polling, dialog already shown');
+            return;
+          }
+          
+          // Cache was ready immediately (no polling happened)
+          console.log('[ItemsList] Cache was ready immediately, no polling needed');
+          
+          // If warning needed, show it now (Scenario A - warning only, no loading)
+          if (shouldShowWarning) {
+            setLoadingDialogState({
+              cacheLoading: false,
+              cacheProgress: 100,
+              totalCount: cache?.count || 0,
+              showLargeDatasetWarning: true,
+              rowCount: ids.length,
+              mode: mode,
+            });
+            setPendingBatchIds(ids);
+          } else {
+            // No warning needed, proceed directly to batch editor
+            const batchConfig = {
+              mode: mode,
+              ids: ids,
+              timestamp: Date.now(),
+            };
+            sessionStorage.setItem('item-batch-config', JSON.stringify(batchConfig));
+            navigate('/items/batch');
+          }
+        } catch (error) {
+          console.error('[ItemsList] Error refreshing cache:', error);
+          setLoadingDialogState(null);
+          setPendingBatchIds(null);
+        }
+      })();
+      
+      // Return here immediately
+      return;
     }
-    return value && value.trim();
-  }).length;
+    
+    // At this point, mode must be 'selected' and we have the IDs
+    console.log('[ItemsList] Batch edit IDs:', ids.length, 'items');
+    
+    // For selected mode, proceed directly (no warning needed)
+    const batchConfig = {
+      mode: mode,
+      ids: ids,
+      timestamp: Date.now(),
+    };
+    sessionStorage.setItem('item-batch-config', JSON.stringify(batchConfig));
+    navigate('/items/batch');
+  }, [selectedIds, items, activeFilterCount, totalCount, navigate, cache, cacheLoading, loadProgress, getItems, applyFiltersToCache]);
+  
+  // Handle dialog continue
+  const handleDialogContinue = useCallback(async (suppressFuture: boolean) => {
+    if (!pendingBatchIds) return;
+    
+    if (loadingDialogState && loadingDialogState.cacheLoading) {
+      await getItems();
+    }
+    
+    setLoadingDialogState(null);
+    
+    const batchConfig = {
+      mode: loadingDialogState?.mode || 'filtered',
+      ids: pendingBatchIds,
+      timestamp: Date.now(),
+    };
+    sessionStorage.setItem('item-batch-config', JSON.stringify(batchConfig));
+    setPendingBatchIds(null);
+    navigate('/items/batch');
+  }, [pendingBatchIds, loadingDialogState, getItems, navigate]);
+  
+  // Handle dialog cancel
+  const handleDialogCancel = useCallback(() => {
+    setLoadingDialogState(null);
+    setPendingBatchIds(null);
+  }, []);
+  
+  // Watch for cacheLoading state and show dialog if polling starts
+  // This triggers when getItems(true) encounters a 202 response
+  useEffect(() => {
+    // Only show dialog if cacheLoading just started and we don't have one already
+    if (cacheLoading && !loadingDialogState) {
+      console.log('[ItemsList] Cache loading detected, showing loading dialog');
+      
+      // Determine if warning is needed based on current filter state
+      const hasActiveFilters = activeFilterCount > 0;
+      const shouldShowWarning = !hasActiveFilters;
+      
+      setLoadingDialogState({
+        cacheLoading: true,
+        cacheProgress: loadProgress,
+        totalCount: cache?.count || 0,
+        showLargeDatasetWarning: shouldShowWarning,
+        rowCount: cache?.count || 0,
+        mode: 'filtered',
+      });
+      setPendingBatchIds([]);
+    }
+  }, [cacheLoading, loadingDialogState, loadProgress, cache, activeFilterCount]);
+  
+  // Auto-proceed when cache finishes loading (for Scenario B: loading only, no warning)
+  useEffect(() => {
+    // Only proceed if:
+    // 1. Dialog is open and showing loading state
+    // 2. Cache just finished loading
+    // 3. There's no large dataset warning (otherwise user needs to confirm)
+    if (
+      loadingDialogState &&
+      loadingDialogState.cacheLoading && // Dialog was showing loading
+      cache &&
+      !cacheLoading &&
+      loadProgress >= 100 // Cache is now ready
+    ) {
+      console.log('[ItemsList] Cache loading complete');
+      
+      // Now we can get the filtered IDs since cache is ready
+      const getFilteredIds = async () => {
+        try {
+          const allItems = await getItems();
+          
+          // Apply filters to get actual filtered IDs
+          const filteredItems = activeFilterCount === 0 
+            ? allItems 
+            : applyFiltersToCache(allItems);
+          const ids = filteredItems.map(item => item.id);
+          
+          // Check if large dataset (no filters = editing all rows)
+          const hasActiveFilters = activeFilterCount > 0;
+          const largeDataset = !hasActiveFilters;
+          
+          if (largeDataset) {
+            // Update dialog to show warning instead of loading
+            console.log('[ItemsList] Large dataset detected, showing warning');
+            setLoadingDialogState({
+              cacheLoading: false,
+              cacheProgress: loadProgress,
+              totalCount: cache?.count || 0,
+              showLargeDatasetWarning: true,
+              rowCount: ids.length,
+              mode: loadingDialogState.mode,
+            });
+            setPendingBatchIds(ids);
+          } else {
+            // No warning needed, proceed automatically
+            console.log('[ItemsList] Auto-proceeding to batch editor');
+            setLoadingDialogState(null);
+            const batchConfig = {
+              mode: loadingDialogState.mode,
+              ids: ids,
+              timestamp: Date.now(),
+            };
+            sessionStorage.setItem('item-batch-config', JSON.stringify(batchConfig));
+            setPendingBatchIds(null);
+            navigate('/items/batch');
+          }
+        } catch (error) {
+          console.error('[ItemsList] Error getting filtered IDs:', error);
+          setLoadingDialogState(null);
+          setPendingBatchIds(null);
+        }
+      };
+      
+      getFilteredIds();
+    }
+  }, [loadingDialogState, cache, cacheLoading, loadProgress, getItems, activeFilterCount, navigate, applyFiltersToCache]);
+  
+  // Export handler
+  const handleExportExecute = useCallback(async (mode: ExportMode) => {
+    console.log('[ItemsList] Export execute with mode:', mode);
+    console.log('[ItemsList] activeFilterCount:', activeFilterCount);
+    console.log('[ItemsList] activeFilters:', activeFilters);
+    
+    let ids: number[];
+    
+    if (mode === 'selected') {
+      ids = Array.from(selectedIds);
+      if (ids.length === 0) {
+        setError('No items selected for export');
+        return;
+      }
+    } else {
+      // For 'filtered' mode, use cache to get ALL filtered IDs (not just current page)
+      try {
+        const allCachedItems = await getItems();
+        console.log('[ItemsList] Got cached items:', allCachedItems.length);
+        
+        // Apply current filters to cache data (client-side filtering)
+        // If no filters, use all items; otherwise apply filters
+        const filteredItems = activeFilterCount === 0 
+          ? allCachedItems 
+          : applyFiltersToCache(allCachedItems);
+        
+        ids = filteredItems.map(i => i.id);
+        console.log('[ItemsList] Filtered cache from', allCachedItems.length, 'to', ids.length, 'items for export');
+        console.log('[ItemsList] Sample of first 10 filtered IDs:', ids.slice(0, 10));
+        console.log('[ItemsList] Sending IDs to export:', ids.length, 'items');
+      } catch (error) {
+        console.error('[ItemsList] Error filtering cache for export:', error);
+        // Fallback to current page IDs
+        ids = items.map(i => i.id);
+        console.log('[ItemsList] Fallback to current page IDs:', ids.length);
+      }
+    }
+    
+    try {
+      setExportStatus('preparing');
+      
+      const response = await itemsAPI.exportItems({ mode, ids });
+      
+      if (response.async) {
+        // Async export - poll for completion
+        const exportId = response.export_id;
+        console.log('[ItemsList] Async export started:', exportId);
+        
+        // Start polling with setInterval
+        pollIntervalRef.current = setInterval(async () => {
+          try {
+            const statusResult = await itemsAPI.getExportStatus(exportId);
+            console.log('[ItemsList] Export status:', statusResult.status);
+            
+            if (statusResult.status === 'completed') {
+              // Stop polling
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+                pollIntervalRef.current = null;
+    }
+              
+              // Download the file
+              setExportStatus('ready');
+              const blob = await itemsAPI.downloadExport(exportId);
+              const url = window.URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              // Generate timestamp-based filename (YYYY-MM-DD_HHMMSS)
+              const now = new Date();
+              const year = now.getFullYear();
+              const month = String(now.getMonth() + 1).padStart(2, '0');
+              const day = String(now.getDate()).padStart(2, '0');
+              const hours = String(now.getHours()).padStart(2, '0');
+              const minutes = String(now.getMinutes()).padStart(2, '0');
+              const seconds = String(now.getSeconds()).padStart(2, '0');
+              const timestamp = `${year}-${month}-${day}_${hours}${minutes}${seconds}`;
+              link.download = `items_export_${timestamp}.xlsx`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              window.URL.revokeObjectURL(url);
+              
+              setExportStatus('idle');
+            } else if (statusResult.status === 'failed') {
+              // Stop polling on failure
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+                pollIntervalRef.current = null;
+              }
+              setError('Export failed');
+              setExportStatus('idle');
+            }
+          } catch (pollErr) {
+            console.error('[ItemsList] Export polling error:', pollErr);
+            // Stop polling on error
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+            }
+            setError('Failed to check export status');
+            setExportStatus('idle');
+          }
+        }, 2000); // Poll every 2 seconds
+        
+        // Set timeout to stop polling after 2 minutes
+        setTimeout(() => {
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+            setError('Export timeout - please try again');
+            setExportStatus('idle');
+          }
+        }, 120000); // 2 minutes
+      } else {
+        // Synchronous export - file download already handled by exportItems
+        setExportStatus('ready');
+        setTimeout(() => setExportStatus('idle'), 3000);
+      }
+    } catch (err) {
+      console.error('[ItemsList] Export failed:', err);
+      setError(err instanceof Error ? err.message : 'Export failed');
+      setExportStatus('idle');
+    }
+  }, [selectedIds, items, getItems, applyFiltersToCache]);
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, []);
+
   // Selection state calculations
   const selectedCount = items.filter(item => selectedIds.has(item.id)).length;
   const isAllSelected = items.length > 0 && selectedCount === items.length;
@@ -540,7 +1065,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
             component="h1"
             sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}
           >
-            Items ({totalCount.toLocaleString()})
+            Items
           </Typography>
           {/* Selection indicator */}
           {selectedIds.size > 0 && (
@@ -554,6 +1079,25 @@ const ItemsList: React.FC<ItemsListProps> = ({
           )}
         </Box>
         {showActions && (
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <ItemExportButton
+              mode={exportMode}
+              exportStatus={exportStatus}
+              onModeChange={setExportMode}
+              onExecute={handleExportExecute}
+              selectedCount={selectedIds.size}
+              filteredCount={totalCount}
+            />
+            <ItemBatchEditButton
+              mode={batchEditMode}
+              onModeChange={setBatchEditMode}
+              onExecute={handleBatchEditExecute}
+              selectedCount={selectedIds.size}
+              filteredCount={totalCount}
+              totalCount={totalCount}
+              cacheLoading={cacheLoading}
+              cacheProgress={loadProgress}
+            />
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -561,8 +1105,9 @@ const ItemsList: React.FC<ItemsListProps> = ({
             sx={{ minHeight: touchTargets.minSize }}
             aria-label={ariaLabels.add}
           >
-            Add Item
+              {isMobile ? 'Add' : 'Add Item'}
           </Button>
+          </Box>
         )}
       </Box>
 
@@ -980,6 +1525,11 @@ const ItemsList: React.FC<ItemsListProps> = ({
         </Collapse>
       </Paper>
 
+      {/* Results Count */}
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        {loading ? 'Loading...' : `${totalCount.toLocaleString()} item${totalCount !== 1 ? 's' : ''} found`}
+      </Typography>
+
       {/* Error Display */}
       {error && (
         <Alert 
@@ -1252,6 +1802,14 @@ const ItemsList: React.FC<ItemsListProps> = ({
           />
         </TableContainer>
       )}
+      
+      {/* Batch Edit Loading/Warning Dialog */}
+      <ItemBatchLoadingDialog
+        open={loadingDialogState !== null}
+        state={loadingDialogState}
+        onCancel={handleDialogCancel}
+        onContinue={handleDialogContinue}
+      />
     </Box>
   );
 };

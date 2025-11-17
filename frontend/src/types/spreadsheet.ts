@@ -47,7 +47,9 @@ export type CellType =
   | 'date'           // Date field
   | 'stringarray'    // JSONField string array
   | 'decimal'        // Decimal number field (longitude, latitude, measurements)
-  | 'readonly';      // Read-only field (cannot be edited)
+  | 'readonly'       // Read-only field (cannot be edited)
+  | 'collaborator_roles' // Complex through-model with metadata (CollaboratorRole: roles array + citation_author boolean)
+  | 'title_with_language'; // Title text with associated language (manages ItemTitle objects)
 
 /**
  * A single cell in the spreadsheet grid
@@ -143,6 +145,9 @@ export interface ColumnConfig {
   
   /** For relationship fields: API endpoint to fetch options */
   relationshipEndpoint?: string;
+  
+  /** Optional metadata for special column behaviors (e.g., title columns) */
+  metadata?: Record<string, any>;
   
   /** Custom validation function */
   validate?: (value: any, row: SpreadsheetRow) => Promise<string | null>;

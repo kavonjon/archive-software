@@ -643,7 +643,16 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
           const url = window.URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
-          link.download = statusResult.filename || `collaborators_export_${exportId}.xlsx`;
+          // Generate timestamp-based filename (YYYY-MM-DD_HHMMSS)
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const hours = String(now.getHours()).padStart(2, '0');
+          const minutes = String(now.getMinutes()).padStart(2, '0');
+          const seconds = String(now.getSeconds()).padStart(2, '0');
+          const timestamp = `${year}-${month}-${day}_${hours}${minutes}${seconds}`;
+          link.download = `collaborators_export_${timestamp}.xlsx`;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -683,11 +692,27 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
         } else {
         // Sync export - trigger download
         console.log('[CollaboratorsList] Sync export - triggering download');
-        const blob = result as Blob;
+        
+        // Handle new response format with filename
+        let blob: Blob;
+        let filename: string;
+        
+        if ('blob' in result && 'filename' in result) {
+          // New format with extracted filename
+          blob = result.blob;
+          filename = result.filename;
+        } else {
+          // Legacy format (just blob)
+          blob = result as Blob;
+          const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace('T', '_').split('.')[0];
+          filename = `collaborators_export_${timestamp}.xlsx`;
+        }
+        
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `collaborators_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+        link.download = filename;
+        
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

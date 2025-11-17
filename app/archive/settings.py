@@ -396,6 +396,20 @@ CELERY_BEAT_SCHEDULE = {
             'priority': 5,  # Medium priority - background maintenance
         }
     },
+    'warm-collaborator-list-cache': {
+        'task': 'metadata.tasks.warm_collaborator_list_cache',
+        'schedule': crontab(minute='*/9'),  # Run every 9 minutes
+        'options': {
+            'priority': 5,  # Medium priority - background maintenance
+        }
+    },
+    'warm-item-list-cache': {
+        'task': 'metadata.tasks.warm_item_list_cache',
+        'schedule': crontab(minute='*/9'),  # Run every 9 minutes
+        'options': {
+            'priority': 5,  # Medium priority - background maintenance
+        }
+    },
 }
 
 # Cache configuration
@@ -432,6 +446,7 @@ CORS_ALLOW_ALL_HEADERS = True
 # Expose headers that the frontend might need
 CORS_EXPOSE_HEADERS = [
     'content-type',
+    'content-disposition',  # Needed for export filename extraction
     'x-csrftoken',
 ]
 

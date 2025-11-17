@@ -748,15 +748,31 @@ const LanguoidsList: React.FC = () => {
         
       } else {
         // SYNCHRONOUS EXPORT - Direct download
-        const blob = result as Blob;
+        console.log('[LanguoidsList] Sync export - triggering download');
+        
+        let blob: Blob;
+        let filename: string;
+        
+        if ('blob' in result && 'filename' in result) {
+          blob = result.blob;
+          filename = result.filename;
+        } else {
+          // Fallback for legacy format (should not be hit after API change)
+          blob = result as Blob;
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const hours = String(now.getHours()).padStart(2, '0');
+          const minutes = String(now.getMinutes()).padStart(2, '0');
+          const seconds = String(now.getSeconds()).padStart(2, '0');
+          filename = `languoids_export_${year}-${month}-${day}_${hours}${minutes}${seconds}.xlsx`;
+        }
+        
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        
-        // Generate filename with timestamp
-        const now = new Date();
-        const timestamp = now.toISOString().replace(/:/g, '-').substring(0, 19);
-        link.download = `languoids_export_${timestamp}.xlsx`;
+        link.download = filename; // Use the extracted filename
         
         // Trigger download
         document.body.appendChild(link);
@@ -789,7 +805,16 @@ const LanguoidsList: React.FC = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = exportFilename;
+      // Generate timestamp-based filename (YYYY-MM-DD_HHMMSS)
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const timestamp = `${year}-${month}-${day}_${hours}${minutes}${seconds}`;
+      link.download = `languoids_export_${timestamp}.xlsx`;
       
       document.body.appendChild(link);
       link.click();

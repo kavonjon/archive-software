@@ -119,7 +119,7 @@ def calculate_browse_categories_for_existing_items(apps, schema_editor):
             # For children videos - check both general for_children and music_for_children
             if field_includes(genre, 'for_children') or field_includes(genre, 'music_for_children'):
                 categories.append('for-children-video')
-            if public_event:
+            if public_event.lower() == 'yes':
                 categories.append('events')
             if field_includes(genre, 'popular_production'):
                 categories.append('popular-media-video')

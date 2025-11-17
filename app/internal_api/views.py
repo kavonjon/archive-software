@@ -168,13 +168,961 @@ class InternalItemViewSet(viewsets.ModelViewSet):
     filterset_class = ItemFilter
     search_fields = ['catalog_number', 'call_number', 'description_scope_and_content']
     ordering_fields = ['catalog_number', 'accession_date_min', 'creation_date_min']
-    ordering = ['catalog_number']
+    # ordering is handled in get_queryset() with case-insensitive sorting
 
     def get_queryset(self):
-        """All authenticated users can see all items, permissions handled by permission_classes"""
+        """All authenticated users can see all items, permissions handled by permission_classes
+        
+        Uses case-insensitive sorting for catalog_number:
+        - "ITEM-001" sorts with "item-001"
+        - More intuitive alphabetical ordering
+        """
+        from django.db.models.functions import Lower
+        
         if not self.request.user.is_authenticated:
             return Item.objects.none()
-        return super().get_queryset()
+        
+        queryset = super().get_queryset()
+        
+        # Apply case-insensitive sorting by default
+        queryset = queryset.order_by(Lower('catalog_number'))
+        
+        return queryset
+
+    def get_serializer_class(self):
+        """Use lightweight serializer for batch operations"""
+        # If requesting batch data (batch=true query param), use lightweight serializer
+        if self.request.query_params.get('batch') == 'true':
+            from .serializers import InternalItemBatchSerializer
+            return InternalItemBatchSerializer
+        return super().get_serializer_class()
+    
+    def list(self, request, *args, **kwargs):
+        """
+        List items with Redis caching for performance.
+        
+        Caching strategy:
+        - Full list (no filters, no pagination): Served from Redis cache
+        - Filtered/paginated: Falls back to standard DRF queryset
+        
+        The cache is warmed in the background by a Celery task.
+        """
+        import logging
+        from django.core.cache import cache
+        
+        logger = logging.getLogger(__name__)
+        
+        # Log all query params for debugging
+        logger.info(f"[Items List] Query params: {dict(request.query_params)}")
+        logger.info(f"[Items List] Query params count: {len(request.query_params)}")
+        
+        # Check if this is a full list request (no filters, no pagination)
+        # Allow batch=true or empty params
+        is_full_list = (
+            not request.query_params.get('page') and
+            not request.query_params.get('page_size')
+        )
+        
+        logger.info(f"[Items List] is_full_list: {is_full_list}")
+        
+        # If not requesting full list, use standard DRF behavior
+        if not is_full_list:
+            logger.info("[Items List] Using standard DRF pagination")
+            return super().list(request, *args, **kwargs)
+        
+        # Try to get from cache
+        cache_key = 'item_list_full'
+        lock_key = 'item_list_cache_lock'
+        cached_data = cache.get(cache_key)
+        
+        if cached_data is not None:
+            logger.info(f"[Cache] Cache hit! Serving {len(cached_data)} cached items")
+            return Response({
+                'count': len(cached_data),
+                'next': None,
+                'previous': None,
+                'results': cached_data
+            })
+        
+        # Cache miss - check if rebuild is in progress
+        lock_held = cache.get(lock_key)
+        
+        if lock_held:
+            # Another process is building the cache - tell frontend to poll
+            logger.info("[Cache] Cache miss but rebuild in progress, returning 202")
+            return Response({
+                'status': 'rebuilding',
+                'message': 'Cache is being rebuilt in the background. Please retry in a few seconds.'
+            }, status=202)
+        
+        # No cache and no rebuild in progress - trigger async rebuild and tell frontend to poll
+        logger.warning("[Cache] Cache miss! Triggering async rebuild...")
+        from metadata.tasks import warm_item_list_cache
+        warm_item_list_cache.apply_async(priority=9)  # High priority
+        
+        return Response({
+            'status': 'rebuilding',
+            'message': 'Cache rebuild triggered. Please retry in a few seconds.'
+        }, status=202)
+    
+    def perform_create(self, serializer):
+        """Automatically set modified_by on create"""
+        serializer.save(modified_by=self.request.user.get_username())
+    
+    def perform_update(self, serializer):
+        """Automatically set modified_by on update"""
+        serializer.save(modified_by=self.request.user.get_username())
+    
+    @action(detail=False, methods=['post'], url_path='export')
+    def export_items(self, request):
+        """
+        Export items to Excel spreadsheet.
+        
+        POST /internal/v1/items/export/
+        Body: {
+            "mode": "filtered" | "selected",
+            "ids": [1, 2, 3, ...]
+        }
+        
+        Returns:
+        - For <= 100 items: Excel file download (synchronous)
+        - For > 100 items: Job info for async export (background task)
+        """
+        import logging
+        from django.http import HttpResponse
+        from django.utils import timezone
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill
+        from datetime import datetime
+        import uuid
+        
+        logger = logging.getLogger(__name__)
+        
+        mode = request.data.get('mode', 'filtered')
+        ids = request.data.get('ids', [])
+        
+        logger.info(f"[EXPORT] Exporting {len(ids)} items (mode: {mode})")
+        
+        if not ids:
+            return Response(
+                {'detail': 'No items to export'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if we should use async export (> 100 items)
+        if len(ids) > 100:
+            logger.info(f"[EXPORT] Large export ({len(ids)} items) - using async task")
+            
+            # Generate unique export ID using UUID
+            import uuid
+            export_id = str(uuid.uuid4())
+            
+            # Trigger async task
+            from metadata.tasks import generate_item_export_task
+            task = generate_item_export_task.apply_async(
+                args=[export_id, mode, ids],
+                priority=7  # High priority but not urgent
+            )
+            
+            return Response({
+                'async': True,
+                'export_id': export_id,
+                'task_id': task.id,
+                'count': len(ids),
+                'message': 'Export is being generated in the background. Check status using the export_id.'
+            })
+        
+        # SYNCHRONOUS EXPORT (≤ 100 items)
+        try:
+            from django.db.models import Count
+            from metadata.models import (
+                ACCESS_CHOICES, RESOURCE_TYPE_CHOICES,
+                AVAILABILITY_CHOICES, CONDITION_CHOICES
+            )
+            
+            queryset = Item.objects.filter(id__in=ids).prefetch_related(
+                'language',
+                'collection',
+                'title_item__language',
+                'item_collaboratorroles__collaborator',
+            ).select_related('collection').annotate(
+                file_count=Count('item_files')
+            )
+            
+            # Sort by catalog_number (case-insensitive)
+            from django.db.models.functions import Lower
+            items = list(queryset.order_by(Lower('catalog_number')))
+            logger.info(f"[EXPORT] Found {len(items)} items to export")
+            
+            # Determine the maximum number of non-default titles across all items (up to 10)
+            max_additional_titles = 0
+            for item in items:
+                non_default_count = item.title_item.filter(default=False).count()
+                if non_default_count > max_additional_titles:
+                    max_additional_titles = min(non_default_count, 10)  # Cap at 10
+            
+            # Always show at least "First Additional Title" column, even if all empty
+            if max_additional_titles == 0:
+                max_additional_titles = 1
+            
+            logger.info(f"[EXPORT] Maximum non-default titles found: {max_additional_titles}")
+            
+            # Create workbook
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Items"
+            
+            # Define column headers (matching batch editor columns + file count + collection)
+            # Note: Additional title columns are added dynamically based on max_additional_titles
+            headers = [
+                # Core Identification & Metadata
+                'Catalog Number',
+                'Collection',
+                '# of Files',
+                'Access Level',
+                'Default Title',
+            ]
+            
+            # Add dynamic additional title columns based on what's actually in the data
+            # Always include at least "First Additional Title"
+            headers.append('First Additional Title')
+            for i in range(2, max_additional_titles + 1):
+                ordinal = ['Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'][i-2]
+                headers.append(f'{ordinal} Additional Title')
+            
+            # Continue with remaining headers
+            headers.extend([
+                'Description',
+                'Resource Type',
+                'Call Number',
+                'Associated Ephemera',
+                
+                # Relationships
+                'Languages',
+                'Collaborators (Role, Citation)',
+                
+                # Dates
+                'Creation Date',
+                
+                # Content Classification
+                'Genre',
+                'Language Description Type',
+                'Permission to Publish Online',
+                'Access Level Restrictions',
+                
+                # Accession & Acquisition
+                'Accession Number',
+                'Accession Date',
+                'Type of Accession',
+                'Acquisition Notes',
+                
+                # Collection & Collector Info
+                'Collector Name',
+                'Collector Info',
+                'Collection Date',
+                'Collecting Notes',
+                
+                # Deposit Info
+                'Depositor Name',
+                'Depositor Contact Information',
+                'Deposit Date',
+                'Project Grant',
+                
+                # Physical Condition & Availability
+                'Availability Status',
+                'Availability Status Notes',
+                'Condition',
+                'Condition Notes',
+                
+                # Format & Technical
+                'Original Format Medium',
+                'Location of Original',
+                'Other Institutional Number',
+                
+                # Conservation
+                'Conservation Recommendation',
+                'Conservation Treatments Performed',
+                'Equipment Used',
+                'Software Used',
+                'IPM Issues',
+                
+                # Geographic Location
+                'Municipality or Township',
+                'County or Parish',
+                'State or Province',
+                'Country or Territory',
+                'Global Region',
+                'Recording Context',
+                'Public Event',
+                'Recorded On',
+                'Latitude',
+                'Longitude',
+                
+                # Publication Info
+                'Publisher',
+                'Publisher Address',
+                'ISBN',
+                'LOC Catalog Number',
+                'Total Number of Pages and Physical Description',
+                
+                # External References
+                'Temporary Accession Number',
+                'Lender Loan Number',
+                'Other Information',
+            ])
+            
+            # Write header row with styling
+            header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+            header_font = Font(bold=True, color='FFFFFF')
+            
+            for col_idx, header in enumerate(headers, start=1):
+                cell = ws.cell(row=1, column=col_idx, value=header)
+                cell.fill = header_fill
+                cell.font = header_font
+            
+            # Write data rows
+            for row_idx, item in enumerate(items, start=2):
+                # Get default title
+                default_title_obj = item.title_item.filter(default=True).first()
+                default_title = f"{default_title_obj.title} ({default_title_obj.language.name})" if default_title_obj and default_title_obj.language else (default_title_obj.title if default_title_obj else '')
+                
+                # Get all non-default titles (up to 10)
+                non_default_titles = list(item.title_item.filter(default=False).order_by('id')[:10])
+                additional_titles = []
+                for title_obj in non_default_titles:
+                    title_str = f"{title_obj.title} ({title_obj.language.name})" if title_obj.language else title_obj.title
+                    additional_titles.append(title_str)
+                
+                # Pad with empty strings to match max_additional_titles
+                while len(additional_titles) < max_additional_titles:
+                    additional_titles.append('')
+                
+                # Get languages (formatted as: name (glottocode), name (glottocode))
+                languages = ', '.join([
+                    f"{lang.name} ({lang.glottocode})" if lang.glottocode else lang.name
+                    for lang in item.language.all()
+                ])
+                
+                # Get collaborators with roles
+                collaborators_list = []
+                for cr in item.item_collaboratorroles.all().select_related('collaborator'):
+                    collab_name = cr.collaborator.full_name
+                    roles_display = []
+                    
+                    # Parse roles from stored string format
+                    if cr.role:
+                        if isinstance(cr.role, list):
+                            roles = cr.role
+                        elif isinstance(cr.role, str):
+                            roles = [r.strip() for r in cr.role.split(',') if r.strip()]
+                        else:
+                            roles = []
+                        
+                        # Convert role values to human-readable labels
+                        from metadata.models import ROLE_CHOICES
+                        role_dict = dict(ROLE_CHOICES)
+                        roles_display = [role_dict.get(r, r) for r in roles]
+                    
+                    # Format: "Name (Role1, Role2; in citation)" or "Name (Role1, Role2)" or "Name (in citation)" or "Name"
+                    if roles_display and cr.citation_author:
+                        collab_str = f"{collab_name} ({', '.join(roles_display)}; in citation)"
+                    elif roles_display:
+                        collab_str = f"{collab_name} ({', '.join(roles_display)})"
+                    elif cr.citation_author:
+                        collab_str = f"{collab_name} (in citation)"
+                    else:
+                        collab_str = collab_name
+                    
+                    collaborators_list.append(collab_str)
+                
+                collaborators = ', '.join(collaborators_list)
+                
+                # Convert choice fields to human-readable labels
+                access_level_label = dict(ACCESS_CHOICES).get(item.item_access_level, item.item_access_level) if item.item_access_level else ''
+                resource_type_label = dict(RESOURCE_TYPE_CHOICES).get(item.resource_type, item.resource_type) if item.resource_type else ''
+                availability_status_label = dict(AVAILABILITY_CHOICES).get(item.availability_status, item.availability_status) if item.availability_status else ''
+                condition_label = dict(CONDITION_CHOICES).get(item.condition, item.condition) if item.condition else ''
+                
+                # Import additional choice mappings
+                from metadata.models import ACCESSION_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES
+                accession_type_label = dict(ACCESSION_CHOICES).get(item.type_of_accession, item.type_of_accession) if item.type_of_accession else ''
+                format_label = dict(FORMAT_CHOICES).get(item.original_format_medium, item.original_format_medium) if item.original_format_medium else ''
+                
+                # Handle multiselect fields (genre, language_description_type)
+                genre_labels = []
+                if item.genre:
+                    genre_dict = dict(GENRE_CHOICES)
+                    genre_list = item.genre if isinstance(item.genre, list) else [g.strip() for g in item.genre.split(',') if g.strip()]
+                    genre_labels = [genre_dict.get(g, g) for g in genre_list]
+                genre_display = ', '.join(genre_labels)
+                
+                lang_desc_labels = []
+                if item.language_description_type:
+                    lang_desc_dict = dict(LANGUAGE_DESCRIPTION_CHOICES)
+                    lang_desc_list = item.language_description_type if isinstance(item.language_description_type, list) else [ld.strip() for ld in item.language_description_type.split(',') if ld.strip()]
+                    lang_desc_labels = [lang_desc_dict.get(ld, ld) for ld in lang_desc_list]
+                lang_desc_display = ', '.join(lang_desc_labels)
+                
+                # Handle boolean field
+                permission_display = 'Yes' if item.permission_to_publish_online is True else ('No' if item.permission_to_publish_online is False else 'Not specified')
+                
+                # Build row_data with dynamic title columns
+                row_data = [
+                    # Core Identification & Metadata
+                    item.catalog_number or '',
+                    item.collection.collection_abbr if item.collection else '',
+                    item.file_count,
+                    access_level_label,
+                    default_title,
+                ]
+                
+                # Add all additional titles (dynamically based on max_additional_titles)
+                row_data.extend(additional_titles)
+                
+                # Continue with remaining fields
+                row_data.extend([
+                    item.description_scope_and_content or '',
+                    resource_type_label,
+                    item.call_number or '',
+                    item.associated_ephemera or '',
+                    
+                    # Relationships
+                    languages,
+                    collaborators,
+                    
+                    # Dates
+                    item.creation_date or '',
+                    
+                    # Content Classification
+                    genre_display,
+                    lang_desc_display,
+                    permission_display,
+                    item.access_level_restrictions or '',
+                    
+                    # Accession & Acquisition
+                    item.accession_number or '',
+                    item.accession_date or '',
+                    accession_type_label,
+                    item.acquisition_notes or '',
+                    
+                    # Collection & Collector Info
+                    item.collector_name or '',
+                    item.collector_info or '',
+                    item.collection_date or '',
+                    item.collecting_notes or '',
+                    
+                    # Deposit Info
+                    item.depositor_name or '',
+                    item.depositor_contact_information or '',
+                    item.deposit_date or '',
+                    item.project_grant or '',
+                    
+                    # Physical Condition & Availability
+                    availability_status_label,
+                    item.availability_status_notes or '',
+                    condition_label,
+                    item.condition_notes or '',
+                    
+                    # Format & Technical
+                    format_label,
+                    item.location_of_original or '',
+                    item.other_institutional_number or '',
+                    
+                    # Conservation
+                    item.conservation_recommendation or '',
+                    item.conservation_treatments_performed or '',
+                    item.equipment_used or '',
+                    item.software_used or '',
+                    item.ipm_issues or '',
+                    
+                    # Geographic Location
+                    item.municipality_or_township or '',
+                    item.county_or_parish or '',
+                    item.state_or_province or '',
+                    item.country_or_territory or '',
+                    item.global_region or '',
+                    item.recording_context or '',
+                    item.public_event or '',
+                    item.recorded_on or '',
+                    str(item.latitude) if item.latitude else '',
+                    str(item.longitude) if item.longitude else '',
+                    
+                    # Publication Info
+                    item.publisher or '',
+                    item.publisher_address or '',
+                    item.isbn or '',
+                    item.loc_catalog_number or '',
+                    item.total_number_of_pages_and_physical_description or '',
+                    
+                    # External References
+                    item.temporary_accession_number or '',
+                    item.lender_loan_number or '',
+                    item.other_information or '',
+                ])
+                
+                for col_idx, value in enumerate(row_data, start=1):
+                    ws.cell(row=row_idx, column=col_idx, value=value)
+            
+            # Adjust column widths
+            for col_idx, header in enumerate(headers, start=1):
+                column_letter = ws.cell(row=1, column=col_idx).column_letter
+                ws.column_dimensions[column_letter].width = 15
+            
+            # Create response with Excel file
+            timestamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+            filename = f'items_export_{timestamp}.xlsx'
+            
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            wb.save(response)
+            logger.info(f"[EXPORT] Successfully generated export: {filename}")
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"[EXPORT] Error generating export: {e}", exc_info=True)
+            return Response(
+                {'detail': f'Export failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['get'], url_path='export-status/(?P<export_id>[^/.]+)')
+    def export_status(self, request, export_id=None):
+        """
+        Check the status of an async export.
+        
+        GET /internal/v1/items/export-status/{export_id}/
+        
+        Returns: {
+            "status": "pending" | "processing" | "completed" | "failed",
+            "filename": "items_export_xxx.xlsx" (if completed),
+            "error": "error message" (if failed)
+        }
+        """
+        import logging
+        import os
+        from django.conf import settings
+        
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"[EXPORT STATUS] Checking status for export {export_id}")
+        
+        # Check if file exists (completed)
+        exports_dir = os.path.join(settings.MEDIA_ROOT, 'exports')
+        filename = f'items_export_{export_id}.xlsx'
+        file_path = os.path.join(exports_dir, filename)
+        
+        if os.path.exists(file_path):
+            logger.info(f"[EXPORT STATUS] Export {export_id} completed")
+            return Response({
+                'status': 'completed',
+                'filename': filename,
+                'export_id': export_id
+            })
+        
+        # File doesn't exist yet - check task status
+        logger.info(f"[EXPORT STATUS] Export {export_id} still processing")
+        return Response({
+            'status': 'processing',
+            'export_id': export_id
+        })
+    
+    @action(detail=False, methods=['get'], url_path='export-download/(?P<export_id>[^/.]+)')
+    def export_download(self, request, export_id=None):
+        """
+        Download a completed async export.
+        
+        GET /internal/v1/items/export-download/{export_id}/
+        
+        Returns: Excel file download
+        """
+        import logging
+        import os
+        from django.conf import settings
+        from django.http import HttpResponse, Http404
+        
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"[EXPORT DOWNLOAD] Downloading export {export_id}")
+        
+        # Check if file exists
+        exports_dir = os.path.join(settings.MEDIA_ROOT, 'exports')
+        filename = f'items_export_{export_id}.xlsx'
+        file_path = os.path.join(exports_dir, filename)
+        
+        if not os.path.exists(file_path):
+            logger.error(f"[EXPORT DOWNLOAD] Export {export_id} not found")
+            raise Http404("Export file not found or has expired")
+        
+        # Read file and return
+        with open(file_path, 'rb') as f:
+            response = HttpResponse(
+                f.read(),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            logger.info(f"[EXPORT DOWNLOAD] Successfully served export {export_id}")
+            return response
+    
+    @action(detail=False, methods=['post'], url_path='validate-field')
+    def validate_field(self, request):
+        """
+        Validate a single field value for batch editing
+        
+        POST /internal/v1/items/validate-field/
+        Body: {
+            "field_name": "catalog_number",
+            "value": "ITEM-001",
+            "row_id": "new-123" or 42 (item id),
+            "original_value": "ITEM-001" (optional - value when loaded from DB)
+        }
+        
+        Returns: {
+            "valid": true/false,
+            "error": "error message if invalid"
+        }
+        """
+        field_name = request.data.get('field_name')
+        value = request.data.get('value')
+        row_id = request.data.get('row_id')
+        original_value = request.data.get('original_value')
+        
+        if not field_name:
+            return Response(
+                {'valid': False, 'error': 'field_name is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get the serializer to use its validation methods
+        serializer = self.get_serializer()
+        
+        # Try to validate the field using serializer's field validators
+        try:
+            # Get the field from the serializer
+            if field_name not in serializer.fields:
+                return Response(
+                    {'valid': False, 'error': f'Unknown field: {field_name}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            field = serializer.fields[field_name]
+            
+            # Handle empty values - if field allows blank/null and value is empty, it's valid
+            if value in [None, '', []]:
+                # Check if field allows empty values
+                if getattr(field, 'allow_null', False) or getattr(field, 'allow_blank', False) or not getattr(field, 'required', True):
+                    return Response({'valid': True})
+            
+            # Run field-level validation
+            field.run_validation(value)
+            
+            # Check for field-specific validator methods (e.g., validate_catalog_number)
+            validate_method_name = f'validate_{field_name}'
+            if hasattr(serializer, validate_method_name):
+                validate_method = getattr(serializer, validate_method_name)
+                validate_method(value)
+            
+            # Field-specific uniqueness checks
+            if field_name == 'catalog_number' and value:
+                # If value equals original_value, it's valid (editing back to self)
+                if original_value is not None and value == original_value:
+                    return Response({'valid': True})
+                
+                # Check for uniqueness (exclude current row if editing)
+                existing = Item.objects.filter(catalog_number=value)
+                
+                # Exclude the current row being edited
+                if str(row_id).startswith('new-'):
+                    # Draft row - don't exclude anything (it's a new row)
+                    pass
+                else:
+                    # Existing row - exclude it from uniqueness check
+                    try:
+                        row_id_int = int(row_id) if isinstance(row_id, str) else row_id
+                        existing = existing.exclude(id=row_id_int)
+                    except (ValueError, TypeError):
+                        # If we can't convert to int, skip exclusion
+                        pass
+                
+                if existing.exists():
+                    return Response({
+                        'valid': False,
+                        'error': f'Catalog number "{value}" already exists.'
+                    })
+            
+            return Response({'valid': True})
+            
+        except serializers.ValidationError as e:
+            # Extract error message
+            if isinstance(e.detail, dict):
+                error_msg = str(list(e.detail.values())[0][0]) if e.detail else 'Validation error'
+            elif isinstance(e.detail, list):
+                error_msg = str(e.detail[0])
+            else:
+                error_msg = str(e.detail)
+            
+            return Response({
+                'valid': False,
+                'error': error_msg
+            })
+        except Exception as e:
+            return Response({
+                'valid': False,
+                'error': str(e)
+            })
+    
+    @action(detail=False, methods=['post'], url_path='save-batch')
+    def save_batch(self, request):
+        """
+        Save multiple items in a single transaction with field-level conflict detection.
+        
+        POST /internal/v1/items/save-batch/
+        Body: {
+            "rows": [
+                {
+                    "id": 42 or "draft-uuid",
+                    "catalog_number": "2024.001",
+                    "description_scope_and_content": "...",
+                    ...
+                },
+                ...
+            ]
+        }
+        
+        Returns: {
+            "success": true,
+            "saved": [{"id": 42, ...}, ...],
+            "errors": []
+        }
+        
+        CONFLICT DETECTION:
+        - Compares client's _updated timestamp with DB's updated timestamp
+        - If different, performs field-level comparison
+        - Returns conflict errors for fields that have true conflicts
+        - Saves non-conflicting fields
+        """
+        from django.db import transaction
+        from django.core.cache import cache
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        rows = request.data.get('rows', [])
+        logger.info(f"[BATCH SAVE] Received {len(rows)} items")
+        
+        if not rows:
+            return Response(
+                {'success': False, 'errors': ['No rows provided']},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        saved_objects = []
+        errors = []
+        
+        try:
+            with transaction.atomic():
+                for row in rows:
+                    row_id = row.get('id')
+                    is_draft = isinstance(row_id, str) and str(row_id).startswith('draft-')
+                    
+                    try:
+                        if is_draft:
+                            # CREATE NEW ITEM
+                            logger.debug(f"[BATCH SAVE] Creating new item from draft: {row_id}")
+                            row_data = {k: v for k, v in row.items() if k not in ['id', '_updated', '_original_values']}
+                            serializer = self.get_serializer(data=row_data)
+                            serializer.is_valid(raise_exception=True)
+                            instance = serializer.save()
+                            
+                            # Set flag to skip post-save signal (we handle cache update manually)
+                            instance._skip_async_tasks = True
+                            instance.save()
+                            
+                            saved_objects.append(instance)
+                            
+                        else:
+                            # UPDATE EXISTING ITEM
+                            logger.debug(f"[BATCH SAVE] Updating existing item: {row_id}")
+                            try:
+                                old_instance = Item.objects.get(pk=row_id)
+                            except Item.DoesNotExist:
+                                errors.append(f"Item with ID {row_id} not found")
+                                continue
+                            
+                            # CONFLICT DETECTION
+                            client_updated = row.get('_updated')
+                            conflicting_fields = []
+                            
+                            if client_updated:
+                                from django.utils.dateparse import parse_datetime
+                                client_updated_dt = parse_datetime(client_updated)
+                                
+                                if client_updated_dt:
+                                    db_updated = old_instance.updated
+                                    
+                                    logger.info(f"[BATCH SAVE] Conflict check for {row_id}: DB={db_updated}, Client={client_updated_dt}, DB > Client? {db_updated > client_updated_dt}")
+                                    
+                                    if db_updated > client_updated_dt:
+                                        # Row was modified - check for field-level conflicts
+                                        client_original_values = row.get('_original_values', {})
+                                        logger.info(f"[BATCH SAVE] Checking conflicts for row {row_id}. Client original values: {client_original_values}")
+                                        
+                                        for field_name in row.keys():
+                                            if field_name in ['id', '_updated', '_original_values']:
+                                                continue
+                                            
+                                            # Get current DB value
+                                            db_value = getattr(old_instance, field_name, None)
+                                            
+                                            # Handle M2M fields
+                                            if field_name in ['language', 'collaborators']:
+                                                if field_name == 'language':
+                                                    db_value = list(getattr(old_instance, field_name).values_list('id', flat=True))
+                                                # collaborators is handled via CollaboratorRole, skip for now
+                                                elif field_name == 'collaborators':
+                                                    continue
+                                            
+                                            client_new_value = row[field_name]
+                                            client_original_value = client_original_values.get(field_name)
+                                            
+                                            logger.info(f"[BATCH SAVE] Field '{field_name}': db_value={repr(db_value)}, client_original={repr(client_original_value)}, client_new={repr(client_new_value)}")
+                                            
+                                            # TRUE CONFLICT: DB value changed from what client loaded
+                                            if client_original_value is not None:
+                                                if field_name == 'language' and isinstance(db_value, list):
+                                                    if set(db_value) != set(client_original_value):
+                                                        logger.warning(f"[BATCH SAVE] TRUE conflict on M2M field '{field_name}': client_original={client_original_value}, db_current={db_value}, client_new={client_new_value}")
+                                                        conflicting_fields.append({
+                                                            'field': field_name,
+                                                            'db_value': db_value,
+                                                            'client_original': client_original_value,
+                                                            'client_new': client_new_value
+                                                        })
+                                                elif db_value != client_original_value:
+                                                    logger.warning(f"[BATCH SAVE] TRUE conflict on field '{field_name}': client_original={client_original_value}, db_current={db_value}, client_new={client_new_value}")
+                                                    conflicting_fields.append({
+                                                        'field': field_name,
+                                                        'db_value': db_value,
+                                                        'client_original': client_original_value,
+                                                        'client_new': client_new_value
+                                                    })
+                                        
+                                        if conflicting_fields:
+                                            logger.warning(f"[BATCH SAVE] Field-level conflicts detected for item {row_id}: {[f['field'] for f in conflicting_fields]}")
+                                            
+                                            # Remove conflicting fields from update
+                                            conflicting_field_names = [f['field'] for f in conflicting_fields]
+                                            for field_name in conflicting_field_names:
+                                                if field_name in row:
+                                                    del row[field_name]
+                                                    logger.info(f"[BATCH SAVE] Removed conflicting field '{field_name}' from save")
+                                            
+                                            # Add conflict error
+                                            errors.append({
+                                                'row_id': row_id,
+                                                'type': 'conflict',
+                                                'message': f'Item {row_id} was modified by another user.',
+                                                'conflicting_fields': conflicting_field_names,
+                                                'current_data': self.get_serializer(old_instance).data,
+                                            })
+                                            
+                                            # If all fields conflicted, skip row
+                                            non_metadata_fields = [k for k in row.keys() if k not in ['id', '_updated', '_original_values']]
+                                            if len(non_metadata_fields) == 0:
+                                                logger.info(f"[BATCH SAVE] All fields conflicted, skipping row {row_id}")
+                                                continue
+                            
+                            # Perform update
+                            row_data_for_serializer = {k: v for k, v in row.items() if k not in ['_updated', '_original_values', 'id']}
+                            serializer = self.get_serializer(old_instance, data=row_data_for_serializer, partial=True)
+                            serializer.is_valid(raise_exception=True)
+                            
+                            # Set flag BEFORE saving to skip post-save signal
+                            old_instance._skip_async_tasks = True
+                            
+                            instance = serializer.save()
+                            saved_objects.append(instance)
+                    
+                    except serializers.ValidationError as e:
+                        logger.error(f"[BATCH SAVE] Validation error for row {row_id}: {e.detail}")
+                        error_msg = f"Row ID {row_id}: "
+                        if isinstance(e.detail, dict):
+                            error_msg += ", ".join([f"{k}: {v[0]}" if isinstance(v, list) else f"{k}: {v}" 
+                                                   for k, v in e.detail.items()])
+                        else:
+                            error_msg += str(e.detail)
+                        errors.append(error_msg)
+                
+                # Rollback if validation errors
+                validation_errors = [e for e in errors if not isinstance(e, dict) or e.get('type') != 'conflict']
+                if validation_errors:
+                    raise Exception("Validation errors occurred")
+            
+            # TRANSACTION COMMITTED
+            logger.info(f"[BATCH SAVE] Transaction committed. Saved {len(saved_objects)} items.")
+            
+            # Update Redis cache with ONLY the changed items (partial update)
+            cache_key = 'item_list_full'
+            cached_data = cache.get(cache_key)
+            
+            if cached_data:
+                logger.info(f"[BATCH SAVE] Updating {len(saved_objects)} items in Redis cache")
+                # Create a mapping of saved items for quick lookup
+                saved_dict = {obj.id: obj for obj in saved_objects}
+                
+                # Import batch serializer for cache updates
+                from .serializers import InternalItemBatchSerializer
+                
+                # Track which IDs were found in cache (to identify new items)
+                found_ids = set()
+                
+                # Update the cached items in place
+                for i, cached_item in enumerate(cached_data):
+                    if cached_item.get('id') in saved_dict:
+                        # Re-serialize just this item using batch serializer
+                        updated_item = InternalItemBatchSerializer(saved_dict[cached_item['id']]).data
+                        cached_data[i] = updated_item
+                        found_ids.add(cached_item['id'])
+                        logger.debug(f"[BATCH SAVE] Updated item {cached_item['id']} in cache")
+                
+                # Add new items that weren't in the cache (newly created items)
+                new_items = [obj for obj in saved_objects if obj.id not in found_ids]
+                if new_items:
+                    logger.info(f"[BATCH SAVE] Adding {len(new_items)} new items to Redis cache")
+                    for new_item in new_items:
+                        serialized_item = InternalItemBatchSerializer(new_item).data
+                        cached_data.append(serialized_item)
+                        logger.debug(f"[BATCH SAVE] Added new item {new_item.id} to cache")
+                
+                # Save updated cache back to Redis
+                cache.set(cache_key, cached_data, timeout=600)
+                logger.info("[BATCH SAVE] Redis cache updated with changes")
+            else:
+                logger.info("[BATCH SAVE] No cache found, triggering background rebuild")
+                # Trigger background cache rebuild
+                from metadata.tasks import invalidate_and_warm_item_cache
+                invalidate_and_warm_item_cache.apply_async(priority=5)
+            
+            # Serialize saved objects for response using batch serializer
+            from .serializers import InternalItemBatchSerializer
+            saved_data = InternalItemBatchSerializer(saved_objects, many=True).data
+            
+            return Response({
+                'success': True,
+                'saved': saved_data,
+                'errors': errors,
+            })
+            
+        except Exception as e:
+            logger.error(f"[BATCH SAVE] Transaction failed: {e}")
+            return Response({
+                'success': False,
+                'saved': [],
+                'errors': errors if errors else [str(e)],
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class InternalCollectionViewSet(viewsets.ModelViewSet):
@@ -424,11 +1372,18 @@ class InternalCollaboratorViewSet(viewsets.ModelViewSet):
         return context
     
     def get_serializer_class(self):
-        """Use lightweight serializer for batch operations"""
-        # If requesting batch data (batch=true query param), use lightweight serializer
+        """Use lightweight serializer for batch operations or picker dropdowns"""
+        # BATCH EDITOR: Use batch serializer for batch operations
         if self.request.query_params.get('batch') == 'true':
             from .serializers import InternalCollaboratorBatchSerializer
             return InternalCollaboratorBatchSerializer
+        
+        # PICKER DROPDOWN: Use ultra-lightweight serializer for picker/dropdowns
+        # (completely independent from batch editor)
+        if self.request.query_params.get('picker') == 'true':
+            from .serializers import CollaboratorPickerSerializer
+            return CollaboratorPickerSerializer
+        
         return super().get_serializer_class()
     
     def list(self, request, *args, **kwargs):
@@ -438,6 +1393,7 @@ class InternalCollaboratorViewSet(viewsets.ModelViewSet):
         Caching strategy:
         - Full list (no filters, no pagination): Served from Redis cache
         - Filtered/paginated: Falls back to standard DRF queryset
+        - Cache miss: Returns 202 Accepted and triggers async rebuild
         
         The cache is warmed in the background by a Celery task.
         """
@@ -459,6 +1415,7 @@ class InternalCollaboratorViewSet(viewsets.ModelViewSet):
         
         # Try to get from cache
         cache_key = 'collaborator_list_full'
+        lock_key = 'collaborator_list_cache_lock'
         cached_data = cache.get(cache_key)
         
         if cached_data is not None:
@@ -470,27 +1427,26 @@ class InternalCollaboratorViewSet(viewsets.ModelViewSet):
                 'results': cached_data
             })
         
-        # Cache miss - build it now
-        logger.warning("[Cache] Cache miss! Building collaborator list (this will be slow)...")
+        # Cache miss - check if rebuild is in progress
+        lock_held = cache.get(lock_key)
         
-        # Import the utility function from tasks
-        from metadata.tasks import build_collaborator_list_cache
+        if lock_held:
+            # Another process is building the cache - tell frontend to poll
+            logger.info("[Cache] Cache miss but rebuild in progress, returning 202")
+            return Response({
+                'status': 'rebuilding',
+                'message': 'Cache is being rebuilt in the background. Please retry in a few seconds.'
+            }, status=202)
         
-        # Build the cache data
-        data = build_collaborator_list_cache()
+        # No cache and no rebuild in progress - trigger async rebuild and tell frontend to poll
+        logger.warning("[Cache] Cache miss! Triggering async rebuild...")
+        from metadata.tasks import warm_collaborator_list_cache
+        warm_collaborator_list_cache.apply_async(priority=9)  # High priority
         
-        # Store in cache with 10-minute TTL
-        cache.set(cache_key, data, timeout=600)
-        
-        logger.info(f"[Cache] Built and cached {len(data)} collaborators")
-        
-        # Wrap in pagination format
         return Response({
-            'count': len(data),
-            'next': None,
-            'previous': None,
-            'results': data
-        })
+            'status': 'rebuilding',
+            'message': 'Cache rebuild triggered. Please retry in a few seconds.'
+        }, status=202)
     
     def perform_create(self, serializer):
         """Automatically set modified_by on create"""
@@ -543,6 +1499,7 @@ class InternalCollaboratorViewSet(viewsets.ModelViewSet):
         """
         import logging
         from django.http import HttpResponse
+        from django.utils import timezone
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill
         from datetime import datetime
@@ -565,7 +1522,8 @@ class InternalCollaboratorViewSet(viewsets.ModelViewSet):
         if len(ids) > 100:
             logger.info(f"[EXPORT] Large export ({len(ids)} collaborators) - using async task")
             
-            # Generate unique export ID
+            # Generate unique export ID using UUID
+            import uuid
             export_id = str(uuid.uuid4())
             
             # Trigger async task
@@ -696,7 +1654,7 @@ class InternalCollaboratorViewSet(viewsets.ModelViewSet):
             )
             
             # Generate filename with timestamp
-            timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            timestamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
             filename = f'collaborators_export_{timestamp}.xlsx'
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             
@@ -1091,11 +2049,28 @@ class InternalCollaboratorViewSet(viewsets.ModelViewSet):
             # TRANSACTION COMMITTED
             logger.info(f"[BATCH SAVE] Transaction committed. Saved {len(saved_objects)} collaborators.")
             
-            # Invalidate collaborator cache after successful save
-            logger.info("[BATCH SAVE] Invalidating collaborator cache")
+            # Update Redis cache with ONLY the changed items (partial update)
             cache_key = 'collaborator_list_full'
-            cache.delete(cache_key)
+            cached_data = cache.get(cache_key)
             
+            if cached_data:
+                logger.info(f"[BATCH SAVE] Updating {len(saved_objects)} collaborators in Redis cache")
+                # Create a mapping of saved items for quick lookup
+                saved_dict = {obj.id: obj for obj in saved_objects}
+                
+                # Update the cached items in place
+                for i, cached_item in enumerate(cached_data):
+                    if cached_item.get('id') in saved_dict:
+                        # Re-serialize just this item
+                        updated_item = self.get_serializer(saved_dict[cached_item['id']]).data
+                        cached_data[i] = updated_item
+                        logger.debug(f"[BATCH SAVE] Updated collaborator {cached_item['id']} in cache")
+                
+                # Save updated cache back to Redis
+                cache.set(cache_key, cached_data, timeout=600)
+                logger.info("[BATCH SAVE] Redis cache updated with changes")
+            else:
+                logger.info("[BATCH SAVE] No cache found, triggering background rebuild")
             # Trigger background cache rebuild
             from metadata.tasks import invalidate_and_warm_collaborator_cache
             invalidate_and_warm_collaborator_cache.apply_async(priority=5)
@@ -1799,6 +2774,7 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
         """
         import logging
         from django.http import HttpResponse
+        from django.utils import timezone
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill
         from datetime import datetime
@@ -1821,7 +2797,8 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
         if len(ids) > 100:
             logger.info(f"[EXPORT] Large export ({len(ids)} languoids) - using async task")
             
-            # Generate unique export ID
+            # Generate unique export ID using UUID
+            import uuid
             export_id = str(uuid.uuid4())
             
             # Trigger async task
@@ -2003,7 +2980,7 @@ class InternalLanguoidViewSet(viewsets.ModelViewSet):
             )
             
             # Generate filename with timestamp
-            timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            timestamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
             filename = f'languoids_export_{timestamp}.xlsx'
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             

@@ -1225,10 +1225,129 @@ def invalidate_and_warm_collaborator_cache():
 
 
 # ============================================================================
+# ITEM LIST CACHE WARMING TASKS
+# ============================================================================
+
+def build_item_list_cache():
+    """
+    Utility function to build the cached item list response.
+    
+    This function does the expensive work:
+    - Queries all items with optimized prefetch
+    - Sorts them by catalog_number
+    - Serializes them to JSON
+    - Returns the serialized data ready for caching
+    
+    Used by:
+    - warm_item_list_cache task (background refresh)
+    - InternalItemViewSet (on cache miss)
+    """
+    from internal_api.serializers import InternalItemBatchSerializer
+    
+    logger.info("[Cache Warming] Building item list cache...")
+    
+    # Query all items with optimized prefetch
+    queryset = Item.objects.all().prefetch_related(
+        'title_item__language',
+        'collaborator',
+        'language',
+        'collection'
+    )
+    
+    # Sort by catalog_number (case-insensitive) to match API default ordering
+    from django.db.models.functions import Lower
+    queryset = queryset.order_by(Lower('catalog_number'))
+    
+    # Serialize to JSON (same as API response)
+    serializer = InternalItemBatchSerializer(queryset, many=True)
+    data = serializer.data
+    
+    logger.info(f"[Cache Warming] Built cache with {len(data)} items")
+    return data
+
+
+@shared_task(bind=True, max_retries=3)
+def warm_item_list_cache(self):
+    """
+    Background task to warm/refresh the item list cache.
+    
+    This task:
+    - Builds the full item list response
+    - Stores it in Redis cache with 10-minute TTL
+    - Uses a lock to prevent concurrent rebuilds
+    - Runs periodically via Celery Beat (every 9 minutes)
+    - Runs immediately after item saves/deletes
+    
+    Users never wait for this - it happens in the background.
+    """
+    from django.core.cache import cache
+    import time
+    
+    lock_key = 'item_list_cache_lock'
+    cache_key = 'item_list_full'
+    
+    try:
+        # Try to acquire lock (prevents concurrent rebuilds)
+        lock_acquired = cache.add(lock_key, 'locked', timeout=120)  # 2-minute lock
+        
+        if not lock_acquired:
+            logger.info("[Cache Warming] Another cache build is in progress, skipping")
+            return {'status': 'skipped', 'reason': 'lock_held'}
+        
+        start_time = time.time()
+        logger.info("[Cache Warming] Starting item list cache rebuild...")
+        
+        # Build the cache data
+        data = build_item_list_cache()
+        
+        # Store in Redis with 10-minute TTL
+        cache.set(cache_key, data, timeout=600)
+        
+        elapsed = time.time() - start_time
+        logger.info(f"[Cache Warming] Cache rebuilt successfully in {elapsed:.2f}s")
+        
+        return {
+            'status': 'success',
+            'item_count': len(data),
+            'elapsed_seconds': elapsed
+        }
+        
+    except Exception as e:
+        logger.error(f"[Cache Warming] Error building cache: {e}")
+        import traceback
+        traceback.print_exc()
+        raise self.retry(exc=e, countdown=30)  # Retry after 30 seconds
+        
+    finally:
+        # Always release the lock
+        cache.delete(lock_key)
+
+
+@shared_task
+def invalidate_and_warm_item_cache():
+    """
+    Invalidate the item list cache and trigger immediate rebuild.
+    
+    Called by Django signals when an item is saved or deleted.
+    This ensures users always see fresh data after edits.
+    """
+    from django.core.cache import cache
+    
+    cache_key = 'item_list_full'
+    
+    # Invalidate existing cache
+    cache.delete(cache_key)
+    logger.info("[Cache Invalidation] Item list cache invalidated")
+    
+    # Trigger background rebuild (doesn't block the signal)
+    warm_item_list_cache.apply_async(priority=8)
+
+
+# ============================================================================
 # LANGUOID EXPORT TASKS
 # ============================================================================
 
-@shared_task(bind=True, max_retries=3)
+@shared_task(bind=True, max_retries=3, default_retry_delay=30)
 def generate_languoid_export_task(self, export_id, mode, ids):
     """
     Background task to generate languoid export for large datasets.
@@ -1549,4 +1668,325 @@ def generate_collaborator_export_task(self, export_id, mode, ids):
         logger.error(f"[EXPORT TASK] Error generating collaborator export {export_id}: {e}")
         import traceback
         traceback.print_exc()
+        raise self.retry(exc=e, countdown=30)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=30)
+def generate_item_export_task(self, export_id, mode, ids):
+    """
+    Background task to generate item export for large datasets.
+    
+    Args:
+        export_id: Unique identifier for this export (used for filename and tracking)
+        mode: 'filtered' | 'selected'
+        ids: List of item IDs to export
+    
+    Returns:
+        dict with status, filename, and error info
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    from django.core.files.storage import default_storage
+    from django.core.files.base import ContentFile
+    from django.conf import settings
+    from django.db.models import Count
+    import os
+    import traceback
+    import time
+    
+    start_time = time.time()
+    
+    # Define paths
+    exports_dir = os.path.join(settings.MEDIA_ROOT, 'exports')
+    os.makedirs(exports_dir, exist_ok=True)
+    
+    filename = f'items_export_{export_id}.xlsx'
+    temp_filename = f'items_export_{export_id}.tmp.xlsx'
+    file_path = os.path.join(exports_dir, filename)
+    temp_file_path = os.path.join(exports_dir, temp_filename)
+    
+    try:
+        # Import choice mappings
+        from metadata.models import (
+            ACCESS_CHOICES, RESOURCE_TYPE_CHOICES,
+            AVAILABILITY_CHOICES, CONDITION_CHOICES,
+            ACCESSION_CHOICES, FORMAT_CHOICES,
+            GENRE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES,
+            ROLE_CHOICES
+        )
+        
+        # Fetch items with optimized queries
+        logger.info(f"[EXPORT] Fetching {len(ids)} items from database")
+        queryset = Item.objects.filter(id__in=ids).prefetch_related(
+            'language',
+            'collection',
+            'title_item__language',
+            'item_collaboratorroles__collaborator',
+        ).select_related('collection').annotate(
+            file_count=Count('item_files')
+        )
+        
+        # Sort by catalog_number (case-insensitive)
+        from django.db.models.functions import Lower
+        items = list(queryset.order_by(Lower('catalog_number')))
+        
+        logger.info(f"[EXPORT] Database returned {len(items)} items (expected {len(ids)})")
+        if len(items) != len(ids):
+            logger.warning(f"[EXPORT] Mismatch: requested {len(ids)} IDs but got {len(items)} items")
+            missing_ids = set(ids) - set(item.id for item in items)
+            if missing_ids:
+                logger.warning(f"[EXPORT] Missing IDs: {sorted(list(missing_ids))[:20]}...")  # Show first 20
+        
+        if len(items) == 0:
+            raise Exception(f"No items found for export (requested {len(ids)} IDs)")
+        
+        # Determine the maximum number of non-default titles across all items (up to 10)
+        max_additional_titles = 0
+        for item in items:
+            non_default_count = item.title_item.filter(default=False).count()
+            if non_default_count > max_additional_titles:
+                max_additional_titles = min(non_default_count, 10)  # Cap at 10
+        
+        # Always show at least "First Additional Title" column, even if all empty
+        if max_additional_titles == 0:
+            max_additional_titles = 1
+        
+        # Create workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Items"
+        
+        # Build headers (same logic as synchronous export)
+        headers = [
+            'Catalog Number', 'Collection', '# of Files', 'Access Level', 'Default Title',
+        ]
+        
+        # Add dynamic additional title columns
+        headers.append('First Additional Title')
+        for i in range(2, max_additional_titles + 1):
+            ordinal = ['Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'][i-2]
+            headers.append(f'{ordinal} Additional Title')
+        
+        # Continue with remaining headers (abbreviated for space)
+        headers.extend([
+            'Description', 'Resource Type', 'Call Number', 'Associated Ephemera',
+            'Languages', 'Collaborators (Role, Citation)', 'Creation Date',
+            'Genre', 'Language Description Type', 'Permission to Publish Online', 'Access Level Restrictions',
+            'Accession Number', 'Accession Date', 'Type of Accession', 'Acquisition Notes',
+            'Collector Name', 'Collector Info', 'Collection Date', 'Collecting Notes',
+            'Depositor Name', 'Depositor Contact Information', 'Deposit Date', 'Project Grant',
+            'Availability Status', 'Availability Status Notes', 'Condition', 'Condition Notes',
+            'Original Format Medium', 'Location of Original', 'Other Institutional Number',
+            'Conservation Recommendation', 'Conservation Treatments Performed', 'Equipment Used', 'Software Used', 'IPM Issues',
+            'Municipality or Township', 'County or Parish', 'State or Province', 'Country or Territory', 'Global Region',
+            'Recording Context', 'Public Event', 'Recorded On', 'Latitude', 'Longitude',
+            'Publisher', 'Publisher Address', 'ISBN', 'LOC Catalog Number', 'Total Number of Pages and Physical Description',
+            'Temporary Accession Number', 'Lender Loan Number', 'Other Information',
+        ])
+        
+        # Write header row with styling
+        header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+        header_font = Font(bold=True, color='FFFFFF')
+        
+        for col_idx, header in enumerate(headers, start=1):
+            cell = ws.cell(row=1, column=col_idx, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+        
+        # Write data rows
+        for row_idx, item in enumerate(items, start=2):
+            # Get default title
+            default_title_obj = item.title_item.filter(default=True).first()
+            default_title = f"{default_title_obj.title} ({default_title_obj.language.name})" if default_title_obj and default_title_obj.language else (default_title_obj.title if default_title_obj else '')
+            
+            # Get all non-default titles (up to 10)
+            non_default_titles = list(item.title_item.filter(default=False).order_by('id')[:10])
+            additional_titles = []
+            for title_obj in non_default_titles:
+                title_str = f"{title_obj.title} ({title_obj.language.name})" if title_obj.language else title_obj.title
+                additional_titles.append(title_str)
+            
+            # Pad with empty strings
+            while len(additional_titles) < max_additional_titles:
+                additional_titles.append('')
+            
+            # Get languages (formatted as: name (glottocode), name (glottocode))
+            languages = ', '.join([
+                f"{lang.name} ({lang.glottocode})" if lang.glottocode else lang.name
+                for lang in item.language.all()
+            ])
+            
+            # Get collaborators with roles
+            collaborators_list = []
+            for cr in item.item_collaboratorroles.all().select_related('collaborator'):
+                collab_name = cr.collaborator.full_name
+                roles_display = []
+                
+                if cr.role:
+                    if isinstance(cr.role, list):
+                        roles = cr.role
+                    elif isinstance(cr.role, str):
+                        roles = [r.strip() for r in cr.role.split(',') if r.strip()]
+                    else:
+                        roles = []
+                    
+                    role_dict = dict(ROLE_CHOICES)
+                    roles_display = [role_dict.get(r, r) for r in roles]
+                
+                if roles_display and cr.citation_author:
+                    collab_str = f"{collab_name} ({', '.join(roles_display)}; in citation)"
+                elif roles_display:
+                    collab_str = f"{collab_name} ({', '.join(roles_display)})"
+                elif cr.citation_author:
+                    collab_str = f"{collab_name} (in citation)"
+                else:
+                    collab_str = collab_name
+                
+                collaborators_list.append(collab_str)
+            
+            collaborators = ', '.join(collaborators_list)
+            
+            # Convert choice fields to labels
+            access_level_label = dict(ACCESS_CHOICES).get(item.item_access_level, item.item_access_level) if item.item_access_level else ''
+            resource_type_label = dict(RESOURCE_TYPE_CHOICES).get(item.resource_type, item.resource_type) if item.resource_type else ''
+            availability_status_label = dict(AVAILABILITY_CHOICES).get(item.availability_status, item.availability_status) if item.availability_status else ''
+            condition_label = dict(CONDITION_CHOICES).get(item.condition, item.condition) if item.condition else ''
+            accession_type_label = dict(ACCESSION_CHOICES).get(item.type_of_accession, item.type_of_accession) if item.type_of_accession else ''
+            format_label = dict(FORMAT_CHOICES).get(item.original_format_medium, item.original_format_medium) if item.original_format_medium else ''
+            
+            # Handle multiselect fields
+            genre_labels = []
+            if item.genre:
+                genre_dict = dict(GENRE_CHOICES)
+                genre_list = item.genre if isinstance(item.genre, list) else [g.strip() for g in item.genre.split(',') if g.strip()]
+                genre_labels = [genre_dict.get(g, g) for g in genre_list]
+            genre_display = ', '.join(genre_labels)
+            
+            lang_desc_labels = []
+            if item.language_description_type:
+                lang_desc_dict = dict(LANGUAGE_DESCRIPTION_CHOICES)
+                lang_desc_list = item.language_description_type if isinstance(item.language_description_type, list) else [ld.strip() for ld in item.language_description_type.split(',') if ld.strip()]
+                lang_desc_labels = [lang_desc_dict.get(ld, ld) for ld in lang_desc_list]
+            lang_desc_display = ', '.join(lang_desc_labels)
+            
+            # Handle boolean field
+            permission_display = 'Yes' if item.permission_to_publish_online is True else ('No' if item.permission_to_publish_online is False else 'Not specified')
+            
+            # Build row_data
+            row_data = [
+                item.catalog_number or '',
+                item.collection.collection_abbr if item.collection else '',
+                item.file_count,
+                access_level_label,
+                default_title,
+            ]
+            
+            # Add all additional titles
+            row_data.extend(additional_titles)
+            
+            # Continue with remaining fields
+            row_data.extend([
+                item.description_scope_and_content or '',
+                resource_type_label,
+                item.call_number or '',
+                item.associated_ephemera or '',
+                languages,
+                collaborators,
+                item.creation_date or '',
+                genre_display,
+                lang_desc_display,
+                permission_display,
+                item.access_level_restrictions or '',
+                item.accession_number or '',
+                item.accession_date or '',
+                accession_type_label,
+                item.acquisition_notes or '',
+                item.collector_name or '',
+                item.collector_info or '',
+                item.collection_date or '',
+                item.collecting_notes or '',
+                item.depositor_name or '',
+                item.depositor_contact_information or '',
+                item.deposit_date or '',
+                item.project_grant or '',
+                availability_status_label,
+                item.availability_status_notes or '',
+                condition_label,
+                item.condition_notes or '',
+                format_label,
+                item.location_of_original or '',
+                item.other_institutional_number or '',
+                item.conservation_recommendation or '',
+                item.conservation_treatments_performed or '',
+                item.equipment_used or '',
+                item.software_used or '',
+                item.ipm_issues or '',
+                item.municipality_or_township or '',
+                item.county_or_parish or '',
+                item.state_or_province or '',
+                item.country_or_territory or '',
+                item.global_region or '',
+                item.recording_context or '',
+                item.public_event or '',
+                item.recorded_on or '',
+                str(item.latitude) if item.latitude else '',
+                str(item.longitude) if item.longitude else '',
+                item.publisher or '',
+                item.publisher_address or '',
+                item.isbn or '',
+                item.loc_catalog_number or '',
+                item.total_number_of_pages_and_physical_description or '',
+                item.temporary_accession_number or '',
+                item.lender_loan_number or '',
+                item.other_information or '',
+            ])
+            
+            for col_idx, value in enumerate(row_data, start=1):
+                ws.cell(row=row_idx, column=col_idx, value=value)
+        
+        # Adjust column widths
+        for col_idx, header in enumerate(headers, start=1):
+            column_letter = ws.cell(row=1, column=col_idx).column_letter
+            ws.column_dimensions[column_letter].width = 15
+        
+        elapsed_time = time.time() - start_time
+        
+        # Save to TEMP file first (atomic write pattern)
+        wb.save(temp_file_path)
+        file_size = os.path.getsize(temp_file_path)
+        
+        # Validate minimum file size (2MB export should be at least 1MB)
+        min_expected_size = 500000  # 500KB minimum for 4,402 items
+        if file_size < min_expected_size:
+            # Clean up partial file
+            if os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
+            raise Exception(f"Export file suspiciously small ({file_size} bytes) - aborting")
+        
+        # Atomically rename temp file to final name (prevents partial file serving)
+        os.rename(temp_file_path, file_path)
+        
+        total_time = time.time() - start_time
+        
+        return {
+            'status': 'success',
+            'filename': filename,
+            'count': len(items),
+            'file_size': file_size,
+            'duration': total_time
+        }
+        
+    except Exception as e:
+        logger.error(f"[EXPORT TASK] Error generating item export {export_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Clean up any partial files
+        if os.path.exists(temp_file_path):
+            logger.info(f"[EXPORT TASK] Cleaning up temp file: {temp_filename}")
+            os.remove(temp_file_path)
+        if os.path.exists(file_path):
+            logger.info(f"[EXPORT TASK] Cleaning up partial file: {filename}")
+            os.remove(file_path)
+        
         raise self.retry(exc=e, countdown=30)

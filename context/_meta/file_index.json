@@ -1,7 +1,7 @@
 {
   "file_index": {
-    "version": "1.1",
-    "last_updated": "2025-11-13",
+    "version": "1.2",
+    "last_updated": "2025-11-17",
     "purpose": "Directory of all context files and their specific purposes",
     
     "meta_files": {
@@ -166,8 +166,24 @@
         "purpose": "Universal patterns that MUST be implemented in ALL batch editors (session persistence, order preservation, empty mode, warning dialogs, batch modes, cell pagination)",
         "when_to_reference": "Before starting batch editor for new model, debugging session persistence or refresh issues, implementing empty mode or warning dialogs",
         "update_frequency": "When new universal patterns discovered, when patterns refined, when implementing batch editor for new model",
-        "cross_references": ["stage_1_batch_editing.json", "collaborator_batch_editor_lessons.json"],
-        "added_date": "2025-11-13"
+        "cross_references": ["stage_1_batch_editing.json", "collaborator_batch_editor_lessons.json", "item-batch-editor-lessons.json"],
+        "added_date": "2025-11-13",
+        "updated_date": "2025-11-17"
+      },
+      "item-batch-editor-lessons.json": {
+        "purpose": "Item batch editor as STATE-OF-THE-ART reference implementation - comprehensive lessons learned, reusable components, patterns for Document implementation",
+        "when_to_reference": "MUST READ before implementing Document batch editor, when working with complex through-models, when implementing custom cell editors, understanding invalid data preservation pattern",
+        "update_frequency": "If Document batch editor reveals new patterns or Item patterns need refinement",
+        "cross_references": ["stage_1_batch_editing.json", "batch-editor-universal-patterns.json", "collaborator_batch_editor_lessons.json", "coding_patterns.json", "data_model_understanding.json"],
+        "added_date": "2025-11-17",
+        "key_content": [
+          "6 pattern fidelity lessons (Redis caching, export filenames, client-side filtering, etc.)",
+          "4 new universal patterns (complex through-models, virtual fields, invalid data preservation, multiselect enhancements)",
+          "Reusable components inventory (CollaboratorRolesCellEditor, TitleWithLanguageCellEditor)",
+          "10 anti-patterns to avoid",
+          "6 debugging strategies",
+          "5-phase Document implementation checklist with efficiency tips"
+        ]
       }
     },
     

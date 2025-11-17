@@ -1,9 +1,9 @@
 {
   "data_model_understanding": {
-    "version": "1.3",
-    "last_updated": "2025-11-13",
-    "conversation_reference": "Collaborator model harmonization, Dialect/DialectInstance decommissioning, language relationship simplification, plus item_count annotations and first_names field label updates",
-    "note": "Comprehensive documentation of Languoid, Collaborator, and deprecated models. Item and Document models updated with language relationship changes. Collection model still needs detailed analysis.",
+    "version": "1.4",
+    "last_updated": "2025-11-17",
+    "conversation_reference": "Item model detailed with complex through-models (CollaboratorRole, ItemTitle) and batch editor implementation documentation",
+    "note": "Comprehensive documentation of Languoid, Collaborator, and Item models. Item now documented with batch editor implementation details, complex through-models, and virtual fields. Document model still needs detailed analysis after Document batch editor implementation.",
     
     "deprecated_models": {
       "dialect": {
@@ -46,10 +46,47 @@
         "decision_id": "model_001",
         "content": "Items are catalog entries with rich metadata - core entity of the archive system",
         "added_date": "2025-01-04",
-        "updated_date": "2025-11-14",
-        "conversation_reference": "Browse categories auto-calculation and collection auto-assignment implementation",
-        "characteristics": ["Catalog numbers", "Titles (indigenous and English)", "Access levels", "Resource types", "Creation dates", "Browse categories (auto-calculated)", "Collection (auto-assigned)"],
-        "relationships": ["Has many Documents/Files", "Has many Collaborators", "Belongs to Collections"],
+        "updated_date": "2025-11-17",
+        "conversation_reference": "Item batch editor implementation completed with complex through-models and virtual fields",
+        "characteristics": ["Catalog numbers (unique identifier)", "Titles (indigenous and English via ItemTitle through-model)", "Access levels", "Resource types", "Creation dates", "Browse categories (auto-calculated)", "Collection (auto-assigned)", "61 total fields"],
+        "relationships": ["Has many Documents/Files", "Has many Collaborators via CollaboratorRole through-model", "Has many Titles via ItemTitle through-model", "Has many Languages (M2M)", "Belongs to Collections"],
+        
+        "complex_fields": {
+          "collaborator_roles": {
+            "through_model": "CollaboratorRole",
+            "attributes": {
+              "collaborator": "FK to Collaborator",
+              "roles": "MultiSelectField with 20+ choices (author, speaker, translator, etc.)",
+              "citation_author": "BooleanField - whether collaborator appears in citations"
+            },
+            "batch_editor": {
+              "cell_type": "collaborator_roles (custom)",
+              "custom_editor": "CollaboratorRolesCellEditor.tsx",
+              "display_format": "Full Name (Role1, Role2; in citation)",
+              "import_format": "Same as display format, parses name, roles, citation status",
+              "invalid_handling": "Preserves with id: null, shows as red cards"
+            }
+          },
+          
+          "primary_title_and_secondary_title": {
+            "through_model": "ItemTitle",
+            "attributes": {
+              "title": "CharField - title text",
+              "language": "FK to Languoid",
+              "default": "BooleanField - one default title per item"
+            },
+            "serializer_pattern": "SerializerMethodField (virtual field) aggregating ItemTitle data",
+            "backend_update": "InternalItemSerializer.create/update methods handle ItemTitle CRUD",
+            "batch_editor": {
+              "cell_type": "title_with_language (custom)",
+              "custom_editor": "TitleWithLanguageCellEditor.tsx",
+              "display_format": "Title Text (Language Name)",
+              "import_format": "Same as display format, parses title and language by name",
+              "validation": "Skip backend validation (virtual field), parser validates"
+            }
+          }
+        },
+        
         "computed_fields": {
           "browse_categories": {
             "field_type": "MultiSelectField with editable=False",
@@ -80,6 +117,43 @@
             "error_handling": "Handles Collection.DoesNotExist and Collection.MultipleObjectsReturned gracefully"
           }
         },
+        
+        "batch_editor_implementation": {
+          "status": "complete (production) - state-of-the-art reference implementation",
+          "reference_file": "context/development/item-batch-editor-lessons.json",
+          "scale": "4,402 items × 61 fields, ~17MB cached",
+          "performance": "Redis caching with async rebuild, async export for >100 rows",
+          "custom_editors": ["CollaboratorRolesCellEditor (through-model)", "TitleWithLanguageCellEditor (text+FK)"],
+          "import_export": "Human-readable format with comprehensive parsing and invalid data preservation",
+          "serializers": {
+            "full_serializer": {
+              "name": "InternalItemSerializer",
+              "usage": "Detail views, create/update operations",
+              "includes": "All fields, computed fields, display values, full related object data",
+              "fields_count": "~90 fields including display variants"
+            },
+            "batch_serializer": {
+              "name": "InternalItemBatchSerializer",
+              "usage": "List views with batch=true param, cache responses",
+              "optimization": "Minimal fields for fast serialization of 4000+ items",
+              "critical_requirement": "MUST include all fields needed for client-side filtering",
+              "includes": [
+                "All model fields",
+                "titles array (for keyword filter - added 2025-11-17)",
+                "collaborators array with name field",
+                "language array",
+                "primary_title and secondary_title (virtual fields)",
+                "MultiSelectField lists (genre, language_description_type)"
+              ],
+              "excludes": [
+                "Display value fields (_display suffix)",
+                "Verbose computed fields not needed for filtering/editing"
+              ],
+              "field_structure_note": "description_scope_and_content (NOT description), collaborators with 'name' (NOT collaborator_data.full_name)"
+            }
+          }
+        },
+        
         "confidence_level": "high",
         "status": "active"
       },

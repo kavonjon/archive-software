@@ -1015,6 +1015,116 @@
       "cross_references": ["data_model_understanding.json", "signal_driven_computed_fields"]
     },
     
+    "client_side_filtering_with_picker_serializers": {
+      "decision_id": "pattern_040",
+      "content": "Pattern for implementing instant client-side filtering in dropdowns using ultra-lightweight picker serializers",
+      "added_date": "2025-11-16",
+      "conversation_reference": "Item detail collaborator field UX optimization - eliminated flickering and network latency in search",
+      
+      "problem": {
+        "description": "Server-side filtering causes poor UX with visible loading, result flickering, and race conditions",
+        "symptoms": [
+          "Results appear incomplete then update as new data arrives",
+          "Network latency makes search feel sluggish",
+          "Race conditions cause results from older searches to overwrite newer ones",
+          "Multiple API calls per search session waste bandwidth"
+        ]
+      },
+      
+      "solution": {
+        "approach": "Load full lightweight dataset once, filter client-side for instant results",
+        "steps": [
+          "Create ultra-lightweight 'picker' serializer (4-5 fields only)",
+          "Load full dataset when entering edit mode (not on page load)",
+          "Store in component state for instant filtering",
+          "Filter client-side as user types with zero debounce"
+        ]
+      },
+      
+      "backend_implementation": {
+        "picker_serializer": {
+          "purpose": "Ultra-lightweight serializer for dropdown/picker components only",
+          "naming_convention": "[Model]PickerSerializer (e.g., CollaboratorPickerSerializer)",
+          "typical_fields": ["id", "display_name", "full_name", "slug"],
+          "size_target": "~40-50 bytes per object for fast transmission",
+          "location": "Same file as other serializers, clearly documented as separate from batch serializer"
+        },
+        
+        "query_parameter": {
+          "parameter_name": "picker=true",
+          "purpose": "Signals ViewSet to use picker serializer",
+          "isolation_requirement": "MUST be different from batch=true to avoid batch editor conflicts",
+          "implementation": "Add conditional in get_serializer_class() method"
+        },
+        
+        "isolation_from_batch_editor": {
+          "critical_rule": "Picker infrastructure MUST NOT interfere with batch editor",
+          "separation_checklist": [
+            "Use picker=true parameter (NOT batch=true)",
+            "Create separate PickerSerializer (NOT modify BatchSerializer)",
+            "Use separate cache key if caching (e.g., _picker_list not _list_full)",
+            "Add comments documenting separation from batch editor",
+            "Test that batch=true still returns BatchSerializer"
+          ],
+          "rationale": "Batch editor is complex, working infrastructure that must remain untouched"
+        }
+      },
+      
+      "frontend_implementation": {
+        "state_structure": {
+          "allItems": "Full list loaded once from API",
+          "filteredItems": "Client-side filtered subset shown in dropdown",
+          "searchQuery": "Current search input value"
+        },
+        
+        "loading_strategy": {
+          "timing": "Load when entering edit mode (not on page load)",
+          "rationale": "Don't waste bandwidth if user never edits; still instant when needed",
+          "api_call": "?picker=true&page_size=10000 (get all with lightweight serializer)"
+        },
+        
+        "filtering_logic": {
+          "trigger": "useEffect watching searchQuery changes",
+          "implementation": "Simple case-insensitive string matching on relevant fields",
+          "performance": "JavaScript array filter is instant for thousands of items",
+          "no_debounce": "Results update instantly as user types - no artificial delay needed"
+        }
+      },
+      
+      "performance_considerations": {
+        "when_appropriate": [
+          "Dataset is hundreds to low thousands of objects",
+          "Each object serializes to < 100 bytes with picker serializer",
+          "Total payload < 1-2 MB",
+          "Filtering criteria are simple (text matching, not complex logic)"
+        ],
+        
+        "performance_benefits": [
+          "One lightweight API call vs many heavier calls",
+          "Zero network latency for filtering",
+          "No race conditions or result flickering",
+          "Instant response as user types",
+          "Reduced server load"
+        ]
+      },
+      
+      "use_cases": [
+        "Collaborator picker on Item detail page (EditableCollaboratorRolesField)",
+        "Any dropdown with 100-5000 options that users search frequently",
+        "Components where instant feedback is important for UX"
+      ],
+      
+      "files_implementing_pattern": [
+        "app/internal_api/serializers.py - CollaboratorPickerSerializer",
+        "app/internal_api/views.py - InternalCollaboratorViewSet.get_serializer_class()",
+        "frontend/src/components/common/EditableCollaboratorRolesField.tsx - client-side filtering"
+      ],
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": ["batch-editor-universal-patterns.json", "ui-enhancements-session.json"]
+    },
+    
     "m2m_consistency_signals": {
       "decision_id": "pattern_031",
       "content": "Use m2m_changed signals to enforce data integrity rules on Many-to-Many relationships by checking ALL current relationships after ANY change",
@@ -1304,6 +1414,111 @@
       "confidence_level": "high",
       "status": "active",
       "cross_references": ["stage_0_react_migration.json"]
+    },
+    
+    "custom_cell_editors_for_complex_fields": {
+      "decision_id": "pattern_038",
+      "content": "Pattern for implementing custom cell editors for complex fields in batch editors (through-models, text+FK, etc.)",
+      "added_date": "2025-11-17",
+      "conversation_reference": "Item batch editor implementation - CollaboratorRolesCellEditor and TitleWithLanguageCellEditor patterns",
+      
+      "when_needed": [
+        "Through-model relationships with multiple attributes (e.g., CollaboratorRole with roles[] + citation boolean)",
+        "Composite fields (text + FK relationship, e.g., title text + language FK)",
+        "Any field too complex for standard select/multiselect/text editors"
+      ],
+      
+      "implementation_requirements": {
+        "custom_cell_type": "Define new cellType (e.g., 'collaborator_roles', 'title_with_language') in spreadsheet.ts",
+        "dedicated_component": "Create dedicated React component in frontend/src/components/batch/",
+        "structured_clipboard": "Add serialization cases to TanStackSpreadsheet.tsx for copy/paste",
+        "import_parser": "Create dedicated parser in itemImportValueParsers.ts for spreadsheet import"
+      },
+      
+      "component_interface_pattern": {
+        "required_props": "cell (with value object), onCommit(newValue, text), onCancel, metadata (options/choices)",
+        "value_format": "Structured object matching backend serializer format",
+        "text_format": "Human-readable string for display mode (e.g., 'Name (Role1, Role2; in citation)')",
+        "focus_management": "autoFocus on mount, handle Enter/Escape keys",
+        "commit_logic": "Compare original vs current, call onCommit if changed, onCancel if unchanged"
+      },
+      
+      "invalid_data_handling": {
+        "pattern": "Preserve invalid items with id: null, visualize as red (border/background/text), block commit if invalid remain",
+        "user_workflow": "User sees red chip/card → deletes it → cell turns yellow (changed) → can save",
+        "unique_keys": "Generate _uniqueKey for stable React rendering: 'valid-{id}' or 'invalid-{timestamp}-{index}'"
+      },
+      
+      "examples": {
+        "CollaboratorRolesCellEditor": {
+          "file": "frontend/src/components/batch/CollaboratorRolesCellEditor.tsx",
+          "use_case": "Through-model with multiselect + boolean (CollaboratorRole)",
+          "value_format": "[{id, name, roles: string[], citation_author: boolean}]",
+          "features": "Search/add items, edit attributes per item, show invalid as red cards"
+        },
+        "TitleWithLanguageCellEditor": {
+          "file": "frontend/src/components/batch/TitleWithLanguageCellEditor.tsx",
+          "use_case": "Text + FK relationship (title text + language)",
+          "value_format": "{title: string, language: {id, name, glottocode} | null}",
+          "features": "TextField for text, Autocomplete for FK, keyboard handling"
+        }
+      },
+      
+      "reusability": "Components are designed to be adapted for similar patterns (e.g., CollaboratorRolesCellEditor for any through-model with attributes)",
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": [
+        "context/development/item-batch-editor-lessons.json",
+        "frontend/src/components/batch/CollaboratorRolesCellEditor.tsx",
+        "frontend/src/components/batch/TitleWithLanguageCellEditor.tsx"
+      ]
+    },
+    
+    "invalid_data_preservation_ui_pattern": {
+      "decision_id": "pattern_039",
+      "content": "Pattern for preserving and visualizing invalid user input for correction instead of silently dropping it",
+      "added_date": "2025-11-17",
+      "conversation_reference": "Item batch editor implementation - languoid and collaborator import with invalid data",
+      
+      "problem": "User imports data with typos or non-existent references. Old approach: silently drop. Result: user confused why data disappeared.",
+      
+      "solution_architecture": {
+        "preserve_with_null_id": "Store invalid items with id: null and original user input (e.g., {id: null, name: 'Engliswwh', glottocode: null})",
+        "visualize_as_red": "Render with red styling (border, background, text) to clearly indicate error",
+        "block_save": "Mark cell as invalid, prevent save operation if invalid items remain",
+        "allow_correction": "User can delete invalid items, cell turns yellow (changed), then save"
+      },
+      
+      "implementation_steps": {
+        "step_1_parser": "When lookup fails, add item with id: null and original text",
+        "step_2_validation": "Mark cell as invalid (validationState: 'invalid') if ANY items have id: null",
+        "step_3_visualization": "Conditional Chip/Card styling based on isValid flag",
+        "step_4_commit_blocking": "In editor commit logic, check for id: null items, cancel if present",
+        "step_5_change_detection": "Detect removal of invalid items as a change (turns cell yellow)"
+      },
+      
+      "applies_to": [
+        "Multiselect FK fields (Languages column)",
+        "Custom through-model editors (Collaborators column)",
+        "Any field where user input might reference non-existent data"
+      ],
+      
+      "visual_distinction": {
+        "invalid_multiselect_chip": "Red border, red background (lighter), red text",
+        "invalid_through_model_card": "Red border, red background, 'Not found in database' label",
+        "cell_state": "Red border when invalid items present, yellow border if valid changes made alongside"
+      },
+      
+      "anti_pattern": "Silently dropping invalid data - user loses work and has no idea why",
+      
+      "confidence_level": "high",
+      "status": "active",
+      "cross_references": [
+        "context/development/item-batch-editor-lessons.json (pattern_invalid_data_preservation)",
+        "frontend/src/components/batch/CellEditor.tsx (multiselect invalid handling)",
+        "frontend/src/components/batch/CollaboratorRolesCellEditor.tsx (through-model invalid handling)"
+      ]
     }
   }
 }

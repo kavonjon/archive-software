@@ -1,0 +1,888 @@
+{
+  "item_batch_editor_lessons": {
+    "version": "1.0",
+    "last_updated": "2025-11-17",
+    "added_date": "2025-11-17",
+    "conversation_reference": "Item batch editor implementation session - comprehensive implementation from planning through debugging async exports",
+    "confidence_level": "high",
+    "status": "active",
+    
+    "purpose": "Capture Item batch editor as the new state-of-the-art reference implementation, synthesizing all lessons learned from Languoid and Collaborator implementations plus new discoveries. This file serves as the comprehensive guide for implementing the final Document batch editor in Stage 1.",
+    
+    "cross_references": {
+      "parent_stage": "context/development/stage_1_batch_editing.json",
+      "universal_patterns": "context/development/batch-editor-universal-patterns.json",
+      "previous_lessons": "context/development/collaborator_batch_editor_lessons.json",
+      "coding_patterns": "context/development/coding_patterns.json",
+      "data_model": "context/domain/data_model_understanding.json",
+      "implementation_files": [
+        "frontend/src/components/items/ItemBatchEditor.tsx",
+        "frontend/src/components/batch/CollaboratorRolesCellEditor.tsx",
+        "frontend/src/components/batch/TitleWithLanguageCellEditor.tsx",
+        "frontend/src/components/batch/CellEditor.tsx",
+        "frontend/src/services/itemImportColumnMapper.ts",
+        "frontend/src/services/itemImportTransformer.ts",
+        "frontend/src/services/itemImportValueParsers.ts",
+        "frontend/src/hooks/useImportItemSpreadsheet.ts",
+        "app/internal_api/serializers.py (InternalItemSerializer, InternalItemBatchSerializer)",
+        "app/internal_api/views.py (InternalItemViewSet)",
+        "app/metadata/tasks.py (generate_item_export_task)"
+      ]
+    },
+    
+    "executive_summary": {
+      "state_of_the_art": "Item batch editor is now the most complete and sophisticated batch editor implementation, superseding Collaborator batch editor as the reference implementation for future work.",
+      
+      "efficiency_gains": "Successfully leveraged existing patterns from batch-editor-universal-patterns.json and collaborator_batch_editor_lessons.json, resulting in faster initial implementation compared to Collaborator batch editor development time.",
+      
+      "pattern_fidelity_discovery": "While leveraging existing patterns improved efficiency, implementation revealed additional high-fidelity pattern-following requirements that weren't initially apparent. These discoveries led to iterative refinements and deeper understanding of what 'following existing patterns' truly requires.",
+      
+      "new_complexity_handled": {
+        "complex_through_models": "CollaboratorRole with MultiSelectField roles + boolean citation_author",
+        "virtual_computed_fields": "primary_title and secondary_title as SerializerMethodField aggregating ItemTitle data",
+        "invalid_data_preservation": "Preserving user input with id: null for correction instead of silently dropping",
+        "61_fields": "Largest batch editor to date with most complex field types and relationships"
+      },
+      
+      "reusable_components_created": [
+        "CollaboratorRolesCellEditor - handles any through-model with attributes (multiselect + booleans)",
+        "TitleWithLanguageCellEditor - handles text + FK selection pattern",
+        "Enhanced multiselect with invalid item visualization and handling",
+        "Import parsers for complex multi-attribute fields"
+      ],
+      
+      "document_batch_editor_readiness": "With Item batch editor complete, all patterns and components are in place for efficient Document batch editor implementation. Document will likely be simpler (fewer complex fields) and can directly reference Item patterns."
+    },
+    
+    "pattern_fidelity_lessons": {
+      "decision_id": "item_lessons_001",
+      "content": "Lessons learned about following existing patterns with higher fidelity",
+      "added_date": "2025-11-17",
+      
+      "lesson_1_redis_caching": {
+        "what_happened": "Initially implemented Item batch editor without Redis caching, assuming it was optional. Hit sessionStorage quota errors with 4,396 items × 61 fields (15.32MB).",
+        "what_we_learned": "Redis caching is NOT optional for any model with >1000 rows. Must be implemented from the start, not retrofitted.",
+        "correct_pattern": "Follow InternalCollaboratorViewSet list() method pattern: check cache first, return 202 Accepted for async rebuild if stale, implement warm_item_list_cache Celery task.",
+        "for_document_editor": "Implement Redis caching in very first iteration, before even testing with real data."
+      },
+      
+      "lesson_2_export_filenames": {
+        "what_happened": "Initial implementation used timestamp-based export IDs (YYYY-MM-DD_HHMMSS) in backend, which caused subtle issues with async task execution and filename collisions.",
+        "what_we_learned": "Separate concerns: Backend needs guaranteed uniqueness (UUID), Frontend needs human-readability (formatted timestamp).",
+        "correct_pattern": "Backend: export_id = str(uuid.uuid4()). Frontend: Generate timestamp on download in YYYY-MM-DD_HHMMSS format for link.download attribute.",
+        "for_document_editor": "Use UUID backend + formatted timestamp frontend from the start."
+      },
+      
+      "lesson_3_client_side_filtering": {
+        "what_happened": "Export and batch edit initially used paginated items state, resulting in only 25 rows being processed instead of full filtered dataset.",
+        "what_we_learned": "Client-side filtering for exports and batch edits must operate on the FULL cached dataset, not the current pagination page.",
+        "correct_pattern": "Use allCachedItems = await getItems() then apply filters client-side, send resulting IDs to backend.",
+        "for_document_editor": "Always use full cache + client-side filter for exports/batch operations, never use paginated state."
+      },
+      
+      "lesson_4_async_export_error_handling": {
+        "what_happened": "Item async export task initially used raise self.retry() pattern, causing silent failures and corrupted 2KB files.",
+        "what_we_learned": "Task error handling pattern is inconsistent across models. Item works with return {'status': 'error'}, Collaborator uses raise self.retry().",
+        "correct_pattern": "For new tasks, use return error dict pattern (simpler, more predictable). Keep decorator: @shared_task(bind=True, max_retries=3, default_retry_delay=30).",
+        "for_document_editor": "Use return {'status': 'error', 'error': str(e)} pattern in async export task."
+      },
+      
+      "lesson_5_virtual_field_validation": {
+        "what_happened": "Import validation failed for primary_title and secondary_title with 'Method POST not allowed' errors because backend tried to validate SerializerMethodField.",
+        "what_we_learned": "Virtual/computed fields (SerializerMethodField) cannot be validated via backend API. Parser must handle validation, backend validation must be skipped.",
+        "correct_pattern": "Add virtual field names to skipValidationFields array in import hook. Parser errors mark cell as invalid.",
+        "for_document_editor": "Identify virtual fields early, add to skip list, ensure parsers have comprehensive validation."
+      },
+      
+      "lesson_6_sessionids_persistence": {
+        "what_happened": "New rows disappeared on browser refresh (F5) because sessionIds.current was in-memory only.",
+        "what_we_learned": "Must persist new row IDs to sessionStorage config to survive browser refresh, not just in-page refresh.",
+        "correct_pattern": "After saving draft rows, update sessionStorage '{model}-batch-config' with new IDs: config.ids = Array.from(sessionIds.current).",
+        "for_document_editor": "Update sessionStorage config immediately after successful save of new rows."
+      }
+    },
+    
+    "new_universal_patterns_discovered": {
+      "decision_id": "item_lessons_002",
+      "content": "New patterns discovered during Item implementation that apply to future batch editors",
+      "added_date": "2025-11-17",
+      
+      "pattern_complex_through_model": {
+        "pattern_name": "Complex Through-Model with Multiple Attributes",
+        "problem": "Through models that aren't just junction tables but have their own complex attributes (MultiSelectField, booleans, etc.)",
+        "example": "CollaboratorRole: FK to Collaborator + roles (MultiSelectField with 20+ choices) + citation_author (boolean)",
+        
+        "implementation_requirements": {
+          "backend_serializer": "Use SerializerMethodField for read (format as objects), handle in create/update methods for write (create/update through model instances)",
+          "frontend_column_type": "Custom cellType (e.g., 'collaborator_roles') with dedicated cell editor component",
+          "custom_editor_needed": true,
+          "structured_clipboard": "Add case to serializeCellForClipboard/deserializeCellFromClipboard in TanStackSpreadsheet.tsx"
+        },
+        
+        "custom_editor_pattern": {
+          "component_structure": "Search/add collaborators, display as cards, edit attributes per card (dropdown for multiselect, checkbox for boolean)",
+          "state_management": "selectedCollaborators array with {id, name, roles[], citation_author} objects",
+          "commit_logic": "Compare original vs current (separate valid/invalid), detect ANY changes, commit if changed, cancel if unchanged",
+          "invalid_handling": "Show invalid items (id: null) as red cards, block commit if invalid remain, detect invalid removal as change"
+        },
+        
+        "import_export": {
+          "export_format": "Human-readable: 'Full Name (Role1, Role2; in citation)'",
+          "import_parsing": "Parse name → lookup by full_name, parse roles → map labels to values, parse 'in citation' → boolean",
+          "error_handling": "Preserve invalid with id: null, show red cell, allow user correction"
+        },
+        
+        "reusable_for": "Any through model with attributes beyond simple junction (e.g., Document-Contributor with contribution_type + primary_flag)",
+        "files_created": [
+          "frontend/src/components/batch/CollaboratorRolesCellEditor.tsx",
+          "frontend/src/services/itemImportValueParsers.ts (parseCollaboratorsWithRoles)"
+        ]
+      },
+      
+      "pattern_virtual_aggregated_fields": {
+        "pattern_name": "Virtual Fields Aggregating Through-Model Data",
+        "problem": "Fields that don't exist on main model but aggregate data from related through-model (e.g., 'default title' from multiple ItemTitle records)",
+        "example": "primary_title and secondary_title: Aggregate ItemTitle where default=True or default=False, format as {title: string, language: {id, name, glottocode}}",
+        
+        "implementation_requirements": {
+          "backend_serializer": "SerializerMethodField with get_* method that queries through model, formats response. Handle in update/create with explicit through-model CRUD.",
+          "frontend_column_type": "Custom cellType (e.g., 'title_with_language') with dedicated cell editor",
+          "validation_strategy": "Skip backend validation (add to skipValidationFields), parser validates and formats",
+          "custom_editor_needed": true
+        },
+        
+        "backend_update_pattern": {
+          "in_update_method": "Extract *_data from validated_data, query existing through-model instances, create/update/delete as needed",
+          "in_create_method": "Same pattern - must handle through-model creation for new parent instances",
+          "transaction_safety": "Wrap in try-except, through-model changes part of parent transaction"
+        },
+        
+        "custom_editor_pattern": {
+          "component_structure": "TextField for text input + Autocomplete for FK selection (e.g., Language)",
+          "data_format": "{title: string, language: {id, name, glottocode} | null}",
+          "commit_logic": "Simple comparison of title and language.id, commit if changed",
+          "keyboard_handling": "Enter commits if autocomplete closed, Escape cancels, handle autocomplete open state"
+        },
+        
+        "import_export": {
+          "export_format": "Human-readable: 'Title Text (Language Name)'",
+          "import_parsing": "Parse title text, extract language name from parentheses, lookup language by name (must be unique)",
+          "error_handling": "Show red cell if language not found or not unique, preserve original input"
+        },
+        
+        "reusable_for": "Any virtual field that aggregates through-model data (e.g., Document primary_subject from DocumentSubject through model)",
+        "files_created": [
+          "frontend/src/components/batch/TitleWithLanguageCellEditor.tsx",
+          "frontend/src/services/itemImportValueParsers.ts (parseTitleWithLanguage)"
+        ]
+      },
+      
+      "pattern_invalid_data_preservation": {
+        "pattern_name": "Invalid Data Preservation for User Correction",
+        "problem": "User imports data with typos or non-existent references. Old approach: silently drop invalid data. User: confused why data disappeared.",
+        "solution": "Preserve invalid data with id: null, visualize as red/invalid, allow user to see what's wrong and fix it",
+        
+        "implementation_steps": {
+          "step_1_parser": "When lookup fails (e.g., languoid not found), add to array with id: null and original text: {id: null, name: 'Original Input', glottocode: null}",
+          "step_2_validation": "Mark cell as invalid (validationState: 'invalid') if ANY items have id: null",
+          "step_3_visualization": "In custom editors, render id: null items with red styling (border, background, text)",
+          "step_4_commit_blocking": "Block save if invalid items remain - cell stays red",
+          "step_5_change_detection": "Detect removal of invalid items as a change - cell turns yellow when fixed"
+        },
+        
+        "editor_behavior": {
+          "multiselect": "Show invalid items as red chips, allow deletion, cancel commit if invalid remain",
+          "through_model": "Show invalid items as red cards with 'Not found in database' label, same delete/cancel logic",
+          "comparison_logic": "Separate valid and invalid items, compare only valid items for equality, flag invalid presence"
+        },
+        
+        "user_workflow": {
+          "import_with_typo": "User imports 'Engliswwh (stan6593)' → Parser marks invalid → Cell red → Tooltip shows error",
+          "user_sees_error": "Opens editor → Sees 'Engliswwh' as red chip → Realizes typo",
+          "user_corrects": "Deletes red chip → Valid items remain → Cell turns yellow (changed) → Can save",
+          "alternative": "Cancels → Cell stays red → Can fix in spreadsheet and re-import"
+        },
+        
+        "technical_details": {
+          "unique_key_strategy": "Generate _uniqueKey for all items (valid or invalid) for stable React rendering: 'valid-{id}' or 'invalid-{timestamp}-{index}-{name}'",
+          "state_management": "Track isValid flag per item, filter/separate in commit logic",
+          "paste_handling": "Structured paste preserves id: null items, plain text paste triggers parser"
+        },
+        
+        "reusable_for": "Any field with FK lookups or complex validation where user input might be invalid (languoids, collaborators, subjects, genres)",
+        "anti_pattern": "Silently dropping invalid data - user loses work and has no idea why"
+      },
+      
+      "pattern_multiselect_invalid_enhancement": {
+        "pattern_name": "Multiselect Editor Invalid Item Handling",
+        "problem": "Standard multiselect editor doesn't distinguish valid vs invalid items from import",
+        "solution": "Enhance CellEditor.tsx multiselect case to filter, visualize, and handle invalid items",
+        
+        "implementation": {
+          "initialization": "Filter out id: null items OR create fake chips with isValid: false flag",
+          "visualization": "Conditional Chip styling: red border + background for isValid === false",
+          "commit_logic": "Check if ANY invalid items remain → cancel. Check if invalid items removed → commit (change detected).",
+          "comparison": "Compare only valid item IDs: originalValidIds vs currentValidIds"
+        },
+        
+        "code_location": "frontend/src/components/batch/CellEditor.tsx, multiselect case in renderEditor()",
+        "applies_to": "Standard multiselect fields (Languages, Genre, Language Description Type) that accept FK lookups"
+      }
+    },
+    
+    "reusable_components_inventory": {
+      "decision_id": "item_lessons_003",
+      "content": "Inventory of components created during Item batch editor that can be reused",
+      "added_date": "2025-11-17",
+      
+      "CollaboratorRolesCellEditor": {
+        "file": "frontend/src/components/batch/CollaboratorRolesCellEditor.tsx",
+        "purpose": "Edit through-model relationships with multiple attributes (multiselect + booleans)",
+        "reusability": "HIGH - can be adapted for any through model with attributes",
+        
+        "interface_pattern": {
+          "props": "cell (with value: array of objects), onCommit(newValue, text), onCancel, metadata (role choices)",
+          "value_format": "[{id, name, roles: string[], citation_author: boolean, isValid?: boolean}]",
+          "text_format": "Formatted string for display: 'Name (Role1, Role2; in citation)'"
+        },
+        
+        "features": {
+          "search_and_add": "Autocomplete to search and add items by name",
+          "attribute_editing": "Per-item editing: multiselect dropdown for roles, checkbox for citation",
+          "invalid_handling": "Red cards for id: null items, block commit if present",
+          "change_detection": "Comprehensive comparison of valid AND invalid items"
+        },
+        
+        "adaptation_guide": {
+          "for_new_through_model": [
+            "1. Update value interface (replace 'roles' and 'citation_author' with your attributes)",
+            "2. Update search API call (replace collaboratorsAPI with your API)",
+            "3. Update attribute editors (replace roles dropdown and citation checkbox with your fields)",
+            "4. Update formatting in handleCommit (generate appropriate display text)",
+            "5. Update metadata prop (pass your choice options)"
+          ]
+        }
+      },
+      
+      "TitleWithLanguageCellEditor": {
+        "file": "frontend/src/components/batch/TitleWithLanguageCellEditor.tsx",
+        "purpose": "Edit composite field: text + FK relationship",
+        "reusability": "HIGH - any text + related model pattern",
+        
+        "interface_pattern": {
+          "props": "cell (with value: {title: string, language: object | null}), onCommit, onCancel, metadata (languoid options)",
+          "value_format": "{title: string, language: {id, name, glottocode} | null}",
+          "text_format": "'Title Text (Language Name)'"
+        },
+        
+        "features": {
+          "text_input": "TextField for main text content",
+          "fk_selection": "Autocomplete with search/filter for related model",
+          "keyboard_handling": "Enter/Escape with autocomplete state awareness",
+          "change_detection": "Compare both text and language.id"
+        },
+        
+        "adaptation_guide": {
+          "for_new_text_fk_pattern": [
+            "1. Update value interface (rename 'title' and 'language' to your field names)",
+            "2. Update Autocomplete options (replace languoidOptions with your options)",
+            "3. Update TextField label and placeholder",
+            "4. Update formatting in handleCommit",
+            "5. Ensure metadata.languoidOptions → metadata.yourOptions"
+          ]
+        }
+      },
+      
+      "CellEditor_multiselect_enhancements": {
+        "file": "frontend/src/components/batch/CellEditor.tsx",
+        "purpose": "Enhanced multiselect case with invalid item handling",
+        "reusability": "UNIVERSAL - applies to all multiselect fields",
+        
+        "enhancements": [
+          "Filter out id: null items on initialization",
+          "Render invalid chips with red styling (conditional based on isValid flag)",
+          "Cancel commit if invalid chips remain",
+          "Detect removal of invalid chips as change",
+          "Comprehensive valid vs invalid comparison logic"
+        ],
+        
+        "code_sections": {
+          "initialization": "Lines filtering invalid items or creating isValid flags",
+          "visualization": "Chip component with conditional sx styling",
+          "commit_logic": "handleMultiSelectCommit with invalid checks"
+        }
+      },
+      
+      "import_parsers": {
+        "file": "frontend/src/services/itemImportValueParsers.ts",
+        "purpose": "Parse complex multi-attribute fields from spreadsheet text",
+        "reusability": "TEMPLATES - adapt patterns for similar structures",
+        
+        "parseCollaboratorsWithRoles": {
+          "input": "'Full Name (Role1, Role2; in citation)'",
+          "output": "{id, name, roles: string[], citation_author: boolean, isValid: boolean}",
+          "features": "Name lookup (exact + without nickname), roles parsing (map labels → values), citation parsing, uniqueness validation",
+          "reuse_for": "Any multi-attribute through model parsing"
+        },
+        
+        "parseTitleWithLanguage": {
+          "input": "'Title Text (Language Name)'",
+          "output": "{title: string, language: {id, name, glottocode} | null}",
+          "features": "Regex to extract text and parenthetical, language lookup by name, uniqueness validation",
+          "reuse_for": "Any text + FK parsing"
+        },
+        
+        "parseCommaSeparatedLanguoids_enhanced": {
+          "input": "'Swahili (swah1253), English (stan1293)' OR 'swah1253, stan1293' OR 'Swahili, English'",
+          "output": "[{id, name, glottocode}, ...]",
+          "features": "Multiple format support, glottocode-first lookup, name fallback, uniqueness validation, PRESERVES invalid with id: null",
+          "enhancement": "Invalid preservation pattern - doesn't drop bad data"
+        }
+      }
+    },
+    
+    "item_specific_patterns": {
+      "decision_id": "item_lessons_004",
+      "content": "Patterns specific to Item batch editor that Document likely won't need but are documented for reference",
+      "added_date": "2025-11-17",
+      
+      "dynamic_title_columns_in_export": {
+        "problem": "Items can have unlimited non-default titles, but spreadsheet needs fixed columns",
+        "solution": "Dynamic column generation: analyze max titles across all items (cap at 10), always show 'First Additional Title' even if empty, generate 'Second', 'Third', etc. as needed",
+        "implementation": "In generate_item_export_task: iterate items, count non-default titles, determine max, generate column headers, pad row data with empty strings",
+        "reusable": false,
+        "reason": "Document model unlikely to have similar unlimited-title requirement"
+      },
+      
+      "itemtitle_through_model_default_flag": {
+        "problem": "Items have one 'default' title and multiple 'additional' titles",
+        "solution": "ItemTitle through model with default boolean, filter by default=True for primary, default=False for additional",
+        "backend_handling": "When updating primary_title, set old default to False, new to True. Only one default=True per item.",
+        "reusable": false,
+        "reason": "Pattern is specific to Item's title requirements"
+      },
+      
+      "catalog_number_uniqueness_validation": {
+        "problem": "Catalog numbers must be unique across all items AND within current batch editor rows",
+        "solution": "Client-side validation that checks against cached items AND draft rows, mark cell invalid if duplicate found (but allow current row's original value)",
+        "implementation": "In handleCellChange: get all catalog numbers from rows + cache, check if newValue exists elsewhere, set validationState: 'invalid' if duplicate",
+        "reusable": true,
+        "note": "Document might have similar unique identifier field requiring same validation pattern"
+      },
+      
+      "61_fields_management": {
+        "challenge": "Item model has 61 fields, largest batch editor to date",
+        "lessons": [
+          "Column width management critical for usability",
+          "Field grouping mental model helps (dates together, geographic together, etc.)",
+          "Choice constants must be imported from centralized location (api.ts)",
+          "Multiselect and select fields need comprehensive choice mappings for import/export"
+        ],
+        "reusable": true,
+        "note": "Document might be similarly large, same management strategies apply"
+      }
+    },
+    
+    "performance_patterns_confirmed": {
+      "decision_id": "item_lessons_005",
+      "content": "Performance patterns tested and confirmed at scale with Item batch editor",
+      "added_date": "2025-11-17",
+      
+      "redis_caching_mandatory": {
+        "scale_tested": "4,402 items × 61 fields = ~17MB JSON payload",
+        "pattern": "Backend: Redis cache with TTL, async rebuild on stale. Frontend: ItemCacheContext with getItems(forceRefresh).",
+        "performance": "Cache hit: <1 second. Cache rebuild: ~15-20 seconds background. Initial load: ~15-20 seconds one-time.",
+        "requirement": "Mandatory for any model with >1000 rows or >5MB cached payload"
+      },
+      
+      "async_cache_rebuild": {
+        "pattern": "list() returns 202 Accepted if cache stale, triggers Celery task, frontend polls /items/?",
+        "user_experience": "Dialog shows 'Cache loading, please wait...', auto-proceeds when ready",
+        "anti_pattern": "Synchronous rebuild blocks request for 15-20 seconds, times out, bad UX"
+      },
+      
+      "case_insensitive_sorting": {
+        "problem": "Default Django sorting is case-sensitive: 'Zebra' comes before 'apple'",
+        "solution": "Use Lower('field_name') in order_by() for queryset and tasks",
+        "implementation": "from django.db.models.functions import Lower; queryset.order_by(Lower('catalog_number'))",
+        "applies_to": "List views, exports, cache building"
+      },
+      
+      "async_export_threshold": {
+        "pattern": ">100 rows triggers async export with Celery task",
+        "uuid_backend": "export_id = str(uuid.uuid4()) for guaranteed uniqueness",
+        "timestamp_frontend": "Generate YYYY-MM-DD_HHMMSS on download for human-readable filename",
+        "polling": "Frontend polls /export-status/{export_id}/ every 2 seconds, 60 second timeout"
+      },
+      
+      "client_side_filtering_full_dataset": {
+        "problem": "Paginated state only has 25 items, filters need full dataset",
+        "solution": "await getItems() returns full cached dataset, apply filters client-side, send filtered IDs to backend",
+        "applies_to": "Exports, batch edit, any operation on 'filtered' items",
+        "implementation": "const allCachedItems = await getItems(); const filtered = applyFiltersToCache(allCachedItems); const ids = filtered.map(i => i.id);"
+      },
+      
+      "prefetch_related_optimization": {
+        "pattern": "Use prefetch_related for M2M and reverse FK lookups to avoid N+1 queries",
+        "item_example": "prefetch_related('language', 'title_item__language', 'item_collaboratorroles__collaborator')",
+        "impact": "Reduces export time from minutes to seconds for 4,400 items"
+      }
+    },
+    
+    "import_export_pattern_refinements": {
+      "decision_id": "item_lessons_006",
+      "content": "Refined understanding of import/export patterns from Item implementation",
+      "added_date": "2025-11-17",
+      
+      "export_format_human_readable": {
+        "principle": "Export must be human-readable and editable in spreadsheet software",
+        "examples": {
+          "select_fields": "Export: '3 - Access protected by a time limit' (not '3')",
+          "multiselect_fields": "Export: 'Audio, Video' (not 'audio,video')",
+          "boolean_fields": "Export: 'Yes' / 'No' / 'Not specified' (not true/false/null)",
+          "fk_fields": "Export: 'English (stan1293)' (not '15')",
+          "through_model_fields": "Export: 'John Doe (Author, Speaker; in citation)' (not JSON)"
+        },
+        "implementation": "Use dict(CHOICES).get(value, value) to map values to labels"
+      },
+      
+      "import_parsing_human_readable": {
+        "principle": "Import must accept the same human-readable format that export produces",
+        "requirements": {
+          "reverse_mapping": "Parser must map labels back to values using choice constants",
+          "format_flexibility": "Accept multiple reasonable formats (glottocode, name, or both)",
+          "error_preservation": "Don't drop invalid data, preserve with id: null for user correction"
+        },
+        "implementation": "Dedicated parsers in itemImportValueParsers.ts for each complex field type"
+      },
+      
+      "parser_level_validation": {
+        "principle": "Validation happens at parser level for complex fields, not backend API",
+        "reasoning": "Backend API can't validate virtual fields (SerializerMethodField) or complex multi-attribute fields",
+        "pattern": "Parser returns {value, text, error} tuple. If error, mark cell invalid. Frontend blocks save if invalid cells.",
+        "skip_backend_validation": "Add field names to skipValidationFields array in useImport hook"
+      },
+      
+      "comparison_logic_complex_objects": {
+        "problem": "Simple === comparison doesn't work for objects or arrays",
+        "solution": "Custom areCellValuesEqual function with type-specific comparison logic",
+        "examples": {
+          "arrays": "Compare sorted JSON.stringify for multiselects",
+          "title_objects": "Compare title string AND language.id",
+          "collaborator_arrays": "Compare sorted arrays of {id, roles[], citation_author}"
+        },
+        "purpose": "Prevent imported data that matches existing data from showing as yellow (changed)"
+      },
+      
+      "new_row_identification": {
+        "pattern": "New rows have IDs starting with 'new-{timestamp}' prefix",
+        "validation_strategy": "Skip backend validation for new rows (isNewRow check), only validate parsers",
+        "cell_type_mapping": "Use correct cellType when creating draft rows (not hardcoded 'text')"
+      }
+    },
+    
+    "debugging_lessons": {
+      "decision_id": "item_lessons_007",
+      "content": "Debugging strategies discovered during Item implementation, especially async export troubleshooting",
+      "added_date": "2025-11-17",
+      
+      "celery_silent_failures": {
+        "symptom": "Celery logs show task received but no execution logs, task marked complete, file corrupted or wrong size",
+        "root_cause": "Task crashes before first line of code executes (decorator issue, import error, function signature mismatch)",
+        "debugging_strategy": [
+          "Add logging BEFORE try block to prove task starts",
+          "Check decorator parameters match function signature",
+          "Verify all imports at top of function (not just in try block)",
+          "Compare with working task from same file",
+          "Check for syntax errors: python3 -m py_compile tasks.py"
+        ],
+        "lesson_learned": "Task execution failures can be silent. Need aggressive early logging to detect."
+      },
+      
+      "cached_file_detection": {
+        "symptom": "Export 'succeeds' and file size looks correct, but user gets old data",
+        "root_cause": "Celery task fails, but old file from previous run still exists with same filename",
+        "debugging_strategy": [
+          "Check file timestamp: ls -lh media/exports/ | grep {export_id}",
+          "Compare file timestamp to current test time",
+          "Check if export_id is reused (timestamp collision)",
+          "Verify task actually executed (check for task logs)"
+        ],
+        "solution": "Use UUID for export_id to guarantee uniqueness, prevents stale file collisions"
+      },
+      
+      "uuid_vs_timestamp_tradeoffs": {
+        "uuid_benefits": "Guaranteed uniqueness, no timezone issues, no collision risk",
+        "uuid_drawbacks": "Not human-readable, not sortable by time",
+        "timestamp_benefits": "Human-readable, sortable, indicates when export created",
+        "timestamp_drawbacks": "Collision risk, timezone complexity, parsing issues",
+        "hybrid_solution": "UUID on backend (uniqueness), timestamp on frontend (readability)"
+      },
+      
+      "client_side_filtering_verification": {
+        "symptom": "Export sends 0 items or wrong number of items",
+        "root_cause": "Using paginated state instead of full cached dataset",
+        "debugging_strategy": [
+          "Add console.log for activeFilterCount, activeFilters object, IDs array length",
+          "Trace through applyFiltersToCache function",
+          "Verify getItems() returns full dataset (not paginated slice)",
+          "Check if filters correctly map to Item interface properties"
+        ],
+        "lesson_learned": "Always log the IDs being sent to verify correct filtering"
+      },
+      
+      "cache_invalidation_unwanted_rebuilds": {
+        "symptom": "Save operation triggers 30-second cache rebuild",
+        "root_cause": "Post-save signal invalidates cache, triggering async rebuild",
+        "solution": "Set instance._skip_async_tasks = True in save_batch() to prevent signal from invalidating cache",
+        "lesson_learned": "Bulk operations need to suppress cache invalidation, update cache manually"
+      },
+      
+      "typescript_property_name_mismatches": {
+        "symptom": "Filters don't work, comparison fails, undefined property access",
+        "root_cause": "Frontend Item interface property names don't match actual API response",
+        "example": "Using item.description_scope_and_content when interface defines item.description",
+        "debugging_strategy": [
+          "Check Item interface in api.ts",
+          "Check actual API response in Network tab",
+          "grep for all usages of property to find mismatches",
+          "Use TypeScript strict mode to catch undefined access"
+        ],
+        "lesson_learned": "Keep Item interface in sync with backend serializer field names"
+      }
+    },
+    
+    "document_batch_editor_preparation_checklist": {
+      "decision_id": "item_lessons_008",
+      "content": "Comprehensive checklist for efficient Document batch editor implementation",
+      "added_date": "2025-11-17",
+      
+      "pre_implementation_reading": [
+        "☐ Read context/development/stage_1_batch_editing.json for overall context",
+        "☐ Read context/development/batch-editor-universal-patterns.json for 6 universal patterns",
+        "☐ Read context/development/collaborator_batch_editor_lessons.json for initial lessons",
+        "☐ Read THIS FILE (item-batch-editor-lessons.json) for latest state-of-the-art",
+        "☐ Review frontend/src/components/items/ItemBatchEditor.tsx for reference implementation",
+        "☐ Review frontend/src/components/batch/CollaboratorRolesCellEditor.tsx for through-model pattern",
+        "☐ Review frontend/src/components/batch/TitleWithLanguageCellEditor.tsx for text+FK pattern"
+      ],
+      
+      "model_analysis": [
+        "☐ List all Document model fields (how many?)",
+        "☐ Identify complex fields requiring custom editors (through models? virtual fields?)",
+        "☐ Identify fields with choice constants (create/verify in api.ts)",
+        "☐ Identify unique fields requiring validation (like catalog_number)",
+        "☐ Check for M2M relationships (will need multiselect)",
+        "☐ Check for through models with attributes (need custom editor)",
+        "☐ Check for SerializerMethodField virtual columns (skip backend validation)",
+        "☐ Estimate cache size: row count × field count × avg field size"
+      ],
+      
+      "architecture_planning": [
+        "☐ Plan Redis caching from start (don't retrofit)",
+        "☐ Plan async export from start (UUID backend, timestamp frontend)",
+        "☐ Plan client-side filtering using full cache (not paginated state)",
+        "☐ Identify reusable components from Item (CollaboratorRolesCellEditor? TitleWithLanguageCellEditor?)",
+        "☐ Plan custom editors needed (adapt existing or create new?)",
+        "☐ Plan import parsers needed (adapt existing patterns)",
+        "☐ List fields to skip backend validation (virtual fields, through models with attributes)"
+      ],
+      
+      "implementation_phase_1_backend": [
+        "☐ Create InternalDocumentSerializer with all fields",
+        "☐ Create InternalDocumentBatchSerializer (lighter, for list/batch)",
+        "☐ Implement SerializerMethodField for virtual/aggregated columns",
+        "☐ Implement update/create logic for through models",
+        "☐ Create InternalDocumentViewSet with list/save_batch/export actions",
+        "☐ Implement Redis caching in list() method (check cache, 202 if stale)",
+        "☐ Create warm_document_list_cache Celery task",
+        "☐ Create generate_document_export_task Celery task (UUID + return error dict)",
+        "☐ Use Lower() for case-insensitive sorting"
+      ],
+      
+      "implementation_phase_2_frontend_basic": [
+        "☐ Create DocumentBatchEditor.tsx (copy Item as template)",
+        "☐ Create DocumentCacheContext.tsx (copy Item pattern)",
+        "☐ Update DocumentsList.tsx for batch edit and async export",
+        "☐ Define column configs with correct cellTypes",
+        "☐ Import choice constants from api.ts",
+        "☐ Implement itemToRow and row-to-item transformations",
+        "☐ Implement handleCellChange with validation for standard fields",
+        "☐ Implement handleSaveAllConfirm with transformation logic"
+      ],
+      
+      "implementation_phase_3_complex_fields": [
+        "☐ Identify which custom editors to reuse (Collaborator? Title? Both? Neither?)",
+        "☐ Adapt or create custom editors for Document-specific through models",
+        "☐ Add cellType cases to CellEditor.tsx if needed",
+        "☐ Add serialization cases to TanStackSpreadsheet.tsx for structured copy/paste",
+        "☐ Implement invalid data preservation (id: null) for FK lookups",
+        "☐ Implement red chip/card visualization for invalid items",
+        "☐ Test commit/cancel logic for complex editors"
+      ],
+      
+      "implementation_phase_4_import_export": [
+        "☐ Create documentImportColumnMapper.ts",
+        "☐ Create documentImportTransformer.ts",
+        "☐ Create documentImportValueParsers.ts (adapt Item parsers as templates)",
+        "☐ Implement parsers for complex fields (through models, text+FK, etc.)",
+        "☐ Create useImportDocumentSpreadsheet.ts hook",
+        "☐ Add skipValidationFields for virtual columns",
+        "☐ Test import with exported spreadsheet (round-trip test)",
+        "☐ Test import with invalid data (verify preservation and visualization)",
+        "☐ Implement export with human-readable format",
+        "☐ Test async export for >100 rows"
+      ],
+      
+      "implementation_phase_5_testing_and_refinement": [
+        "☐ Test with small dataset (10 rows) - verify all field types work",
+        "☐ Test with medium dataset (100 rows) - verify async export triggers",
+        "☐ Test with large dataset (1000+ rows) - verify Redis cache performance",
+        "☐ Test new row creation and persistence across browser refresh",
+        "☐ Test validation for unique fields (if any)",
+        "☐ Test invalid data import and user correction workflow",
+        "☐ Test all 6 universal patterns are working correctly",
+        "☐ Compare with Item batch editor - any patterns missed?",
+        "☐ Update contextual memory with Document-specific lessons learned"
+      ],
+      
+      "efficiency_tips": [
+        "Copy Item batch editor files as starting templates (don't start from scratch)",
+        "Reuse CollaboratorRolesCellEditor/TitleWithLanguageCellEditor if applicable patterns exist",
+        "Use Item import parsers as templates (don't rewrite logic)",
+        "Reference Item serializer for SerializerMethodField and through-model patterns",
+        "Use same Redis caching pattern (don't reinvent)",
+        "Use same async export pattern with UUID (proven to work)",
+        "Test incrementally - don't implement everything before first test"
+      ]
+    },
+    
+    "anti_patterns_summary": {
+      "decision_id": "item_lessons_009",
+      "content": "Summary of anti-patterns to avoid based on Item implementation iterations",
+      "added_date": "2025-11-17",
+      
+      "anti_patterns": [
+        {
+          "pattern": "Implementing without Redis caching",
+          "why_bad": "Will hit sessionStorage quota, requires painful retrofit",
+          "correct": "Implement Redis caching from first iteration"
+        },
+        {
+          "pattern": "Using timestamp for export_id in backend",
+          "why_bad": "Collision risk, timezone issues, subtle bugs",
+          "correct": "Use UUID in backend, format timestamp on frontend download"
+        },
+        {
+          "pattern": "Using paginated state for filtered operations",
+          "why_bad": "Only operates on 25 rows instead of full filtered dataset",
+          "correct": "Use full cached dataset, apply filters client-side"
+        },
+        {
+          "pattern": "Silently dropping invalid imported data",
+          "why_bad": "User loses data, doesn't know why, can't fix it",
+          "correct": "Preserve invalid data with id: null, show red, allow correction"
+        },
+        {
+          "pattern": "Validating virtual fields via backend API",
+          "why_bad": "Backend can't validate SerializerMethodField, returns 405 error",
+          "correct": "Skip backend validation for virtual fields, validate in parser"
+        },
+        {
+          "pattern": "Not updating sessionStorage config after save",
+          "why_bad": "New rows disappear on browser refresh",
+          "correct": "Update sessionStorage config with new row IDs after successful save"
+        },
+        {
+          "pattern": "Using raise self.retry() in Celery tasks without understanding",
+          "why_bad": "Can cause silent failures and corrupted files",
+          "correct": "Use return {'status': 'error'} pattern for clearer error handling"
+        },
+        {
+          "pattern": "Hardcoding choice constants in batch editor files",
+          "why_bad": "Duplicated data, goes out of sync with backend, maintenance nightmare",
+          "correct": "Import choice constants from centralized api.ts"
+        },
+        {
+          "pattern": "Not using Lower() for text field sorting",
+          "why_bad": "Case-sensitive sort: 'Zebra' before 'apple' is confusing to users",
+          "correct": "Use Lower('field_name') in order_by()"
+        },
+        {
+          "pattern": "Forgetting prefetch_related for M2M and reverse FK",
+          "why_bad": "N+1 query problem, exports take minutes instead of seconds",
+          "correct": "Always prefetch_related for related data in list/export queries"
+        }
+      ]
+    },
+    
+    "success_metrics": {
+      "decision_id": "item_lessons_010",
+      "content": "Metrics demonstrating Item batch editor success and readiness as reference implementation",
+      "added_date": "2025-11-17",
+      
+      "implementation_metrics": {
+        "total_fields": 61,
+        "complex_field_types": 5,
+        "custom_editors_created": 2,
+        "reusable_components": 4,
+        "scale_tested": "4,402 rows × 61 fields",
+        "cache_size": "~17MB JSON",
+        "async_export_threshold": ">100 rows",
+        "async_export_time": "~18 seconds for 4,402 rows"
+      },
+      
+      "pattern_adherence": {
+        "universal_patterns_implemented": "6 of 6 (100%)",
+        "previous_lessons_applied": "All lessons from collaborator_batch_editor_lessons.json",
+        "redis_caching": "Yes (retrofitted, should be from start next time)",
+        "async_export": "Yes (UUID backend + timestamp frontend)",
+        "invalid_data_preservation": "Yes (new pattern discovered)",
+        "client_side_filtering": "Yes (full cache, not paginated)"
+      },
+      
+      "code_quality": {
+        "typescript_errors": 0,
+        "linter_errors": 0,
+        "follows_existing_patterns": "High fidelity",
+        "reusable_component_ratio": "50% (2 of 4 components highly reusable)",
+        "documentation_quality": "Comprehensive (this file)"
+      },
+      
+      "user_experience": {
+        "load_time_cached": "<1 second",
+        "load_time_cold": "~15-20 seconds (one-time)",
+        "save_time": "<2 seconds for batch of changed rows",
+        "export_time_sync": "<3 seconds for ≤100 rows",
+        "export_time_async": "~18 seconds for 4,402 rows (background)",
+        "import_validation": "Real-time with visual feedback",
+        "error_handling": "Red cells with tooltips, preserves user input"
+      },
+      
+      "readiness_for_document": {
+        "patterns_documented": "Yes (comprehensive)",
+        "components_reusable": "Yes (2 major components + parsers)",
+        "anti_patterns_identified": "Yes (10 anti-patterns)",
+        "debugging_strategies": "Yes (6 strategies)",
+        "checklist_provided": "Yes (5-phase implementation checklist)",
+        "confidence_level": "High - ready for efficient Document implementation"
+      }
+    },
+    
+    "filter_persistence_and_client_side_filtering": {
+      "decision_id": "item_lessons_008",
+      "content": "Critical lessons about filter persistence and client-side filtering parity with backend",
+      "added_date": "2025-11-17",
+      "conversation_reference": "Debugging batch edit filtered and export filtered discrepancies (697 vs 685 items)",
+      
+      "problem_discovered": {
+        "symptom": "Item list page showed 697 items with 'ass' keyword filter, but batch editor and export only loaded 685 items",
+        "root_cause": "Client-side filter logic in applyFiltersToCache didn't have access to all fields needed to match backend's filter_keyword behavior",
+        "specific_issue": "Backend's keyword filter searches titles via title_item__title__icontains JOIN, but InternalItemBatchSerializer didn't include titles field - only primary_title and secondary_title"
+      },
+      
+      "solution_implemented": {
+        "backend_change": "Added titles SerializerMethodField to InternalItemBatchSerializer to return all ItemTitle objects with {id, title, language, language_name, language_iso, default}",
+        "rationale": "Client-side filtering requires same data that backend filtering uses. Without titles array, frontend couldn't replicate backend's title searching",
+        "code_location": "app/internal_api/serializers.py lines 72, 108-120"
+      },
+      
+      "field_name_mismatch_discovered": {
+        "problem": "Frontend filter checked item.description but backend uses description_scope_and_content",
+        "impact": "All keyword searches involving descriptions failed because field didn't exist in cached data",
+        "fix": "Updated frontend filter to use item.description_scope_and_content and added to Item TypeScript interface",
+        "lesson": "Always verify field names match between frontend TypeScript interfaces and backend serializer output"
+      },
+      
+      "collaborators_field_structure_correction": {
+        "problem": "Frontend checked collab.collaborator_data.full_name but batch serializer returns collab.name",
+        "impact": "Collaborator name filtering was broken in client-side filter",
+        "fix": "Updated frontend to check collab.name and added proper collaborators type to Item interface",
+        "lesson": "Batch serializers may have different structure than full serializers - always check actual serializer output"
+      },
+      
+      "filter_persistence_pattern": {
+        "requirement": "Item list filters should persist across navigation like Collaborator and Languoid lists",
+        "implementation": "Use usePersistedListState hook with sessionStorage",
+        "pattern_followed": "Copied from CollaboratorsList.tsx and LanguoidsList.tsx",
+        "key_elements": [
+          "filters state managed by usePersistedListState",
+          "activeFilters for debounced API calls",
+          "activeFilterCount calculated from activeFilters (not filters)",
+          "clearPersistedFilters function for clearing both state and storage",
+          "Automatic restoration on component mount"
+        ]
+      },
+      
+      "client_side_filter_parity_requirements": {
+        "critical_rule": "Client-side applyFiltersToCache MUST check the same fields that backend's filter methods check",
+        "backend_keyword_filter_checks": [
+          "catalog_number__icontains",
+          "call_number__icontains",
+          "description_scope_and_content__icontains",
+          "title_item__title__icontains (JOIN to ItemTitle)",
+          "collaborator__first_names__icontains (JOIN to Collaborator)",
+          "collaborator__last_names__icontains (JOIN to Collaborator)",
+          "collaborator__full_name__icontains (JOIN to Collaborator)"
+        ],
+        "frontend_keyword_filter_must_check": [
+          "item.catalog_number",
+          "item.call_number",
+          "item.description_scope_and_content",
+          "item.titles (array of title objects)",
+          "item.collaborators (array with name field = full_name)"
+        ],
+        "ensuring_parity": "If batch serializer doesn't include necessary fields for filtering, ADD THEM. Don't compromise filter accuracy."
+      },
+      
+      "list_page_ui_consistency": {
+        "requirement": "Item list page UI should match Collaborator/Languoid pattern",
+        "changes_made": [
+          "Page title changed from 'Items ({count})' to just 'Items'",
+          "Added results count below filters: '{count} item(s) found'",
+          "Matches pattern used in CollaboratorsList.tsx line 1050-1051"
+        ],
+        "location": "frontend/src/components/items/ItemsList.tsx lines 1068, 1528-1531",
+        "benefits": "Consistent UX across all list pages, cleaner header section"
+      },
+      
+      "navigation_menu_ordering": {
+        "change": "Collections moved before Items in navigation menu",
+        "rationale": "Reflects hierarchical relationship (Items belong to Collections)",
+        "location": "frontend/src/components/Navigation.tsx lines 36-37",
+        "new_order": ["Home", "Collections", "Items", "Collaborators", "Languages", "User Guide"]
+      },
+      
+      "debugging_approach": {
+        "effective_strategy": [
+          "1. Add logging to both frontend (console.log) and backend (logger.info) to compare counts",
+          "2. Log sample item structure from cache to verify field availability",
+          "3. Add detailed filter match logging (catalogMatch, descMatch, titlesMatch, etc.)",
+          "4. Compare frontend filter logic line-by-line with backend filter_keyword method",
+          "5. Verify TypeScript interfaces match actual API response structure"
+        ],
+        "tools_used": [
+          "Browser console for frontend debugging",
+          "Backend logs for Celery task execution",
+          "Network tab to inspect API response structure",
+          "Comparison of serializer output vs TypeScript interface"
+        ]
+      },
+      
+      "for_document_editor": {
+        "checklist": [
+          "✅ Ensure InternalDocumentBatchSerializer includes ALL fields needed for client-side filtering",
+          "✅ Verify TypeScript Document interface matches serializer output exactly",
+          "✅ Implement filter persistence using usePersistedListState from the start",
+          "✅ Follow Item list page UI pattern (title only, count below filters)",
+          "✅ Test that backend filter count matches frontend applyFiltersToCache count",
+          "✅ Add comprehensive logging during initial implementation for easier debugging"
+        ]
+      },
+      
+      "confidence_level": "high",
+      "status": "active"
+    }
+  }
+}
+

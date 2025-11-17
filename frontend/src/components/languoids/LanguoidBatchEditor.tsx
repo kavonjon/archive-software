@@ -671,8 +671,11 @@ export const LanguoidBatchEditor: React.FC = () => {
     if (column?.cellType === 'decimal') {
       // Validate decimal format (empty string is valid for nullable fields)
       if (newValue !== '' && newValue !== null && newValue !== undefined) {
+        const valueStr = String(newValue);
         const decimalRegex = /^-?\d+\.?\d*$|^-?\d*\.\d+$/;
-        if (!decimalRegex.test(String(newValue))) {
+        
+        // Check basic format
+        if (!decimalRegex.test(valueStr)) {
           dispatch(updateCell({
             rowId,
             fieldName,
@@ -682,6 +685,23 @@ export const LanguoidBatchEditor: React.FC = () => {
               validationState: 'invalid',
               validationError: 'Invalid decimal format. Use numbers like: 42, -17.5, 122.419906',
               hasConflict: false, // Clear conflict flag - user reviewed the cell
+            },
+          }));
+          return;
+        }
+        
+        // Check decimal places limit (max 16 decimal places for lat/long fields)
+        const decimalPart = valueStr.split('.')[1];
+        if (decimalPart && decimalPart.length > 16) {
+          dispatch(updateCell({
+            rowId,
+            fieldName,
+            cell: {
+              value: newValue,
+              text: text,
+              validationState: 'invalid',
+              validationError: 'Too many decimal places. Maximum 16 decimal places allowed.',
+              hasConflict: false,
             },
           }));
           return;
@@ -840,6 +860,28 @@ export const LanguoidBatchEditor: React.FC = () => {
         } else if (lowerText === '' || lowerText === 'null') {
           cell.value = null;
           cell.text = 'Not specified';
+        }
+      }
+      
+      // Decimal field validation (latitude, longitude)
+      if (column?.cellType === 'decimal') {
+        // Validate decimal format (empty string is valid for nullable fields)
+        if (cell.value !== '' && cell.value !== null && cell.value !== undefined) {
+          const valueStr = String(cell.value);
+          const decimalRegex = /^-?\d+\.?\d*$|^-?\d*\.\d+$/;
+          
+          // Check basic format
+          if (!decimalRegex.test(valueStr)) {
+            cell.validationState = 'invalid';
+            cell.validationError = 'Invalid decimal format. Use numbers like: 42, -17.5, 122.419906';
+          } else {
+            // Check decimal places limit (max 16 decimal places for lat/long fields)
+            const decimalPart = valueStr.split('.')[1];
+            if (decimalPart && decimalPart.length > 16) {
+              cell.validationState = 'invalid';
+              cell.validationError = 'Too many decimal places. Maximum 16 decimal places allowed.';
+            }
+          }
         }
       }
       

@@ -28,6 +28,8 @@ export interface Item {
   item_access_level_display: string;
   call_number: string;
   accession_date: string | null;
+  accession_date_min: string | null;  // Date range fields for filtering
+  accession_date_max: string | null;
   additional_digital_file_location: string;
   
   // Titles
@@ -37,7 +39,8 @@ export interface Item {
   english_title: string;
   
   // Content & Description
-  description: string;
+  description_scope_and_content: string;
+  description: string; // Alias for backwards compatibility (maps to description_scope_and_content)
   resource_type: string;
   resource_type_display: string;
   genre: string[];
@@ -48,8 +51,16 @@ export interface Item {
   browse_categories_display: string[];
   language_names: string[];  // DEPRECATED - use language instead
   language: Languoid[];  // Full Languoid objects for editing
-  collaborator_names: string[];
+  collaborator_names: string[];  // DEPRECATED - use collaborators instead
+  collaborators: Array<{
+    id: number;
+    name: string;
+    roles: string[];
+    citation_author: boolean;
+  }>;  // Full collaborator objects with roles
   creation_date: string | null;
+  creation_date_min: string | null;  // Date range fields for filtering
+  creation_date_max: string | null;
   associated_ephemera: string;
   access_level_restrictions: string;
   copyrighted_notes: string;
@@ -80,10 +91,14 @@ export interface Item {
   collector_info: string;
   collectors_number: string;
   collection_date: string;
+  collection_date_min: string | null;  // Date range fields for filtering
+  collection_date_max: string | null;
   collecting_notes: string;
   depositor_name: string;
   depositor_contact_information: string;
   deposit_date: string;
+  deposit_date_min: string | null;  // Date range fields for filtering
+  deposit_date_max: string | null;
   
   // Location section
   municipality_or_township: string;
@@ -434,6 +449,99 @@ export const GENRE_CHOICES = [
   { value: '', label: 'Not specified' }
 ];
 
+export const LANGUAGE_DESCRIPTION_TYPE_CHOICES = [
+  { value: 'primary-text', label: 'Primary text' },
+  { value: 'primary-text-igt', label: 'Primary text: IGT' },
+  { value: 'grammar', label: 'Grammar' },
+  { value: 'grammar-sketch', label: 'Grammar: Sketch' },
+  { value: 'grammar-specific-feature', label: 'Grammar: Specific feature' },
+  { value: 'lexicon', label: 'Lexicon' },
+  { value: 'lexicon-dictionary', label: 'Lexicon: Dictionary' },
+  { value: 'lexicon-wordlist', label: 'Lexicon: Wordlist' },
+  { value: 'transcript', label: 'Transcript' },
+  { value: 'translation', label: 'Translation' },
+  { value: 'comparative', label: 'Comparative' },
+  { value: 'fieldnotes', label: 'Field notes' },
+  { value: 'transcribed_texts', label: 'Transcribed texts' },
+];
+
+export const ACCESSION_CHOICES = [
+  { value: 'conversion', label: 'Conversion' },
+  { value: 'transfer', label: 'Exchange/Transfer' },
+  { value: 'field', label: 'Field Collection' },
+  { value: 'found', label: 'Found in Collection/Conversion' },
+  { value: 'gift', label: 'Gift' },
+  { value: 'purchase', label: 'Purchase' },
+  { value: 'reproduction', label: 'Reproduction' },
+];
+
+export const AVAILABILITY_CHOICES = [
+  { value: 'available', label: 'Available' },
+  { value: 'restrictions', label: 'Restrictions apply' },
+  { value: 'missing_parts', label: 'Missing parts' },
+  { value: 'missing', label: 'Missing' },
+];
+
+export const CONDITION_CHOICES = [
+  { value: 'excellent', label: 'Excellent' },
+  { value: 'good', label: 'Good' },
+  { value: 'fragile', label: 'Fragile' },
+  { value: 'fair', label: 'Fair' },
+  { value: 'poor', label: 'Poor' },
+];
+
+export const FORMAT_CHOICES = [
+  { value: 'audio_cd', label: 'audio CD' },
+  { value: 'audio_reel', label: 'audio reel' },
+  { value: 'book', label: 'book' },
+  { value: 'cassette', label: 'cassette' },
+  { value: 'cd', label: 'CD' },
+  { value: 'cd_dvd', label: 'CD-DVD' },
+  { value: 'dat', label: 'DAT' },
+  { value: 'cd_r', label: 'data CD (CD-R)' },
+  { value: 'dv_r', label: 'data DVD (DV-R)' },
+  { value: 'diskette', label: 'diskette' },
+  { value: 'dvd', label: 'DVD' },
+  { value: 'ephemera', label: 'ephemera' },
+  { value: 'garment', label: 'garment' },
+  { value: 'hi_8', label: 'hi-8' },
+  { value: 'manuscript', label: 'manuscript' },
+  { value: 'microcassette', label: 'microcassette' },
+  { value: 'mini_DV', label: 'mini-DV' },
+  { value: 'other', label: 'other' },
+  { value: 'phonograph_record', label: 'phonograph record' },
+  { value: 'reel_to_reel', label: 'reel-to-reel' },
+  { value: 'vhs', label: 'VHS' },
+  { value: 'video_reel', label: 'video reel' },
+];
+
+export const ROLE_CHOICES = [
+  { value: 'annotator', label: 'Annotator' },
+  { value: 'author', label: 'Author' },
+  { value: 'collector', label: 'Collector' },
+  { value: 'compiler', label: 'Compiler' },
+  { value: 'consultant', label: 'Consultant' },
+  { value: 'data_inputter', label: 'Data inputter' },
+  { value: 'editor', label: 'Editor' },
+  { value: 'filmer', label: 'Filmer' },
+  { value: 'illustrator', label: 'Illustrator' },
+  { value: 'interlocutor', label: 'Interlocutor' },
+  { value: 'interpreter', label: 'Interpreter' },
+  { value: 'interviewer', label: 'Interviewer' },
+  { value: 'performer', label: 'Performer' },
+  { value: 'photographer', label: 'Photographer' },
+  { value: 'publisher', label: 'Publisher' },
+  { value: 'recorder', label: 'Recorder' },
+  { value: 'research_participant', label: 'Research participant' },
+  { value: 'researcher', label: 'Researcher' },
+  { value: 'responder', label: 'Responder' },
+  { value: 'signer', label: 'Signer' },
+  { value: 'speaker', label: 'Speaker' },
+  { value: 'sponsor', label: 'Sponsor' },
+  { value: 'transcriber', label: 'Transcriber' },
+  { value: 'translator', label: 'Translator' },
+];
+
 // API Error class
 export class APIError extends Error {
   constructor(
@@ -512,9 +620,47 @@ export const apiRequest = async <T>(
 // Items API
 export const itemsAPI = {
   // Get paginated list of items with optional filtering
-  list: (params?: Record<string, string | number>): Promise<PaginatedResponse<Item>> => {
+  // Returns full response with status for cache rebuild polling
+  list: async (params?: Record<string, string | number>): Promise<PaginatedResponse<Item> & { status?: number }> => {
     const queryString = params ? '?' + new URLSearchParams(params as Record<string, string>).toString() : '';
-    return apiRequest<PaginatedResponse<Item>>(`/items/${queryString}`);
+    const url = `${API_BASE_URL}/items/${queryString}`;
+    
+    // Default headers
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    const response = await fetch(url, {
+      headers,
+      credentials: 'include',
+    });
+
+    // Handle 202 Accepted (cache rebuilding) - return status for polling
+    if (response.status === 202) {
+      const data = await response.json();
+      return { ...data, status: 202, count: 0, next: null, previous: null, results: [] };
+    }
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      let errorData;
+      
+      try {
+        errorData = await response.json();
+        if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch {
+        // Response is not JSON, use status text
+      }
+
+      throw new APIError(errorMessage, response.status, errorData);
+    }
+
+    const data = await response.json();
+    return { ...data, status: response.status };
   },
 
   // Get single item by ID
@@ -559,6 +705,83 @@ export const itemsAPI = {
       method: 'POST',
       body: JSON.stringify({ field, value }),
     });
+  },
+
+  // Batch save items (for batch editor)
+  saveBatch: (rows: any[]): Promise<{ success: boolean; saved: Item[]; errors: any[] }> => {
+    return apiRequest<any>('/items/save-batch/', {
+      method: 'POST',
+      body: JSON.stringify({ rows }),
+    });
+  },
+
+  // Export items to Excel
+  exportItems: async (params: { mode: string; ids: number[] }): Promise<any> => {
+    const url = `${API_BASE_URL}/items/export/`;
+    const csrfToken = await getCSRFToken();
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken,
+      },
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Export failed' }));
+      throw new Error(errorData.detail || 'Export failed');
+    }
+    
+    // Check Content-Type to determine if this is a file download or JSON response
+    const contentType = response.headers.get('Content-Type');
+    
+    if (contentType && contentType.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')) {
+      // Synchronous export - file download
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filename = contentDisposition?.match(/filename="(.+)"/)?.[1] || 'items_export.xlsx';
+      
+      // Trigger download
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      return { async: false, filename };
+    } else {
+      // Async export - JSON response with export_id
+      return await response.json();
+    }
+  },
+
+  // Check export status
+  getExportStatus: (exportId: string): Promise<any> => {
+    return apiRequest<any>(`/items/export-status/${exportId}/`);
+  },
+
+  // Download completed export
+  downloadExport: async (exportId: string): Promise<Blob> => {
+    const url = `${API_BASE_URL}/items/export-download/${exportId}/`;
+    const csrfToken = await getCSRFToken();
+    
+    const response = await fetch(url, {
+      headers: {
+        'X-CSRFToken': csrfToken,
+      },
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      throw new Error('Export download failed');
+    }
+    return response.blob();
   },
 };
 
@@ -617,16 +840,52 @@ export const collectionsAPI = {
 
 // Collaborators API
 export const collaboratorsAPI = {
-  list: (params?: Record<string, string | number | boolean>): Promise<PaginatedResponse<Collaborator>> => {
-    if (params) {
-      // Convert params to URLSearchParams, handling boolean values
+  list: async (params?: Record<string, string | number | boolean>): Promise<PaginatedResponse<Collaborator> & { status?: number }> => {
       const searchParams = new URLSearchParams();
+    if (params) {
       Object.entries(params).forEach(([key, value]) => {
         searchParams.append(key, String(value));
       });
-      return apiRequest<PaginatedResponse<Collaborator>>(`/collaborators/?${searchParams.toString()}`);
     }
-    return apiRequest<PaginatedResponse<Collaborator>>(`/collaborators/`);
+    const queryString = searchParams.toString();
+    const url = `${API_BASE_URL}/collaborators/${queryString ? '?' + queryString : ''}`;
+    
+    // Default headers
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    const response = await fetch(url, {
+      headers,
+      credentials: 'include',
+    });
+
+    // Handle 202 Accepted (cache rebuilding) - return status for polling
+    if (response.status === 202) {
+      const data = await response.json();
+      return { ...data, status: 202, count: 0, next: null, previous: null, results: [] };
+    }
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      let errorData;
+      
+      try {
+        errorData = await response.json();
+        if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch {
+        // Response is not JSON, use status text
+      }
+
+      throw new APIError(errorMessage, response.status, errorData);
+    }
+
+    const data = await response.json();
+    return { ...data, status: response.status };
   },
 
   get: (id: number | string): Promise<Collaborator> => {
@@ -671,7 +930,7 @@ export const collaboratorsAPI = {
     });
   },
 
-  export: async (mode: 'filtered' | 'selected', ids: number[]): Promise<Blob | { async: true; export_id: string; count: number }> => {
+  export: async (mode: 'filtered' | 'selected', ids: number[]): Promise<Blob | { async: true; export_id: string; count: number } | { blob: Blob; filename: string }> => {
     const csrfToken = await getCSRFToken();
     const response = await fetch(`${API_BASE_URL}/collaborators/export/`, {
       method: 'POST',
@@ -695,8 +954,35 @@ export const collaboratorsAPI = {
       const data = await response.json();
       return data;
     } else {
-      // Synchronous export - return blob
-      return response.blob();
+      // Synchronous export - extract filename from Content-Disposition header
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('content-disposition');
+      
+      // Default fallback with proper format
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      let filename = `collaborators_export_${year}-${month}-${day}_${hours}${minutes}${seconds}.xlsx`;
+      
+      if (contentDisposition) {
+        console.log('[API] Content-Disposition header:', contentDisposition);
+        // Match filename with or without quotes, handle both filename= and filename*=
+        const filenameMatch = contentDisposition.match(/filename\*?=["']?([^"';]+)["']?/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+          console.log('[API] Extracted filename:', filename);
+        } else {
+          console.log('[API] Could not extract filename from header, using fallback');
+        }
+      } else {
+        console.log('[API] No Content-Disposition header found, using fallback');
+      }
+      
+      return { blob, filename };
     }
   },
 
@@ -770,7 +1056,7 @@ export const languoidsAPI = {
     });
   },
 
-  export: async (mode: 'filtered' | 'selected', ids: number[]): Promise<Blob | { async: true; export_id: string; count: number }> => {
+  export: async (mode: 'filtered' | 'selected', ids: number[]): Promise<Blob | { async: true; export_id: string; count: number } | { blob: Blob; filename: string }> => {
     const csrfToken = await getCSRFToken();
     const response = await fetch(`${API_BASE_URL}/languoids/export/`, {
       method: 'POST',
@@ -794,8 +1080,34 @@ export const languoidsAPI = {
       const data = await response.json();
       return data;
     } else {
-      // Synchronous export - return blob
-      return response.blob();
+      // Synchronous export - extract filename from Content-Disposition header
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('content-disposition');
+      
+      // Default fallback with proper format
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      let filename = `languoids_export_${year}-${month}-${day}_${hours}${minutes}${seconds}.xlsx`;
+      
+      if (contentDisposition) {
+        console.log('[API] Content-Disposition header:', contentDisposition);
+        const filenameMatch = contentDisposition.match(/filename\*?=["']?([^"';]+)["']?/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+          console.log('[API] Extracted filename:', filename);
+        } else {
+          console.log('[API] Could not extract filename from header, using fallback');
+        }
+      } else {
+        console.log('[API] No Content-Disposition header found, using fallback');
+      }
+      
+      return { blob, filename };
     }
   },
 

@@ -254,5 +254,5 @@ class CollaboratorService:
         Returns:
             str: Filename with timestamp
         """
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        return f'collaborators-export-{timestamp}.xlsx'
+        timestamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+        return f'collaborators_export_{timestamp}.xlsx'

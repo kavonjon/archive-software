@@ -1,6 +1,6 @@
 from django.db.models.signals import post_save, post_delete, pre_save, m2m_changed
 from django.dispatch import receiver
-from .models import Languoid, Item, Collaborator, CollaboratorRole
+from .models import Languoid, Item, Collaborator, CollaboratorRole, LANGUAGE_DESCRIPTION_CHOICES
 from .tasks import update_collection_date_ranges
 from .utils import parse_standardized_date
 import logging
@@ -114,19 +114,26 @@ def update_item_date_ranges(sender, instance, **kwargs):
 
     # Sort MultiSelectField values alphabetically for consistent display and storage
     # MultiSelectField stores values as comma-separated strings internally
-    multiselectfields_to_sort = ['genre', 'language_description_type']
+    # Sort by choice order for language_description_type (to preserve logical grouping)
+    # Sort alphabetically for genre
     
-    for field_name in multiselectfields_to_sort:
-        current_value = getattr(instance, field_name)
+    # Genre: Sort alphabetically
+    if instance.genre and isinstance(instance.genre, (list, tuple)):
+        sorted_genre = sorted(instance.genre)
+        if list(instance.genre) != sorted_genre:
+            setattr(instance, 'genre', sorted_genre)
         
-        # MultiSelectField values are stored as lists in Python but comma-separated in DB
-        if current_value and isinstance(current_value, (list, tuple)):
-            # Sort the values alphabetically and set them back
-            sorted_values = sorted(current_value)
+    # Language Description Type: Sort by choice order (preserves logical grouping)
+    if instance.language_description_type and isinstance(instance.language_description_type, (list, tuple)):
+        # Create lookup dictionary for choice order
+        lang_desc_order = {choice[0]: idx for idx, choice in enumerate(LANGUAGE_DESCRIPTION_CHOICES)}
+        
+        # Sort by defined order in LANGUAGE_DESCRIPTION_CHOICES
+        sorted_lang_desc = sorted(instance.language_description_type, key=lambda x: lang_desc_order.get(x, 9999))
             
             # Only update if the order changed (avoid unnecessary saves)
-            if list(current_value) != sorted_values:
-                setattr(instance, field_name, sorted_values)
+        if list(instance.language_description_type) != sorted_lang_desc:
+            setattr(instance, 'language_description_type', sorted_lang_desc)
     
     # Calculate browse_categories based on other field values
     # This is a fully automated field that categorizes items for browsing
@@ -232,7 +239,7 @@ def update_item_date_ranges(sender, instance, **kwargs):
         # For children videos - check both general for_children and music_for_children
         if field_includes(genre, 'for_children') or field_includes(genre, 'music_for_children'):
             categories.append('for-children-video')
-        if public_event:
+        if public_event.lower() == 'yes':
             categories.append('events')
         if field_includes(genre, 'popular_production'):
             categories.append('popular-media-video')
@@ -975,3 +982,25 @@ def invalidate_collaborator_list_cache(sender, instance, **kwargs):
     # Trigger cache invalidation + background rebuild
     # Priority 8 = High (user just made an edit, wants fresh data soon)
     invalidate_and_warm_collaborator_cache.apply_async(priority=8)
+
+
+@receiver(post_save, sender=Item)
+@receiver(post_delete, sender=Item)
+def invalidate_item_list_cache(sender, instance, **kwargs):
+    """
+    Invalidate and rebuild the item list cache when any item is saved or deleted.
+    
+    This ensures users always see fresh data after edits.
+    The cache rebuild happens in the background via Celery.
+    
+    BATCH MODE: Skips cache invalidation if _skip_async_tasks flag is set.
+    """
+    # BATCH MODE: Skip individual cache invalidation
+    if hasattr(instance, '_skip_async_tasks') and instance._skip_async_tasks:
+        return
+    
+    from .tasks import invalidate_and_warm_item_cache
+    
+    # Trigger cache invalidation + background rebuild
+    # Priority 8 = High (user just made an edit, wants fresh data soon)
+    invalidate_and_warm_item_cache.apply_async(priority=8)

@@ -1,37 +1,37 @@
 {
   "active_context": {
-    "version": "2.2",
-    "last_updated": "2025-11-12",
-    "conversation_reference": "Map API implementation complete, API versioning strategy established (Strategy A: frozen stable versions), beta removed",
+    "version": "2.5",
+    "last_updated": "2025-11-17",
+    "conversation_reference": "Item list page filtering improvements, export/batch edit debugging, and navigation reordering completed",
     
         "current_focus": {
           "primary_objective": {
             "decision_id": "active_001",
-            "content": "Stage 0 Collaborator and Item detail pages production-ready with comprehensive language relationship editing",
+            "content": "Stage 1 Batch Editing - Item batch editor complete, Document batch editor next (final in Stage 1)",
             "added_date": "2025-01-04",
-            "updated_date": "2025-11-08",
-            "stage_0_status": "CollaboratorDetail and CollaboratorList pages complete and production-ready. ItemDetail language editing complete. Both models have full CRUD with advanced features. Map API endpoint implemented for public API.",
+            "updated_date": "2025-11-17",
+            "stage_1_status": "Languoid and Collaborator batch editors complete (production). Item batch editor complete (production) - NEW STATE-OF-THE-ART with 61 fields, complex through-models, virtual fields, invalid data preservation. Item list page filtering and exports now fully functional. Document batch editor is NEXT and FINAL for Stage 1.",
             "recent_achievements": [
-              "Collaborator name field restructuring complete (signal-based full_name computation)",
-              "Dialect and DialectInstance models fully decommissioned",
-              "Language relationships simplified to direct M2M with Languoid",
-              "EditableMultiRelationshipField enhanced with hierarchical display and auto-add parent languages",
-              "CollaboratorList advanced filtering complete (empty values, debouncing, anonymous status)",
-              "Item language field editing implemented with same patterns as Collaborator",
-              "Map API endpoint implemented (/api/v1/map/items/) with GeoJSON output",
-              "API versioning strategy established (Strategy A: frozen stable versions)",
-              "Beta API removed (unused complexity)",
-              "Version-specific documentation configured (/api/v1/docs/ and /api/docs/)",
-              "URL routing fix for production - explicit redirects for /admin and /api without trailing slashes",
-              "Dynamic page titles implemented with usePageTitle hook - 'NAL Archive | Page Name' branding",
-              "Browse categories auto-calculation implemented - MultiSelectField computed from genre, resource_type, language_description_type, public_event with sorting by BROWSE_CATEGORY_CHOICES order",
-              "Collection auto-assignment from catalog_number prefix pattern implemented - extracts 3-letter abbreviation (e.g., 'CAR-123' → Collection with collection_abbr='CAR')"
+              "Item batch editor fully implemented and production-ready (61 fields, 4,402 rows)",
+              "Redis caching with async rebuild for Item list (15-20s one-time, <1s cached)",
+              "Async export for Items with UUID backend + timestamp frontend filename pattern",
+              "Custom cell editors: CollaboratorRolesCellEditor (through-model), TitleWithLanguageCellEditor (text+FK)",
+              "Invalid data preservation pattern - preserves with id: null, visualizes as red, allows user correction",
+              "Spreadsheet import for Items with comprehensive parsing (collaborators, titles, languages, choices)",
+              "Client-side filtering for exports using full cached dataset (not paginated)",
+              "Export filename standardization across all models: UUID backend, YYYY-MM-DD_HHMMSS frontend",
+              "Comprehensive lessons documented in item-batch-editor-lessons.json for Document implementation",
+              "Item list page filter persistence across navigation (matches Collaborator/Languoid pattern)",
+              "Fixed batch edit filtered and export filtered to correctly apply filters (697 items bug resolved)",
+              "Added titles field to InternalItemBatchSerializer for complete client-side filtering",
+              "Item list page UI updated to match Collaborator pattern (title + count below filters)",
+              "Navigation menu reordered: Collections now before Items"
             ],
-            "current_phase": "Stage 0 - Continuing with remaining models (Document, Collection)",
+            "current_phase": "Stage 1 - Batch Editing (3 of 4 complete, Document next)",
         "next_priorities": [
-          "DocumentDetail page language relationship editing",
-          "CollectionDetail page completion",
-          "Final Stage 0 polish and testing before Stage 1"
+          "Document batch editor implementation (final batch editor in Stage 1)",
+          "Leverage item-batch-editor-lessons.json for efficient Document implementation",
+          "Stage 1 completion and handoff to Stage 2"
         ],
             "confidence_level": "high",
             "status": "active"

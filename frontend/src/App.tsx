@@ -7,6 +7,7 @@ import { store } from './store/store';
 import { AuthProvider } from './contexts/AuthContext';
 import { LanguoidCacheProvider } from './contexts/LanguoidCacheContext';
 import { CollaboratorCacheProvider } from './contexts/CollaboratorCacheContext';
+import { ItemCacheProvider } from './contexts/ItemCacheContext';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -97,6 +98,7 @@ function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <AuthProvider>
+          <ItemCacheProvider>
           <CollaboratorCacheProvider>
           <LanguoidCacheProvider>
             <Router>
@@ -180,6 +182,7 @@ function App() {
           </Router>
           </LanguoidCacheProvider>
           </CollaboratorCacheProvider>
+          </ItemCacheProvider>
         </AuthProvider>
       </ThemeProvider>
     </Provider>

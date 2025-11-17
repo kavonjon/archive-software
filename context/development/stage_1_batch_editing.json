@@ -1,8 +1,8 @@
 {
   "stage_1_batch_editing": {
-    "version": "7.1",
-    "last_updated": "2025-11-13",
-    "conversation_reference": "Detailed Stage 1 planning and implementation architecture for smart spreadsheet batch editing features. Version 7.1 adds universal batch editor patterns (session persistence, order preservation, empty mode, warning dialogs, batch modes, cell pagination) discovered during Collaborator implementation maturation.",
+    "version": "8.0",
+    "last_updated": "2025-11-17",
+    "conversation_reference": "Version 8.0: Item batch editor completed as new state-of-the-art. Added comprehensive lessons learned in item-batch-editor-lessons.json with patterns for Document implementation.",
     
     "stage_overview": {
       "decision_id": "stage1_001",
@@ -16,10 +16,10 @@
       "implementation_status": {
         "languoid_batch_editor": "complete (production)",
         "collaborator_batch_editor": "complete (production - fully harmonized with Languoid patterns, conflict detection implemented, user guide complete)",
-        "item_batch_editor": "not_started",
-        "document_batch_editor": "not_started"
+        "item_batch_editor": "complete (production - NEW STATE-OF-THE-ART reference implementation with 61 fields, complex through-models, virtual fields, invalid data preservation)",
+        "document_batch_editor": "not_started (NEXT - final batch editor in Stage 1)"
       },
-      "critical_reference": "See collaborator_batch_editor_lessons.json for comprehensive implementation protocol and lessons learned. This file contains 33-item conformance checklist PLUS 12 additional universal patterns established during Phase 6 harmonization. Also see batch-editor-universal-patterns.json for 6 MANDATORY architectural patterns (session persistence, order preservation, empty mode, warning dialogs, batch modes, cell pagination) that MUST be implemented in all batch editors."
+      "critical_reference": "For Document batch editor implementation: START with item-batch-editor-lessons.json (latest state-of-the-art with comprehensive lessons and checklist). Also review collaborator_batch_editor_lessons.json and batch-editor-universal-patterns.json. Item batch editor is now the reference implementation - most complete, most complex, most lessons learned."
     },
     
     "technical_architecture": {

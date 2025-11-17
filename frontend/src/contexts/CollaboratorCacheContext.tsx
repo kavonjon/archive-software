@@ -1,14 +1,15 @@
 /**
- * CollaboratorCacheContext - Caches collaborator list data with smart invalidation
+ * CollaboratorCacheContext - Caches collaborator list data
  * 
  * Features:
- * - In-memory cache with sessionStorage persistence
+ * - In-memory cache (React state) - fast access while page is open
+ * - Backend Redis cache - fast loading across page refreshes
  * - 10-minute TTL (time-to-live)
- * - Smart invalidation based on backend last-modified timestamp
  * - Manual refresh capability
  * - Progress tracking for batch editor loading states
  * 
- * Architecture matches LanguoidCacheContext for consistency.
+ * Note: We do NOT use sessionStorage for consistency with Items pattern.
+ * Redis backend cache provides persistence across page refreshes.
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
@@ -29,10 +30,12 @@ interface CollaboratorCacheContextType {
   error: string | null;
   
   // Cache operations
-  getCollaborators: () => Promise<Collaborator[]>;
+  getCollaborators: (forceRefresh?: boolean) => Promise<Collaborator[]>;
   getById: (id: number) => Promise<Collaborator | null>;
   getByCollaboratorId: (collaboratorId: number) => Promise<Collaborator | null>;
   getByName: (firstName: string, lastName: string, suffix: string) => Promise<Collaborator | null>;
+  getByFullName: (fullName: string) => Promise<Collaborator | null>;
+  getAllByFullNameWithoutNickname: (name: string) => Promise<Collaborator[]>;
   invalidateCache: () => void;
   refreshCache: () => Promise<Collaborator[]>;
 }
@@ -51,44 +54,6 @@ export const CollaboratorCacheProvider: React.FC<CollaboratorCacheProviderProps>
   const [isLoading, setIsLoading] = useState(false);
   const [loadProgress, setLoadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-
-  // Load cache from sessionStorage on mount
-  useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem(CACHE_KEY);
-      if (stored) {
-        const parsedCache = JSON.parse(stored) as CollaboratorCache;
-        
-        // Check if cache is still valid (within TTL)
-        const now = Date.now();
-        const age = now - parsedCache.cachedAt;
-        
-        if (age < CACHE_TTL) {
-          console.log(`[CollaboratorCache] Loaded cache from sessionStorage (age: ${Math.round(age / 1000)}s)`);
-          setCache(parsedCache);
-          setLoadProgress(100); // Cache is ready
-        } else {
-          console.log(`[CollaboratorCache] Cache expired (age: ${Math.round(age / 1000)}s), clearing`);
-          sessionStorage.removeItem(CACHE_KEY);
-        }
-      }
-    } catch (err) {
-      console.error('[CollaboratorCache] Failed to load cache from sessionStorage:', err);
-      sessionStorage.removeItem(CACHE_KEY);
-    }
-  }, []);
-
-  // Save cache to sessionStorage whenever it changes
-  useEffect(() => {
-    if (cache) {
-      try {
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-        console.log(`[CollaboratorCache] Saved cache to sessionStorage (${cache.count} collaborators)`);
-      } catch (err) {
-        console.error('[CollaboratorCache] Failed to save cache to sessionStorage:', err);
-      }
-    }
-  }, [cache]);
 
   /**
    * Check if cache is still valid based on TTL
@@ -115,7 +80,6 @@ export const CollaboratorCacheProvider: React.FC<CollaboratorCacheProviderProps>
    */
   const fetchAndCache = useCallback(async (): Promise<Collaborator[]> => {
     console.log('[CollaboratorCache] Fetching fresh data from backend...');
-    setIsLoading(true);
     setLoadProgress(0);
     setError(null);
 
@@ -125,10 +89,37 @@ export const CollaboratorCacheProvider: React.FC<CollaboratorCacheProviderProps>
       console.log('[CollaboratorCache] Requesting all collaborators (no pagination)...');
       setLoadProgress(10);
       
-        const response = await collaboratorsAPI.list({
+      let response = await collaboratorsAPI.list({
           batch: true, // Use lightweight batch serializer for faster loading
         // No page or page_size params = fetch all at once
       });
+      
+      // Handle 202 Accepted - cache is rebuilding, poll until ready
+      let pollAttempts = 0;
+      const maxPollAttempts = 60; // 60 attempts * 2 seconds = 2 minutes max
+      
+      if (response.status === 202) {
+        // Only set loading state if we actually need to poll
+        console.log('[CollaboratorCache] Cache rebuilding, starting polling...');
+        setIsLoading(true);
+      }
+      
+      while (response.status === 202 && pollAttempts < maxPollAttempts) {
+        pollAttempts++;
+        const progressPercent = 10 + Math.min(80, pollAttempts * 2); // Increment progress
+        setLoadProgress(progressPercent);
+        console.log(`[CollaboratorCache] Cache rebuilding... polling attempt ${pollAttempts}/${maxPollAttempts}`);
+        
+        // Wait 2 seconds before next poll
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Poll again
+        response = await collaboratorsAPI.list({ batch: true });
+      }
+      
+      if (response.status === 202) {
+        throw new Error('Cache rebuild timed out after 2 minutes. Please try again.');
+      }
       
       const allCollaborators = response.results;
       const totalCount = response.count;
@@ -164,8 +155,15 @@ export const CollaboratorCacheProvider: React.FC<CollaboratorCacheProviderProps>
 
   /**
    * Get collaborators from cache or fetch if invalid/missing
+   * @param forceRefresh - If true, bypass in-memory cache and fetch from backend (will trigger polling if cache is rebuilding)
    */
-  const getCollaborators = useCallback(async (): Promise<Collaborator[]> => {
+  const getCollaborators = useCallback(async (forceRefresh = false): Promise<Collaborator[]> => {
+    // Force refresh: always fetch from backend
+    if (forceRefresh) {
+      console.log('[CollaboratorCache] Force refresh requested, fetching from backend...');
+      return fetchAndCache();
+    }
+    
     // If no cache, fetch fresh data
     if (!cache) {
       console.log('[CollaboratorCache] No cache found, fetching...');
@@ -228,13 +226,59 @@ export const CollaboratorCacheProvider: React.FC<CollaboratorCacheProviderProps>
   }, [getCollaborators]);
 
   /**
+   * Get collaborator by exact full_name match from cache
+   * Used for import parsing when full name is provided
+   * Ensures cache is loaded before lookup
+   */
+  const getByFullName = useCallback(async (fullName: string): Promise<Collaborator | null> => {
+    const collaborators = await getCollaborators(); // Ensures cache is loaded
+    
+    // Normalize for comparison (trim, case-insensitive)
+    const normalized = fullName.trim().toLowerCase();
+    
+    return collaborators.find(c => 
+      (c.full_name || '').trim().toLowerCase() === normalized
+    ) || null;
+  }, [getCollaborators]);
+
+  /**
+   * Get all collaborators matching name (without nickname) from cache
+   * Used for import parsing to check for uniqueness
+   * 
+   * Matches against: first_names + last_names + name_suffix (ignoring nickname)
+   * Returns all matches to allow uniqueness validation
+   * 
+   * @param name - Full name string to match (e.g., "John Doe Jr.")
+   * @returns Array of matching collaborators (empty if none found)
+   */
+  const getAllByFullNameWithoutNickname = useCallback(async (name: string): Promise<Collaborator[]> => {
+    const collaborators = await getCollaborators(); // Ensures cache is loaded
+    
+    // Normalize for comparison (trim, case-insensitive)
+    const normalized = name.trim().toLowerCase();
+    
+    // Filter collaborators where full_name_without_nickname matches
+    // full_name_without_nickname = first_names + last_names + name_suffix (no nickname)
+    return collaborators.filter(c => {
+      // Construct full name without nickname
+      const parts: string[] = [];
+      if (c.first_names) parts.push(c.first_names.trim());
+      if (c.last_names) parts.push(c.last_names.trim());
+      if (c.name_suffix) parts.push(c.name_suffix.trim());
+      
+      const fullNameWithoutNickname = parts.join(' ').toLowerCase();
+      
+      return fullNameWithoutNickname === normalized;
+    });
+  }, [getCollaborators]);
+
+  /**
    * Manually invalidate cache (clear it)
    */
   const invalidateCache = useCallback(() => {
     console.log('[CollaboratorCache] Manually invalidating cache');
     setCache(null);
     setLoadProgress(0);
-    sessionStorage.removeItem(CACHE_KEY);
   }, []);
 
   /**
@@ -275,9 +319,8 @@ export const CollaboratorCacheProvider: React.FC<CollaboratorCacheProviderProps>
       };
 
       setCache(newCache);
-      // Don't save to sessionStorage on manual refresh (to avoid quota exceeded)
-      // The next automatic fetch will save to sessionStorage
       setLoadProgress(100);
+      console.log(`[CollaboratorCache] Refreshed cache with ${allCollaborators.length} collaborators from database`);
       
       return allCollaborators;
     } catch (err) {
@@ -300,6 +343,8 @@ export const CollaboratorCacheProvider: React.FC<CollaboratorCacheProviderProps>
     getById,
     getByCollaboratorId,
     getByName,
+    getByFullName,
+    getAllByFullNameWithoutNickname,
     invalidateCache,
     refreshCache,
   };

@@ -387,7 +387,8 @@ export const CollaboratorBatchEditor: React.FC = () => {
       
       if (configStr) {
         const config = JSON.parse(configStr);
-        sessionStorage.removeItem('collaborator-batch-config'); // Clean up immediately
+        // NOTE: Keep config in sessionStorage as source of truth for the session
+        // Only remove it on unmount (cleanup function below)
         
         // Handle empty mode
         if (config.mode === 'empty') {
@@ -471,8 +472,8 @@ export const CollaboratorBatchEditor: React.FC = () => {
           console.log('[CollaboratorBatchEditor] Refresh - reloading from sessionIds');
           console.log('[CollaboratorBatchEditor] Current sessionIds:', Array.from(sessionIds.current));
           
-          // Get all collaborators from cache
-          const allCollaborators = await getCollaborators();
+          // Get all collaborators from cache (force refresh to get latest from Redis)
+          const allCollaborators = await getCollaborators(true);
           
           // Create a map of ID -> collaborator for quick lookup
           const collaboratorMap = new Map(allCollaborators.map(c => [c.id, c]));
@@ -534,6 +535,10 @@ export const CollaboratorBatchEditor: React.FC = () => {
     }
     
     // Cleanup on unmount - reset spreadsheet state
+    // NOTE: We do NOT remove sessionStorage config here because:
+    // 1. Browser refresh (F5) should preserve the session
+    // 2. Navigation away will naturally make the config stale (it's page-specific)
+    // 3. Config is cleaned up when CollaboratorsList creates a new session
     return () => {
       dispatch(resetSpreadsheet());
     };
@@ -763,6 +768,41 @@ export const CollaboratorBatchEditor: React.FC = () => {
       }
     }
     
+    // Special handling for boolean fields (anonymous)
+    if (column?.cellType === 'boolean') {
+      // First, try to parse text input into boolean values (for paste operations)
+      if (typeof newValue === 'string') {
+        const lowerText = newValue.toLowerCase().trim();
+        if (lowerText === 'true' || lowerText === '1' || lowerText === 'yes') {
+          newValue = true;
+          newText = 'Yes';
+        } else if (lowerText === 'false' || lowerText === '0' || lowerText === 'no') {
+          newValue = false;
+          newText = 'No';
+        } else if (lowerText === '' || lowerText === 'null' || lowerText === 'not specified') {
+          newValue = null;
+          newText = 'Not specified';
+        }
+        // If string doesn't match any valid patterns, keep it as-is and validation below will catch it
+      }
+      
+      // Now validate: Boolean fields must be true, false, or null
+      if (newValue !== true && newValue !== false && newValue !== null && newValue !== undefined) {
+        dispatch(updateCell({
+          rowId,
+          fieldName,
+          cell: {
+            value: newValue,
+            text: newText,
+            validationState: 'invalid',
+            validationError: `Invalid boolean value. Must be Yes, No, or Not specified.`,
+            hasConflict: false,
+          },
+        }));
+        return;
+      }
+    }
+    
     // Special handling for stringarray fields BEFORE short-circuit
     if (column?.cellType === 'stringarray') {
       // Allow null or empty array for optional stringarray fields
@@ -882,6 +922,89 @@ export const CollaboratorBatchEditor: React.FC = () => {
   }, [rows, dispatch, validateField]);
   
   /**
+   * Handle batch cell changes (paste operations)
+   * Applies parsing and validation logic for multiple cells at once
+   */
+  const handleBatchCellChange = useCallback((
+    changes: Array<{ rowId: string | number; fieldName: string; newValue: any; newText?: string }>,
+    description: string
+  ) => {
+    // Transform changes to Redux format with parsing and validation
+    const reduxChanges = changes.map(({ rowId, fieldName, newValue, newText }) => {
+      const text = newText ?? (typeof newValue === 'string' ? newValue : String(newValue || ''));
+      const column = COLLABORATOR_COLUMNS.find(col => col.fieldName === fieldName);
+      
+      // Start with valid state
+      let cell: Partial<SpreadsheetCell> = {
+        value: newValue,
+        text: text,
+        validationState: 'valid' as const,
+      };
+      
+      // Multiselect field validation
+      if (column?.cellType === 'multiselect') {
+        if (newValue === null && text && text.trim() !== '') {
+          cell = {
+            value: null,
+            text: text,
+            validationState: 'invalid',
+            validationError: 'Invalid multiselect value. Please select from dropdown.',
+          };
+        } else if (newValue !== null && !Array.isArray(newValue)) {
+          cell = {
+            value: null,
+            text: text,
+            validationState: 'invalid',
+            validationError: 'Invalid multiselect value format.',
+          };
+        }
+      }
+      
+      // Boolean field parsing (for paste operations) - specifically for 'anonymous' field
+      if (column?.cellType === 'boolean') {
+        // Try to parse text input into boolean values
+        if (typeof cell.value === 'string') {
+          const lowerText = cell.value.toLowerCase().trim();
+          if (lowerText === 'true' || lowerText === '1' || lowerText === 'yes') {
+            cell.value = true;
+            cell.text = 'Yes';
+          } else if (lowerText === 'false' || lowerText === '0' || lowerText === 'no') {
+            cell.value = false;
+            cell.text = 'No';
+          } else if (lowerText === '' || lowerText === 'null' || lowerText === 'not specified') {
+            cell.value = null;
+            cell.text = 'Not specified';
+          }
+          // If string doesn't match any valid patterns, keep as-is and validation will happen on backend
+        }
+        
+        // Validate: Boolean fields must be true, false, or null
+        if (cell.value !== true && cell.value !== false && cell.value !== null && cell.value !== undefined) {
+          cell.validationState = 'invalid';
+          cell.validationError = 'Invalid boolean value. Must be Yes, No, or Not specified.';
+        }
+      }
+      
+      return { rowId, fieldName, cell };
+    });
+    
+    // Dispatch batch update
+    dispatch(batchUpdateCells({ changes: reduxChanges, description }));
+    
+    // Trigger backend validation for all changed cells (unless already invalid from client-side validation)
+    changes.forEach(({ rowId, fieldName, newValue }) => {
+      const row = rows.find(r => r.id === rowId);
+      const originalValue = row?.cells[fieldName]?.originalValue;
+      
+      // Only validate if the cell isn't already marked as invalid by client-side validation
+      const reduxChange = reduxChanges.find(rc => rc.rowId === rowId && rc.fieldName === fieldName);
+      if (reduxChange?.cell.validationState !== 'invalid') {
+        validateField(rowId, fieldName, newValue, originalValue);
+      }
+    });
+  }, [rows, dispatch, validateField]);
+  
+  /**
    * Handle adding a new draft row
    */
   const handleAddRow = useCallback(async () => {
@@ -917,11 +1040,11 @@ export const CollaboratorBatchEditor: React.FC = () => {
       
       // Get IDs from sessionIds
       const ids = Array.from(sessionIds.current);
-      console.log('[CollaboratorBatchEditor] Refreshing', ids.length, 'collaborators from database...');
+      console.log('[CollaboratorBatchEditor] Refreshing', ids.length, 'collaborators from cache...');
       
-      // Force refresh cache from database (bypasses Redis cache)
-      const freshCollaborators = await refreshCache();
-      console.log('[CollaboratorBatchEditor] Got', freshCollaborators.length, 'fresh collaborators from database');
+      // Force refresh from Redis cache to get latest data (bypass in-memory cache)
+      const freshCollaborators = await getCollaborators(true);
+      console.log('[CollaboratorBatchEditor] Got', freshCollaborators.length, 'collaborators from cache');
       
       // Filter to just the IDs we want (skip if empty mode)
       let filteredCollaborators: Collaborator[];
@@ -954,7 +1077,7 @@ export const CollaboratorBatchEditor: React.FC = () => {
       dispatch(setError(err instanceof Error ? err.message : 'Failed to refresh'));
       dispatch(setLoading(false));
     }
-  }, [dispatch, refreshCache]);
+  }, [dispatch, getCollaborators]);
   
   /**
    * Handle refresh (reload data from database)
@@ -1363,6 +1486,7 @@ export const CollaboratorBatchEditor: React.FC = () => {
           loading={loading}
           saving={saving}
           onCellChange={handleCellChange}
+          onBatchCellChange={handleBatchCellChange}
           onToggleRowSelection={handleToggleRowSelection}
           onToggleAllSelection={handleToggleAllSelection}
           onAddRow={handleAddRow}

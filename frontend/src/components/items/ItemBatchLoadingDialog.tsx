@@ -176,16 +176,16 @@ const ItemBatchLoadingDialog: React.FC<ItemBatchLoadingDialogProps> = ({
   }
 
   // Scenario A+B: Loading + Warning (Cache Not Ready, Large Dataset)
+  // Note: When cache finishes loading, ItemsList.tsx should update the dialog state
+  // to transition from Scenario A+B to Scenario A by setting cacheLoading: false
   if (isScenarioAB) {
-    const cacheReady = cacheProgress >= 100;
-
     return (
       <Dialog
         open={open}
-        onClose={cacheReady ? handleCancel : undefined}
+        onClose={handleCancel}
         maxWidth="sm"
         fullWidth
-        disableEscapeKeyDown={!cacheReady}
+        disableEscapeKeyDown
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <WarningIcon color="warning" />
@@ -193,35 +193,23 @@ const ItemBatchLoadingDialog: React.FC<ItemBatchLoadingDialogProps> = ({
         </DialogTitle>
         
         <DialogContent>
-          {/* Loading overlay - shows while cache is loading */}
-          {!cacheReady && (
-            <Box 
-              sx={{ 
-                mb: 3, 
-                p: 2, 
-                bgcolor: 'info.light', 
-                borderRadius: 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2
-              }}
-            >
-              <CircularProgress size={20} />
-              <Typography variant="body2" color="text.primary">
-                Loading item data, please wait...
-              </Typography>
-            </Box>
-          )}
-
-          {/* Success message - shows when cache is ready */}
-          {cacheReady && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, color: 'success.main' }}>
-              <DataIcon />
-              <Typography variant="body1" color="success.main" fontWeight="medium">
-                All {totalCount.toLocaleString()} items loaded successfully!
-              </Typography>
-            </Box>
-          )}
+          {/* Loading message - shows while cache is loading */}
+          <Box 
+            sx={{ 
+              mb: 3, 
+              p: 2, 
+              bgcolor: 'info.light', 
+              borderRadius: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2
+            }}
+          >
+            <CircularProgress size={20} />
+            <Typography variant="body2" color="text.primary">
+              Loading item data, please wait...
+            </Typography>
+          </Box>
 
           {/* Warning message - always visible */}
           <Typography variant="body1" gutterBottom>
@@ -272,7 +260,7 @@ const ItemBatchLoadingDialog: React.FC<ItemBatchLoadingDialogProps> = ({
             onClick={handleContinue} 
             variant="contained" 
             color="primary"
-            disabled={!cacheReady}
+            disabled
           >
             Continue Anyway
           </Button>

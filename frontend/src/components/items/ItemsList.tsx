@@ -576,59 +576,28 @@ const ItemsList: React.FC<ItemsListProps> = ({
       const hasActiveFilters = activeFilterCount > 0;
       const shouldShowWarning = !hasActiveFilters;
       
-      // Strategy: Make a quick check to backend first to see if polling is needed
-      // This avoids showing/hiding dialogs based on race conditions
-      (async () => {
-        try {
-          const allCachedItems = await getItems(true);
-          
-          // If we get here without dialog appearing, cache was ready immediately
-          // Apply current filters to cached items
-          const filteredItems = activeFilterCount === 0 
-            ? allCachedItems 
-            : applyFiltersToCache(allCachedItems);
-          
-          const ids = filteredItems.map(i => i.id);
-          console.log('[ItemsList] Using', ids.length, 'IDs from', activeFilterCount === 0 ? 'all cached items' : 'filtered cache');
-          
-          // Check if dialog was already shown (meaning polling happened)
-          if (loadingDialogState && loadingDialogState.cacheLoading) {
-            // Polling happened, dialog is already open
-            // Data is now ready - don't show another dialog, let useEffect handle it
-            console.log('[ItemsList] Cache loaded after polling, dialog already shown');
-            return;
-          }
-          
-          // Cache was ready immediately (no polling happened)
-          console.log('[ItemsList] Cache was ready immediately, no polling needed');
-          
-          // If warning needed, show it now (Scenario A - warning only, no loading)
-          if (shouldShowWarning) {
-            setLoadingDialogState({
-              cacheLoading: false,
-              cacheProgress: 100,
-              totalCount: cache?.count || 0,
-              showLargeDatasetWarning: true,
-              rowCount: ids.length,
-              mode: mode,
-            });
-            setPendingBatchIds(ids);
-          } else {
-            // No warning needed, proceed directly to batch editor
-            const batchConfig = {
-              mode: mode,
-              ids: ids,
-              timestamp: Date.now(),
-            };
-            sessionStorage.setItem('item-batch-config', JSON.stringify(batchConfig));
-            navigate('/items/batch');
-          }
-        } catch (error) {
-          console.error('[ItemsList] Error refreshing cache:', error);
-          setLoadingDialogState(null);
-          setPendingBatchIds(null);
-        }
-      })();
+      // Show dialog immediately with loading state to provide instant feedback
+      // This prevents the UI from freezing while waiting for cache data
+      setLoadingDialogState({
+        cacheLoading: true,
+        cacheProgress: loadProgress,
+        totalCount: cache?.count || 0,
+        showLargeDatasetWarning: shouldShowWarning,
+        rowCount: totalCount,
+        mode: mode,
+      });
+      
+      // Set pending batch IDs to empty array to indicate batch operation in progress
+      // This signals to the useEffect that monitors cacheLoading
+      setPendingBatchIds([]);
+      
+      // Trigger the cache refresh - if it returns 202, ItemCacheContext will handle polling
+      // The auto-proceed useEffect will handle completion
+      getItems(true).catch(error => {
+        console.error('[ItemsList] Error refreshing cache:', error);
+        setLoadingDialogState(null);
+        setPendingBatchIds(null);
+      });
       
       // Return here immediately
       return;
@@ -675,10 +644,14 @@ const ItemsList: React.FC<ItemsListProps> = ({
   
   // Watch for cacheLoading state and show dialog if polling starts
   // This triggers when getItems(true) encounters a 202 response
+  // BUT only if we're in the middle of a batch edit operation (have pendingBatchIds)
   useEffect(() => {
-    // Only show dialog if cacheLoading just started and we don't have one already
-    if (cacheLoading && !loadingDialogState) {
-      console.log('[ItemsList] Cache loading detected, showing loading dialog');
+    // Only show dialog if:
+    // 1. Cache loading just started (cacheLoading is true)
+    // 2. We don't already have a dialog open (loadingDialogState is null)
+    // 3. We have pending batch IDs (meaning user clicked batch edit button)
+    if (cacheLoading && !loadingDialogState && pendingBatchIds !== null) {
+      console.log('[ItemsList] Cache loading detected during batch edit operation, showing loading dialog');
       
       // Determine if warning is needed based on current filter state
       const hasActiveFilters = activeFilterCount > 0;
@@ -692,9 +665,8 @@ const ItemsList: React.FC<ItemsListProps> = ({
         rowCount: cache?.count || 0,
         mode: 'filtered',
       });
-      setPendingBatchIds([]);
     }
-  }, [cacheLoading, loadingDialogState, loadProgress, cache, activeFilterCount]);
+  }, [cacheLoading, loadingDialogState, loadProgress, cache, activeFilterCount, pendingBatchIds]);
   
   // Auto-proceed when cache finishes loading (for Scenario B: loading only, no warning)
   useEffect(() => {

@@ -40,6 +40,12 @@ export const CellEditor: React.FC<CellEditorProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  /** Wrapper that contains search + dropdown; used for "click outside" to close. Set in relationship and multiselect branches. */
+  const editorContainerRef = useRef<HTMLDivElement | null>(null);
+  /** Current close callback (onCancel or handleMultiSelectCommit); set when rendering relationship/multiselect so document listeners can close the editor when focus is no longer on the input (e.g. after scrollbar drag). */
+  const closeRef = useRef<(() => void) | null>(null);
+  /** True when the last mousedown was inside the dropdown (list + scrollbar); blur handler skips close/commit so scrollbar drag keeps editor open. */
+  const mousedownInsideDropdownRef = useRef(false);
   const multiSelectInitializedRef = useRef(false);
   const selectCommittedRef = useRef(false); // Track if select value was committed
   const booleanCommittedRef = useRef(false); // Track if boolean value was committed
@@ -65,6 +71,49 @@ export const CellEditor: React.FC<CellEditorProps> = ({
   const [stringArrayItems, setStringArrayItems] = useState<string[]>(
     cell.type === 'stringarray' && Array.isArray(cell.value) ? cell.value : []
   );
+
+  // When user mousedowns anywhere, clear the flag; we then set it only when mousedown is inside the dropdown (list + scrollbar). So blur does not close when dragging the scrollbar, but does close when clicking outside.
+  useEffect(() => {
+    const onDocMouseDown = () => {
+      mousedownInsideDropdownRef.current = false;
+    };
+    document.addEventListener('mousedown', onDocMouseDown, true);
+    return () => document.removeEventListener('mousedown', onDocMouseDown, true);
+  }, []);
+
+  // Escape closes the editor even when focus left the input (e.g. after scrolling the dropdown). Spreadsheet returns early on keydown when editing, so we must handle Escape at document level for relationship/multiselect.
+  useEffect(() => {
+    const onDocKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || !closeRef.current) return;
+      closeRef.current();
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    document.addEventListener('keydown', onDocKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', onDocKeyDown, true);
+      closeRef.current = null;
+    };
+  }, []);
+
+  // Click outside the editor container closes the editor. Needed because after scrollbar interaction the input is already blurred and blur handler was skipped, so a later click outside does not trigger blur again.
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (!target || !editorContainerRef.current || !closeRef.current) return;
+      if (editorContainerRef.current.contains(target)) return;
+      closeRef.current();
+    };
+    document.addEventListener('click', onDocClick, true);
+    return () => document.removeEventListener('click', onDocClick, true);
+  }, []);
+
+  // Clear close ref when not in relationship/multiselect so document listeners no-op for other cell types.
+  useEffect(() => {
+    if (cell.type !== 'relationship' && cell.type !== 'multiselect') {
+      closeRef.current = null;
+    }
+  }, [cell.type]);
 
   // Load options from API (for relationship editor)
   const loadOptions = useCallback(async (query: string) => {
@@ -729,12 +778,17 @@ export const CellEditor: React.FC<CellEditorProps> = ({
     };
 
     const handleRelationshipBlur = () => {
-      // When focus leaves the search input, cancel the editor
-      // Use setTimeout to allow click events on menu items to fire first
+      // When focus leaves the search input, cancel unless mousedown was inside the dropdown (e.g. scrollbar drag)
       setTimeout(() => {
+        if (mousedownInsideDropdownRef.current) {
+          mousedownInsideDropdownRef.current = false;
+          return;
+        }
         onCancel();
       }, 200);
     };
+
+    closeRef.current = onCancel;
 
     const handleRelationshipKeyDown = (e: React.KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -762,6 +816,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
 
     return (
       <div
+        ref={editorContainerRef}
         style={{
           width: '100%',
           height: '100%',
@@ -801,6 +856,11 @@ export const CellEditor: React.FC<CellEditorProps> = ({
         {/* Options dropdown */}
         <div
           ref={dropdownRef}
+          onMouseDownCapture={(e) => {
+            if (dropdownRef.current?.contains(e.target as Node)) {
+              mousedownInsideDropdownRef.current = true;
+            }
+          }}
           style={{
             position: 'absolute',
             top: '100%',
@@ -1007,12 +1067,17 @@ export const CellEditor: React.FC<CellEditorProps> = ({
     };
 
     const handleMultiSelectBlur = () => {
-      // When focus leaves the search input, commit current selections
-      // Use setTimeout to allow click events on chips/menu items to fire first
+      // When focus leaves the search input, commit unless mousedown was inside the dropdown (e.g. scrollbar drag)
       setTimeout(() => {
+        if (mousedownInsideDropdownRef.current) {
+          mousedownInsideDropdownRef.current = false;
+          return;
+        }
         handleMultiSelectCommit();
       }, 200);
     };
+
+    closeRef.current = handleMultiSelectCommit;
 
     const handleMultiSelectKeyDown = (e: React.KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -1050,6 +1115,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
 
     return (
       <div
+        ref={editorContainerRef}
         style={{
           width: '100%',
           height: '100%',
@@ -1089,6 +1155,11 @@ export const CellEditor: React.FC<CellEditorProps> = ({
         {/* Dropdown with chips and options */}
         <div
           ref={dropdownRef}
+          onMouseDownCapture={(e) => {
+            if (dropdownRef.current?.contains(e.target as Node)) {
+              mousedownInsideDropdownRef.current = true;
+            }
+          }}
           style={{
             position: 'absolute',
             top: '100%',

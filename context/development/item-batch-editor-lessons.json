@@ -1,9 +1,9 @@
 {
   "item_batch_editor_lessons": {
-    "version": "1.0",
-    "last_updated": "2025-11-17",
+    "version": "1.1",
+    "last_updated": "2026-03-14",
     "added_date": "2025-11-17",
-    "conversation_reference": "Item batch editor implementation session - comprehensive implementation from planning through debugging async exports",
+    "conversation_reference": "Item batch editor implementation session - comprehensive implementation from planning through debugging async exports. v1.1 (2026-03-14): Fixed backend validate_field type bug causing lat/lng import cells to be red.",
     "confidence_level": "high",
     "status": "active",
     
@@ -882,6 +882,52 @@
       
       "confidence_level": "high",
       "status": "active"
+    },
+
+    "validate_field_decimal_type_fix": {
+      "decision_id": "item_lessons_011",
+      "content": "Fix for latitude/longitude import cells staying red after import due to a type mismatch bug in the backend validate_field endpoint",
+      "added_date": "2026-03-14",
+      "conversation_reference": "Stage 1 import improvements session - lat/lng cells red after import from numeric Excel columns",
+      "status": "active",
+      "confidence_level": "high",
+
+      "symptom": {
+        "observed": "After importing a spreadsheet, latitude and longitude cells from numeric Excel columns were always red (invalid) even with valid coordinate values. Cells from text-formatted Excel columns passed.",
+        "workaround_users_found": "Clicking to edit a red lat/lng cell and pressing Enter without any changes made the cell turn green (valid). This was a false fix."
+      },
+
+      "root_cause_analysis": {
+        "location": "app/internal_api/views.py - InternalItemViewSet.validate_field()",
+        "bug": "The validate_field method called field.run_validation(value) to deserialize the raw string to a Decimal, but threw away the return value. It then called validate_latitude(value) or validate_longitude(value) with the ORIGINAL RAW STRING from the request.",
+        "consequence": "validate_latitude and validate_longitude do numeric comparisons (value < -90, value > 180, etc.). In Python 3, comparing a string to an integer raises TypeError. TypeError was caught by the broad except Exception clause and returned as {valid: false}, making the cell red.",
+        "secondary_factor": "The workaround (pressing Enter) worked because handleCellChange in ItemBatchEditor.tsx calls a LOCAL validateField function (lines 1082-1090) that marks all non-catalog_number fields as valid unconditionally. This local function does not call the backend at all. So 'fixing' the cell this way was the anti-pattern of silently accepting potentially invalid data."
+      },
+
+      "fix_applied": {
+        "file": "app/internal_api/views.py",
+        "change": "Captured the return value of field.run_validation(value) as validated_value, then passed validated_value to validate_method() instead of the raw string value.",
+        "before": "field.run_validation(value)\n...\nvalidate_method(value)",
+        "after": "validated_value = field.run_validation(value)\n...\nvalidate_method(validated_value)",
+        "why_correct": "DRF field validators (validate_<field_name> methods) are designed to operate on the DESERIALIZED value - e.g., a Decimal object for DecimalField, not the raw request string. This matches DRF's own contract where validate_<field> is always called after to_internal_value() in the normal serializer flow.",
+        "scope": "This fix benefits all fields that have custom validate_<field_name> methods on the serializer that do type-specific operations. For Item, this is validate_latitude, validate_longitude, validate_genre, and validate_language_description_type."
+      },
+
+      "why_not_skipBackendValidationFields": {
+        "reasoning": "latitude and longitude are NOT SerializerMethodField (unlike native_languages/other_languages in Collaborator). They are real DecimalField columns with meaningful range validation (-90 to 90, -180 to 180). Skipping backend validation would silently accept out-of-range values during import. The correct fix is to make the backend validation work correctly, not bypass it.",
+        "contrast_with_lesson_024": "lesson_024 (collaborator) skips validation for SerializerMethodField because those fields structurally cannot be validated. Here the field CAN be validated - the backend just had a bug in how it passed the value. Fix the bug, don't skip the check.",
+        "pattern": "Only skip backend validation when the backend is structurally incapable of validating the field (virtual/computed fields). Fix backend bugs rather than working around them with skips."
+      },
+
+      "two_validation_paths_observation": {
+        "note": "This investigation revealed a pre-existing asymmetry: the import path (useImportItemSpreadsheet) validates lat/lng via the backend API, while the live-edit path (handleCellChange -> local validateField) marks all non-catalog_number fields as valid without calling the backend. This asymmetry exists for ALL fields, not just lat/lng. It is existing technical debt (see the '// For now' comment at line 1082) and is out of scope for this fix. It does not currently cause incorrect saves because save_batch performs its own server-side validation.",
+        "do_not_fix_now": "Fixing the two-path asymmetry would require implementing real live-edit validation for all scalar fields, which is a separate and larger task."
+      },
+
+      "lesson_026_validate_method_receives_deserialized_value": {
+        "lesson": "In a DRF validate_field backend endpoint, always capture and pass the deserialized value from field.run_validation() to custom validate_<field> methods. Passing the raw request value violates DRF's contract and causes type errors for fields like DecimalField whose validators expect numeric types.",
+        "applies_to": "Any validate_field endpoint pattern used in Collaborator, Item, or future batch editors"
+      }
     }
   }
 }

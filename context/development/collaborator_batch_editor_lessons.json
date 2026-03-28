@@ -1,8 +1,8 @@
 {
   "collaborator_batch_editor_implementation": {
-    "version": "1.0",
-    "last_updated": "2025-11-10",
-    "conversation_reference": "Complete Collaborator batch editor implementation with comprehensive lessons learned from conformance issues",
+    "version": "1.2",
+    "last_updated": "2025-03-14",
+    "conversation_reference": "Complete Collaborator batch editor implementation with comprehensive lessons learned from conformance issues. v1.1: Import spreadsheet language-column fixes and pattern harmony with Item. v1.2: Shared CellEditor scrollbar/close UX (blur-suppress scope, document Escape and click-outside).",
     
     "overview": {
       "purpose": "Document all lessons learned from implementing the second batch editor (Collaborator) to prevent repeated mistakes when implementing future batch editors (Item, Document, etc.)",
@@ -643,10 +643,11 @@
             "Column name normalization and recognition",
             "Value parsers for each field type",
             "Row reconciliation logic (how to match imported rows to existing)",
-            "Draft row creation for new rows",
+            "Draft row creation for new rows (use shared field-type map for cellType — lesson_023)",
             "Change detection (compare imported values to database values)"
           ],
-          "file_pattern": "frontend/src/services/{model}ImportTransformer.ts"
+          "file_pattern": "frontend/src/services/{model}ImportTransformer.ts",
+          "cross_references": ["lesson_023_draft_row_cell_types_from_map (field-type map for draft rows)"]
         },
         
         "step_2_import_hook": {
@@ -656,9 +657,11 @@
             "File validation (Excel/CSV)",
             "File parsing",
             "Call transformer to process data",
-            "Return results for display"
+            "Return results for display",
+            "Skip backend validation for SerializerMethodField/virtual fields; mark those cells valid (lesson_024)"
           ],
-          "file_pattern": "frontend/src/hooks/useImport{Model}Spreadsheet.ts"
+          "file_pattern": "frontend/src/hooks/useImport{Model}Spreadsheet.ts",
+          "cross_references": ["lesson_024_skip_backend_validation_for_virtual_fields_on_import (skipBackendValidationFields)"]
         },
         
         "step_3_integrate_import": {
@@ -1168,6 +1171,113 @@
           "status": "active",
           "cross_references": ["context/development/batch-editor-universal-patterns.json::pattern_005"]
         }
+      },
+      
+      "import_spreadsheet_language_columns_fixes": {
+        "description": "Fixes for Collaborator batch editor import: wrong editor opening for language columns, and cells incorrectly marked red. Aligns Collaborator with Item patterns.",
+        "added_date": "2025-03-14",
+        "conversation_reference": "Spreadsheet import produced draft rows with type 'text' for all cells (language columns opened text editor) and backend validate_field for native_languages/other_languages returned invalid (SerializerMethodField), so cells stayed red despite valid data.",
+        
+        "pattern_harmonization_achieved": {
+          "summary": "Applied two Item-established patterns to Collaborator import: (1) draft rows get correct cell types from a shared field-type map so the right editor opens; (2) skip backend validation for fields the backend cannot validate (SerializerMethodField / virtual), and mark those cells valid in the import hook.",
+          "aligns_with": [
+            "item-batch-editor-lessons.json::lesson_5_virtual_field_validation (skipValidationFields)",
+            "item-batch-editor-lessons.json::parser_level_validation (skip_backend_validation)",
+            "batch-editor-universal-patterns.json::import_value_comparison.field_type_map_completeness",
+            "item-batch-editor-lessons.json::cell_type_mapping (correct cellType when creating draft rows)"
+          ]
+        },
+        
+        "lesson_023_draft_row_cell_types_from_map": {
+          "decision_id": "collab_batch_023",
+          "content": "Imported draft rows must get correct cellType from a shared field-type map, not default 'text'",
+          "added_date": "2025-03-14",
+          "applies_to": "ALL batch editors with import and complex cell types (multiselect, relationship, etc.)",
+          "problem": "Imported draft rows had every cell set to type 'text'. Language columns (native_languages, other_languages) opened the text editor instead of the multiselect; copy/paste format was wrong.",
+          "root_cause": "createDraftRowFromParsedCells (and model-to-spreadsheet row conversion) did not use a field-type map; cells defaulted to text.",
+          "solution": "Define a shared COLLABORATOR_FIELD_TYPE_MAP (or equivalent) mapping field names to cellType. Use it in createDraftRowFromParsedCells when building draft rows and in collaboratorToSpreadsheetRow for round-trip consistency.",
+          "pattern_for_future": "Draft rows created from import must get the same cellType as the batch editor column config. Use a single field-type map in the import transformer for both draft-row creation and model-to-spreadsheet conversion.",
+          "implementation": {
+            "files": [
+              "frontend/src/services/collaboratorImportTransformer.ts (COLLABORATOR_FIELD_TYPE_MAP, createDraftRowFromParsedCells, collaboratorToSpreadsheetRow)"
+            ],
+            "map_entries": "native_languages, other_languages → 'multiselect'; other fields per COLUMN_CONFIG / batch editor cell types"
+          },
+          "confidence_level": "high",
+          "status": "active",
+          "cross_references": ["context/development/item-batch-editor-lessons.json (cell_type_mapping)", "context/development/batch-editor-universal-patterns.json::field_type_map_completeness"]
+        },
+        
+        "lesson_024_skip_backend_validation_for_virtual_fields_on_import": {
+          "decision_id": "collab_batch_024",
+          "content": "Import hook must skip backend validate_field for SerializerMethodField/virtual fields and mark those cells valid",
+          "added_date": "2025-03-14",
+          "applies_to": "ALL batch editors whose backend exposes virtual/computed fields (SerializerMethodField) that cannot be validated via validate_field API",
+          "problem": "After import, every cell was sent to backend validate_field. For native_languages and other_languages the backend uses SerializerMethodField (read-only); it cannot validate list-of-objects shape and returned invalid, so cells were marked red even when data was valid. Editor chip showed valid; only the cell stayed red.",
+          "root_cause": "useImportCollaboratorSpreadsheet had no skip list; Item already used skipValidationFields for primary_title, secondary_title, collaborators, language.",
+          "solution": "In the import hook, when processing validationNeeded: if fieldName is in skipBackendValidationFields (e.g. native_languages, other_languages), do not call validateField; instead dispatch updateCell with cell: { validationState: 'valid', validationError: undefined }. Parser has already run; backend cannot validate these fields.",
+          "pattern_for_future": "Identify fields that are SerializerMethodField or otherwise not validated by backend. Add them to a skip list in the model's useImport*Spreadsheet hook. Mark those cells valid after import; rely on parser and in-editor validation for real errors.",
+          "implementation": {
+            "files": [
+              "frontend/src/hooks/useImportCollaboratorSpreadsheet.ts (skipBackendValidationFields, conditional dispatch updateCell vs validateField)"
+            ],
+            "reference": "frontend/src/hooks/useImportItemSpreadsheet.ts (skipValidationFields)"
+          },
+          "confidence_level": "high",
+          "status": "active",
+          "cross_references": ["context/development/item-batch-editor-lessons.json::lesson_5_virtual_field_validation", "context/development/item-batch-editor-lessons.json::parser_level_validation"]
+        },
+        
+        "lessons_learned": [
+          "When fixing import UX, check both 'which editor opens' (cellType on draft rows) and 'what validation runs' (import hook vs batch editor commit). The batch editor already skipped backend for multiselect on commit; the red state was coming from import-time validation only.",
+          "SerializerMethodField fields are read-only on the backend; validate_field cannot validate their shape. Skip them in the import validation loop and mark valid; parser and in-editor logic handle real invalid data.",
+          "Pattern harmony across batch editors (Item, Collaborator) reduces bugs: apply the same skip-validation and field-type-map patterns when adding import support for complex columns."
+        ]
+      },
+      
+      "cell_editor_scrollbar_and_close_fixes": {
+        "description": "Shared CellEditor (relationship and multiselect) fix: scrollbar drag was closing the editor; after fixing that, legitimate click-outside and Escape stopped closing. Applies to all batch editors (Collaborator, Item, Languoid).",
+        "added_date": "2025-03-14",
+        "conversation_reference": "Dragging the dropdown scrollbar caused the search input to blur; the blur handler closed the editor. First fix (suppress close when mousedown inside full editor wrapper) broke click-outside. Second fix (suppress only when mousedown inside dropdown) kept scrollbar working but click-outside and Escape still failed because after scrollbar interaction focus had left the input, so no further blur and no keydown on input.",
+        
+        "root_cause_analysis": {
+          "scrollbar_closing_editor": "Mousedown on scrollbar blurred the search input; blur handler called onCancel/commit and closed the editor.",
+          "after_suppressing_blur_close": "We correctly skipped close when mousedown was inside the dropdown (scrollbar). That left the editor open with focus no longer on the input (body or dropdown). From that state: (1) Escape did nothing because keydown was on document/body, not the input. (2) Click outside did not trigger blur again (input was already blurred), so no second chance to close."
+        },
+        
+        "pattern_applied": {
+          "name": "Suppress blur-close for subregion only; add document-level close triggers",
+          "principle": "When you suppress blur-to-close for a subregion (e.g. dropdown/list) so that interaction there (e.g. scrollbar) does not close the editor, you must provide alternative close triggers that work when focus has left the primary control.",
+          "implementation": [
+            "Keep blur handler but skip close only when mousedown was inside the dropdown (narrow scope: dropdownRef.contains(target), not the whole editor). So scrollbar drag does not close.",
+            "Add document keydown (capture): on Escape, call the editor close callback. So Escape closes even when focus is on body/dropdown.",
+            "Add document click (capture): if click target is not inside the editor container (wrapper ref), call the editor close callback. So click-outside closes even when blur was already skipped.",
+            "Use a ref for the current close callback (onCancel or commit) and a ref for the editor container (search + dropdown wrapper); set them when rendering relationship/multiselect. Clear close ref when not in those editors so document listeners no-op for other cell types."
+          ],
+          "files_changed": "frontend/src/components/batch/CellEditor.tsx"
+        },
+        
+        "lesson_025_blur_suppress_requires_alternative_close_triggers": {
+          "decision_id": "collab_batch_025",
+          "content": "When suppressing blur-to-close for a subregion (e.g. dropdown scrollbar), add document-level Escape and click-outside so the editor can still be closed after focus has left the primary input",
+          "added_date": "2025-03-14",
+          "applies_to": "Any overlay or dropdown editor where (1) blur is used to close, and (2) some interaction inside the overlay (e.g. scrollbar) must not close. Affects shared CellEditor used by all batch editors.",
+          "problem": "Scrollbar drag closed the editor (blur). We suppressed close when mousedown was inside the dropdown. Then click-outside and Escape stopped working because focus had left the input and never returned.",
+          "solution": "Do not rely only on blur to close. Add: (1) document keydown for Escape calling the close callback; (2) document click calling the close callback when target is outside the editor container. Scope blur-suppress narrowly (dropdown only, not whole wrapper) so click-outside is not misclassified as inside.",
+          "pattern_for_future": "If you skip close on blur when mousedown was in region X, ensure region X is the minimal area (e.g. dropdown list + scrollbar only). Then add document-level Escape and click-outside that call the same close logic, so the user can always close after interacting with X.",
+          "implementation_notes": {
+            "refs": "editorContainerRef (wrapper: search + dropdown), closeRef (onCancel or handleMultiSelectCommit), mousedownInsideDropdownRef (dropdown only)",
+            "document_listeners": "keydown (Escape) and click (outside container), both capture phase; clear closeRef on keydown effect cleanup and when cell.type is not relationship/multiselect"
+          },
+          "confidence_level": "high",
+          "status": "active"
+        },
+        
+        "lessons_learned": [
+          "Understand the full focus and event flow before adding blur-suppress logic: after suppressing close on blur for one interaction (scrollbar), focus may be elsewhere, so other close paths (Escape, click-outside) must not depend on the input having focus.",
+          "Scope the 'inside' check narrowly. Using the full editor wrapper for mousedown-inside caused legitimate click-outside to be treated as inside (e.g. overlay or hit-testing). Using only the dropdown (list + scrollbar) fixed scrollbar without breaking click-outside; then adding document-level close triggers fixed the case where blur had already been skipped.",
+          "Shared components (CellEditor) used by all batch editors should document close behavior and alternative close triggers so future editors (e.g. Document) inherit the same UX."
+        ]
       },
       
       "documentation_completeness": {

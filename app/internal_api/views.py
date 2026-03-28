@@ -817,14 +817,16 @@ class InternalItemViewSet(viewsets.ModelViewSet):
                 if getattr(field, 'allow_null', False) or getattr(field, 'allow_blank', False) or not getattr(field, 'required', True):
                     return Response({'valid': True})
             
-            # Run field-level validation
-            field.run_validation(value)
+            # Run field-level validation and capture the deserialized value
+            validated_value = field.run_validation(value)
             
             # Check for field-specific validator methods (e.g., validate_catalog_number)
+            # Pass the deserialized value (e.g. Decimal for DecimalField) not the raw string,
+            # so validators that do numeric comparisons receive the correct type.
             validate_method_name = f'validate_{field_name}'
             if hasattr(serializer, validate_method_name):
                 validate_method = getattr(serializer, validate_method_name)
-                validate_method(value)
+                validate_method(validated_value)
             
             # Field-specific uniqueness checks
             if field_name == 'catalog_number' and value:

@@ -353,6 +353,30 @@ const applyChangesToRow = (
 };
 
 /**
+ * Cell types for Collaborator batch editor fields.
+ * Used by createDraftRowFromParsedCells and collaboratorToSpreadsheetRow so draft rows
+ * from import open the correct editor (e.g. multiselect for native_languages, other_languages).
+ */
+const COLLABORATOR_FIELD_TYPE_MAP: Record<string, CellType> = {
+  collaborator_id: 'text',
+  first_names: 'text',
+  last_names: 'text',
+  name_suffix: 'text',
+  nickname: 'text',
+  other_names: 'stringarray',
+  anonymous: 'boolean',
+  native_languages: 'multiselect',
+  other_languages: 'multiselect',
+  birthdate: 'text',
+  deathdate: 'text',
+  gender: 'text',
+  tribal_affiliations: 'text',
+  clan_society: 'text',
+  origin: 'text',
+  other_info: 'text',
+};
+
+/**
  * Create a draft row from parsed cells with auto-generated collaborator_id
  * 
  * For new collaborators, we ignore the collaborator_id from the import file
@@ -377,7 +401,7 @@ const createDraftRowFromParsedCells = async (
     cells[fieldName] = {
       text: parsedCells[fieldName].text,
       value: parsedCells[fieldName].value,
-      type: 'text',  // Default type for new draft rows
+      type: COLLABORATOR_FIELD_TYPE_MAP[fieldName] ?? 'text',
       isEdited: true,
       originalValue: '',
       validationState: 'validating',
@@ -390,7 +414,7 @@ const createDraftRowFromParsedCells = async (
   cells['collaborator_id'] = {
     text: collaboratorId?.toString() || '',
     value: collaboratorId,
-    type: 'text',
+    type: COLLABORATOR_FIELD_TYPE_MAP['collaborator_id'] ?? 'text',
     isEdited: false,  // Not edited by user - auto-generated
     originalValue: '',
     validationState: 'validating',
@@ -421,27 +445,7 @@ const createDraftRowFromParsedCells = async (
 const collaboratorToSpreadsheetRow = (collaborator: Collaborator): SpreadsheetRow => {
   const cells: Record<string, SpreadsheetCell> = {};
   
-  // Map field names to their cell types
-  const fieldTypeMap: Record<string, CellType> = {
-    'collaborator_id': 'text',
-    'first_names': 'text',
-    'last_names': 'text',
-    'name_suffix': 'text',
-    'nickname': 'text',
-    'other_names': 'stringarray',
-    'anonymous': 'boolean',
-    'native_languages': 'multiselect',
-    'other_languages': 'multiselect',
-    'birthdate': 'text',
-    'deathdate': 'text',
-    'gender': 'text',
-    'tribal_affiliations': 'text',
-    'clan_society': 'text',
-    'origin': 'text',
-    'other_info': 'text',
-  };
-  
-  Object.keys(fieldTypeMap).forEach(fieldName => {
+  Object.keys(COLLABORATOR_FIELD_TYPE_MAP).forEach(fieldName => {
     const value = (collaborator as any)[fieldName];
     let displayValue = value?.toString() || '';
     
@@ -461,7 +465,7 @@ const collaboratorToSpreadsheetRow = (collaborator: Collaborator): SpreadsheetRo
     cells[fieldName] = {
       text: displayValue,
       value: value ?? (Array.isArray(value) ? [] : ''),  // Use ?? instead of || to preserve false/0
-      type: fieldTypeMap[fieldName],
+      type: COLLABORATOR_FIELD_TYPE_MAP[fieldName],
       isEdited: false,
       originalValue: value ?? (Array.isArray(value) ? [] : ''),  // Use ?? instead of || to preserve false/0
       validationState: 'valid',

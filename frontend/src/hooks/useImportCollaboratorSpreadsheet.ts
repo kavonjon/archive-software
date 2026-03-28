@@ -207,6 +207,9 @@ export const useImportCollaboratorSpreadsheet = (): UseImportCollaboratorSpreads
       document.body.style.cursor = 'wait';
       
       try {
+        // Backend cannot validate these (SerializerMethodField / read-only); parser already ran.
+        const skipBackendValidationFields = ['native_languages', 'other_languages'];
+
         // Validate all cells (no debounce, immediate)
         for (let i = 0; i < result.validationNeeded.length; i++) {
           const { rowId, fieldName, value } = result.validationNeeded[i];
@@ -220,8 +223,15 @@ export const useImportCollaboratorSpreadsheet = (): UseImportCollaboratorSpreads
             });
           }
           
-          // Validate field
-          await validateField(rowId, fieldName, value);
+          if (skipBackendValidationFields.includes(fieldName)) {
+            dispatch(updateCell({
+              rowId,
+              fieldName,
+              cell: { validationState: 'valid', validationError: undefined },
+            }));
+          } else {
+            await validateField(rowId, fieldName, value);
+          }
         }
       } finally {
         // Restore cursor

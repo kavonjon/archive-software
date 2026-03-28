@@ -81,7 +81,7 @@ const detectFileType = (file: File): 'excel' | 'csv' | null => {
  * Validate file before parsing
  * @param file File to validate
  * @param hasValidColumns Optional custom column validator (defaults to Languoid validator)
- * @param modelName Optional model name for error messages (defaults to "Languoid")
+ * @param modelName Optional model name for error messages: "Languoid" | "Collaborator" | "Item" (defaults to "Languoid")
  */
 export const validateFile = async (
   file: File,
@@ -93,10 +93,13 @@ export const validateFile = async (
   // Default to Languoid validator if not provided
   const columnValidator = hasValidColumns || hasValidLanguoidColumns;
   
-  // Get example columns based on model
-  const exampleColumns = modelName === 'Collaborator'
-    ? 'Collaborator ID, First and Middle Name(s), Last Name(s), Native/First Languages, etc.'
-    : 'Name, Glottocode, Level (Glottolog), Parent Languoid Glottocode, etc.';
+  // Get example columns based on model (for "no recognized columns" error message)
+  const exampleColumns =
+    modelName === 'Item'
+      ? 'Catalog Number, Call Number, Primary Title, Resource Type, Collection, etc.'
+      : modelName === 'Collaborator'
+        ? 'Collaborator ID, First and Middle Name(s), Last Name(s), Native/First Languages, etc.'
+        : 'Name, Glottocode, Level (Glottolog), Parent Languoid Glottocode, etc.';
   
   // Check file type
   const fileType = detectFileType(file);

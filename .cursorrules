@@ -1,0 +1,240 @@
+# Archive Software Development Rules
+
+## Project Context System Definition
+
+The **Project Context System** comprises all files in the `context/` folder. When the user or this protocol refers to the Project Context System, they mean this file-based persistent knowledge—not the conversation transcript or current chat.
+
+## Project Context System Protocol
+
+**MANDATORY at conversation start:**
+- Read `context/README.md` first for navigation
+- New conversation: Read `00-ESSENTIAL/quickstart.md` then `active-work.md`
+- Continued conversation: Start with `00-ESSENTIAL/active-work.md`
+- Before beginning any new phase/feature: Re-read full Project Context System
+- **Treat Project Context System as source of truth** for project state and constraints - when in doubt, follow what is written there over prior assumptions
+
+**Re-read discipline:**
+- If you have not re-read the full Project Context System within the last 20 user messages, do so immediately before continuing
+- When beginning any planned step or phase (new feature, job, significant work), re-read the full Project Context System first
+- **Explicitly consider Recent Changes, Decisions, and Anti-Patterns** for relevance to what you are about to do
+- **Apply them** - skipping this is how repeated mistakes happen (e.g., the same oversight across multiple implementations)
+
+**Project Context System updates:**
+- NEVER update Project Context System files without explicit user approval
+- Wait for trigger phrases: "update context", "update context", "wrap up", "done for today", "end session"
+- When triggered: First propose what you'll update, wait for confirmation, then update
+- Batch updates at milestones, not after every small change
+
+**What to include in updates (only durable items):**
+- Decisions made
+- Designs agreed
+- Implementations completed
+- Patterns established
+- Anti-patterns discovered
+
+**What to EXCLUDE from updates (ephemeral work):**
+- One-off questions (tooling, env setup)
+- Code changes superseded during debugging
+- Temporary debugging steps (unless they reveal patterns)
+- Information already covered in existing files
+- Speculative future plans without implementation
+
+**File growth monitoring:**
+- Alert user when any context file exceeds ~500 lines
+- Propose moving stable/historical content to 05-ARCHIVE/ or splitting into focused files
+- Wait for approval before splitting
+
+**Creating new context files (04-REFERENCE/ subfolders):**
+- Only when: stable topic, >200 lines, self-contained, user approved
+- Default to keeping everything in main pattern/lesson files
+- Avoid creating files prematurely
+
+**Pattern citation:**
+- When implementing, cite relevant context files (e.g., "Following batch-editors.md Redis caching pattern...")
+- Alert user if your approach conflicts with documented patterns
+
+**Decision documentation format (when updating context):**
+```markdown
+### [Decision Name] (YYYY-MM-DD)
+
+[Brief statement of what was decided]
+
+**Why?** [Rationale]
+
+**Alternatives considered:**
+- [Option A]: Rejected - [reason]
+- [Option B]: Rejected - [reason]
+
+**Trade-off accepted:** [What we're giving up in exchange for benefits]
+```
+
+**Project Context System Protocol Violations - DO NOT:**
+- Create documentation files outside context/ folder
+- Use JSON format for Project Context System files
+- Skip reading the full Project Context System at conversation start
+- Update the Project Context System without user approval
+- Include emojis in Project Context System files
+- Update after every small change (batch at milestones)
+- Skip re-reading before beginning new phases of work
+- Proceed without citing relevant patterns when they apply
+
+If you find yourself doing any of these, self-correct immediately.
+
+## Project Identity
+**Archive Management System** - Museum/linguistic archive with Django REST + React frontend
+- **Focus**: Batch editing interfaces for cataloging workflows
+- **Users**: Museum staff, archivists, researchers
+- **Scale**: 4000+ items, 7000+ collaborators, 1200+ languoids
+
+## Critical Non-Negotiables
+
+### Accessibility (ADA Compliance)
+- **All UI changes require accessibility considerations**
+- Semantic HTML, ARIA labels, keyboard navigation, screen reader support
+- 44px minimum touch targets, 4.5:1 color contrast
+- Test with axe-core (runs automatically in dev)
+
+### No Obvious Comments
+- Never add comments that narrate what code does
+- Bad: `// Import the module`, `// Define the function`, `// Increment counter`
+- Good: Comments explaining non-obvious intent, trade-offs, constraints
+- Never explain your changes in code comments
+
+### Preserve Existing Patterns
+- Study similar working implementations before writing new code
+- Match established patterns for: naming, structure, imports, error handling
+- Example: New batch editor? Study ItemBatchEditor.tsx first
+
+### Test Changes Locally
+- Start dev servers before making changes (`dev.sh`)
+- Verify in browser after significant edits
+- Check linter errors with ReadLints tool
+
+## Tech Stack Quick Reference
+
+**Backend:**
+- Django 5.0.14, DRF, PostgreSQL
+- Celery + Redis (async tasks, caching)
+- Group-based permissions (Archivist, Museum Staff, Read-Only)
+
+**Frontend:**
+- React 18 + TypeScript + Material-UI
+- TanStack Table (batch editors)
+- Vite dev server (localhost:3000)
+
+**Dev Workflow:**
+- Backend: `./dev.sh` (Django + Celery workers)
+- Frontend: `cd frontend && npm start`
+- API: localhost:8000, Frontend: localhost:3000
+
+## Common Patterns
+
+### Batch Editors (Current Focus)
+- **Redis caching mandatory** for >1000 rows (implement from start, don't retrofit)
+- **Async export** for >100 rows (UUID backend, timestamp frontend filename)
+- **Client-side filtering** uses full cache, not paginated state
+- **Invalid data preservation**: Keep invalid imports with `id: null`, show red, allow user correction
+- Custom editors for complex fields (through-models, virtual fields)
+- Reference: `03-LESSONS/item-batch-editor.md` (state-of-the-art, 61 fields)
+
+### Django Patterns
+- **Service layer**: Business logic in `services.py`, not views
+- **Signals**: Use pre_save for computed fields, m2m_changed for relationship enforcement
+- **FilterBackends**: Database-level filtering, not serializer filtering
+- **Choice fields**: Provide both `field` and `field_display` in APIs
+
+### React Patterns
+- **Never define components inside components** (causes DOM recreation, cursor jumping)
+- **TypeScript interfaces** for all props, state, API responses
+- **Error boundaries** and loading states for all async operations
+- **Mobile-first**: Design for 320px+, enhance for larger screens
+- **State persistence**: Use `sessionStorage` for filters, selections, pagination
+
+### API & Serialization
+- **Two serializers per model**: 
+  - Full (create/update/detail) with all fields + display values
+  - Batch (list/cache) minimal but includes ALL fields needed for filtering
+- **Virtual fields** (SerializerMethodField): Skip backend validation, validate in parser
+- **Through-models**: Handle CRUD in serializer update/create methods
+
+### Security
+- **Group-based**: Archivist (full), Museum Staff (edit, no delete), Read-Only (view only)
+- **No group = 403 Forbidden** (explicit assignment required)
+- **CSRF + CORS**: Configured for localhost:3000 ↔ localhost:8000
+
+## Anti-Patterns (Don't Do This)
+
+- Implementing batch editor without Redis caching  
+- Using timestamp for export IDs (use UUID backend instead)  
+- Filtering paginated state (use full cache)  
+- Silently dropping invalid data (preserve with `id: null`)  
+- Defining components inside components  
+- Calling callbacks during render phase (causes infinite loops)  
+- Hardcoding choice constants in components (import from api.ts)  
+- Case-sensitive sorting (use `Lower('field')`)  
+- Forgetting `prefetch_related` for M2M (N+1 queries)  
+- Modifying BatchSerializer for other purposes (create separate PickerSerializer)
+
+## Current Work (As of 2026-03-14)
+
+**Stage 1: Batch Editing** (3 of 4 complete)
+- Complete: Languoid batch editor (1200 rows, 40 fields)
+- Complete: Collaborator batch editor (7400 rows, 35 fields)
+- Complete: Item batch editor (4400 rows, 61 fields) - **STATE-OF-THE-ART REFERENCE**
+- Next: Document batch editor - NEXT TASK
+
+**Recent Achievements:**
+- Filter persistence across navigation (matches Collaborator/Languoid pattern)
+- Fixed batch edit filtered & export filtered (697 item count bug resolved)
+- Navigation menu reordered (Collections before Items)
+- Backend validate_field fix for DecimalField types (lat/lng import)
+
+**Next Priority:** Document batch editor (final batch editor in Stage 1)
+
+## Key Files for Current Work
+
+**Backend:**
+- `app/internal_api/serializers.py` - Serializers for all models
+- `app/internal_api/views.py` - ViewSets with batch actions
+- `app/metadata/tasks.py` - Celery tasks for async operations
+- `app/metadata/signals.py` - Computed fields and data integrity
+
+**Frontend:**
+- `frontend/src/components/items/ItemBatchEditor.tsx` - Reference implementation
+- `frontend/src/components/batch/CellEditor.tsx` - Standard cell editors
+- `frontend/src/components/batch/CollaboratorRolesCellEditor.tsx` - Through-model pattern
+- `frontend/src/components/batch/TitleWithLanguageCellEditor.tsx` - Text+FK pattern
+- `frontend/src/contexts/ItemCacheContext.tsx` - Cache management pattern
+- `frontend/src/services/itemImportValueParsers.ts` - Import parsing patterns
+
+## Quick Commands
+
+```bash
+# Start development
+./dev.sh                          # Backend + Celery (terminal 1)
+cd frontend && npm start          # Frontend (terminal 2)
+
+# Hard restart Celery workers (if code not reloading)
+pkill -9 -f 'celery -A archive' && ./dev.sh
+
+# Check running terminals
+cd /Users/kavon/.cursor/terminals && head -n 10 *.txt
+
+# Database migrations
+cd app && pipenv run python manage.py makemigrations
+cd app && pipenv run python manage.py migrate
+
+# Clear Redis cache
+redis-cli -p 6387 FLUSHALL
+```
+
+## Communication Style
+- Be direct and technical, no excessive praise
+- Focus on facts and problem-solving
+- Provide objective analysis even if contradicts user assumptions
+- Ask clarifying questions when uncertain
+- No emojis unless user requests them
+
+---
+
+**For detailed patterns and comprehensive documentation, see the Project Context System in context/ folder**

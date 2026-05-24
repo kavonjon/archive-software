@@ -185,6 +185,8 @@
 
 **Management**: App lifecycle through TrueNAS Scale Apps UI (not direct docker-compose commands)
 
+**PostgreSQL image**: Pinned to `postgres:17` in all compose files. Never use unpinned `postgres` or `postgres:latest`. Docker Hub `latest` moved to PG 18+ (Sep 2025); PG 18+ uses a different data directory layout incompatible with existing volumes at `/var/lib/postgresql/data/`. Major upgrades require explicit `pg_upgrade` — see `docs/deployment/database-operations.md`.
+
 ### Update Scripts
 
 **deploy-update-private.sh**:

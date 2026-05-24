@@ -1,6 +1,6 @@
 # Project Context System
 
-**Version 3.6** | Last Updated: 2026-05-22
+**Version 3.7** | Last Updated: 2026-05-24
 
 The **Project Context System** comprises all files in the `context/` folder. When this documentation refers to the Project Context System, it means this file-based persistent knowledge—not the conversation transcript or current chat.
 
@@ -241,6 +241,7 @@ Each of those three files starts with a short **cross-link block** to the other 
 5. Wait for user approval before executing the split
 
 ### Version History
+- **2026-05-24 (postgres pin):** Pinned `postgres:17` in all compose files after production outage from unpinned `latest` pulling PG 18; documented in `infrastructure.md`, `active-work.md`, `database-operations.md`
 - **2026-05-22 (access level chips):** Item access level chip colors centralized in `getAccessLevelChipProps`; documented in `list-page-patterns.md` and `active-work.md`
 - **2026-05-24 (field removal):** Removed `Item.permission_to_publish_online` from model, API, and UI; migration 0105; documented in `deprecated.md` and `active-work.md`
 - **2026-05-24 (frontend split, phase 2):** Moved form, React conventions, and app-shell patterns to `04-REFERENCE/frontend/`; `frontend.md` now core patterns only (~350 lines)
@@ -268,6 +269,7 @@ pattern: "CollaboratorRole"     - 03-LESSONS/item-batch-editor.md
 pattern: "usePersistedListState" - 04-REFERENCE/frontend/list-page-patterns.md
 pattern: "ColumnVisibilityMenu"     - 04-REFERENCE/frontend/list-page-patterns.md
 pattern: "getAccessLevelChipProps"   - utils/accessLevelChip.ts, list-page-patterns.md
+pattern: "postgres:17"               - docker-compose.*.yml, infrastructure.md, database-operations.md
 ```
 
 **Find by file:** Use glob patterns

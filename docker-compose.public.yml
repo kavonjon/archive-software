@@ -24,7 +24,7 @@ services:
       - redis
 
   db:
-    image: postgres
+    image: postgres:17
     container_name: postgres_django_public
     restart: unless-stopped
     ports:

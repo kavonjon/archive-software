@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-05-22
+**Last Updated**: 2026-05-24
 
 ## Current Priority
 
@@ -26,6 +26,8 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Automated: Daily at 3:00 AM via Celery Beat to `backup/dumps/`
 - Retention: 30 days daily, 6 months weekly, 2 years monthly
 
+**PostgreSQL**: Pinned to `postgres:17` in all compose files (see Decisions). Do not use unpinned `postgres:latest`.
+
 ## MVP vs Beyond MVP
 
 ### MVP (Critical for Launch)
@@ -48,6 +50,21 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Pin PostgreSQL Docker Image to 17 (2026-05-24)
+
+**Incident:** Production TrueNAS deploy (May 2026) — login failed with `could not translate host name "db"`. Root cause: Postgres container exited after TrueNAS app restart pulled `postgres:latest` (PG 18+), which rejects existing volume data at `/var/lib/postgresql/data/`.
+
+**Not caused by:** Application code changes (field removal, migrations, frontend). Infrastructure — unpinned `image: postgres` in compose.
+
+**Timeline context:**
+- Production volume created with PG 17 (Mar–Nov 2025 when `latest` was still 17)
+- Docker Hub `latest` switched to PG 18 on **Sep 25, 2025**; Nov 2025 production still worked on cached PG 17 image
+- May 2026 Stop/Start pulled fresh `latest` (18.x) → Postgres exit loop → web can't reach `db`
+
+**Fix:** Pin `image: postgres:17` in `docker-compose.private.yml`, `docker-compose.public.yml`, `docker-compose.yml`. Documented in `docs/deployment/database-operations.md`.
+
+**Recovery on TrueNAS:** Pull pin → Stop/Start app → verify Postgres running → `python manage.py migrate`.
 
 ### Item Access Level Chip Colors (2026-05-22)
 
@@ -357,7 +374,23 @@ Centralized in `getAccessLevelChipProps` (`utils/accessLevelChip.ts`) — single
 
 **Trade-off accepted:** Level 4 uses custom yellow (`#fdd835`) because MUI Chip has no built-in yellow palette entry.
 
+### Pin PostgreSQL to postgres:17 (2026-05-24)
+
+All compose files use `image: postgres:17` — never unpinned `postgres` or `postgres:latest`.
+
+**Why?** Production volumes use pre-PG-18 data layout (`/var/lib/postgresql/data`). Docker Hub `latest` is PG 18+ (since Sep 2025); PG 18+ images refuse that mount path without migration.
+
+**Alternatives considered:**
+- Pin only private compose: Rejected — dev/public would still risk wrong version on fresh installs
+- Upgrade to PG 18 now: Rejected — requires `pg_upgrade` + volume path change; emergency recovery needed PG 17
+
+**Trade-off accepted:** Must explicitly bump major version and run `pg_upgrade` when upgrading Postgres; no automatic `latest` tracking.
+
 ## Files Recently Modified
+
+**Infrastructure (2026-05-24):**
+- `docker-compose.private.yml`, `docker-compose.public.yml`, `docker-compose.yml` - Pin `postgres:17`
+- `docs/deployment/database-operations.md` - PostgreSQL version pinning section
 
 **Backend:**
 - `app/metadata/models.py` - Removed `permission_to_publish_online`; removed `item_permission_to_publish_online` from Columns_export

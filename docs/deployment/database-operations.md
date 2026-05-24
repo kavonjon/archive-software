@@ -329,6 +329,12 @@ The `init-db.sh` script will automatically:
 
 ## Important Notes
 
+### PostgreSQL Version
+
+All compose files pin `image: postgres:17`. Production volumes were created with PG 17 (Mar–Nov 2025). Unpinned `postgres:latest` pulls PG 18+, which refuses to start against the existing volume layout.
+
+To upgrade major versions later, use `pg_upgrade` and follow the [official Postgres 18+ volume migration guidance](https://github.com/docker-library/postgres/issues/37).
+
 ### Environment Variables
 
 Ensure `.env` file in `~/archive-software/` contains production values:

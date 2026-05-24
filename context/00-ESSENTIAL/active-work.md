@@ -7,7 +7,7 @@
 **Document Batch Editor** - Final batch editor in Stage 1
 
 Status: Ready to begin  
-Reference: Item batch editor (state-of-the-art, 61 fields)  
+Reference: Item batch editor (state-of-the-art, 60 fields)  
 Expected: Simpler than Item (likely fewer complex fields)
 
 ## Production Status
@@ -49,6 +49,32 @@ Expected: Simpler than Item (likely fewer complex fields)
 
 ## Recent Achievements (Last 30 Days)
 
+### Remove Permission to Publish Online Field (2026-05-24)
+
+**Decision:** Field removed entirely — no longer needed in cataloging workflows.
+
+**Backend:**
+- Dropped `Item.permission_to_publish_online` and `Columns_export.item_permission_to_publish_online`
+- Migration `0105_remove_permission_to_publish_online.py` (applied)
+- Removed from `InternalItemSerializer`, item export headers/rows (`internal_api/views.py`, `metadata/tasks.py`), legacy Django views/forms/templates, CSV import
+
+**Frontend:**
+- Removed from `ItemDetail`, `ItemCreate`, `ItemBatchEditor`, `api.ts` Item interface, import mapper/transformer
+
+**Migration pitfall (fixed):** `RemoveField` for ColumnsExport must use model name `columns_export` (not `columnsexport`) — wrong name breaks `makemigrations` with `KeyError`.
+
+**Migration 0106 (applied):** `0106_alter_item_browse_categories` — Django metadata sync only (choice order + `nac` label `"NAC"` → `"Native American Church"`); no data recalculation.
+
+### Context System — frontend.md Split (2026-05-24)
+
+**Why:** `02-PATTERNS/frontend.md` exceeded ~500-line monitoring threshold (~1,097 lines).
+
+**Phase 1:** List page patterns → `04-REFERENCE/frontend/list-page-patterns.md`
+
+**Phase 2:** Form, React conventions, app shell → `04-REFERENCE/frontend/form-patterns.md`, `react-conventions.md`, `app-shell-patterns.md`
+
+**Result:** `frontend.md` trimmed to ~350 lines (core patterns + stubs); index triad updated (`context-map.md`, `where-patterns-live.md`, `system-inventory.md`).
+
 ### Items List — Configurable Columns (2026-05-24)
 
 **User-facing:** Items list desktop table supports show/hide columns via hamburger menu above the table (right of results count). Preferences persist across sessions.
@@ -78,7 +104,7 @@ Expected: Simpler than Item (likely fewer complex fields)
 
 **Not in picker:** Files (detail card exists; no file fields on item list API yet). **Coordinates** group (lat/long) included — separate from Location card on detail.
 
-**Explicitly excluded from columns:** `*_date_min`/`*_date_max`, raw choice codes (use `*_display`), slug/uuid/FK ids, deprecated file location fields, permission to publish online, primary/english/indigenous title flat fields, migration/FileMaker/migrate/cataloged audit fields (except Last Updated + Modified By in Metadata History).
+**Explicitly excluded from columns:** `*_date_min`/`*_date_max`, raw choice codes (use `*_display`), slug/uuid/FK ids, deprecated file location fields, primary/english/indigenous title flat fields, migration/FileMaker/migrate/cataloged audit fields (except Last Updated + Modified By in Metadata History).
 
 **UX decisions:**
 - Column control above table (right of count), not in table header — avoids horizontal-scroll discoverability issues
@@ -133,7 +159,7 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Collections list aligned with Items/Collaborators (`usePersistedListState`, results count, seamless reload)
 
 ### Item Batch Editor (Complete - Production Ready)
-- 61 fields, 4,400 rows, ~17MB cached
+- 60 fields, 4,400 rows, ~17MB cached
 - Custom editors: CollaboratorRolesCellEditor, TitleWithLanguageCellEditor
 - Invalid data preservation pattern (id: null to red visualization)
 - Redis caching with async rebuild
@@ -290,15 +316,47 @@ Hamburger menu above table (flex row with results count), not in table header ro
 
 **Trade-off accepted:** Mobile card view unchanged (no column picker on xs/md card layout).
 
+### Remove Item.permission_to_publish_online (2026-05-24)
+
+Field removed from model, API, React UI, batch editor, and legacy Django import/export — not deprecated/inactive, fully deleted.
+
+**Why?** No longer needed for cataloging or access-control workflows; `item_access_level` and `access_level_restrictions` remain the access fields.
+
+**Alternatives considered:**
+- Hide in UI only: Rejected — dead schema and API surface
+- Migrate values elsewhere: Rejected — no replacement field
+
+**Trade-off accepted:** Historical yes/no values dropped on migration; CSV imports with that column header are ignored.
+
 ## Files Recently Modified
 
 **Backend:**
+- `app/metadata/models.py` - Removed `permission_to_publish_online`; removed `item_permission_to_publish_online` from Columns_export
+- `app/metadata/migrations/0105_remove_permission_to_publish_online.py` - Field removal migration (new)
+- `app/metadata/migrations/0106_alter_item_browse_categories.py` - browse_categories metadata sync (applied)
+- `app/internal_api/serializers.py` - Removed permission field + display from InternalItemSerializer
+- `app/internal_api/views.py` - CollectionFilter refactor; item export column removed
+- `app/metadata/views.py` - Legacy search, column export, CSV import cleanup
+- `app/metadata/forms.py`, `app/metadata/tasks.py` - Field removal
+- `app/templates/item_detail.html`, `app/templates/columns_export_detail.html` - Legacy template cleanup
+
+**Frontend:**
+- `frontend/src/components/items/ItemDetail.tsx` - Removed EditableBooleanField for permission
+- `frontend/src/components/items/ItemCreate.tsx` - Removed form control
+- `frontend/src/components/items/ItemBatchEditor.tsx` - Removed column + boolean cell handling
+- `frontend/src/services/api.ts`, `itemImportColumnMapper.ts`, `itemImportTransformer.ts` - Type/import cleanup
+
+**Context (2026-05-24):**
+- `02-PATTERNS/frontend.md` - Trimmed; stubs to `04-REFERENCE/frontend/*`
+- `04-REFERENCE/frontend/list-page-patterns.md`, `form-patterns.md`, `react-conventions.md`, `app-shell-patterns.md` - New deep dives
+
+**Backend (prior session):**
 - `app/internal_api/views.py` - CollectionFilter refactor (genres, access_levels, date_range_min/max); Item/Collaborator filters from prior session
 - `app/internal_api/serializers.py` - FK-derived collection fields on batch serializer; Item titles field
 - `app/metadata/tasks.py` - Export task improvements (now cleaned up)
 - `app/metadata/signals.py` - Item browse_categories, collection auto-assignment
 
-**Frontend:**
+**Frontend (prior session):**
 - `frontend/src/hooks/usePersistedColumnVisibility.ts` - Column visibility localStorage hook (new, 2026-05-24)
 - `frontend/src/components/list/ColumnVisibilityMenu.tsx` - Grouped column picker Popover (new, 2026-05-24)
 - `frontend/src/components/items/itemListColumns.tsx` - Item list column defs + group order (new, 2026-05-24)

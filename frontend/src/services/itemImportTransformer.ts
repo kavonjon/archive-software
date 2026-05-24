@@ -390,7 +390,6 @@ const createDraftRowFromParsedCells = async (
     // Content Classification
     'genre': 'multiselect',
     'language_description_type': 'multiselect',
-    'permission_to_publish_online': 'boolean',
     'access_level_restrictions': 'text',
     // Accession
     'accession_number': 'text',
@@ -495,7 +494,6 @@ const itemToSpreadsheetRow = (item: Item): SpreadsheetRow => {
     // Content Classification
     'genre': 'multiselect',
     'language_description_type': 'multiselect',
-    'permission_to_publish_online': 'boolean',
     'access_level_restrictions': 'text',
     // Accession
     'accession_number': 'text',

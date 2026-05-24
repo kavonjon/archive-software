@@ -352,7 +352,6 @@ def item_index(request):
         partial_qs_original_format_medium = qs_simple.filter(original_format_medium__icontains = keyword_contains_query)
         partial_qs_other_information = qs_simple.filter(other_information__icontains = keyword_contains_query)
         partial_qs_other_institutional_number = qs_simple.filter(other_institutional_number__icontains = keyword_contains_query)
-        partial_qs_permission_to_publish_online = qs_simple.filter(permission_to_publish_online__icontains = keyword_contains_query)
         partial_qs_project_grant = qs_simple.filter(project_grant__icontains = keyword_contains_query)
         partial_qs_public_event = qs_simple.filter(public_event__icontains = keyword_contains_query)
         partial_qs_recorded_on = qs_simple.filter(recorded_on__icontains = keyword_contains_query)
@@ -441,7 +440,6 @@ def item_index(request):
                                     partial_qs_original_format_medium,
                                     partial_qs_other_information,
                                     partial_qs_other_institutional_number,
-                                    partial_qs_permission_to_publish_online,
                                     partial_qs_project_grant,
                                     partial_qs_public_event,
                                     partial_qs_recorded_on,
@@ -1015,11 +1013,6 @@ def item_index(request):
                     header_cell.fill = style_access
                     sheet_column_counter += 1
                     header_cell = sheet.cell(row=1, column=sheet_column_counter )
-                if column_choice.item_permission_to_publish_online:
-                    header_cell.value = 'Permission to publish online'
-                    header_cell.fill = style_access
-                    sheet_column_counter += 1
-                    header_cell = sheet.cell(row=1, column=sheet_column_counter )
                 if column_choice.item_collaborator:
                     column_counter = 1
                     while column_counter <= max_collaborator_counts:
@@ -1470,13 +1463,6 @@ def item_index(request):
                         xl_row.append(item.access_level_restrictions)
                     if column_choice.item_copyrighted_notes:
                         xl_row.append(item.copyrighted_notes)
-                    if column_choice.item_permission_to_publish_online:
-                        if item.permission_to_publish_online:
-                            xl_row.append('yes')
-                        elif item.permission_to_publish_online is None:
-                            xl_row.append('')
-                        else:
-                            xl_row.append('no')
                     if column_choice.item_collaborator:
                         collaborator_rows = []
                         collaborator_rows.extend( item.collaborator.all().values_list('name', flat=True).order_by('name') )
@@ -4419,7 +4405,6 @@ def ImportView(request):
                 original_format_medium_success = original_format_medium_success_physical and original_format_medium_success_medium
                 import_field(request, 'other_information', ('^Other Information$',), headers, row, item, model = 'Item')
                 import_field(request, 'other_institutional_number', ('^Other Institutional Number$',), headers, row, item, model = 'Item')
-                permission_to_publish_online_success = import_field(request, 'permission_to_publish_online', ('^Permission to Publish Online$',), headers, row, item, model = 'Item', yesno=True)
                 import_field(request, 'project_grant', ('^Project/Grant$',), headers, row, item, model = 'Item')
                 import_field(request, 'public_event', ('^Public Event$',), headers, row, item, model = 'Item')
                 import_field(request, 'publisher', ('^Publisher$',), headers, row, item, model = 'Item')
@@ -4449,7 +4434,6 @@ def ImportView(request):
                                    genre_success and
                                    access_level_success and
                                    original_format_medium_success and
-                                   permission_to_publish_online_success and
                                    type_of_accession_success and
                                    language_description_type_success )
 

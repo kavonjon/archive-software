@@ -8,12 +8,12 @@
 
 **Scale**: 4,400+ items
 
-**Key Fields** (61 total):
+**Key Fields** (60 total):
 - **Identifiers**: catalog_number (unique), call_number
 - **Content**: description_scope_and_content, resource_type, genre
 - **Dates**: creation_date, accession_date, deposit_date (flexible text format)
 - **Location**: municipality, county, state, country, global_region
-- **Access**: access_level (1-4 scale), permission_to_publish_online
+- **Access**: item_access_level (1-4 scale), access_level_restrictions, copyrighted_notes
 - **Condition**: availability_status, condition, ipm_issues
 - **Books**: publisher, isbn, loc_catalog_number, page count
 - **Computed**: browse_categories (auto from genre/type), collection (auto from prefix)
@@ -41,7 +41,7 @@
   - Sort order for browse UI: texts, grammars, dictionaries, narratives, songs, ceremonies, prayers, interviews, photos, videos, other
 - `collection`: Auto-assigned from catalog_number prefix pattern (`^([A-Za-z]{3})-`)
 
-**Batch Editor**: State-of-the-art reference (61 fields, custom editors, invalid data preservation)
+**Batch Editor**: State-of-the-art reference (60 fields, custom editors, invalid data preservation)
 
 ### Item API Field Organization
 
@@ -267,7 +267,7 @@ Family (e.g., Iroquoian)
 
 ### Boolean Fields
 - **BooleanField with null=True**: 3-state (Yes/No/Not specified)
-- **Examples**: anonymous, citation_author, permission_to_publish_online
+- **Examples**: anonymous, citation_author (CollaboratorRole); migrate (Item, non-null default False)
 
 ### Computed Fields
 - **Pre-save signals**: browse_categories, collection, full_name, level_nal

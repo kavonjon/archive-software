@@ -657,7 +657,6 @@ class Item(models.Model):
     original_format_medium = models.CharField(max_length=17, choices=FORMAT_CHOICES, blank=True)
     other_information = models.TextField(blank=True)
     other_institutional_number = models.CharField(max_length=255, blank=True)
-    permission_to_publish_online = models.BooleanField(null=True, blank=True)
     project_grant = models.CharField(max_length=255, blank=True) # automate across deposit
     public_event = models.CharField(max_length=255, blank=True)
     publisher = models.CharField(max_length=255, blank=True)
@@ -935,7 +934,6 @@ class Columns_export(models.Model):
     item_original_format_medium = models.BooleanField(default=True)
     item_other_information = models.BooleanField(default=True)
     item_other_institutional_number = models.BooleanField(default=True)
-    item_permission_to_publish_online = models.BooleanField(default=True)
     item_project_grant = models.BooleanField(default=True)
     item_public_event = models.BooleanField(default=True)
     item_publisher = models.BooleanField(default=True)

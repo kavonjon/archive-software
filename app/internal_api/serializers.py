@@ -225,7 +225,6 @@ class InternalItemSerializer(serializers.ModelSerializer):
     browse_categories_display = serializers.SerializerMethodField()
     
     # Boolean field display
-    permission_to_publish_online_display = serializers.SerializerMethodField()
     migrate_display = serializers.SerializerMethodField()
     
     # Coordinate fields for geographic location
@@ -263,7 +262,6 @@ class InternalItemSerializer(serializers.ModelSerializer):
             'browse_categories', 'browse_categories_display',
             'language_names', 'collaborator_names', 'creation_date',
             'associated_ephemera', 'access_level_restrictions', 'copyrighted_notes',
-            'permission_to_publish_online', 'permission_to_publish_online_display',
             
             # Availability & Condition
             'availability_status', 'availability_status_display', 'availability_status_notes',
@@ -410,12 +408,6 @@ class InternalItemSerializer(serializers.ModelSerializer):
         
         # Return display names for selected values
         return [browse_cat_dict.get(value, value) for value in categories_list]
-    
-    def get_permission_to_publish_online_display(self, obj):
-        """Get human-readable boolean display"""
-        if obj.permission_to_publish_online is None:
-            return 'Not specified'
-        return 'Yes' if obj.permission_to_publish_online else 'No'
     
     def get_migrate_display(self, obj):
         """Get human-readable boolean display for migrate field"""

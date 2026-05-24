@@ -65,7 +65,6 @@ interface ItemFormData {
   // Access & Permissions
   access_level_restrictions: string;
   copyrighted_notes: string;
-  permission_to_publish_online: boolean | null;
   
   // Accessions
   accession_number: string;
@@ -164,7 +163,6 @@ const ItemCreate: React.FC<ItemCreateProps> = ({
     // Access & Permissions
     access_level_restrictions: '',
     copyrighted_notes: '',
-    permission_to_publish_online: null,
     
     // Accessions
     accession_number: '',
@@ -781,24 +779,6 @@ const ItemCreate: React.FC<ItemCreateProps> = ({
                       onChange={(e) => handleFieldChange('copyrighted_notes', e.target.value)}
                       placeholder="Copyright information and notes"
                     />
-                    
-                    <FormControl fullWidth>
-                      <InputLabel>Permission to Publish Online</InputLabel>
-                      <Select
-                        value={formData.permission_to_publish_online === null ? '' : formData.permission_to_publish_online.toString()}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          handleFieldChange('permission_to_publish_online', 
-                            value === '' ? null : value === 'true'
-                          );
-                        }}
-                        label="Permission to Publish Online"
-                      >
-                        <MenuItem value="">Not specified</MenuItem>
-                        <MenuItem value="true">Yes</MenuItem>
-                        <MenuItem value="false">No</MenuItem>
-                      </Select>
-                    </FormControl>
                   </Stack>
                 </CardContent>
               </Card>

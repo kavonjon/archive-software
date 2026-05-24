@@ -1,8 +1,8 @@
 # Item Batch Editor Lessons
 
 **Status**: State-of-the-art reference implementation (Complete, Production)  
-**Scale**: 4,400 items × 61 fields (~17MB cached)  
-**Date**: 2025-11-17 (Initial) | 2026-03-14 (validate_field fix)
+**Scale**: 4,400 items × 60 fields (~17MB cached) — was 61 fields until `permission_to_publish_online` removed (2026-05-24)  
+**Date**: 2025-11-17 (Initial) | 2026-03-14 (validate_field fix) | 2026-05-24 (permission field removed)
 
 **Purpose**: Comprehensive guide for Document batch editor implementation. All patterns, anti-patterns, and lessons learned captured here.
 
@@ -11,7 +11,7 @@
 ## Executive Summary
 
 **Achievements**:
-- Most complex batch editor to date (61 fields)
+- Most complex batch editor to date (60 fields as of 2026-05-24; 61 at initial completion)
 - New patterns: Invalid data preservation, virtual field handling, complex through-models
 - Reusable components: CollaboratorRolesCellEditor, TitleWithLanguageCellEditor
 - Performance validated: 4,400 rows, <1s cached load, ~18s async export

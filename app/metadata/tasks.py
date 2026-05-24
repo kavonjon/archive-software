@@ -1771,7 +1771,7 @@ def generate_item_export_task(self, export_id, mode, ids):
         headers.extend([
             'Description', 'Resource Type', 'Call Number', 'Associated Ephemera',
             'Languages', 'Collaborators (Role, Citation)', 'Creation Date',
-            'Genre', 'Language Description Type', 'Permission to Publish Online', 'Access Level Restrictions',
+            'Genre', 'Language Description Type', 'Access Level Restrictions',
             'Accession Number', 'Accession Date', 'Type of Accession', 'Acquisition Notes',
             'Collector Name', 'Collector Info', 'Collection Date', 'Collecting Notes',
             'Depositor Name', 'Depositor Contact Information', 'Deposit Date', 'Project Grant',
@@ -1869,9 +1869,6 @@ def generate_item_export_task(self, export_id, mode, ids):
                 lang_desc_labels = [lang_desc_dict.get(ld, ld) for ld in lang_desc_list]
             lang_desc_display = ', '.join(lang_desc_labels)
             
-            # Handle boolean field
-            permission_display = 'Yes' if item.permission_to_publish_online is True else ('No' if item.permission_to_publish_online is False else 'Not specified')
-            
             # Build row_data
             row_data = [
                 item.catalog_number or '',
@@ -1895,7 +1892,6 @@ def generate_item_export_task(self, export_id, mode, ids):
                 item.creation_date or '',
                 genre_display,
                 lang_desc_display,
-                permission_display,
                 item.access_level_restrictions or '',
                 item.accession_number or '',
                 item.accession_date or '',

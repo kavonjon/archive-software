@@ -242,18 +242,6 @@ export const ITEM_IMPORT_COLUMN_MAP: Record<string, ImportColumnConfig> = {
     choices: LANGUAGE_DESCRIPTION_TYPE_CHOICES as Array<{ value: string; label: string }>,
   },
   
-  'permission to publish online': {
-    batchEditorField: 'permission_to_publish_online',
-    cellType: 'boolean',
-    required: false,
-    parser: 'boolean',
-    choices: [
-      { value: true, label: 'Yes' },
-      { value: false, label: 'No' },
-      { value: null, label: 'Not specified' },
-    ],
-  },
-  
   'access level restrictions': {
     batchEditorField: 'access_level_restrictions',
     cellType: 'text',

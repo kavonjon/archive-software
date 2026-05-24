@@ -37,7 +37,6 @@ import {
   DateInterpretationFeedback,
   EditableTextField,
   EditableSelectField,
-  EditableBooleanField,
   EditableMultiRelationshipField,
   EditableMultiSelectField,
   EditableCollaboratorRolesField,
@@ -841,26 +840,6 @@ const ItemDetail: React.FC<ItemDetailProps> = ({
                <Box>
                  {renderField('Access Level Restrictions', item.access_level_restrictions)}
                  {renderField('Copyrighted Notes', item.copyrighted_notes)}
-                 <EditableBooleanField
-                   fieldName="permission_to_publish_online"
-                   label="Permission to Publish Online"
-                   value={item.permission_to_publish_online !== null ? String(item.permission_to_publish_online) : ''}
-                   isEditing={editingFields.has('permission_to_publish_online')}
-                   isSaving={savingFields.has('permission_to_publish_online')}
-                   editValue={editValues.permission_to_publish_online !== undefined ? 
-                     String(editValues.permission_to_publish_online) : 
-                     (item.permission_to_publish_online !== null ? String(item.permission_to_publish_online) : '')}
-                   startEditing={(fieldName, value) => {
-                     const boolValue = item.permission_to_publish_online;
-                     startEditing(fieldName, boolValue !== null ? String(boolValue) : '');
-                   }}
-                   cancelEditing={cancelEditing}
-                   saveField={(fieldName, value) => {
-                     // The EditableBooleanField passes the converted boolean/null value
-                     saveField(fieldName, value);
-                   }}
-                   updateEditValue={updateEditValue}
-                 />
                </Box>
              </CardContent>
            </Card>

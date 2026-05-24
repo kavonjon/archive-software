@@ -64,8 +64,6 @@ export interface Item {
   associated_ephemera: string;
   access_level_restrictions: string;
   copyrighted_notes: string;
-  permission_to_publish_online: boolean | null;
-  permission_to_publish_online_display: string;
   
   // Availability & Condition
   availability_status: string;

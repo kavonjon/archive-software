@@ -60,6 +60,20 @@ class DialectInstance(models.Model):
 
 ---
 
+### Item.permission_to_publish_online (Removed 2026-05-24)
+
+**Was**: BooleanField(null=True) on Item — "Permission to publish online" (Yes/No/Not specified)
+
+**Why Removed**: No longer needed in cataloging or access workflows; `item_access_level` and `access_level_restrictions` cover access control.
+
+**Migration**: `0105_remove_permission_to_publish_online.py` (also removed `Columns_export.item_permission_to_publish_online` export toggle)
+
+**Removed From**: Internal API serializer, React detail/create/batch editor, import mappers, legacy Django templates/views/import/export
+
+**Note:** Migration model name must be `columns_export` (underscore), not `columnsexport`.
+
+---
+
 ## Legacy / inactive code
 
 ### Invenio-related code

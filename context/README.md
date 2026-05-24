@@ -1,6 +1,6 @@
 # Project Context System
 
-**Version 3.4** | Last Updated: 2026-05-24
+**Version 3.5** | Last Updated: 2026-05-24
 
 The **Project Context System** comprises all files in the `context/` folder. When this documentation refers to the Project Context System, it means this file-based persistent knowledge—not the conversation transcript or current chat.
 
@@ -241,6 +241,7 @@ Each of those three files starts with a short **cross-link block** to the other 
 5. Wait for user approval before executing the split
 
 ### Version History
+- **2026-05-24 (field removal):** Removed `Item.permission_to_publish_online` from model, API, and UI; migration 0105; documented in `deprecated.md` and `active-work.md`
 - **2026-05-24 (frontend split, phase 2):** Moved form, React conventions, and app-shell patterns to `04-REFERENCE/frontend/`; `frontend.md` now core patterns only (~350 lines)
 - **2026-05-24 (frontend split):** Moved stable list-page patterns from `02-PATTERNS/frontend.md` (~1,097 lines) to `04-REFERENCE/frontend/list-page-patterns.md`; index triad updated
 - **2026-04-23 (index triad):** Documented **Maintenance → Index triad** so `system-inventory.md`, `context-map.md`, and `where-patterns-live.md` stay in sync when adding or renaming Project Context files; cross-links at top of each file; `How to update` step 6

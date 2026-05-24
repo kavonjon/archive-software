@@ -185,17 +185,6 @@ const ITEM_COLUMNS: ColumnConfig[] = [
     // Backend handles MultiSelectField - values stored as array
   },
   {
-    fieldName: 'permission_to_publish_online',
-    header: 'Permission to Publish Online',
-    cellType: 'boolean',
-    width: 200,
-    choices: [
-      { value: true, label: 'Yes' },
-      { value: false, label: 'No' },
-      { value: null, label: 'Not specified' },
-    ],
-  },
-  {
     fieldName: 'access_level_restrictions',
     header: 'Access Level Restrictions',
     cellType: 'text',
@@ -1122,17 +1111,6 @@ export const ItemBatchEditor: React.FC = () => {
     
     // Use text or fallback to empty string
     let newText = text || '';
-    
-    // Special handling for boolean fields: convert value to display text
-    if (fieldName === 'permission_to_publish_online') {
-      if (newValue === null || newValue === undefined) {
-        newText = 'Not specified';
-      } else if (newValue === true) {
-        newText = 'Yes';
-      } else if (newValue === false) {
-        newText = 'No';
-      }
-    }
     
     // Get row and original value
     const row = rows.find(r => r.id === rowId);

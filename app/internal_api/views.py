@@ -690,7 +690,6 @@ class InternalItemViewSet(viewsets.ModelViewSet):
                 # Content Classification
                 'Genre',
                 'Language Description Type',
-                'Permission to Publish Online',
                 'Access Level Restrictions',
                 
                 # Accession & Acquisition
@@ -846,9 +845,6 @@ class InternalItemViewSet(viewsets.ModelViewSet):
                     lang_desc_labels = [lang_desc_dict.get(ld, ld) for ld in lang_desc_list]
                 lang_desc_display = ', '.join(lang_desc_labels)
                 
-                # Handle boolean field
-                permission_display = 'Yes' if item.permission_to_publish_online is True else ('No' if item.permission_to_publish_online is False else 'Not specified')
-                
                 # Build row_data with dynamic title columns
                 row_data = [
                     # Core Identification & Metadata
@@ -879,7 +875,6 @@ class InternalItemViewSet(viewsets.ModelViewSet):
                     # Content Classification
                     genre_display,
                     lang_desc_display,
-                    permission_display,
                     item.access_level_restrictions or '',
                     
                     # Accession & Acquisition

@@ -27,7 +27,6 @@ import {
   Select,
   MenuItem,
   OutlinedInput,
-  Link,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -39,7 +38,7 @@ import {
   CheckBoxOutlineBlank as CheckBoxOutlineBlankIcon,
   FilterList as FilterListIcon,
 } from '@mui/icons-material';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { debounce } from 'lodash';
 import { itemsAPI, Item, PaginatedResponse, APIError, ACCESS_LEVEL_CHOICES, RESOURCE_TYPE_CHOICES, GENRE_CHOICES, LANGUAGE_DESCRIPTION_TYPE_CHOICES, FORMAT_CHOICES } from '../../services/api';
 import { ariaLabels, focusUtils, tableUtils, formUtils } from '../../utils/accessibility';
@@ -51,6 +50,9 @@ import { hasEditAccess } from '../../utils/permissions';
 import ItemBatchEditButton, { BatchEditMode } from './ItemBatchEditButton';
 import ItemExportButton, { ExportMode, ExportStatus } from './ItemExportButton';
 import ItemBatchLoadingDialog, { LoadingDialogState } from './ItemBatchLoadingDialog';
+import ColumnVisibilityMenu from '../list/ColumnVisibilityMenu';
+import { ITEM_LIST_COLUMNS, ITEM_LIST_COLUMN_GROUPS, ITEM_LIST_DETAIL_FIELD_ORDER, ItemListColumnId } from './itemListColumns';
+import { usePersistedColumnVisibility } from '../../hooks/usePersistedColumnVisibility';
 
 interface ItemsListProps {
   showActions?: boolean;
@@ -188,6 +190,71 @@ const ItemsList: React.FC<ItemsListProps> = ({
   
   // Ref to track polling interval
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const {
+    visibleColumnIds,
+    toggleColumn,
+    resetToDefaults,
+    isVisible,
+  } = usePersistedColumnVisibility({
+    storageKey: 'item-list-visible-columns',
+    version: 2,
+    columns: ITEM_LIST_COLUMNS,
+  });
+
+  const columnMenuOptions = useMemo(() => {
+    const detailOrder = new Map(
+      ITEM_LIST_DETAIL_FIELD_ORDER.map((columnId, index) => [columnId, index])
+    );
+    const groupOrder = new Map<string, number>(
+      ITEM_LIST_COLUMN_GROUPS.map((groupName, index) => [groupName, index])
+    );
+
+    return ITEM_LIST_COLUMNS.filter((column) => column.hideable)
+      .sort((left, right) => {
+        const leftGroup = groupOrder.get(left.group) ?? Number.MAX_SAFE_INTEGER;
+        const rightGroup = groupOrder.get(right.group) ?? Number.MAX_SAFE_INTEGER;
+        if (leftGroup !== rightGroup) {
+          return leftGroup - rightGroup;
+        }
+
+        const leftDetail = detailOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER;
+        const rightDetail = detailOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER;
+        return leftDetail - rightDetail;
+      })
+      .map((column) => ({
+        id: column.id,
+        label: column.label,
+        group: column.group,
+      }));
+  }, []);
+
+  const visibleColumns = useMemo(
+    () => ITEM_LIST_COLUMNS.filter((column) => isVisible(column.id)),
+    [isVisible]
+  );
+
+  const tableColSpan = 1 + visibleColumns.length;
+
+  const handleColumnVisibilityChange = useCallback(
+    (columnId: ItemListColumnId, visible: boolean) => {
+      const column = ITEM_LIST_COLUMNS.find((entry) => entry.id === columnId);
+      if (!column) {
+        return;
+      }
+
+      focusUtils.announce(
+        visible ? `${column.label} column shown` : `${column.label} column hidden`,
+        'polite'
+      );
+    },
+    []
+  );
+
+  const handleResetColumnVisibility = useCallback(() => {
+    resetToDefaults();
+    focusUtils.announce('Column visibility reset to default', 'polite');
+  }, [resetToDefaults]);
 
   // Load items from API
   const loadItems = useCallback(async () => {
@@ -1538,10 +1605,30 @@ const ItemsList: React.FC<ItemsListProps> = ({
         </Collapse>
       </Paper>
 
-      {/* Results Count */}
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        {loading ? 'Loading...' : `${totalCount.toLocaleString()} item${totalCount !== 1 ? 's' : ''} found`}
-      </Typography>
+      {/* Results Count + column picker */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 2,
+          gap: 2,
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
+          {loading ? 'Loading...' : `${totalCount.toLocaleString()} item${totalCount !== 1 ? 's' : ''} found`}
+        </Typography>
+        {!isMobile && (
+          <ColumnVisibilityMenu
+            columns={columnMenuOptions}
+            groupOrder={ITEM_LIST_COLUMN_GROUPS}
+            visibleColumnIds={visibleColumnIds}
+            onToggle={toggleColumn}
+            onReset={handleResetColumnVisibility}
+            onChange={handleColumnVisibilityChange}
+          />
+        )}
+      </Box>
 
       {/* Error Display */}
       {error && (
@@ -1608,24 +1695,11 @@ const ItemsList: React.FC<ItemsListProps> = ({
                     }
                   />
                 </TableCell>
-                <TableCell {...tableUtils.generateHeaderProps('catalog')}>
-                  Catalog #
-                </TableCell>
-                <TableCell {...tableUtils.generateHeaderProps('title')}>
-                  Title
-                </TableCell>
-                <TableCell {...tableUtils.generateHeaderProps('type')}>
-                  Resource Type
-                </TableCell>
-                <TableCell {...tableUtils.generateHeaderProps('languages')}>
-                  Languages
-                </TableCell>
-                <TableCell {...tableUtils.generateHeaderProps('collaborators')}>
-                  Collaborators
-                </TableCell>
-                <TableCell {...tableUtils.generateHeaderProps('access')}>
-                  Access Level
-                </TableCell>
+                {visibleColumns.map((column) => (
+                  <TableCell key={column.id} {...tableUtils.generateHeaderProps(column.id)}>
+                    {column.label}
+                  </TableCell>
+                ))}
               </TableRow>
             </TableHead>
             
@@ -1633,7 +1707,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
               {loading && items.length === 0 ? (
                 <TableRow>
                   <TableCell 
-                    colSpan={7} 
+                    colSpan={tableColSpan} 
                     align="center"
                     role="status"
                     aria-live="polite"
@@ -1647,7 +1721,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
               ) : items.length === 0 ? (
                 <TableRow>
                   <TableCell 
-                    colSpan={7} 
+                    colSpan={tableColSpan} 
                     align="center"
                     role="status"
                   >
@@ -1684,114 +1758,8 @@ const ItemsList: React.FC<ItemsListProps> = ({
                         aria-label={ariaLabels.selectRow}
                       />
                     </TableCell>
-                    
-                    <TableCell {...tableUtils.generateCellProps('catalog', index)}>
-                      <Link
-                        component={RouterLink}
-                        to={`/items/${item.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        variant="body2"
-                        sx={{ 
-                          fontWeight: 'medium',
-                          textDecoration: 'none',
-                          '&:hover': { textDecoration: 'underline' }
-                        }}
-                      >
-                        {item.catalog_number}
-                      </Link>
-                      {item.call_number && (
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Call: {item.call_number}
-                        </Typography>
-                      )}
-                    </TableCell>
 
-                    <TableCell {...tableUtils.generateCellProps('title', index)}>
-                      {item.titles && item.titles.length > 0 ? (
-                        <Box>
-                          {item.titles.map((title, titleIndex) => (
-                            <Typography
-                              key={titleIndex}
-                              variant="body2"
-                              sx={{ 
-                                fontWeight: title.default ? 'medium' : 'normal',
-                                fontStyle: title.default ? 'normal' : 'italic'
-                              }}
-                            >
-                              {title.title}
-                              {title.language_name && (
-                                <Typography component="span" variant="caption" color="text.secondary">
-                                  {' '}({title.language_name})
-                                </Typography>
-                              )}
-                            </Typography>
-                          ))}
-                        </Box>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          No title
-                        </Typography>
-                      )}
-                    </TableCell>
-
-                    <TableCell {...tableUtils.generateCellProps('type', index)}>
-                      <Chip 
-                        label={item.resource_type_display || 'Unknown'} 
-                        size="small" 
-                        variant="outlined"
-                      />
-                    </TableCell>
-
-                    <TableCell {...tableUtils.generateCellProps('languages', index)}>
-                      {item.language_names && item.language_names.length > 0 ? (
-                        <Box>
-                          {item.language_names.map((lang, langIndex) => (
-                            <Chip 
-                              key={langIndex}
-                              label={lang} 
-                              size="small" 
-                              sx={{ mr: 0.5, mb: 0.5 }}
-                            />
-                          ))}
-                        </Box>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          None
-                        </Typography>
-                      )}
-                    </TableCell>
-
-                    <TableCell {...tableUtils.generateCellProps('collaborators', index)}>
-                      {item.collaborator_names && item.collaborator_names.length > 0 ? (
-                        <Box>
-                          {item.collaborator_names.slice(0, 2).map((collab, collabIndex) => (
-                            <Chip 
-                              key={collabIndex}
-                              label={collab} 
-                              size="small" 
-                              sx={{ mr: 0.5, mb: 0.5 }}
-                            />
-                          ))}
-                          {item.collaborator_names.length > 2 && (
-                            <Typography variant="caption" color="text.secondary">
-                              +{item.collaborator_names.length - 2} more
-                            </Typography>
-                          )}
-                        </Box>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          None
-                        </Typography>
-                      )}
-                    </TableCell>
-
-                    <TableCell {...tableUtils.generateCellProps('access', index)}>
-                      <Chip 
-                        label={item.item_access_level_display || 'Unknown'} 
-                        size="small"
-                        color={item.item_access_level === '1' ? 'success' : 'default'}
-                      />
-                    </TableCell>
+                    {visibleColumns.map((column) => column.renderCell(item, index))}
                   </TableRow>
                 ))
               )}

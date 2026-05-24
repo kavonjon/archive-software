@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-05-23
+**Last Updated**: 2026-05-24
 
 ## Current Priority
 
@@ -48,6 +48,42 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Items List — Configurable Columns (2026-05-24)
+
+**User-facing:** Items list desktop table supports show/hide columns via hamburger menu above the table (right of results count). Preferences persist across sessions.
+
+**Architecture (list-specific — not batch editor patterns):**
+- `usePersistedColumnVisibility` — `localStorage` key `item-list-visible-columns` (version **2**); separate from `usePersistedListState` / `item-list-state` (sessionStorage filters/selection/pagination)
+- `ColumnVisibilityMenu` — Popover with grouped checkboxes; sticky header bar ("Columns" + "Reset to default" text button); scrollable body; reset applies without closing menu
+- `itemListColumns.tsx` — column defs, groups, field order constants (`ITEM_LIST_COLUMN_GROUPS`, `ITEM_LIST_DETAIL_FIELD_ORDER`)
+- `itemListColumnHelpers.tsx` — shared cell renderers (`CatalogCell`, `TitlesCell`, `CollaboratorsCell`, `PlainTextCell`, `truncatedChipSx`, etc.)
+
+**Default visible columns:** Catalog # (locked), Call Number, Title(s), Resource Type, Languages, Access Level. Collaborators removed from defaults (still optional).
+
+**Column inventory (~60 hideable + catalog):** All `InternalItemSerializer` list fields except helpers/excluded types. No new list API serializer required.
+
+| Rule | Detail |
+|---|---|
+| Catalog # | Always visible (`hideable: false`) |
+| Call Number | Separate column; not nested under Catalog # |
+| Collection | Label "Collection"; displays `collection_abbr` (FK-derived) |
+| Title(s) | All titles; default title gets "Primary" chip |
+| Collaborators | Names + role labels (`ROLE_CHOICES`) in one column |
+| Long text | Truncate ellipsis (`maxWidth: 240`); `title` tooltip |
+| Access Level chip | Truncated via `truncatedChipSx` (long choice labels) |
+| Table widths | Dynamic (`table-layout: auto`); no fixed widths on data columns |
+
+**Picker groups:** Match `ItemDetail.tsx` card section names. Group order follows visual top-to-bottom reading on detail page (Titles → Collection Information → Item Details → … → Metadata History). Field order within each group from `ITEM_LIST_DETAIL_FIELD_ORDER` (detail card field order).
+
+**Not in picker:** Files (detail card exists; no file fields on item list API yet). **Coordinates** group (lat/long) included — separate from Location card on detail.
+
+**Explicitly excluded from columns:** `*_date_min`/`*_date_max`, raw choice codes (use `*_display`), slug/uuid/FK ids, deprecated file location fields, permission to publish online, primary/english/indigenous title flat fields, migration/FileMaker/migrate/cataloged audit fields (except Last Updated + Modified By in Metadata History).
+
+**UX decisions:**
+- Column control above table (right of count), not in table header — avoids horizontal-scroll discoverability issues
+- Hamburger (`Menu`) icon, not `ViewColumn`
+- Do not reuse batch editor `ITEM_COLUMNS` config — different UX purpose; share only generic primitives (`ColumnVisibilityMenu`, persistence hook)
 
 ### Collections List Page — Filter Refactor (2026-05-23)
 
@@ -223,6 +259,37 @@ List date filter uses `date_range_min` / `date_range_max` (aggregated from items
 
 **Trade-off accepted:** Collections without computed dates (null min/max) won't match date filters until aggregation runs.
 
+### Item List Column Preferences Use localStorage (2026-05-24)
+
+Column visibility stored in `localStorage` (`item-list-visible-columns`), not `usePersistedListState` sessionStorage.
+
+**Why?** Cross-session user preference (like batch-edit/export mode), not navigation-scoped list working state.
+
+**Alternatives considered:**
+- Extend `item-list-state` sessionStorage: Rejected — prefs lost when tab closes
+- Backend user profile: Rejected — over-engineered for v1
+
+**Trade-off accepted:** Column prefs are per-browser, not synced across devices.
+
+### Item List Column Groups Mirror Item Detail Cards (2026-05-24)
+
+Picker categories and within-group field order align with `ItemDetail.tsx` card layout — not batch editor sections or ad hoc groupings.
+
+**Why?** Cross-page UX consistency for archivists who know detail-page card structure.
+
+**Trade-off accepted:** Table column left-to-right order follows `ITEM_LIST_COLUMNS` array (defaults first), which may differ from picker group order when many columns visible.
+
+### Item List Column Control Placement (2026-05-24)
+
+Hamburger menu above table (flex row with results count), not in table header row.
+
+**Why?** Wide tables scroll horizontally; header-end control was off-screen. Above-table placement is always visible on desktop (`!isMobile`).
+
+**Alternatives considered:**
+- Sticky header-end column: Rejected after testing — still easy to miss; duplicate with above-table cleaner
+
+**Trade-off accepted:** Mobile card view unchanged (no column picker on xs/md card layout).
+
 ## Files Recently Modified
 
 **Backend:**
@@ -232,10 +299,14 @@ List date filter uses `date_range_min` / `date_range_max` (aggregated from items
 - `app/metadata/signals.py` - Item browse_categories, collection auto-assignment
 
 **Frontend:**
+- `frontend/src/hooks/usePersistedColumnVisibility.ts` - Column visibility localStorage hook (new, 2026-05-24)
+- `frontend/src/components/list/ColumnVisibilityMenu.tsx` - Grouped column picker Popover (new, 2026-05-24)
+- `frontend/src/components/items/itemListColumns.tsx` - Item list column defs + group order (new, 2026-05-24)
+- `frontend/src/components/items/itemListColumnHelpers.tsx` - List cell renderers + truncation helpers (new, 2026-05-24)
+- `frontend/src/components/items/ItemsList.tsx` - Column visibility wiring, default columns (2026-05-24); filters, keyword UX, cache filter parity
 - `frontend/src/components/collections/CollectionsList.tsx` - Filter refactor, list UX parity, export (2026-05-23); server-paginated alignment (2026-05-22)
 - `frontend/src/components/collections/CollectionExportButton.tsx` - Export filtered/selected (new)
 - `frontend/src/utils/collectionExport.ts` - Client-side CSV export helper (new)
-- `frontend/src/components/items/ItemsList.tsx` - New filters, keyword UX, cache filter parity
 - `frontend/src/components/collaborators/CollaboratorsList.tsx` - Keyword search, `collaboratorMatchesActiveFilters` helper
 - `frontend/src/components/languoids/LanguoidsList.tsx` - Always-visible keyword search
 - `frontend/src/components/items/ItemBatchEditor.tsx` - Complete implementation

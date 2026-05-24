@@ -771,12 +771,42 @@ const ItemsList = () => {
 [ Keywords (always visible)                    ]
 [ Show/Hide Filters (N) ]  [ Clear ]
 [ Advanced filter grid — collapsible             ]
-[ Results: "X items found"                       ]
+[ Results: "X items found"          [Columns ≡] ]  ← Items desktop only
 [ Table + pagination                             ]
 [ Export | Batch Edit ]  (Collections: Export only — no batch editor yet)
 ```
 
 **CollectionsList (2026-05-23):** Uses `usePersistedListState` (`collection-list-state-v4`), debounced `activeFilters`, results count, and `initialLoadComplete`. Multi-select filters (`genres`, `access_levels`) use `string[]` state; date range uses From/To `type="date"` fields matching Items. `CollectionExportButton` provides client-side CSV export (filtered or selected); no batch edit until Collection batch editor exists.
+
+### Item List Column Visibility (2026-05-24)
+
+**Applies to:** Items list desktop table only (`ItemsList.tsx`, `!isMobile`). Mobile card layout unchanged.
+
+**Do not confuse with batch editor column config** (`ITEM_COLUMNS` in `ItemBatchEditor.tsx`) — list columns are a separate system for read-only table display.
+
+**Components:**
+
+| Piece | Role |
+|---|---|
+| `usePersistedColumnVisibility` | `localStorage` read/write; versioned blob `{ version, visible: id[] }` |
+| `ColumnVisibilityMenu` | Popover; hamburger trigger; grouped checkboxes |
+| `itemListColumns.tsx` | `ITEM_LIST_COLUMNS`, `ITEM_LIST_COLUMN_GROUPS`, `ITEM_LIST_DETAIL_FIELD_ORDER` |
+| `itemListColumnHelpers.tsx` | Cell renderers; `truncatedTextSx` / `truncatedChipSx` |
+
+**Storage keys (Items):**
+
+| Key | Storage | Contents |
+|---|---|---|
+| `item-list-state` | sessionStorage | Filters, selection, pagination |
+| `item-list-visible-columns` | localStorage | Column visibility (version **2**) |
+
+**Picker UX:** Sticky header inside Popover — "Columns" title + "Reset to default" text button (top right); scrollable grouped checklist below; reset does not close menu.
+
+**Rendering rules:** Map `visibleColumns` over `ITEM_LIST_COLUMNS` for header/body; dynamic `colSpan`; `table-layout: auto` (no fixed data-column widths). Catalog # `hideable: false`.
+
+**Group order (picker):** Titles → Collection Information → Item Details → Description → Languages and Dialects → Collaborators → Important Dates → Tags → Browse Categories → Access & Permissions → Accessions → Condition → Location → Coordinates → Digitization → Books → External → Metadata History. Matches visual reading order on `ItemDetail.tsx`.
+
+**Reuse on other list pages:** `ColumnVisibilityMenu` + `usePersistedColumnVisibility` are generic; column defs stay per-model (e.g. do not share `itemListColumns` with Collections until a dedicated config exists).
 
 ### Hybrid Navigation
 

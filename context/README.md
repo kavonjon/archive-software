@@ -1,6 +1,6 @@
 # Project Context System
 
-**Version 3.3** | Last Updated: 2026-05-23
+**Version 3.4** | Last Updated: 2026-05-24
 
 The **Project Context System** comprises all files in the `context/` folder. When this documentation refers to the Project Context System, it means this file-based persistent knowledge—not the conversation transcript or current chat.
 

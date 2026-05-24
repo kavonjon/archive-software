@@ -1,6 +1,6 @@
 # Login and homepage UX (2025-10)
 
-**Context note (2025-10-28, revised if UX changes):** Login and homepage work session; verify against `App.tsx`, auth pages, and `Footer` patterns in `02-PATTERNS/frontend.md`.
+**Context note (2025-10-28, revised if UX changes):** Login and homepage work session; verify against `App.tsx`, auth pages, and `04-REFERENCE/frontend/app-shell-patterns.md`.
 
 **Summary of shipped behavior:**
 

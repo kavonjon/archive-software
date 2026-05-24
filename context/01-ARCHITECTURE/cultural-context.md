@@ -153,7 +153,7 @@ Cultural sensitivity is not an afterthought - it's the **primary architectural d
 
 ## Public-facing and institutional commitments
 
-The public site and home page may show **funder acknowledgment** (for example, National Endowment for the Humanities), an **accessibility** commitment (for example, WCAG 2.1 Level AA as an institutional target), and **contact** for accessibility or other support. Implementation is in the React **footer and layout**; see `02-PATTERNS/frontend.md` (Footer, favicon) for file locations and patterns.
+The public site and home page may show **funder acknowledgment** (for example, National Endowment for the Humanities), an **accessibility** commitment (for example, WCAG 2.1 Level AA as an institutional target), and **contact** for accessibility or other support. Implementation is in the React **footer and layout**; see `04-REFERENCE/frontend/app-shell-patterns.md` (Footer) for file locations and patterns.
 
 **Do not remove or change** that messaging without **explicit product** sign-off and, where applicable, **grants or compliance** review, because it supports transparency and obligations alongside the cultural mission described above.
 

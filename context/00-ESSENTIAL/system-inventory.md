@@ -41,6 +41,9 @@ A single Markdown project context: **constraints**, **patterns**, **lessons lear
 - **Public vs internal API listing:** `04-REFERENCE/api-docs/endpoint-catalog.md`
 - **Batch editing:** `02-PATTERNS/batch-editors.md` + `03-LESSONS/item-batch-editor.md` (primary reference)
 - **List page UX (filters, columns):** `04-REFERENCE/frontend/list-page-patterns.md`
+- **Detail forms / pickers:** `04-REFERENCE/frontend/form-patterns.md`
+- **React conventions:** `04-REFERENCE/frontend/react-conventions.md`
+- **App shell (auth, footer):** `04-REFERENCE/frontend/app-shell-patterns.md`
 - **Topic → file index:** `context-map.md`
 - **Pattern topic routing (where to add new notes):** `05-ARCHIVE/where-patterns-live.md`
 
@@ -52,7 +55,8 @@ These are **forward** checks only—this tree is the project context, not a diff
 
 | Question | Where to get to “yes” |
 |----------|------------------------|
-| Debug list page filters / column visibility? | `04-REFERENCE/frontend/list-page-patterns.md`, `frontend.md` (stubs) |
+| Debug list page filters / column visibility? | `04-REFERENCE/frontend/list-page-patterns.md` |
+| In-place edit or picker dropdown? | `04-REFERENCE/frontend/form-patterns.md` |
 | Implement a new batch editor? | `03-LESSONS/item-batch-editor.md`, `batch-editors.md`, `data-models.md` |
 | Debug cache / Celery / filters in batch? | `item-batch-editor.md`, `batch-editors.md`, `system-overview.md`, `backend.md` |
 | Security model (groups, DRF, React)? | `security.md` |

@@ -19,7 +19,26 @@
 
 - **Components:** `CoordinatesMapCard.tsx`, `leafletConfig.ts`; Leaflet + react-leaflet; OSM tiles.
 - **Behavior:** default center US-wide when no coords; blue marker when coords exist; **click map** sets temporary red marker + popup “Set Coordinates”; manual lat/lng fields; `MapUpdater` uses `flyTo` when center changes.
-- **Icons:** webpack breaks default Leaflet icons—`leafletConfig.ts` sets explicit icon URLs.
+
+### Leaflet icon fix
+
+Leaflet's default marker icons are broken in React builds due to webpack asset handling. Fixed in `leafletConfig.ts`:
+
+```typescript
+// frontend/src/leafletConfig.ts
+import L from 'leaflet';
+import iconUrl from 'leaflet/dist/images/marker-icon.png';
+import iconShadowUrl from 'leaflet/dist/images/marker-shadow.png';
+
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl,
+  iconRetinaUrl: iconUrl,
+  shadowUrl: iconShadowUrl,
+});
+```
+
+**Import this file** once at the app entry point. Without it, markers show as broken images.
 
 ## Validation (geo_004)
 
@@ -28,11 +47,11 @@
 
 ## Nominatim / overlay (session doc)
 
-- Address search and reverse geocode integration per `system-overview.md` and `frontend.md` (User-Agent policy, debouncing).
+- Address search and reverse geocode integration per `system-overview.md` (User-Agent policy, debouncing).
 
 ---
 
 ## Related
 
-- `02-PATTERNS/frontend.md` (Leaflet icon fix)
+- `02-PATTERNS/frontend.md` (stub pointer)
 - `01-ARCHITECTURE/data-models.md` (coordinates on Item/Languoid)

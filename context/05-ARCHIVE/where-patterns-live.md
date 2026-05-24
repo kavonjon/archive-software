@@ -8,14 +8,17 @@
 
 | Topic area | Location |
 |------------|----------|
-| Accessibility, TypeScript, MUI, responsive layout, form/table utilities | `02-PATTERNS/frontend.md`, `02-PATTERNS/accessibility.md` |
-| List pages (filters, debounce, column visibility, layout) | `04-REFERENCE/frontend/list-page-patterns.md` (stub in `02-PATTERNS/frontend.md`) |
+| Accessibility, TypeScript, MUI, responsive layout, component architecture | `02-PATTERNS/frontend.md`, `02-PATTERNS/accessibility.md` |
+| List pages (filters, debounce, column visibility, layout) | `04-REFERENCE/frontend/list-page-patterns.md` |
+| Detail-page forms, in-place edit, FK pickers | `04-REFERENCE/frontend/form-patterns.md` |
+| React hooks, errors, performance, testing checklists | `04-REFERENCE/frontend/react-conventions.md` |
+| Auth flow, footer, favicon, in-app user guide | `04-REFERENCE/frontend/app-shell-patterns.md` |
 | Django, DRF, Celery, signals, validation, map FilterBackends | `02-PATTERNS/backend.md` |
 | Batch editors, import/export, Redis, grid cells | `02-PATTERNS/batch-editors.md` |
 | GeoJSON, public map API, map filters, clustering notes | `01-ARCHITECTURE/system-overview.md`, `02-PATTERNS/backend.md`, `05-ARCHIVE/architectural-decisions-snapshot.md` |
 | Collaborator model (names, M2M languages, harmonization narrative, dialect removal) | `01-ARCHITECTURE/data-models.md`, `05-ARCHIVE/collaborator-harmonization-snapshot.md`, `05-ARCHIVE/deprecated.md` |
 | Languoid list (client load-all, tree pagination—**languoid-only**) | `04-REFERENCE/frontend/languoid-list-implementation.md`, `04-REFERENCE/frontend/list-page-patterns.md` (exception warning) |
-| Geographic / Leaflet / coordinates UI | `02-PATTERNS/frontend.md`, `04-REFERENCE/frontend/geographic-features.md` |
+| Geographic / Leaflet / coordinates UI | `04-REFERENCE/frontend/geographic-features.md` |
 
 **If a topic is hard to find:** search under `context/` (e.g. `BoundingBox`, `GeoJSON`, `axe-core`) and, when behavior is in code, the application codebase for the same terms.
 

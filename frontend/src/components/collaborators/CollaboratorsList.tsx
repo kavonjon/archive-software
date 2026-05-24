@@ -55,6 +55,7 @@ interface CollaboratorsListProps {
 }
 
 interface FilterState {
+  keyword_contains: string;
   first_names_contains: string;
   last_names_contains: string;
   full_name_contains: string;
@@ -80,6 +81,7 @@ interface FilterState {
 }
 
 const DEFAULT_FILTERS: FilterState = {
+  keyword_contains: '',
   first_names_contains: '',
   last_names_contains: '',
   full_name_contains: '',
@@ -90,6 +92,96 @@ const DEFAULT_FILTERS: FilterState = {
   anonymous: '',
   gender_contains: '',
 };
+
+function collaboratorFilterIsActive(
+  filterState: FilterState,
+  options: { excludeKeyword?: boolean } = {},
+): boolean {
+  return Object.entries(filterState).some(([key, value]) => {
+    if (options.excludeKeyword && key === 'keyword_contains') return false;
+    if (typeof value === 'boolean') return value === true;
+    if (typeof value === 'string') return value.trim() !== '';
+    return false;
+  });
+}
+
+function countCollaboratorFilters(
+  filterState: FilterState,
+  options: { excludeKeyword?: boolean } = {},
+): number {
+  return Object.entries(filterState).filter(([key, value]) => {
+    if (options.excludeKeyword && key === 'keyword_contains') return false;
+    if (typeof value === 'boolean') return value === true;
+    if (typeof value === 'string') return value.trim() !== '';
+    return false;
+  }).length;
+}
+
+function collaboratorMatchesActiveFilters(c: Collaborator, activeFilters: FilterState): boolean {
+  if (activeFilters.keyword_contains) {
+    const keyword = activeFilters.keyword_contains.toLowerCase();
+    const keywordMatch =
+      c.first_names?.toLowerCase().includes(keyword) ||
+      c.last_names?.toLowerCase().includes(keyword) ||
+      c.full_name?.toLowerCase().includes(keyword) ||
+      c.nickname?.toLowerCase().includes(keyword) ||
+      c.name_suffix?.toLowerCase().includes(keyword) ||
+      c.tribal_affiliations?.toLowerCase().includes(keyword) ||
+      c.clan_society?.toLowerCase().includes(keyword) ||
+      c.origin?.toLowerCase().includes(keyword) ||
+      c.gender?.toLowerCase().includes(keyword) ||
+      c.other_info?.toLowerCase().includes(keyword) ||
+      String(c.collaborator_id).includes(keyword) ||
+      c.other_names?.some((name) => name.toLowerCase().includes(keyword)) ||
+      c.native_languages?.some((lang) => lang.name?.toLowerCase().includes(keyword)) ||
+      c.other_languages?.some((lang) => lang.name?.toLowerCase().includes(keyword));
+    if (!keywordMatch) return false;
+  }
+
+  if (activeFilters.first_names_contains &&
+      !c.first_names.toLowerCase().includes(activeFilters.first_names_contains.toLowerCase())) {
+    return false;
+  }
+  if (activeFilters.last_names_contains &&
+      !c.last_names.toLowerCase().includes(activeFilters.last_names_contains.toLowerCase())) {
+    return false;
+  }
+  if (activeFilters.full_name_contains &&
+      !c.full_name.toLowerCase().includes(activeFilters.full_name_contains.toLowerCase())) {
+    return false;
+  }
+  if (activeFilters.collaborator_id_contains &&
+      !String(c.collaborator_id).includes(activeFilters.collaborator_id_contains)) {
+    return false;
+  }
+  if (activeFilters.tribal_affiliations_contains &&
+      !c.tribal_affiliations.toLowerCase().includes(activeFilters.tribal_affiliations_contains.toLowerCase())) {
+    return false;
+  }
+  if (activeFilters.gender_contains &&
+      !c.gender.toLowerCase().includes(activeFilters.gender_contains.toLowerCase())) {
+    return false;
+  }
+  if (activeFilters.anonymous !== undefined &&
+      activeFilters.anonymous !== '' &&
+      c.anonymous !== (activeFilters.anonymous === 'yes')) {
+    return false;
+  }
+  if (activeFilters.native_languages_contains) {
+    const search = activeFilters.native_languages_contains.toLowerCase();
+    if (!c.native_languages?.some((lang) => lang.name?.toLowerCase().includes(search))) {
+      return false;
+    }
+  }
+  if (activeFilters.other_languages_contains) {
+    const search = activeFilters.other_languages_contains.toLowerCase();
+    if (!c.other_languages?.some((lang) => lang.name?.toLowerCase().includes(search))) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
   showActions = true,
@@ -362,12 +454,7 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
         // We know the filtered count from the list view's API response
         const filteredRowCount = totalCount; // This is the filtered count from the current query
         
-        // Check if any filters are active
-        const hasActiveFilters = Object.entries(activeFilters).some(([key, value]) => {
-          if (typeof value === 'boolean') return true; // Boolean filters (isnull) are active
-          if (typeof value === 'string' && value.trim()) return true; // String filters are active
-          return false;
-        });
+        const hasActiveFilters = collaboratorFilterIsActive(activeFilters);
         
         // Only show warning if no filters are active (user is editing ALL rows)
         const shouldShowWarning = !hasActiveFilters;
@@ -389,19 +476,9 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
       try {
         const allCollaborators = await getCollaborators(); // Should return immediately from cache
         
-        // Apply current filters to cache data (client-side filtering)
-        const filteredCollaborators = allCollaborators.filter(c => {
-          // Apply active filters
-          if (activeFilters.first_names_contains && !c.first_names.toLowerCase().includes(activeFilters.first_names_contains.toLowerCase())) return false;
-          if (activeFilters.last_names_contains && !c.last_names.toLowerCase().includes(activeFilters.last_names_contains.toLowerCase())) return false;
-          if (activeFilters.full_name_contains && !c.full_name.toLowerCase().includes(activeFilters.full_name_contains.toLowerCase())) return false;
-          if (activeFilters.collaborator_id_contains && !String(c.collaborator_id).includes(activeFilters.collaborator_id_contains)) return false;
-          if (activeFilters.tribal_affiliations_contains && !c.tribal_affiliations.toLowerCase().includes(activeFilters.tribal_affiliations_contains.toLowerCase())) return false;
-          if (activeFilters.gender_contains && !c.gender.toLowerCase().includes(activeFilters.gender_contains.toLowerCase())) return false;
-          if (activeFilters.anonymous !== undefined && activeFilters.anonymous !== '' && c.anonymous !== (activeFilters.anonymous === 'yes')) return false;
-          // TODO: Add other filter logic if needed
-          return true;
-        });
+        const filteredCollaborators = allCollaborators.filter((c) =>
+          collaboratorMatchesActiveFilters(c, activeFilters)
+        );
         
         ids = filteredCollaborators.map(c => c.id);
         console.log('[CollaboratorsList] Filtered cache to', ids.length, 'IDs');
@@ -417,12 +494,7 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
     // Only warn for filtered mode with no active filters
     // Never warn for selected mode - user explicitly chose specific rows
     if (mode === 'filtered') {
-      // Check if any filters are active
-      const hasActiveFilters = Object.entries(activeFilters).some(([key, value]) => {
-        if (typeof value === 'boolean') return true; // Boolean filters (isnull) are active
-        if (typeof value === 'string' && value.trim()) return true; // String filters are active
-        return false;
-      });
+      const hasActiveFilters = collaboratorFilterIsActive(activeFilters);
       
       console.log('[CollaboratorsList] Has active filters:', hasActiveFilters);
       
@@ -510,26 +582,13 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
         try {
           const allCollaborators = await getCollaborators();
           
-          // Apply current filters
-          const filteredCollaborators = allCollaborators.filter(c => {
-            if (activeFilters.first_names_contains && !c.first_names.toLowerCase().includes(activeFilters.first_names_contains.toLowerCase())) return false;
-            if (activeFilters.last_names_contains && !c.last_names.toLowerCase().includes(activeFilters.last_names_contains.toLowerCase())) return false;
-            if (activeFilters.full_name_contains && !c.full_name.toLowerCase().includes(activeFilters.full_name_contains.toLowerCase())) return false;
-            if (activeFilters.collaborator_id_contains && !String(c.collaborator_id).includes(activeFilters.collaborator_id_contains)) return false;
-            if (activeFilters.tribal_affiliations_contains && !c.tribal_affiliations.toLowerCase().includes(activeFilters.tribal_affiliations_contains.toLowerCase())) return false;
-            if (activeFilters.gender_contains && !c.gender.toLowerCase().includes(activeFilters.gender_contains.toLowerCase())) return false;
-            if (activeFilters.anonymous !== undefined && activeFilters.anonymous !== '' && c.anonymous !== (activeFilters.anonymous === 'yes')) return false;
-            return true;
-          });
+          const filteredCollaborators = allCollaborators.filter((c) =>
+            collaboratorMatchesActiveFilters(c, activeFilters)
+          );
           
           const ids = filteredCollaborators.map(c => c.id);
           
-          // Check if large dataset (no filters = editing all rows)
-          const hasActiveFilters = Object.entries(activeFilters).some(([key, value]) => {
-            if (typeof value === 'boolean') return true;
-            if (typeof value === 'string' && value.trim()) return true;
-            return false;
-          });
+          const hasActiveFilters = collaboratorFilterIsActive(activeFilters);
           const largeDataset = !hasActiveFilters;
           
           if (largeDataset) {
@@ -583,19 +642,9 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
       try {
         const allCollaborators = await getCollaborators();
         
-        // Apply current filters to cache data (client-side filtering)
-        const filteredCollaborators = allCollaborators.filter(c => {
-          // Apply active filters
-          if (activeFilters.first_names_contains && !c.first_names.toLowerCase().includes(activeFilters.first_names_contains.toLowerCase())) return false;
-          if (activeFilters.last_names_contains && !c.last_names.toLowerCase().includes(activeFilters.last_names_contains.toLowerCase())) return false;
-          if (activeFilters.full_name_contains && !c.full_name.toLowerCase().includes(activeFilters.full_name_contains.toLowerCase())) return false;
-          if (activeFilters.collaborator_id_contains && !String(c.collaborator_id).includes(activeFilters.collaborator_id_contains)) return false;
-          if (activeFilters.tribal_affiliations_contains && !c.tribal_affiliations.toLowerCase().includes(activeFilters.tribal_affiliations_contains.toLowerCase())) return false;
-          if (activeFilters.gender_contains && !c.gender.toLowerCase().includes(activeFilters.gender_contains.toLowerCase())) return false;
-          if (activeFilters.anonymous !== undefined && activeFilters.anonymous !== '' && c.anonymous !== (activeFilters.anonymous === 'yes')) return false;
-          // TODO: Add other filter logic if needed
-          return true;
-        });
+        const filteredCollaborators = allCollaborators.filter((c) =>
+          collaboratorMatchesActiveFilters(c, activeFilters)
+        );
         
         ids = filteredCollaborators.map(c => c.id);
         console.log('[CollaboratorsList] Filtered cache to', ids.length, 'IDs for export');
@@ -728,18 +777,8 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
   }, [selectedIds, collaborators, activeFilters, getCollaborators]);
 
   // Check if any filters are active
-  const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
-    if (typeof value === 'boolean') return value === true;
-    if (typeof value === 'string') return value.trim() !== '';
-    return false;
-  });
-
-  // Count active filters for display
-  const activeFilterCount = Object.entries(filters).filter(([key, value]) => {
-    if (typeof value === 'boolean') return value === true;
-    if (typeof value === 'string') return value.trim() !== '';
-    return false;
-  }).length;
+  const hasActiveFilters = collaboratorFilterIsActive(filters);
+  const advancedFilterCount = countCollaboratorFilters(filters, { excludeKeyword: true });
 
   // Selection state
   const selectedCount = collaborators.filter(c => selectedIds.has(c.id)).length;
@@ -817,8 +856,16 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
       )}
 
       {/* Search and Filter Controls */}
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+      <Paper sx={{ p: 2, mb: 2 }} role="search">
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: showFilters ? 2 : 0, flexWrap: 'wrap' }}>
+          <TextField
+            label="Keywords"
+            value={filters.keyword_contains}
+            onChange={handleFilterChange('keyword_contains')}
+            size="small"
+            sx={{ flex: 1, minWidth: 200 }}
+            fullWidth
+          />
           <Button
             variant="outlined"
             startIcon={showFilters ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -836,12 +883,14 @@ const CollaboratorsList: React.FC<CollaboratorsListProps> = ({
             >
               Clear Filters
             </Button>
+              {advancedFilterCount > 0 && (
               <Chip 
                 icon={<FilterListIcon />}
-                label={`${activeFilterCount} active filter${activeFilterCount !== 1 ? 's' : ''}`}
+                label={`${advancedFilterCount} active filter${advancedFilterCount !== 1 ? 's' : ''}`}
                 color="primary"
                 variant="outlined"
               />
+              )}
             </>
           )}
           {loading && (

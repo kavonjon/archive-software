@@ -334,32 +334,116 @@ my_task.apply_async(args=[model_id], priority=8)
 
 ## Django Patterns
 
-### FilterBackend Classes
+### FilterSet Classes (django-filter)
 
-**Pattern**: Database-level filtering, not serializer filtering
+**Pattern**: Database-level filtering via `django_filters.FilterSet`, not serializer filtering
 
 ```python
-from rest_framework.filters import BaseFilterBackend
+class ItemFilter(FilterSet):
+    keyword_contains = CharFilter(method='filter_keyword')
+    language_description_type = CharFilter(method='filter_language_description_type')
+    collection_contains = CharFilter(method='filter_collection')
+    original_format_medium = CharFilter(method='filter_original_format_medium')
+    # ... *_contains text filters, *_isnull empty toggles, choice multi-selects
 
-class ItemFilter(BaseFilterBackend):
-    def filter_queryset(self, request, queryset, view):
-        keyword = request.query_params.get('keyword')
-        if keyword:
-            queryset = queryset.filter(
-                Q(catalog_number__icontains=keyword) |
-                Q(description_scope_and_content__icontains=keyword) |
-                Q(title_item__title__icontains=keyword) |
-                Q(collaborator__full_name__icontains=keyword)
-            ).distinct()
-        
-        return queryset
+    class Meta:
+        model = Item
+        fields = [...]
+
+    def filter_keyword(self, queryset, name, value):
+        return queryset.filter(
+            Q(catalog_number__icontains=value) |
+            Q(description_scope_and_content__icontains=value) |
+            # ... all cross-field OR targets
+        ).distinct()
+```
+
+**ViewSet wiring:**
+```python
+filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
+filterset_class = ItemFilter
 ```
 
 **Benefits**:
 - Efficient (database-level)
 - Composable (multiple filters)
-- Reusable across ViewSets
+- Parameter names match frontend query strings
 - Applied before serialization
+
+#### Multi-select choice filter patterns
+
+**MultiSelectField stored as comma-separated tokens** (e.g. `genre`, `language_description_type`):
+- Split comma-separated param; validate against choice constants
+- Filter with regex token match: `(^|,)value(,|$)` per selected token; OR across tokens
+
+**Single-value choice field** (e.g. `resource_type`, `original_format_medium`):
+- Split comma-separated param; validate against choice constants
+- Filter with `field__in=selected_values` (OR semantics)
+
+**Legacy invalid choice values:** Exclude from UI menus; ignore if sent in API param (do not error).
+
+**Collection MultiSelectField with "Not specified":** Same token-OR regex for non-empty values; additionally match `field=''` or `field__isnull=True` when empty token selected. Frontend sends `access_levels=,` when only "Not specified" is chosen (django-filter skips bare empty CharFilter values).
+
+#### Date range filters (computed min/max)
+
+**Item creation dates:** `creation_date_min` DateFilter (`gte`), `creation_date_max` DateFilter (`lte`) on item computed fields.
+
+**Collection date range:** Same pattern on aggregated fields — `date_range_min` (`gte`), `date_range_max` (`lte`). Display `date_range` CharField is for table display and keyword search only, not structured list filtering.
+
+```python
+date_range_min = DateFilter(field_name='date_range_min', lookup_expr='gte')
+date_range_max = DateFilter(field_name='date_range_max', lookup_expr='lte')
+```
+
+**Frontend:** Two separate `type="date"` fields (From/To), same `Object.entries` map pattern as Items.
+
+#### Item collection filter (FK-only)
+
+`collection_contains` searches associated `Collection` FK only:
+```python
+queryset.filter(collection__isnull=False).filter(
+    Q(collection__collection_abbr__icontains=value) |
+    Q(collection__name__icontains=value)
+).distinct()
+```
+
+**Do not** search legacy `Item.collection_name` CharField. Batch serializer exposes FK-derived `collection_name` / `collection_abbr` for client-side cache parity.
+
+#### Keyword filters (Collaborator, Collection)
+
+Both use `keyword_contains` CharFilter with custom `filter_keyword` methods — cross-field OR search including related M2M names where applicable. Collaborator also matches numeric `collaborator_id` when search term is all digits.
+
+#### CollectionFilter (internal list API only)
+
+**Scope:** `CollectionFilter` in `app/internal_api/views.py` is wired only to `InternalCollectionViewSet` (React list + `collection_abbr` exact for detail uniqueness check). Not the public API `CollectionFilter` in `app/api/v1/views/collections.py` or map `CollectionFilterBackend`.
+
+**Field-type model (2026-05-23):**
+
+| Type | Collection fields | Filter pattern |
+|---|---|---|
+| Text | abbr, name, extent, abstract, description, citation_authors | `{field}_contains` + icontains |
+| MultiSelect | `genres`, `access_levels` | `{field}` param + token-OR regex (Genre pattern); plural names reflect item aggregation |
+| Computed dates | `date_range_min`, `date_range_max` | DateFilter gte/lte (Item creation-date pattern) |
+| M2M | languages | `languages_contains` + `.distinct()` |
+| Cross-field | — | `keyword_contains` |
+
+**Do not** use `icontains` on MultiSelectField params for structured filters — breaks multi-select OR semantics.
+
+M2M joins require `.distinct()` on queryset when `languages_contains` or `keyword_contains` is used.
+
+#### Empty-field filters
+
+Boolean `*_isnull` params find NULL or empty string (CharField) or empty M2M (Collaborator). Item list trimmed empty toggles to those with meaningful data gaps (9 remain as of 2026-05).
+
+**Deprecated example below** — internal API uses FilterSet, not BaseFilterBackend:
+
+```python
+# OLD PATTERN — do not use for internal list ViewSets
+class ItemFilter(BaseFilterBackend):
+    def filter_queryset(self, request, queryset, view):
+        keyword = request.query_params.get('keyword')
+        ...
+```
 
 #### Map API Filter Backends
 

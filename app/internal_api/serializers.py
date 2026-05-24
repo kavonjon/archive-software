@@ -76,6 +76,10 @@ class InternalItemBatchSerializer(serializers.ModelSerializer):
     # MultiSelectField - stored as comma-separated string in DB, exposed as list
     genre = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
     language_description_type = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
+
+    # FK-derived collection fields for list/batch filter parity (legacy collection_name CharField excluded)
+    collection_name = serializers.CharField(source='collection.name', read_only=True, allow_null=True)
+    collection_abbr = serializers.CharField(source='collection.collection_abbr', read_only=True, allow_null=True)
     
     class Meta:
         model = Item

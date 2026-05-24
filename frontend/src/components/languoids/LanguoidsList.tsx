@@ -972,9 +972,8 @@ const LanguoidsList: React.FC = () => {
       regionIsNull, latLongIsNull, tribesIsNull]);
 
   // Count active filters for display (excluding level preset filter)
-  const activeFilterCount = useMemo(() => {
+  const advancedFilterCount = useMemo(() => {
     let count = 0;
-    if (searchTerm.trim() !== '') count++;
     if (levelFilter !== '') count++;
     if (familyFilter.trim() !== '') count++;
     if (regionFilter.trim() !== '') count++;
@@ -988,8 +987,8 @@ const LanguoidsList: React.FC = () => {
     if (latLongIsNull === true) count++;
     if (tribesIsNull === true) count++;
     return count;
-  }, [searchTerm, levelFilter, familyFilter, regionFilter, isoFilter, glottocodeFilter, 
-      altNamesFilter, isoIsNull, altNamesIsNull, parentLanguoidIsNull, 
+  }, [levelFilter, familyFilter, regionFilter, isoFilter, glottocodeFilter,
+      altNamesFilter, isoIsNull, altNamesIsNull, parentLanguoidIsNull,
       regionIsNull, latLongIsNull, tribesIsNull]);
 
   const handlePageChange = (newPage: number) => {
@@ -1100,10 +1099,22 @@ const LanguoidsList: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Collapsible Advanced Filters */}
+      {/* Keyword search and collapsible advanced filters */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: filtersOpen ? 2 : 0, flexWrap: 'wrap' }}>
+            <TextField
+              label="Search"
+              variant="outlined"
+              size="small"
+              value={searchTerm}
+              onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
+              InputProps={{
+                startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+              }}
+              sx={{ flex: 1, minWidth: 200 }}
+              fullWidth
+            />
             <Button
               variant="outlined"
               startIcon={filtersOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -1121,12 +1132,14 @@ const LanguoidsList: React.FC = () => {
                 >
                   Clear Filters
                 </Button>
+                {advancedFilterCount > 0 && (
                 <Chip 
                   icon={<FilterListIcon />}
-                  label={`${activeFilterCount} active filter${activeFilterCount !== 1 ? 's' : ''}`}
+                  label={`${advancedFilterCount} active filter${advancedFilterCount !== 1 ? 's' : ''}`}
                   color="primary"
                   variant="outlined"
                 />
+                )}
               </>
             )}
           </Box>
@@ -1134,20 +1147,8 @@ const LanguoidsList: React.FC = () => {
           <Collapse in={filtersOpen}>
             <Box sx={{ mt: 2 }}>
               <Stack spacing={2}>
-                {/* First row - Search, Level, Family, Region */}
+                {/* First row - Level, Family, Region */}
                 <Stack spacing={2} direction={isMobile ? 'column' : 'row'}>
-                  <TextField
-                    label="Search"
-                    variant="outlined"
-                    size="small"
-                    value={searchTerm}
-                    onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
-                    InputProps={{
-                      startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
-                    }}
-                    sx={{ flex: 1 }}
-                  />
-                  
                   <FormControl size="small" sx={{ minWidth: 120 }}>
                     <InputLabel>Level</InputLabel>
                     <Select

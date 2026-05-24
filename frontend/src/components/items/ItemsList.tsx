@@ -41,7 +41,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { debounce } from 'lodash';
-import { itemsAPI, Item, PaginatedResponse, APIError, ACCESS_LEVEL_CHOICES, RESOURCE_TYPE_CHOICES } from '../../services/api';
+import { itemsAPI, Item, PaginatedResponse, APIError, ACCESS_LEVEL_CHOICES, RESOURCE_TYPE_CHOICES, GENRE_CHOICES, LANGUAGE_DESCRIPTION_TYPE_CHOICES, FORMAT_CHOICES } from '../../services/api';
 import { ariaLabels, focusUtils, tableUtils, formUtils } from '../../utils/accessibility';
 import { touchTargets } from '../../utils/responsive';
 import { useAuth } from '../../contexts/AuthContext';
@@ -63,37 +63,41 @@ interface FilterState {
   catalog_number_contains: string;
   access_level: string[];  // Multi-select array
   call_number_contains: string;
-  accession_date_min: string;
-  accession_date_max: string;
+  accession_number_contains: string;
   titles_contains: string;
   resource_type: string[];  // Multi-select array
   language_contains: string;
   creation_date_min: string;
   creation_date_max: string;
-  description_scope_and_content_contains: string;
-  genre_contains: string;
+  genre: string[];
+  language_description_type: string[];
+  collection_contains: string;
+  original_format_medium: string[];
   collaborator_contains: string;
-  depositor_name_contains: string;
   
   // Empty field filters (isnull)
-  collection_isnull?: boolean;
-  access_level_restrictions_isnull?: boolean;
-  accession_date_isnull?: boolean;
   accession_number_isnull?: boolean;
   call_number_isnull?: boolean;
   collaborator_isnull?: boolean;
-  creation_date_isnull?: boolean;
-  depositor_name_isnull?: boolean;
-  description_scope_and_content_isnull?: boolean;
   genre_isnull?: boolean;
-  indigenous_title_isnull?: boolean;
-  english_title_isnull?: boolean;
   item_access_level_isnull?: boolean;
   language_isnull?: boolean;
   resource_type_isnull?: boolean;
   original_format_medium_isnull?: boolean;
   publisher_isnull?: boolean;
-  recording_context_isnull?: boolean;
+}
+
+const isBlankText = (value: string | null | undefined): boolean =>
+  !value || !value.trim();
+
+function countItemFilters(filterState: FilterState, excludeKeyword = false): number {
+  return Object.entries(filterState).filter(([key, value]) => {
+    if (excludeKeyword && key === 'keyword_contains') return false;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'boolean') return value === true;
+    if (typeof value === 'string') return value.trim() !== '';
+    return false;
+  }).length;
 }
 
 const DEFAULT_FILTERS: FilterState = {
@@ -101,17 +105,17 @@ const DEFAULT_FILTERS: FilterState = {
   catalog_number_contains: '',
   access_level: [],
   call_number_contains: '',
-  accession_date_min: '',
-  accession_date_max: '',
+  accession_number_contains: '',
   titles_contains: '',
   resource_type: [],
   language_contains: '',
   creation_date_min: '',
   creation_date_max: '',
-  description_scope_and_content_contains: '',
-  genre_contains: '',
+  genre: [],
+  language_description_type: [],
+  collection_contains: '',
+  original_format_medium: [],
   collaborator_contains: '',
-  depositor_name_contains: '',
 };
 
 const ItemsList: React.FC<ItemsListProps> = ({
@@ -192,7 +196,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
       setError(null);
 
       // Build query parameters
-      const params: Record<string, string | number> = {
+      const params: Record<string, string | number | boolean> = {
         page: page + 1, // Django pagination is 1-based
         page_size: rowsPerPage,
       };
@@ -200,16 +204,16 @@ const ItemsList: React.FC<ItemsListProps> = ({
       // Add non-empty filters to params
       Object.entries(activeFilters).forEach(([key, value]) => {
         if (Array.isArray(value)) {
-          // For multi-select fields, send comma-separated values if not empty
           if (value.length > 0) {
-            params[key] = value.join(',');
+            const joined = value.join(',');
+            // django-filter skips empty CharFilter values; comma-only encodes "Not specified"
+            params[key] = key === 'access_level' && joined === '' ? ',' : joined;
           }
         } else if (typeof value === 'boolean') {
-          // For boolean filters (isnull), add if true
           if (value === true) {
-            params[key] = 'true';
+            params[key] = value;
           }
-        } else if (value && value.trim()) {
+        } else if (typeof value === 'string' && value.trim()) {
           // For text fields, add if not empty
           params[key] = value.trim();
         }
@@ -350,15 +354,8 @@ const ItemsList: React.FC<ItemsListProps> = ({
 
   // Get active filter count (needed by batch edit handler)
   // Uses activeFilters (not filters) to ensure we count filters that have been applied
-  const activeFilterCount = Object.values(activeFilters).filter(value => {
-    if (Array.isArray(value)) {
-      return value.length > 0;
-    }
-    if (typeof value === 'boolean') {
-      return value === true;
-    }
-    return value && value.trim();
-  }).length;
+  const hasActiveFilters = countItemFilters(activeFilters) > 0;
+  const advancedFilterCount = countItemFilters(activeFilters, true);
 
   // Helper function to apply client-side filters to cached items
   const applyFiltersToCache = useCallback((allItems: Item[]) => {
@@ -424,8 +421,8 @@ const ItemsList: React.FC<ItemsListProps> = ({
         return false;
       }
       
-      if (activeFilters.access_level.length > 0 && 
-          !activeFilters.access_level.includes(item.item_access_level)) {
+      if (activeFilters.access_level.length > 0 &&
+          !activeFilters.access_level.includes(item.item_access_level ?? '')) {
         return false;
       }
       
@@ -434,17 +431,8 @@ const ItemsList: React.FC<ItemsListProps> = ({
         return false;
       }
       
-      // Date range filters - checking if item's date range overlaps with filter range
-      // Backend logic: accession_date_min filter uses gte on item.accession_date_min
-      //               accession_date_max filter uses lte on item.accession_date_max
-      // This finds items whose date range falls within the filter range
-      if (activeFilters.accession_date_min && item.accession_date_min && 
-          item.accession_date_min < activeFilters.accession_date_min) {
-        return false;
-      }
-      
-      if (activeFilters.accession_date_max && item.accession_date_max && 
-          item.accession_date_max > activeFilters.accession_date_max) {
+      if (activeFilters.accession_number_contains &&
+          !item.accession_number?.toLowerCase().includes(activeFilters.accession_number_contains.toLowerCase())) {
         return false;
       }
       
@@ -466,8 +454,8 @@ const ItemsList: React.FC<ItemsListProps> = ({
         if (!titlesMatch) return false;
       }
       
-      if (activeFilters.resource_type.length > 0 && 
-          !activeFilters.resource_type.includes(item.resource_type)) {
+      if (activeFilters.resource_type.length > 0 &&
+          !activeFilters.resource_type.includes(item.resource_type ?? '')) {
         return false;
       }
       
@@ -480,29 +468,88 @@ const ItemsList: React.FC<ItemsListProps> = ({
         if (!languagesMatch) return false;
       }
       
-      if (activeFilters.description_scope_and_content_contains && 
-          !item.description_scope_and_content?.toLowerCase().includes(activeFilters.description_scope_and_content_contains.toLowerCase())) {
-        return false;
-      }
-      
-      if (activeFilters.genre_contains) {
-        // Check if any genre contains the search string
-        const genreMatch = item.genre?.some((g: string) => 
-          g.toLowerCase().includes(activeFilters.genre_contains.toLowerCase())
+      if (activeFilters.genre.length > 0) {
+        const itemGenres = item.genre || [];
+        const genreMatch = activeFilters.genre.some((selectedGenre) =>
+          itemGenres.includes(selectedGenre)
         );
         if (!genreMatch) return false;
       }
+
+      if (activeFilters.language_description_type.length > 0) {
+        const itemTypes = item.language_description_type || [];
+        const typeMatch = activeFilters.language_description_type.some((selectedType) =>
+          itemTypes.includes(selectedType)
+        );
+        if (!typeMatch) return false;
+      }
+
+      if (activeFilters.collection_contains) {
+        if (!item.collection) {
+          return false;
+        }
+        const collectionQuery = activeFilters.collection_contains.toLowerCase();
+        const abbrMatch = item.collection_abbr?.toLowerCase().includes(collectionQuery);
+        const nameMatch = item.collection_name?.toLowerCase().includes(collectionQuery);
+        if (!abbrMatch && !nameMatch) {
+          return false;
+        }
+      }
+
+      if (activeFilters.original_format_medium.length > 0 &&
+          !activeFilters.original_format_medium.includes(item.original_format_medium ?? '')) {
+        return false;
+      }
       
       if (activeFilters.collaborator_contains) {
-        // Check if any collaborator name contains the search string
-        const collaboratorsMatch = (item as any).item_collaboratorroles?.some((cr: any) =>
-          cr.collaborator?.full_name?.toLowerCase().includes(activeFilters.collaborator_contains.toLowerCase())
+        const collaboratorsMatch = item.collaborators?.some((collab) =>
+          collab.name?.toLowerCase().includes(activeFilters.collaborator_contains.toLowerCase())
         );
         if (!collaboratorsMatch) return false;
       }
-      
-      if (activeFilters.depositor_name_contains && 
-          !item.depositor_name?.toLowerCase().includes(activeFilters.depositor_name_contains.toLowerCase())) {
+
+      if (activeFilters.accession_number_isnull === true &&
+          !isBlankText(item.accession_number)) {
+        return false;
+      }
+
+      if (activeFilters.call_number_isnull === true &&
+          !isBlankText(item.call_number)) {
+        return false;
+      }
+
+      if (activeFilters.collaborator_isnull === true &&
+          item.collaborators && item.collaborators.length > 0) {
+        return false;
+      }
+
+      if (activeFilters.genre_isnull === true &&
+          item.genre && item.genre.length > 0) {
+        return false;
+      }
+
+      if (activeFilters.item_access_level_isnull === true &&
+          !isBlankText(item.item_access_level)) {
+        return false;
+      }
+
+      if (activeFilters.language_isnull === true &&
+          item.language && item.language.length > 0) {
+        return false;
+      }
+
+      if (activeFilters.resource_type_isnull === true &&
+          !isBlankText(item.resource_type)) {
+        return false;
+      }
+
+      if (activeFilters.original_format_medium_isnull === true &&
+          !isBlankText(item.original_format_medium)) {
+        return false;
+      }
+
+      if (activeFilters.publisher_isnull === true &&
+          !isBlankText(item.publisher)) {
         return false;
       }
       
@@ -527,7 +574,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
     console.log('[ItemsList] Batch edit execute with mode:', mode);
     console.log('[ItemsList] filters:', filters);
     console.log('[ItemsList] activeFilters:', activeFilters);
-    console.log('[ItemsList] activeFilterCount:', activeFilterCount);
+    console.log('[ItemsList] hasActiveFilters:', hasActiveFilters);
     
     // Handle 'empty' mode - no IDs, just navigate
     if (mode === 'empty') {
@@ -553,7 +600,6 @@ const ItemsList: React.FC<ItemsListProps> = ({
       // For 'filtered' mode, we need IDs from cache
       if (!cacheReady) {
         const filteredRowCount = totalCount;
-        const hasActiveFilters = activeFilterCount > 0;
         const shouldShowWarning = !hasActiveFilters;
         
         setLoadingDialogState({
@@ -572,8 +618,6 @@ const ItemsList: React.FC<ItemsListProps> = ({
       // This will trigger polling if backend cache is rebuilding (202 response)
       console.log('[ItemsList] Force refreshing cache from backend for batch edit...');
       
-      // Check if we should show warning (no active filters = large dataset)
-      const hasActiveFilters = activeFilterCount > 0;
       const shouldShowWarning = !hasActiveFilters;
       
       // Show dialog immediately with loading state to provide instant feedback
@@ -614,7 +658,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
     };
     sessionStorage.setItem('item-batch-config', JSON.stringify(batchConfig));
     navigate('/items/batch');
-  }, [selectedIds, items, activeFilterCount, totalCount, navigate, cache, cacheLoading, loadProgress, getItems, applyFiltersToCache]);
+  }, [selectedIds, items, hasActiveFilters, totalCount, navigate, cache, cacheLoading, loadProgress, getItems, applyFiltersToCache]);
   
   // Handle dialog continue
   const handleDialogContinue = useCallback(async (suppressFuture: boolean) => {
@@ -654,7 +698,6 @@ const ItemsList: React.FC<ItemsListProps> = ({
       console.log('[ItemsList] Cache loading detected during batch edit operation, showing loading dialog');
       
       // Determine if warning is needed based on current filter state
-      const hasActiveFilters = activeFilterCount > 0;
       const shouldShowWarning = !hasActiveFilters;
       
       setLoadingDialogState({
@@ -666,7 +709,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
         mode: 'filtered',
       });
     }
-  }, [cacheLoading, loadingDialogState, loadProgress, cache, activeFilterCount, pendingBatchIds]);
+  }, [cacheLoading, loadingDialogState, loadProgress, cache, hasActiveFilters, pendingBatchIds]);
   
   // Auto-proceed when cache finishes loading (for Scenario B: loading only, no warning)
   useEffect(() => {
@@ -689,13 +732,11 @@ const ItemsList: React.FC<ItemsListProps> = ({
           const allItems = await getItems();
           
           // Apply filters to get actual filtered IDs
-          const filteredItems = activeFilterCount === 0 
-            ? allItems 
-            : applyFiltersToCache(allItems);
+          const filteredItems = hasActiveFilters
+            ? applyFiltersToCache(allItems)
+            : allItems;
           const ids = filteredItems.map(item => item.id);
           
-          // Check if large dataset (no filters = editing all rows)
-          const hasActiveFilters = activeFilterCount > 0;
           const largeDataset = !hasActiveFilters;
           
           if (largeDataset) {
@@ -732,12 +773,12 @@ const ItemsList: React.FC<ItemsListProps> = ({
       
       getFilteredIds();
     }
-  }, [loadingDialogState, cache, cacheLoading, loadProgress, getItems, activeFilterCount, navigate, applyFiltersToCache]);
+  }, [loadingDialogState, cache, cacheLoading, loadProgress, getItems, hasActiveFilters, navigate, applyFiltersToCache]);
   
   // Export handler
   const handleExportExecute = useCallback(async (mode: ExportMode) => {
     console.log('[ItemsList] Export execute with mode:', mode);
-    console.log('[ItemsList] activeFilterCount:', activeFilterCount);
+    console.log('[ItemsList] hasActiveFilters:', hasActiveFilters);
     console.log('[ItemsList] activeFilters:', activeFilters);
     
     let ids: number[];
@@ -756,9 +797,9 @@ const ItemsList: React.FC<ItemsListProps> = ({
         
         // Apply current filters to cache data (client-side filtering)
         // If no filters, use all items; otherwise apply filters
-        const filteredItems = activeFilterCount === 0 
-          ? allCachedItems 
-          : applyFiltersToCache(allCachedItems);
+        const filteredItems = hasActiveFilters
+          ? applyFiltersToCache(allCachedItems)
+          : allCachedItems;
         
         ids = filteredItems.map(i => i.id);
         console.log('[ItemsList] Filtered cache from', allCachedItems.length, 'to', ids.length, 'items for export');
@@ -857,7 +898,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
       setError(err instanceof Error ? err.message : 'Export failed');
       setExportStatus('idle');
     }
-  }, [selectedIds, items, getItems, applyFiltersToCache]);
+  }, [selectedIds, items, getItems, applyFiltersToCache, hasActiveFilters]);
 
   // Cleanup polling interval on unmount
   useEffect(() => {
@@ -1107,6 +1148,15 @@ const ItemsList: React.FC<ItemsListProps> = ({
           mb={showFilters ? 2 : 0}
           flexWrap="wrap"
         >
+          <TextField
+            {...formUtils.generateFieldProps('keyword_contains', 'Keywords')}
+            label="Keywords"
+            value={filters.keyword_contains}
+            onChange={(e) => handleFilterChange('keyword_contains', e.target.value)}
+            size="small"
+            sx={{ flex: 1, minWidth: 200 }}
+            fullWidth
+          />
           <Button
             variant="outlined"
             startIcon={showFilters ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -1118,7 +1168,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
             {showFilters ? 'Hide Filters' : 'Show Filters'}
           </Button>
           
-          {activeFilterCount > 0 && (
+          {hasActiveFilters && (
             <>
               <Button
                 variant="outlined"
@@ -1130,12 +1180,14 @@ const ItemsList: React.FC<ItemsListProps> = ({
               >
                 Clear Filters
               </Button>
+              {advancedFilterCount > 0 && (
               <Chip 
                 icon={<FilterListIcon />}
-                label={`${activeFilterCount} active filter${activeFilterCount !== 1 ? 's' : ''}`}
+                label={`${advancedFilterCount} active filter${advancedFilterCount !== 1 ? 's' : ''}`}
                 color="primary"
                 variant="outlined"
               />
+              )}
             </>
           )}
         </Box>
@@ -1155,16 +1207,6 @@ const ItemsList: React.FC<ItemsListProps> = ({
             role="group"
             aria-labelledby="filter-heading"
           >
-            {/* Keyword Search - First */}
-            <TextField
-              {...formUtils.generateFieldProps('keyword_contains', 'Keywords')}
-              label="Keywords"
-              value={filters.keyword_contains}
-              onChange={(e) => handleFilterChange('keyword_contains', e.target.value)}
-              size="small"
-              fullWidth
-            />
-
             {/* Catalog Number */}
             <TextField
               {...formUtils.generateFieldProps('catalog_number_contains', 'Catalog Number')}
@@ -1181,7 +1223,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
               <Select
                 labelId="access-level-label"
                 multiple
-                value={filters.access_level}
+                value={filters.access_level ?? []}
                 onChange={(e) => handleFilterChange('access_level', e.target.value as string[])}
                 input={<OutlinedInput label="Access Level" />}
                 renderValue={(selected) => (
@@ -1195,7 +1237,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
               >
                 {ACCESS_LEVEL_CHOICES.map((choice) => (
                   <MenuItem key={choice.value} value={choice.value}>
-                    <Checkbox checked={filters.access_level.indexOf(choice.value) > -1} />
+                    <Checkbox checked={(filters.access_level ?? []).indexOf(choice.value) > -1} />
                     {choice.label}
                   </MenuItem>
                 ))}
@@ -1208,6 +1250,16 @@ const ItemsList: React.FC<ItemsListProps> = ({
               label="Call Number"
               value={filters.call_number_contains}
               onChange={(e) => handleFilterChange('call_number_contains', e.target.value)}
+              size="small"
+              fullWidth
+            />
+
+            {/* Accession Number */}
+            <TextField
+              {...formUtils.generateFieldProps('accession_number_contains', 'Accession Number')}
+              label="Accession Number"
+              value={filters.accession_number_contains}
+              onChange={(e) => handleFilterChange('accession_number_contains', e.target.value)}
               size="small"
               fullWidth
             />
@@ -1228,7 +1280,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
               <Select
                 labelId="resource-type-label"
                 multiple
-                value={filters.resource_type}
+                value={filters.resource_type ?? []}
                 onChange={(e) => handleFilterChange('resource_type', e.target.value as string[])}
                 input={<OutlinedInput label="Resource Type" />}
                 renderValue={(selected) => (
@@ -1242,22 +1294,118 @@ const ItemsList: React.FC<ItemsListProps> = ({
               >
                 {RESOURCE_TYPE_CHOICES.map((choice) => (
                   <MenuItem key={choice.value} value={choice.value}>
-                    <Checkbox checked={filters.resource_type.indexOf(choice.value) > -1} />
+                    <Checkbox checked={(filters.resource_type ?? []).indexOf(choice.value) > -1} />
                     {choice.label}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
 
-            {/* Genre */}
+            {/* Genre - Multi-select */}
+            <FormControl size="small" fullWidth>
+              <InputLabel id="genre-label">Genre</InputLabel>
+              <Select
+                labelId="genre-label"
+                multiple
+                value={filters.genre ?? []}
+                onChange={(e) => handleFilterChange('genre', e.target.value as string[])}
+                input={<OutlinedInput label="Genre" />}
+                renderValue={(selected) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {(selected as string[]).map((value) => {
+                      const choice = GENRE_CHOICES.find(c => c.value === value);
+                      return <Chip key={value} label={choice?.label || value} size="small" />;
+                    })}
+                  </Box>
+                )}
+                MenuProps={{
+                  PaperProps: {
+                    style: { maxHeight: 360 },
+                  },
+                }}
+              >
+                {GENRE_CHOICES.map((choice) => (
+                  <MenuItem key={choice.value} value={choice.value}>
+                    <Checkbox checked={(filters.genre ?? []).indexOf(choice.value) > -1} />
+                    {choice.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Language Description Type - Multi-select */}
+            <FormControl size="small" fullWidth>
+              <InputLabel id="language-description-type-label">Language Description Type</InputLabel>
+              <Select
+                labelId="language-description-type-label"
+                multiple
+                value={filters.language_description_type ?? []}
+                onChange={(e) => handleFilterChange('language_description_type', e.target.value as string[])}
+                input={<OutlinedInput label="Language Description Type" />}
+                renderValue={(selected) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {(selected as string[]).map((value) => {
+                      const choice = LANGUAGE_DESCRIPTION_TYPE_CHOICES.find(c => c.value === value);
+                      return <Chip key={value} label={choice?.label || value} size="small" />;
+                    })}
+                  </Box>
+                )}
+                MenuProps={{
+                  PaperProps: {
+                    style: { maxHeight: 360 },
+                  },
+                }}
+              >
+                {LANGUAGE_DESCRIPTION_TYPE_CHOICES.map((choice) => (
+                  <MenuItem key={choice.value} value={choice.value}>
+                    <Checkbox checked={(filters.language_description_type ?? []).indexOf(choice.value) > -1} />
+                    {choice.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Collection (FK only — abbr or name partial match) */}
             <TextField
-              {...formUtils.generateFieldProps('genre_contains', 'Genre')}
-              label="Genre"
-              value={filters.genre_contains}
-              onChange={(e) => handleFilterChange('genre_contains', e.target.value)}
+              {...formUtils.generateFieldProps('collection_contains', 'Collection')}
+              label="Collection"
+              value={filters.collection_contains}
+              onChange={(e) => handleFilterChange('collection_contains', e.target.value)}
               size="small"
               fullWidth
             />
+
+            {/* Original Format Medium - Multi-select */}
+            <FormControl size="small" fullWidth>
+              <InputLabel id="original-format-medium-label">Original Format Medium</InputLabel>
+              <Select
+                labelId="original-format-medium-label"
+                multiple
+                value={filters.original_format_medium ?? []}
+                onChange={(e) => handleFilterChange('original_format_medium', e.target.value as string[])}
+                input={<OutlinedInput label="Original Format Medium" />}
+                renderValue={(selected) => (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {(selected as string[]).map((value) => {
+                      const choice = FORMAT_CHOICES.find(c => c.value === value);
+                      return <Chip key={value} label={choice?.label || value} size="small" />;
+                    })}
+                  </Box>
+                )}
+                MenuProps={{
+                  PaperProps: {
+                    style: { maxHeight: 360 },
+                  },
+                }}
+              >
+                {FORMAT_CHOICES.map((choice) => (
+                  <MenuItem key={choice.value} value={choice.value}>
+                    <Checkbox checked={(filters.original_format_medium ?? []).indexOf(choice.value) > -1} />
+                    {choice.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
             {/* Language */}
             <TextField
@@ -1279,20 +1427,8 @@ const ItemsList: React.FC<ItemsListProps> = ({
               fullWidth
             />
 
-            {/* Depositor Name */}
-            <TextField
-              {...formUtils.generateFieldProps('depositor_name_contains', 'Depositor Name')}
-              label="Depositor Name"
-              value={filters.depositor_name_contains}
-              onChange={(e) => handleFilterChange('depositor_name_contains', e.target.value)}
-              size="small"
-              fullWidth
-            />
-
             {/* Date filters */}
             {Object.entries({
-              accession_date_min: 'Accession Date (From)',
-              accession_date_max: 'Accession Date (To)',
               creation_date_min: 'Creation Date (From)',
               creation_date_max: 'Creation Date (To)',
             }).map(([field, label]) => (
@@ -1309,20 +1445,6 @@ const ItemsList: React.FC<ItemsListProps> = ({
               />
             ))}
           </Box>
-          
-          {/* Description Filter - Full Width */}
-          <Box sx={{ mt: 2 }}>
-            <TextField
-              {...formUtils.generateFieldProps('description_scope_and_content_contains', 'Description/Scope and Content')}
-              label="Description/Scope and Content"
-              value={filters.description_scope_and_content_contains}
-              onChange={(e) => handleFilterChange('description_scope_and_content_contains', e.target.value)}
-              size="small"
-              fullWidth
-              multiline
-              rows={2}
-            />
-          </Box>
 
           {/* Empty Field Filters */}
           <Box sx={{ mt: 3 }}>
@@ -1330,33 +1452,6 @@ const ItemsList: React.FC<ItemsListProps> = ({
               Find Records With Empty Values:
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              <Button
-                variant={filters.collection_isnull ? 'contained' : 'outlined'}
-                size="small"
-                color={filters.collection_isnull ? 'primary' : 'secondary'}
-                onClick={() => handleEmptyFilterToggle('collection_isnull')}
-                sx={{ minHeight: touchTargets.minSize }}
-              >
-                Collection: Empty
-              </Button>
-              <Button
-                variant={filters.access_level_restrictions_isnull ? 'contained' : 'outlined'}
-                size="small"
-                color={filters.access_level_restrictions_isnull ? 'primary' : 'secondary'}
-                onClick={() => handleEmptyFilterToggle('access_level_restrictions_isnull')}
-                sx={{ minHeight: touchTargets.minSize }}
-              >
-                Access Level Restrictions: Empty
-              </Button>
-              <Button
-                variant={filters.accession_date_isnull ? 'contained' : 'outlined'}
-                size="small"
-                color={filters.accession_date_isnull ? 'primary' : 'secondary'}
-                onClick={() => handleEmptyFilterToggle('accession_date_isnull')}
-                sx={{ minHeight: touchTargets.minSize }}
-              >
-                Accession Date: Empty
-              </Button>
               <Button
                 variant={filters.accession_number_isnull ? 'contained' : 'outlined'}
                 size="small"
@@ -1385,33 +1480,6 @@ const ItemsList: React.FC<ItemsListProps> = ({
                 Collaborator: Empty
               </Button>
               <Button
-                variant={filters.creation_date_isnull ? 'contained' : 'outlined'}
-                size="small"
-                color={filters.creation_date_isnull ? 'primary' : 'secondary'}
-                onClick={() => handleEmptyFilterToggle('creation_date_isnull')}
-                sx={{ minHeight: touchTargets.minSize }}
-              >
-                Creation Date: Empty
-              </Button>
-              <Button
-                variant={filters.depositor_name_isnull ? 'contained' : 'outlined'}
-                size="small"
-                color={filters.depositor_name_isnull ? 'primary' : 'secondary'}
-                onClick={() => handleEmptyFilterToggle('depositor_name_isnull')}
-                sx={{ minHeight: touchTargets.minSize }}
-              >
-                Depositor Name: Empty
-              </Button>
-              <Button
-                variant={filters.description_scope_and_content_isnull ? 'contained' : 'outlined'}
-                size="small"
-                color={filters.description_scope_and_content_isnull ? 'primary' : 'secondary'}
-                onClick={() => handleEmptyFilterToggle('description_scope_and_content_isnull')}
-                sx={{ minHeight: touchTargets.minSize }}
-              >
-                Description: Empty
-              </Button>
-              <Button
                 variant={filters.genre_isnull ? 'contained' : 'outlined'}
                 size="small"
                 color={filters.genre_isnull ? 'primary' : 'secondary'}
@@ -1419,24 +1487,6 @@ const ItemsList: React.FC<ItemsListProps> = ({
                 sx={{ minHeight: touchTargets.minSize }}
               >
                 Genre: Empty
-              </Button>
-              <Button
-                variant={filters.indigenous_title_isnull ? 'contained' : 'outlined'}
-                size="small"
-                color={filters.indigenous_title_isnull ? 'primary' : 'secondary'}
-                onClick={() => handleEmptyFilterToggle('indigenous_title_isnull')}
-                sx={{ minHeight: touchTargets.minSize }}
-              >
-                Indigenous Title: Empty
-              </Button>
-              <Button
-                variant={filters.english_title_isnull ? 'contained' : 'outlined'}
-                size="small"
-                color={filters.english_title_isnull ? 'primary' : 'secondary'}
-                onClick={() => handleEmptyFilterToggle('english_title_isnull')}
-                sx={{ minHeight: touchTargets.minSize }}
-              >
-                English Title: Empty
               </Button>
               <Button
                 variant={filters.item_access_level_isnull ? 'contained' : 'outlined'}
@@ -1482,15 +1532,6 @@ const ItemsList: React.FC<ItemsListProps> = ({
                 sx={{ minHeight: touchTargets.minSize }}
               >
                 Publisher: Empty
-              </Button>
-              <Button
-                variant={filters.recording_context_isnull ? 'contained' : 'outlined'}
-                size="small"
-                color={filters.recording_context_isnull ? 'primary' : 'secondary'}
-                onClick={() => handleEmptyFilterToggle('recording_context_isnull')}
-                sx={{ minHeight: touchTargets.minSize }}
-              >
-                Recording Context: Empty
               </Button>
             </Box>
           </Box>

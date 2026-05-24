@@ -621,9 +621,15 @@ export const apiRequest = async <T>(
 export const itemsAPI = {
   // Get paginated list of items with optional filtering
   // Returns full response with status for cache rebuild polling
-  list: async (params?: Record<string, string | number>): Promise<PaginatedResponse<Item> & { status?: number }> => {
-    const queryString = params ? '?' + new URLSearchParams(params as Record<string, string>).toString() : '';
-    const url = `${API_BASE_URL}/items/${queryString}`;
+  list: async (params?: Record<string, string | number | boolean>): Promise<PaginatedResponse<Item> & { status?: number }> => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        searchParams.append(key, String(value));
+      });
+    }
+    const queryString = searchParams.toString();
+    const url = `${API_BASE_URL}/items/${queryString ? '?' + queryString : ''}`;
     
     // Default headers
     const headers: Record<string, string> = {

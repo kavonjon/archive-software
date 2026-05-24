@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-04-23
+**Last Updated**: 2026-05-23
 
 ## Current Priority
 
@@ -48,6 +48,53 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Collections List Page — Filter Refactor (2026-05-23)
+
+**CollectionFilter aligned to Item/Collaborator field-type patterns** (`app/internal_api/views.py` — internal list API only; not public API `CollectionFilter` or map `CollectionFilterBackend`):
+
+| Field | Pattern | Params |
+|---|---|---|
+| Text fields | `*_contains` + `icontains` | abbr, name, extent, abstract, description, citation_authors |
+| **genres** | MultiSelect token OR (Genre pattern) | `genres` — not `genres_contains` |
+| **access_levels** | MultiSelect token OR + "Not specified" | `access_levels` — not `access_levels_contains`; plural aggregates item levels |
+| **Date range** | Computed min/max DateFilters (Item creation-date pattern) | `date_range_min` (gte), `date_range_max` (lte) — not `date_range_contains` |
+| Languages | M2M text search | `languages_contains` + `.distinct()` |
+| Keywords | Cross-field OR | `keyword_contains` (includes display `date_range` text) |
+
+**CollectionsList frontend** (`CollectionsList.tsx`):
+- Genres + Access Levels: multi-select from `GENRE_CHOICES` / `ACCESS_LEVEL_CHOICES` with chips
+- Date Range: separate From/To `type="date"` fields (same `Object.entries` block pattern as Items)
+- `buildCollectionQueryParams` / `countCollectionFilters` handle `string[]` multi-selects
+- `access_levels=,` encoding for "Not specified" (same as Item `access_level`)
+- List UX parity: a11y, persisted selection, `CollectionExportButton` + client-side CSV export
+- Persisted state key: `collection-list-state-v4` (bumped during filter refactor)
+
+**Semantic note:** Collection `genres` and `access_levels` are plural MultiSelectFields aggregating associated items; filters are multi-select OR. Item `item_access_level` is singular — different model shape, different filter method.
+
+### List Page Filters and Keyword Search (2026-05-22)
+
+**Items list — new regular filters:**
+- Language Description Type (multi-select; `language_description_type`; Genre-style regex token match on MultiSelectField)
+- Collection (FK-only text search via `collection_contains`; abbr + name partial match)
+- Original Format Medium (multi-select; `original_format_medium`; valid `FORMAT_CHOICES` only)
+
+**Items list — filter cleanup:**
+- Removed 7 empty-field toggles with no data (accession date, access level restrictions, indigenous/english title, legacy collection CharField, recording context, creation date)
+- 9 empty-field toggles remain (aligned with Collaborator pattern)
+
+**Backend filter parity:**
+- `CollaboratorFilter`: added `keyword_contains` (cross-field OR search)
+- `CollectionFilter`: completed — `keyword_contains` plus all advanced params the frontend already sent (`extent`, `abstract`, `date_range`, `access_levels`, `genres`, `languages`, `citation_authors`); M2M filters use `.distinct()`
+- `InternalItemBatchSerializer`: FK-derived read-only `collection_name` / `collection_abbr` (not legacy `collection_name` CharField) for batch/cache filter parity
+
+**Keyword search UX (Collections innovation rolled out):**
+- Keywords always visible on Items, Collaborators, Languoids, Collections
+- Advanced filters in collapsible panel; no explicit Search button
+- Server-paginated lists: 500ms debounced auto-apply (`filters` vs `activeFilters`)
+- Filter count chip counts advanced filters only (excludes keyword); Clear resets everything
+- `initialLoadComplete`: full-page spinner only on first load; list stays visible during filter reloads
+- Collections list aligned with Items/Collaborators (`usePersistedListState`, results count, seamless reload)
 
 ### Item Batch Editor (Complete - Production Ready)
 - 61 fields, 4,400 rows, ~17MB cached
@@ -97,7 +144,9 @@ Expected: Simpler than Item (likely fewer complex fields)
 
 ## Known Issues
 
-None currently blocking.
+**Pre-existing gaps (not introduced this session):**
+- Collaborator batch/cache filtering: empty-field (`*_isnull`) toggles not fully mirrored in `collaboratorMatchesActiveFilters` helper
+- Collections list: no batch edit button (no Collection batch editor or backend batch API yet); export is client-side CSV only
 
 ## Important Context
 
@@ -132,16 +181,63 @@ None currently blocking.
 - Virus scanning sequencing: Architecture defined, currently commented out in deployment
 - SERVER_ROLE conditional code: Mode flags incomplete in some areas
 
+## Decisions (2026-05-22)
+
+### Item Collection Filter Uses FK Only (2026-05-22)
+
+Collection filter on Items searches `Item.collection` FK (`collection__collection_abbr`, `collection__name`), not the legacy `Item.collection_name` CharField.
+
+**Why?** FK is the authoritative link; legacy CharField is inconsistent (~65% of items lack FK — intentional data-quality signal when filter misses them).
+
+**Alternatives considered:**
+- Legacy CharField search: Rejected — duplicates/conflicts with FK data
+- Search both CharField and FK: Rejected — would mask data-quality problems
+
+**Trade-off accepted:** Items without Collection FK do not match collection filter until FK is assigned.
+
+### List Page Filter UX Standard (2026-05-22)
+
+Always-visible keyword search + collapsible advanced filters; debounced auto-apply on server-paginated lists; Languoids keep instant client-side keyword filter (load-all strategy unchanged).
+
+**Why?** Collections page proved the UX; explicit Search button removed friction without sacrificing debounce on large datasets.
+
+**Trade-off accepted:** Languoid list remains a special case (PM-approved load-all); do not copy to Items/Collaborators.
+
+### CollectionFilter Refactor Scope (2026-05-23)
+
+`CollectionFilter` in `internal_api/views.py` exists primarily for the React collections list page (+ `collection_abbr` exact for detail-page uniqueness validation). Safe to reshape holistically to match Item/Collaborator FilterSet patterns.
+
+**Why refactor as a unit?** Original filter was ad hoc (`*_contains` + `icontains` on everything), which breaks MultiSelectField and computed date fields.
+
+**Alternatives considered:**
+- Frontend-only multi-select on `genres_contains`: Rejected — OR semantics impossible with single icontains param
+- Reuse Item `filter_access_level` (`__in` on single CharField): Rejected — Collection `access_levels` is MultiSelectField
+
+**Trade-off accepted:** Removed `genres_contains`, `access_levels_contains`, `date_range_contains` params; frontend/storage key bumped (`collection-list-state-v4`).
+
+### Collection Date Range Filter Uses Computed Fields (2026-05-23)
+
+List date filter uses `date_range_min` / `date_range_max` (aggregated from items via Celery task), not the display `date_range` CharField.
+
+**Why?** Same pattern as Item creation dates: filter on computed min/max; display text remains for table/keyword search.
+
+**Trade-off accepted:** Collections without computed dates (null min/max) won't match date filters until aggregation runs.
+
 ## Files Recently Modified
 
 **Backend:**
-- `app/internal_api/views.py` - validate_field DecimalField fix
-- `app/internal_api/serializers.py` - Item titles field added
+- `app/internal_api/views.py` - CollectionFilter refactor (genres, access_levels, date_range_min/max); Item/Collaborator filters from prior session
+- `app/internal_api/serializers.py` - FK-derived collection fields on batch serializer; Item titles field
 - `app/metadata/tasks.py` - Export task improvements (now cleaned up)
 - `app/metadata/signals.py` - Item browse_categories, collection auto-assignment
 
 **Frontend:**
-- `frontend/src/components/items/ItemsList.tsx` - Filter persistence, UI consistency
+- `frontend/src/components/collections/CollectionsList.tsx` - Filter refactor, list UX parity, export (2026-05-23); server-paginated alignment (2026-05-22)
+- `frontend/src/components/collections/CollectionExportButton.tsx` - Export filtered/selected (new)
+- `frontend/src/utils/collectionExport.ts` - Client-side CSV export helper (new)
+- `frontend/src/components/items/ItemsList.tsx` - New filters, keyword UX, cache filter parity
+- `frontend/src/components/collaborators/CollaboratorsList.tsx` - Keyword search, `collaboratorMatchesActiveFilters` helper
+- `frontend/src/components/languoids/LanguoidsList.tsx` - Always-visible keyword search
 - `frontend/src/components/items/ItemBatchEditor.tsx` - Complete implementation
 - `frontend/src/components/batch/CollaboratorRolesCellEditor.tsx` - Through-model editor
 - `frontend/src/components/batch/TitleWithLanguageCellEditor.tsx` - Text+FK editor

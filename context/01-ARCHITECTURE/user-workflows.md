@@ -66,7 +66,9 @@ See `endpoint-catalog.md` and `system-overview.md` for current auth and routes.
 
 ## Search, filter, export (workflow_004–005)
 
-**Capabilities:** keyword search, collaborator/language/collection/access filters, search forms, dropdowns, result lists.
+**Capabilities:** keyword search (always visible on React list pages), collaborator/language/collection/access filters, collapsible advanced filter panels, result lists with counts.
+
+**Keyword search UX (2026-05):** Keywords field always visible; advanced filters collapsed behind Show/Hide; no Search button on server-paginated lists (500ms debounced auto-apply). Filter chip counts advanced filters only; Clear resets keyword + advanced filters.
 
 **Export:** Excel workbooks with styled headers (e.g. collaborator exports); researchers and archivists use exports for offline analysis. Batch editors add additional export/import patterns (`02-PATTERNS/batch-editors.md`).
 

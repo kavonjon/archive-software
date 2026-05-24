@@ -246,6 +246,8 @@ if (response.async) {
 
 **Example Issue**: Item filter searches titles, but batch serializer didn't include `titles` array - frontend couldn't replicate backend filter - count discrepancy (697 vs 685).
 
+**Example Issue (2026-05)**: Item collection filter uses FK (`collection__name`, `collection__collection_abbr`), but batch serializer exposed legacy `collection_name` CharField — cache filter could not mirror backend. Fix: expose FK-derived read-only `collection_name` / `collection_abbr` on `InternalItemBatchSerializer`; frontend `applyFiltersToCache` uses those fields only.
+
 ### Picker Serializer Isolation
 
 For FK dropdown pickers (e.g., collaborator picker on Item detail), a separate lightweight **PickerSerializer** is needed. It **must not** touch the batch serializer.

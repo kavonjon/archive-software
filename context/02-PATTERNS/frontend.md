@@ -147,7 +147,32 @@ useEffect(() => {
 **Use**:
 - `filters`: Bind to input fields (immediate UI response)
 - `activeFilters`: Use for API calls (debounced, reduces requests)
-- `activeFilterCount`: Calculate from activeFilters (not filters)
+- `advancedFilterCount`: Count advanced filters only (exclude `keyword_contains` / search term from chip)
+- `hasActiveFilters`: Include keyword for batch edit/export "filtered mode" logic
+- `initialLoadComplete`: Full-page loading spinner only until first successful load; subsequent filter changes keep list visible
+
+**Keyword search layout (standard across list pages):**
+- Keywords field always visible (outside collapsible advanced panel)
+- No Search button — filters apply automatically (500ms debounce on server-paginated lists)
+- Languoids: instant client-side filter on `searchTerm` (load-all exception)
+
+**Query param building (CollectionsList, ItemsList):** Arrays (multi-select) join with comma; `access_levels=,` when only "Not specified" selected. Strings trim before send. Dates send ISO `YYYY-MM-DD` from `type="date"` inputs.
+
+```typescript
+const advancedFilterCount = useMemo(() => {
+  return Object.entries(activeFilters).filter(([key, value]) => {
+    if (key === 'keyword_contains') return false;
+    // ... count non-empty advanced fields
+  }).length;
+}, [activeFilters]);
+
+const hasActiveFilters = useMemo(() => {
+  return Boolean(activeFilters.keyword_contains?.trim()) || advancedFilterCount > 0;
+}, [activeFilters, advancedFilterCount]);
+
+const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+// Set true after first successful fetch; use loading && !initialLoadComplete for full-page spinner only
+```
 
 ---
 
@@ -512,6 +537,15 @@ const applyFiltersToCache = (items: Item[], filters: FilterState): Item[] => {
 
 **Critical**: Must check same fields as backend filter for count parity.
 
+**Item-specific cache filters added 2026-05:**
+- `language_description_type`: comma-split tokens, regex token match (mirror Genre)
+- `collection_contains`: FK-derived `collection_abbr` / `collection_name` on batch serializer (not legacy CharField)
+- `original_format_medium`: comma-split, exact match against valid `FORMAT_CHOICES` only
+
+**Collaborator cache filtering:** Use shared `collaboratorMatchesActiveFilters` helper (includes `keyword_contains`, language contains, and other active filters) — do not duplicate inline filter blocks.
+
+**Reference implementations:** `ItemsList.tsx`, `CollaboratorsList.tsx`, `CollectionsList.tsx` (server-paginated); `LanguoidsList.tsx` (client-side exception).
+
 ### Pattern for Picker Dropdowns
 
 **Use** when dataset is 100-5000 items and search is common:
@@ -727,6 +761,22 @@ const ItemsList = () => {
   );
 };
 ```
+
+### Standard List Page Filter Layout (2026-05)
+
+**Applies to:** Items, Collaborators, Collections (server-paginated). Languoids uses same keyword UX but client-side filtering.
+
+```
+[ Title + count ]
+[ Keywords (always visible)                    ]
+[ Show/Hide Filters (N) ]  [ Clear ]
+[ Advanced filter grid — collapsible             ]
+[ Results: "X items found"                       ]
+[ Table + pagination                             ]
+[ Export | Batch Edit ]  (Collections: Export only — no batch editor yet)
+```
+
+**CollectionsList (2026-05-23):** Uses `usePersistedListState` (`collection-list-state-v4`), debounced `activeFilters`, results count, and `initialLoadComplete`. Multi-select filters (`genres`, `access_levels`) use `string[]` state; date range uses From/To `type="date"` fields matching Items. `CollectionExportButton` provides client-side CSV export (filtered or selected); no batch edit until Collection batch editor exists.
 
 ### Hybrid Navigation
 

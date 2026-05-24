@@ -2,13 +2,15 @@
 Internal API for React frontend
 Provides CRUD operations for all core models with proper filtering and serialization
 """
+import re
+
 from rest_framework import viewsets, filters, status, permissions, serializers
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import FilterSet, CharFilter, DateFilter, NumberFilter, BooleanFilter
 from django.db.models import Q
-from metadata.models import Item, Collection, Collaborator, Languoid, ItemTitle, CollaboratorRole, GENRE_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES
+from metadata.models import Item, Collection, Collaborator, Languoid, ItemTitle, CollaboratorRole, ACCESS_CHOICES, RESOURCE_TYPE_CHOICES, GENRE_CHOICES, FORMAT_CHOICES, ROLE_CHOICES, LANGUAGE_DESCRIPTION_CHOICES
 from .serializers import (
     InternalItemSerializer, 
     InternalCollectionSerializer, 
@@ -63,18 +65,33 @@ class ItemFilter(FilterSet):
     english_title_contains = CharFilter(method='filter_english_title')
     titles_contains = CharFilter(method='filter_all_titles')
     resource_type_contains = CharFilter(field_name='resource_type', lookup_expr='icontains')
+    access_level = CharFilter(method='filter_access_level')
+    resource_type = CharFilter(method='filter_resource_type')
     language_contains = CharFilter(method='filter_language')
     description_scope_and_content_contains = CharFilter(field_name='description_scope_and_content', lookup_expr='icontains')
-    genre_contains = CharFilter(field_name='genre', lookup_expr='icontains')
+    genre = CharFilter(method='filter_genre')
+    language_description_type = CharFilter(method='filter_language_description_type')
+    collection_contains = CharFilter(method='filter_collection')
+    original_format_medium = CharFilter(method='filter_original_format_medium')
     collaborator_contains = CharFilter(method='filter_collaborator')
     depositor_name_contains = CharFilter(field_name='depositor_name', lookup_expr='icontains')
+    accession_number_contains = CharFilter(field_name='accession_number', lookup_expr='icontains')
     keyword_contains = CharFilter(method='filter_keyword')
     
     # Date range filters
-    accession_date_min = DateFilter(field_name='accession_date_min', lookup_expr='gte')
-    accession_date_max = DateFilter(field_name='accession_date_max', lookup_expr='lte')
     creation_date_min = DateFilter(field_name='creation_date_min', lookup_expr='gte')
     creation_date_max = DateFilter(field_name='creation_date_max', lookup_expr='lte')
+
+    # Empty field filters (isnull lookups) — match CollaboratorFilter pattern
+    accession_number_isnull = BooleanFilter(method='filter_accession_number_empty')
+    call_number_isnull = BooleanFilter(method='filter_call_number_empty')
+    collaborator_isnull = BooleanFilter(method='filter_collaborator_empty')
+    genre_isnull = BooleanFilter(method='filter_genre_empty')
+    item_access_level_isnull = BooleanFilter(method='filter_item_access_level_empty')
+    language_isnull = BooleanFilter(method='filter_language_empty')
+    resource_type_isnull = BooleanFilter(method='filter_resource_type_empty')
+    original_format_medium_isnull = BooleanFilter(method='filter_original_format_medium_empty')
+    publisher_isnull = BooleanFilter(method='filter_publisher_empty')
 
     class Meta:
         model = Item
@@ -83,20 +100,33 @@ class ItemFilter(FilterSet):
             'catalog_number_contains',
             'item_access_level_contains', 
             'call_number_contains',
-            'accession_date_min',
-            'accession_date_max',
+            'accession_number_contains',
             'indigenous_title_contains',
             'english_title_contains',
             'titles_contains',
+            'access_level',
+            'resource_type',
             'resource_type_contains',
             'language_contains',
             'creation_date_min',
             'creation_date_max',
             'description_scope_and_content_contains',
-            'genre_contains',
+            'genre',
+            'language_description_type',
+            'collection_contains',
+            'original_format_medium',
             'collaborator_contains',
             'depositor_name_contains',
             'keyword_contains',
+            'accession_number_isnull',
+            'call_number_isnull',
+            'collaborator_isnull',
+            'genre_isnull',
+            'item_access_level_isnull',
+            'language_isnull',
+            'resource_type_isnull',
+            'original_format_medium_isnull',
+            'publisher_isnull',
         ]
 
     def filter_indigenous_title(self, queryset, name, value):
@@ -122,6 +152,167 @@ class ItemFilter(FilterSet):
             Q(collaborator__last_names__icontains=value) |
             Q(collaborator__full_name__icontains=value)
         ).distinct()
+
+    def filter_access_level(self, queryset, name, value):
+        """Filter by exact access level values from multi-select (OR semantics)."""
+        if value is None:
+            return queryset
+
+        valid_levels = {choice[0] for choice in ACCESS_CHOICES}
+        selected_levels = []
+        include_unspecified = False
+
+        for level in value.split(','):
+            if level == '':
+                include_unspecified = True
+            elif level in valid_levels:
+                selected_levels.append(level)
+
+        if not selected_levels and not include_unspecified:
+            return queryset
+
+        level_query = Q()
+        if selected_levels:
+            level_query |= Q(item_access_level__in=selected_levels)
+        if include_unspecified:
+            level_query |= Q(item_access_level='') | Q(item_access_level__isnull=True)
+
+        return queryset.filter(level_query).distinct()
+
+    def filter_resource_type(self, queryset, name, value):
+        """Filter by exact resource type values from multi-select (OR semantics)."""
+        if not value:
+            return queryset
+
+        valid_types = {choice[0] for choice in RESOURCE_TYPE_CHOICES}
+        selected_types = [
+            resource_type
+            for resource_type in value.split(',')
+            if resource_type in valid_types
+        ]
+        if not selected_types:
+            return queryset
+
+        return queryset.filter(resource_type__in=selected_types).distinct()
+
+    def filter_genre(self, queryset, name, value):
+        """Filter items that include any of the selected genre values (exact token match)."""
+        if not value:
+            return queryset
+
+        valid_genres = {choice[0] for choice in GENRE_CHOICES}
+        selected_genres = [
+            genre.strip()
+            for genre in value.split(',')
+            if genre.strip() in valid_genres
+        ]
+        if not selected_genres:
+            return queryset
+
+        genre_query = Q()
+        for genre in selected_genres:
+            genre_query |= Q(genre__regex=rf'(^|,){re.escape(genre)}(,|$)')
+
+        return queryset.filter(genre_query).distinct()
+
+    def filter_language_description_type(self, queryset, name, value):
+        """Filter items that include any of the selected language description type values (exact token match)."""
+        if not value:
+            return queryset
+
+        valid_types = {choice[0] for choice in LANGUAGE_DESCRIPTION_CHOICES}
+        selected_types = [
+            lang_type.strip()
+            for lang_type in value.split(',')
+            if lang_type.strip() in valid_types
+        ]
+        if not selected_types:
+            return queryset
+
+        type_query = Q()
+        for lang_type in selected_types:
+            type_query |= Q(language_description_type__regex=rf'(^|,){re.escape(lang_type)}(,|$)')
+
+        return queryset.filter(type_query).distinct()
+
+    def filter_collection(self, queryset, name, value):
+        """Filter by associated Collection FK only (abbr or name partial match)."""
+        if not value or not value.strip():
+            return queryset
+
+        search_value = value.strip()
+        return queryset.filter(
+            collection__isnull=False
+        ).filter(
+            Q(collection__collection_abbr__icontains=search_value) |
+            Q(collection__name__icontains=search_value)
+        ).distinct()
+
+    def filter_original_format_medium(self, queryset, name, value):
+        """Filter by exact original format medium values from multi-select (OR semantics)."""
+        if not value:
+            return queryset
+
+        valid_formats = {choice[0] for choice in FORMAT_CHOICES}
+        selected_formats = [
+            format_medium
+            for format_medium in value.split(',')
+            if format_medium in valid_formats
+        ]
+        if not selected_formats:
+            return queryset
+
+        return queryset.filter(original_format_medium__in=selected_formats).distinct()
+
+    def _filter_char_field_empty(self, queryset, field_name):
+        return queryset.filter(
+            Q(**{f'{field_name}__isnull': True}) | Q(**{field_name: ''})
+        ).distinct()
+
+    def filter_accession_number_empty(self, queryset, name, value):
+        if value:
+            return self._filter_char_field_empty(queryset, 'accession_number')
+        return queryset
+
+    def filter_call_number_empty(self, queryset, name, value):
+        if value:
+            return self._filter_char_field_empty(queryset, 'call_number')
+        return queryset
+
+    def filter_collaborator_empty(self, queryset, name, value):
+        if value:
+            return queryset.filter(collaborator__isnull=True).distinct()
+        return queryset
+
+    def filter_genre_empty(self, queryset, name, value):
+        if value:
+            return queryset.filter(Q(genre='') | Q(genre__isnull=True)).distinct()
+        return queryset
+
+    def filter_item_access_level_empty(self, queryset, name, value):
+        if value:
+            return self._filter_char_field_empty(queryset, 'item_access_level')
+        return queryset
+
+    def filter_language_empty(self, queryset, name, value):
+        if value:
+            return queryset.filter(language__isnull=True).distinct()
+        return queryset
+
+    def filter_resource_type_empty(self, queryset, name, value):
+        if value:
+            return self._filter_char_field_empty(queryset, 'resource_type')
+        return queryset
+
+    def filter_original_format_medium_empty(self, queryset, name, value):
+        if value:
+            return self._filter_char_field_empty(queryset, 'original_format_medium')
+        return queryset
+
+    def filter_publisher_empty(self, queryset, name, value):
+        if value:
+            return self._filter_char_field_empty(queryset, 'publisher')
+        return queryset
     
     def filter_keyword(self, queryset, name, value):
         """Search across multiple text fields"""
@@ -142,16 +333,108 @@ class CollectionFilter(FilterSet):
     collection_abbr = CharFilter(field_name='collection_abbr', lookup_expr='exact')  # Exact match for uniqueness validation
     collection_abbr_contains = CharFilter(field_name='collection_abbr', lookup_expr='icontains')
     name_contains = CharFilter(field_name='name', lookup_expr='icontains')
+    extent_contains = CharFilter(field_name='extent', lookup_expr='icontains')
+    abstract_contains = CharFilter(field_name='abstract', lookup_expr='icontains')
     description_contains = CharFilter(field_name='description', lookup_expr='icontains')
-    
+    date_range_min = DateFilter(field_name='date_range_min', lookup_expr='gte')
+    date_range_max = DateFilter(field_name='date_range_max', lookup_expr='lte')
+    access_levels = CharFilter(method='filter_access_levels')
+    genres = CharFilter(method='filter_genres')
+    languages_contains = CharFilter(method='filter_languages')
+    citation_authors_contains = CharFilter(field_name='citation_authors', lookup_expr='icontains')
+    keyword_contains = CharFilter(method='filter_keyword')
+
     class Meta:
         model = Collection
         fields = [
             'collection_abbr',  # Exact match for uniqueness validation
             'collection_abbr_contains',
             'name_contains',
+            'extent_contains',
+            'abstract_contains',
             'description_contains',
+            'date_range_min',
+            'date_range_max',
+            'access_levels',
+            'genres',
+            'languages_contains',
+            'citation_authors_contains',
+            'keyword_contains',
         ]
+
+    def filter_languages(self, queryset, name, value):
+        if not value or not value.strip():
+            return queryset
+        return queryset.filter(languages__name__icontains=value.strip()).distinct()
+
+    def filter_genres(self, queryset, name, value):
+        """Filter collections that include any of the selected genre values (exact token match)."""
+        if not value:
+            return queryset
+
+        valid_genres = {choice[0] for choice in GENRE_CHOICES}
+        selected_genres = [
+            genre.strip()
+            for genre in value.split(',')
+            if genre.strip() in valid_genres
+        ]
+        if not selected_genres:
+            return queryset
+
+        genre_query = Q()
+        for genre in selected_genres:
+            genre_query |= Q(genres__regex=rf'(^|,){re.escape(genre)}(,|$)')
+
+        return queryset.filter(genre_query).distinct()
+
+    def filter_access_levels(self, queryset, name, value):
+        """Filter collections that include any of the selected access level values (exact token match)."""
+        if value is None:
+            return queryset
+
+        valid_levels = {choice[0] for choice in ACCESS_CHOICES}
+        selected_levels = []
+        include_unspecified = False
+
+        for level in value.split(','):
+            if level == '':
+                include_unspecified = True
+            elif level in valid_levels:
+                selected_levels.append(level)
+
+        if not selected_levels and not include_unspecified:
+            return queryset
+
+        level_query = Q()
+        for level in selected_levels:
+            level_query |= Q(access_levels__regex=rf'(^|,){re.escape(level)}(,|$)')
+        if include_unspecified:
+            level_query |= Q(access_levels='') | Q(access_levels__isnull=True)
+
+        return queryset.filter(level_query).distinct()
+
+    def filter_keyword(self, queryset, name, value):
+        """Search across common collection text fields and related language names."""
+        if not value or not value.strip():
+            return queryset
+
+        search_value = value.strip()
+        return queryset.filter(
+            Q(collection_abbr__icontains=search_value) |
+            Q(name__icontains=search_value) |
+            Q(extent__icontains=search_value) |
+            Q(abstract__icontains=search_value) |
+            Q(description__icontains=search_value) |
+            Q(date_range__icontains=search_value) |
+            Q(citation_authors__icontains=search_value) |
+            Q(background__icontains=search_value) |
+            Q(conventions__icontains=search_value) |
+            Q(acquisition__icontains=search_value) |
+            Q(access_statement__icontains=search_value) |
+            Q(access_levels__icontains=search_value) |
+            Q(genres__icontains=search_value) |
+            Q(languages__name__icontains=search_value)
+        ).distinct()
 
 
 class InternalItemViewSet(viewsets.ModelViewSet):
@@ -1142,7 +1425,14 @@ class InternalCollectionViewSet(viewsets.ModelViewSet):
         """All authenticated users can see all collections, permissions handled by permission_classes"""
         if not self.request.user.is_authenticated:
             return Collection.objects.none()
-        return super().get_queryset()
+
+        queryset = super().get_queryset()
+
+        m2m_filters = ['languages_contains', 'keyword_contains']
+        if any(param in self.request.GET for param in m2m_filters):
+            queryset = queryset.distinct()
+
+        return queryset
 
 
 class CollaboratorFilter(FilterSet):
@@ -1165,6 +1455,7 @@ class CollaboratorFilter(FilterSet):
     # M2M relationship filters - search by related Languoid name
     native_languages_contains = CharFilter(field_name='native_languages__name', lookup_expr='icontains')
     other_languages_contains = CharFilter(field_name='other_languages__name', lookup_expr='icontains')
+    keyword_contains = CharFilter(method='filter_keyword')
     
     # Empty value filters - for finding incomplete records
     # CharField/TextField: Check for both NULL and empty string ('')
@@ -1193,6 +1484,32 @@ class CollaboratorFilter(FilterSet):
             return queryset.filter(id__in=ids)
         except (ValueError, TypeError):
             return queryset.none()
+
+    def filter_keyword(self, queryset, name, value):
+        """Search across common collaborator text fields and related language names."""
+        if not value or not value.strip():
+            return queryset
+
+        search_value = value.strip()
+        keyword_query = (
+            Q(first_names__icontains=search_value) |
+            Q(last_names__icontains=search_value) |
+            Q(full_name__icontains=search_value) |
+            Q(nickname__icontains=search_value) |
+            Q(name_suffix__icontains=search_value) |
+            Q(tribal_affiliations__icontains=search_value) |
+            Q(clan_society__icontains=search_value) |
+            Q(origin__icontains=search_value) |
+            Q(gender__icontains=search_value) |
+            Q(other_info__icontains=search_value) |
+            Q(other_names__icontains=search_value) |
+            Q(native_languages__name__icontains=search_value) |
+            Q(other_languages__name__icontains=search_value)
+        )
+        if search_value.isdigit():
+            keyword_query |= Q(collaborator_id=int(search_value))
+
+        return queryset.filter(keyword_query).distinct()
     
     def filter_first_names_empty(self, queryset, name, value):
         """Filter for collaborators with empty first_names (NULL or empty string)"""
@@ -1277,7 +1594,7 @@ class CollaboratorFilter(FilterSet):
         model = Collaborator
         fields = ['collaborator_id', 'first_names_contains', 'last_names_contains', 'full_name_contains', 
                   'collaborator_id_contains', 'tribal_affiliations_contains', 
-                  'gender_contains', 'anonymous',
+                  'gender_contains', 'anonymous', 'keyword_contains',
                   'native_languages_contains', 'other_languages_contains',
                   'first_names_isnull', 'nickname_isnull', 'last_names_isnull', 'name_suffix_isnull',
                   'tribal_affiliations_isnull', 'other_names_isnull', 'gender_isnull',
@@ -1329,7 +1646,7 @@ class InternalCollaboratorViewSet(viewsets.ModelViewSet):
         
         # Apply distinct() if filtering by M2M relationships to avoid duplicates
         # Check if any M2M relationship filters are being used
-        m2m_filters = ['native_languages_contains', 'other_languages_contains']
+        m2m_filters = ['native_languages_contains', 'other_languages_contains', 'keyword_contains']
         if any(param in self.request.GET for param in m2m_filters):
             queryset = queryset.distinct()
         

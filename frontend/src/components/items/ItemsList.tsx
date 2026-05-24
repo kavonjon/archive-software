@@ -47,6 +47,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useItemCache } from '../../contexts/ItemCacheContext';
 import { usePersistedListState } from '../../hooks/usePersistedListState';
 import { hasEditAccess } from '../../utils/permissions';
+import { getAccessLevelChipProps } from '../../utils/accessLevelChip';
 import ItemBatchEditButton, { BatchEditMode } from './ItemBatchEditButton';
 import ItemExportButton, { ExportMode, ExportStatus } from './ItemExportButton';
 import ItemBatchLoadingDialog, { LoadingDialogState } from './ItemBatchLoadingDialog';
@@ -1057,7 +1058,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
           <Chip 
             label={item.item_access_level_display || 'Unknown'} 
             size="small"
-            color={item.item_access_level === '1' ? 'success' : 'default'}
+            {...getAccessLevelChipProps(item.item_access_level)}
           />
         </Stack>
 

@@ -48,6 +48,7 @@ import CoordinatesMapCard from './CoordinatesMapCard';
 import LocationEditorOverlay, { LocationData } from './LocationEditorOverlay';
 import { useAuth } from '../../contexts/AuthContext';
 import { hasDeleteAccess, hasEditAccess } from '../../utils/permissions';
+import { getAccessLevelChipProps } from '../../utils/accessLevelChip';
 
 const API_BASE_URL = process.env.NODE_ENV === 'development'
   ? 'http://localhost:8000/internal/v1'
@@ -658,8 +659,8 @@ const ItemDetail: React.FC<ItemDetailProps> = ({
           />
           <Chip 
             label={item.item_access_level_display || 'Unknown Access'} 
-            color={item.item_access_level === '1' ? 'success' : 'default'}
             size="small"
+            {...getAccessLevelChipProps(item.item_access_level)}
           />
           {item.genre_display && item.genre_display.length > 0 && (
             item.genre_display.slice(0, 3).map((genre, index) => (

@@ -261,6 +261,26 @@ const ItemsList = () => {
 
 ---
 
+## Item access level chip colors (2026-05-22)
+
+**Applies to:** Item detail header chips, items list mobile cards, items list desktop Access Level column.
+
+Use `getAccessLevelChipProps(accessLevel)` from `utils/accessLevelChip.ts` — do not inline level-to-color logic.
+
+| Level | Value | Styling |
+|---|---|---|
+| 1 — Open Access | `'1'` | `color="success"` (green) |
+| 2 — Onsite viewing | `'2'` | `color="info"` (blue) |
+| 3 — Time-limited | `'3'` | `color="warning"` (orange) |
+| 4 — Depositor-controlled | `'4'` | Custom sx: `#fdd835` background, dark text |
+| Not specified / unknown | `''`, null | `color="default"` |
+
+**Why `info` not `primary` for level 2?** Item detail header already uses `primary` for resource type chip — distinct palette avoids confusion.
+
+**Not in scope:** Batch editor cells (editable select); filter controls (no chips).
+
+---
+
 ## Hybrid navigation (table rows)
 
 **Pattern**: React Router links on identifiers + clickable rows

@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-05-24
+**Last Updated**: 2026-05-22
 
 ## Current Priority
 
@@ -48,6 +48,23 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Item Access Level Chip Colors (2026-05-22)
+
+**User-facing:** Access level chips on item pages are color-coded by level for quick visual scanning.
+
+**Shared utility:** `frontend/src/utils/accessLevelChip.ts` — `getAccessLevelChipProps(accessLevel)` returns MUI Chip `color` and/or custom `sx`.
+
+| Level | Color |
+|---|---|
+| 1 — Open Access | Green (`success`) |
+| 2 — Onsite viewing | Blue (`info`) |
+| 3 — Time-limited | Orange (`warning`) |
+| 4 — Depositor-controlled | Yellow (custom `#fdd835`, dark text) |
+
+**Applied in:** `ItemDetail.tsx` (header status chips), `ItemsList.tsx` (mobile card chips), `itemListColumnHelpers.tsx` (`AccessLevelCell` for desktop table column).
+
+**Not changed:** Batch editor access level column (editable select, not status chips); filter dropdowns (no chip display).
 
 ### Remove Permission to Publish Online Field (2026-05-24)
 
@@ -97,7 +114,7 @@ Expected: Simpler than Item (likely fewer complex fields)
 | Title(s) | All titles; default title gets "Primary" chip |
 | Collaborators | Names + role labels (`ROLE_CHOICES`) in one column |
 | Long text | Truncate ellipsis (`maxWidth: 240`); `title` tooltip |
-| Access Level chip | Truncated via `truncatedChipSx` (long choice labels) |
+| Access Level chip | Color via `getAccessLevelChipProps`; truncated via `truncatedChipSx` (long choice labels) |
 | Table widths | Dynamic (`table-layout: auto`); no fixed widths on data columns |
 
 **Picker groups:** Match `ItemDetail.tsx` card section names. Group order follows visual top-to-bottom reading on detail page (Titles → Collection Information → Item Details → … → Metadata History). Field order within each group from `ITEM_LIST_DETAIL_FIELD_ORDER` (detail card field order).
@@ -328,6 +345,18 @@ Field removed from model, API, React UI, batch editor, and legacy Django import/
 
 **Trade-off accepted:** Historical yes/no values dropped on migration; CSV imports with that column header are ignored.
 
+### Item Access Level Chip Color Coding (2026-05-22)
+
+Centralized in `getAccessLevelChipProps` (`utils/accessLevelChip.ts`) — single source for all item-page access level Chips.
+
+**Why?** Level 1 was already green; extending color coding to levels 2–4 improves scan-ability for archivists reviewing access restrictions.
+
+**Alternatives considered:**
+- Inline ternary per component: Rejected — already duplicated in three places
+- `primary` for level 2: Rejected — collides with resource type chip on `ItemDetail` header
+
+**Trade-off accepted:** Level 4 uses custom yellow (`#fdd835`) because MUI Chip has no built-in yellow palette entry.
+
 ## Files Recently Modified
 
 **Backend:**
@@ -341,7 +370,10 @@ Field removed from model, API, React UI, batch editor, and legacy Django import/
 - `app/templates/item_detail.html`, `app/templates/columns_export_detail.html` - Legacy template cleanup
 
 **Frontend:**
-- `frontend/src/components/items/ItemDetail.tsx` - Removed EditableBooleanField for permission
+- `frontend/src/utils/accessLevelChip.ts` - Shared access level Chip color helper (new, 2026-05-22)
+- `frontend/src/components/items/ItemDetail.tsx` - Access level chip colors; removed EditableBooleanField for permission
+- `frontend/src/components/items/ItemsList.tsx` - Mobile card access level chip colors; column visibility wiring (2026-05-24)
+- `frontend/src/components/items/itemListColumnHelpers.tsx` - `AccessLevelCell` uses helper; list cell renderers (2026-05-22/24)
 - `frontend/src/components/items/ItemCreate.tsx` - Removed form control
 - `frontend/src/components/items/ItemBatchEditor.tsx` - Removed column + boolean cell handling
 - `frontend/src/services/api.ts`, `itemImportColumnMapper.ts`, `itemImportTransformer.ts` - Type/import cleanup

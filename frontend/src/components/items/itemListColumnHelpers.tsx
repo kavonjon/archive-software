@@ -1,8 +1,10 @@
 import React from 'react';
 import { Box, Chip, Link, TableCell, Typography } from '@mui/material';
+import { SxProps, Theme } from '@mui/material/styles';
 import { Link as RouterLink } from 'react-router-dom';
 import { Item, ROLE_CHOICES } from '../../services/api';
 import { tableUtils } from '../../utils/accessibility';
+import { getAccessLevelChipProps } from '../../utils/accessLevelChip';
 
 export const EMPTY_CELL = '—';
 
@@ -225,14 +227,15 @@ export function CollaboratorsCell({ item, rowIndex }: { item: Item; rowIndex: nu
 
 export function AccessLevelCell({ item, rowIndex }: { item: Item; rowIndex: number }) {
   const label = item.item_access_level_display || 'Unknown';
+  const chipProps = getAccessLevelChipProps(item.item_access_level);
 
   return (
     <CellWrapper columnId="access" rowIndex={rowIndex}>
       <Chip
         label={label}
         size="small"
-        color={item.item_access_level === '1' ? 'success' : 'default'}
-        sx={truncatedChipSx}
+        color={chipProps.color}
+        sx={[truncatedChipSx, chipProps.sx].filter(Boolean) as SxProps<Theme>}
         title={label}
       />
     </CellWrapper>

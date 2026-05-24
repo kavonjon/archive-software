@@ -2,7 +2,7 @@
 
 **Context note (2025-10-28, revised periodically):** Languoid list-only patterns (load-once, client filter, tree pagination). **Primary code:** `frontend/src/components/languoids/LanguoidsList.tsx`.
 
-**CRITICAL:** Patterns here are **LANGUOID-SPECIFIC ONLY**. Do **not** copy load-all + client-only filtering or smart pagination to Items, Collaborators, Collections, or Documents without PM approval. See also `02-PATTERNS/frontend.md` (languoid `page_size=10000` policy).
+**CRITICAL:** Patterns here are **LANGUOID-SPECIFIC ONLY**. Do **not** copy load-all + client-only filtering or smart pagination to Items, Collaborators, Collections, or Documents without PM approval. See also `list-page-patterns.md` (languoid exception warning).
 
 ---
 

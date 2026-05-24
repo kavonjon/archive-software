@@ -29,6 +29,7 @@ Quick index of all **Project Context System** files in `context/`.
 | Stage plans | `04-REFERENCE/stage-plans/` |
 | API catalog | `04-REFERENCE/api-docs/endpoint-catalog.md` |
 | Languoid list deep dive | `04-REFERENCE/frontend/languoid-list-implementation.md` |
+| List page patterns (filters, columns, layout) | `04-REFERENCE/frontend/list-page-patterns.md` |
 | Geographic UI | `04-REFERENCE/frontend/geographic-features.md` |
 | Dependencies policy | `04-REFERENCE/dependencies.md` |
 | `docs/` repo layout | `04-REFERENCE/docs-directory.md` |

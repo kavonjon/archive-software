@@ -1,6 +1,6 @@
 # Project Context System: inventory and coverage
 
-**Last updated:** 2026-04-23
+**Last updated:** 2026-05-24
 
 **Index triad (keep in sync):** When you change notable files in this tree, update **`context-map.md`** (topic → path) and **`05-ARCHIVE/where-patterns-live.md`** (pattern routing) in the same pass. See **README.md → Maintenance → Index triad**.
 
@@ -40,6 +40,7 @@ A single Markdown project context: **constraints**, **patterns**, **lessons lear
 - **Groups and permissions:** `01-ARCHITECTURE/security.md`
 - **Public vs internal API listing:** `04-REFERENCE/api-docs/endpoint-catalog.md`
 - **Batch editing:** `02-PATTERNS/batch-editors.md` + `03-LESSONS/item-batch-editor.md` (primary reference)
+- **List page UX (filters, columns):** `04-REFERENCE/frontend/list-page-patterns.md`
 - **Topic → file index:** `context-map.md`
 - **Pattern topic routing (where to add new notes):** `05-ARCHIVE/where-patterns-live.md`
 
@@ -51,6 +52,7 @@ These are **forward** checks only—this tree is the project context, not a diff
 
 | Question | Where to get to “yes” |
 |----------|------------------------|
+| Debug list page filters / column visibility? | `04-REFERENCE/frontend/list-page-patterns.md`, `frontend.md` (stubs) |
 | Implement a new batch editor? | `03-LESSONS/item-batch-editor.md`, `batch-editors.md`, `data-models.md` |
 | Debug cache / Celery / filters in batch? | `item-batch-editor.md`, `batch-editors.md`, `system-overview.md`, `backend.md` |
 | Security model (groups, DRF, React)? | `security.md` |

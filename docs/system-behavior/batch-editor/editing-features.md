@@ -290,7 +290,7 @@ background-color: #bbdefb;  /* Darker blue */
 
 **Canonical documentation:** [validation.md](validation.md) — live edit, import, and save flows with per-model differences (Languoid vs Collaborator vs Item), Mermaid diagrams, and maintenance checklist.
 
-**Summary:** Cells use `validationState` (`valid` | `invalid` | `validating`). Red = invalid; yellow = edited; orange = concurrent edit conflict (separate from validation). Languoid debounces `validate-field` on live edit; Item and Collaborator rely primarily on client rules during live edit, with stronger backend checks on import and on `save-batch`.
+**Summary:** Cells use `validationState` (`valid` | `invalid` | `validating`). Red = invalid; yellow = edited; orange = concurrent edit conflict (separate from validation). **Tiered validation is intentional:** client-heavy live edit on Item/Collaborator (and client-first on Languoid), backend `validate-field` on import, serializer on `save-batch`. Languoid additionally debounces live `validate-field`; that is not the required pattern for all editors.
 
 ### Conflict Detection (Optimistic Locking)
 

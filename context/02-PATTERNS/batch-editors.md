@@ -4,15 +4,19 @@
 **Comprehensive Docs**: `../03-LESSONS/item-batch-editor.md`  
 **Validation flows (canonical, Mermaid):** `docs/system-behavior/batch-editor/validation.md` — live edit / import / save; Languoid vs Collaborator vs Item differences. Update that file when changing validation behavior (not duplicated here).
 
-## Validation (three layers, all editors)
+## Validation (three layers — intentional design)
+
+Tiered validation is **by design**, not tech debt: fast client feedback on live edit, backend checks on import, serializer authority on save. Do not “unify” Item live edit with Languoid’s debounced `validate-field` without a documented performance/UX goal.
 
 | Layer | When | Authority |
 |-------|------|-----------|
-| Live edit | `handleCellChange` then `validateField` | Client rules; Languoid also debounces `POST …/validate-field/`; Item/Collaborator mostly client-only on live edit |
+| Live edit | `handleCellChange` then `validateField` | Client rules; Languoid also debounces `POST …/validate-field/`; Item/Collaborator defer live backend (scale + composite fields) |
 | Import | Parsers then `useImport*Spreadsheet` | Parser errors + backend `validate-field` (per-model skip lists for virtual/M2M display fields) |
 | Save | `hasErrors` gate then `save-batch` | Full `Internal*Serializer.is_valid` + conflict detection |
 
 **Item import skip backend:** `primary_title`, `secondary_title`, `collaborators`, `language`. **Collaborator import skip:** `native_languages`, `other_languages`.
+
+**Optional UX improvements** (not correctness blockers): client lat/lng range checks, map `save-batch` errors to cells, batch validate API — see `validation.md` § Optional enhancements.
 
 **Diagram maintenance:** Keep graphs under ~12 nodes; use `flowchart TD` and `%%{init: {'flowchart': {'curve': 'linear'}}}%%` — see authoring rules in `validation.md`.
 

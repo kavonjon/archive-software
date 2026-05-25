@@ -6,7 +6,7 @@
 
 **Purpose**: Comprehensive guide for Document batch editor implementation. All patterns, anti-patterns, and lessons learned captured here.
 
-**Validation flows:** Canonical diagrams and per-editor comparison — `docs/system-behavior/batch-editor/validation.md` (not duplicated in this file). Read before changing Item `handleCellChange`, `validateField`, or import skip lists.
+**Validation flows:** Canonical diagrams and per-editor comparison — `docs/system-behavior/batch-editor/validation.md` (not duplicated in this file). Tiered validation (client live / backend import / serializer save) is **intentional design**, not tech debt. Read before changing Item `handleCellChange`, `validateField`, or import skip lists.
 
 ---
 

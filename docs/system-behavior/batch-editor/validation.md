@@ -1,6 +1,6 @@
 # Batch Editor Validation
 
-**Last verified:** 2026-05-24 (against `ItemBatchEditor.tsx`, `LanguoidBatchEditor.tsx`, `CollaboratorBatchEditor.tsx`, import hooks, `InternalItemViewSet.validate_field`)
+**Last verified:** 2026-05-25 (intentional-design reframe; code unchanged since 2026-05-24)
 
 **Audience:** Developers maintaining or extending batch editors
 
@@ -72,7 +72,23 @@ flowchart LR
 | Final authority | `save-batch` + `Internal*Serializer` | Same | Same |
 | Custom cell editors | Standard `CellEditor` | Standard | `CollaboratorRolesCellEditor`, `TitleWithLanguageCellEditor` |
 
-**Tech debt:** Item and Collaborator live-edit paths do not call `validate-field` for most fields; import and save do. See [Item live edit](#item-live-edit) and [context/03-LESSONS/item-batch-editor.md](../../../context/03-LESSONS/item-batch-editor.md).
+---
+
+## Intentional design (tiered validation)
+
+Live edit, import, and save use **different validation strategies on purpose** — not a bug to “unify” Item with Languoid live-backend calls.
+
+| Tier | Goal | Why not one path everywhere |
+|------|------|------------------------------|
+| **Live edit** | Instant feedback while typing | Per-keystroke `validate-field` on 4,400+ Item rows is costly (`performance.md`: hundreds of cells on paste already ~2–3s). Composite/virtual fields cannot use `validate-field` anyway. |
+| **Import** | Correct parsed spreadsheet values before commit | Batch operation; spinner acceptable; backend validates real model fields after parsers run. |
+| **Save** | Authoritative persist | `save-batch` + full serializer is the source of truth regardless of live path. |
+
+**Item/Collaborator (Nov 2025):** Shipped with client-heavy `handleCellChange` and deferred live `validate-field` (`// For now, mark all other fields as valid` in `ItemBatchEditor.tsx`). Matches scale, custom editors, and virtual-field patterns documented in `item-batch-editor.md`.
+
+**Languoid (~1,200 rows, simpler fields):** Client fast-reject plus debounced live `validate-field` — appropriate at smaller scale.
+
+**Do not assume:** “Item should call `validate-field` on every live edit like Languoid” without a performance and UX goal (e.g. batch validate API in `performance.md` future work).
 
 ---
 
@@ -124,6 +140,8 @@ flowchart TD
 - `collaborators`: array shape; no `id: null`; valid roles and `citation_author`
 - `language`: M2M array; no `id: null`
 - `multiselect` / `select` / `boolean` / `decimal`: format and choice lists
+
+**Design note:** Extensive client rules exist because titles, collaborators, and languages are structured/composite — not because backend validation was forgotten. `catalog_number` uses cache + spreadsheet checks because uniqueness must be immediate without waiting for debounced API.
 
 **Key files:** `ItemBatchEditor.tsx` (`handleCellChange`, `validateField`)
 
@@ -245,6 +263,19 @@ Bulk save with field-level conflict detection. Errors return per-row; non-confli
 | Spinner / `validating` | Import or debounced Languoid check in progress |
 
 Hover red cells for `validationError` text (`aria-invalid` set for accessibility).
+
+---
+
+## Optional enhancements (not required for correctness)
+
+These improve UX or parity with Django validators; **save-batch already rejects invalid data** if client rules miss an edge case.
+
+| Enhancement | Example | Notes |
+|-------------|---------|-------|
+| Client mirrors Django-only rules | Lat/lng range (-90..90, -180..180) | Client checks format today; `validate_latitude` also checks range on import/save |
+| Map `save-batch` errors to cells | Serializer failure on one field | Today often a generic toolbar error, not red cell |
+| Batch `validate-field` API | Many cells, one request | Listed in `performance.md` as future optimization |
+| Stale code comment | Collaborator `validateField` | Says “no backend validation endpoint yet”; endpoint exists — import uses it |
 
 ---
 

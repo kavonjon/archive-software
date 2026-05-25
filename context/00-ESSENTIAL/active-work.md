@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-05-24 (validation docs)
+**Last Updated**: 2026-05-25
 
 ## Current Priority
 
@@ -64,7 +64,7 @@ Expected: Simpler than Item (likely fewer complex fields)
 
 **Context cross-links:** `02-PATTERNS/batch-editors.md`, `03-LESSONS/item-batch-editor.md`, `04-REFERENCE/docs-directory.md`, `context-map.md`.
 
-**Still accurate:** Item live edit uses client-heavy validation; import uses backend `validate-field` for most real fields; Languoid debounces backend on live edit. Tech debt: unify Item live edit with import/backend parity (see Tech Debt).
+**Design framing:** Tiered validation is **intentional** (client live, backend import, serializer save) — not tech debt. See `validation.md` § Intentional design.
 
 ### Pin PostgreSQL Docker Image to 17 (2026-05-24)
 
@@ -271,7 +271,8 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Redis caching is mandatory for >1000 rows (not optional)
 - Client-side filtering requires complete data in batch serializer
 - Invalid data should be preserved and visualized, not dropped
-- Virtual fields need parser validation, skip backend validation
+- Virtual fields need parser validation, skip backend validation on import
+- **Tiered batch validation (intentional):** client-heavy live edit, backend `validate-field` on import, `save-batch` serializer on save — Item/Collaborator differ from Languoid live debounce by design (scale + composite fields); see `docs/system-behavior/batch-editor/validation.md`
 - UUID + timestamp hybrid works best for export IDs
 
 ### Performance Baselines
@@ -282,7 +283,6 @@ Expected: Simpler than Item (likely fewer complex fields)
 
 ## Tech Debt (Not Blocking)
 
-- Item batch editor: Two validation paths (import uses backend `validate-field`; live-edit is client-heavy except `catalog_number`) — see `docs/system-behavior/batch-editor/validation.md`
 - Celery: Hard restarts sometimes needed on macOS (pkill -9)
 - Some legacy Django template code still references old models (stub classes prevent crashes)
 - Duplicate languoid endpoints: Both internal API and public API expose languoid data — paths may overlap causing confusion
@@ -401,11 +401,26 @@ All compose files use `image: postgres:17` — never unpinned `postgres` or `pos
 
 **Trade-off accepted:** Must explicitly bump major version and run `pg_upgrade` when upgrading Postgres; no automatic `latest` tracking.
 
+### Batch Editor Tiered Validation Is Intentional Design (2026-05-25)
+
+Live edit (client-heavy on Item/Collaborator), import (backend `validate-field`), and save (`save-batch` serializer) are **different tiers on purpose** — not debt to unify with Languoid live debounce.
+
+**Why?** Forensic review (code since Nov 2025 Item ship + `performance.md`): per-keystroke backend validation at Item scale is costly; virtual/composite fields require parsers/custom editors; save remains authoritative.
+
+**Alternatives considered:**
+- Treat as tech debt and add live `validate-field` for all Item fields: Rejected — misread of original design; performance and virtual-field constraints remain
+- Remove import/save backend validation: Rejected — would weaken data integrity
+
+**Trade-off accepted:** Some Django rules (e.g. lat/lng range) may only surface at import/save unless client rules extended; optional enhancements listed in `validation.md`.
+
+**Docs:** Removed “two validation paths” from Tech Debt in `active-work.md`; reframed in `docs/system-behavior/batch-editor/validation.md`.
+
 ## Files Recently Modified
 
-**Documentation (2026-05-24):**
-- `docs/system-behavior/batch-editor/validation.md` - New canonical validation flows (Mermaid)
+**Documentation (2026-05-24–25):**
+- `docs/system-behavior/batch-editor/validation.md` - Canonical validation flows (Mermaid); reframed tiered validation as intentional design (2026-05-25)
 - `docs/system-behavior/batch-editor/README.md`, `editing-features.md`, `docs/README.md` - Index and deferral to validation.md
+- `context/00-ESSENTIAL/active-work.md`, `02-PATTERNS/batch-editors.md` - Removed validation from Tech Debt; added decision + key learning
 
 **Infrastructure (2026-05-24):**
 - `docker-compose.private.yml`, `docker-compose.public.yml`, `docker-compose.yml` - Pin `postgres:17`

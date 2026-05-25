@@ -32,6 +32,12 @@ export interface ImportColumnConfig {
   
   /** For select/choice fields: the list of valid choices */
   choices?: Array<{ value: string | boolean | null; label: string }>;
+
+  /**
+   * Export/reporting column only — recognized in import UI but not parsed or validated.
+   * Example: Collection (abbr) is derived from catalog_number on backend save (pre_save signal).
+   */
+  skipImport?: boolean;
 }
 
 /**
@@ -534,9 +540,7 @@ export const ITEM_IMPORT_COLUMN_MAP: Record<string, ImportColumnConfig> = {
     batchEditorField: 'collection',
     cellType: 'text',
     required: false,
-    // Note: Collection is read-only, calculated from catalog_number
-    // Included in mapping so it doesn't show as "unrecognized" in import UI
-    // Import logic should skip this field
+    skipImport: true,
   },
 };
 

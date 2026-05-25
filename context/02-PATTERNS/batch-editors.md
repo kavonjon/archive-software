@@ -14,7 +14,7 @@ Tiered validation is **by design**, not tech debt: fast client feedback on live 
 | Import | Parsers then `useImport*Spreadsheet` | Parser errors + backend `validate-field` (per-model skip lists for virtual/M2M display fields) |
 | Save | `hasErrors` gate then `save-batch` | Full `Internal*Serializer.is_valid` + conflict detection |
 
-**Item import skip backend:** `primary_title`, `secondary_title`, `collaborators`, `language`. **Collaborator import skip:** `native_languages`, `other_languages`.
+**Item import skip backend:** `primary_title`, `secondary_title`, `collaborators`, `language`. **Item import skip entirely (`skipImport`):** `collection` (export abbr column; FK from `catalog_number` via Django `pre_save` only — no batch column). **Collaborator import skip:** `native_languages`, `other_languages`.
 
 **Item import draft rows (`draft-{uuid}`):** Same validation loop as existing rows — parser errors → invalid; skip list → valid if parser OK; else `POST …/items/validate-field/` with `original_value` when re-importing. Catalog # already in DB → transformer loads item (CASE 2), not duplicate error. **Not** the same as live-edit blank Add row (`hasChanges: false`, defer required errors). Item leads this pattern; other editors unchanged until ported.
 

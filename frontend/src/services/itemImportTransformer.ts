@@ -215,6 +215,9 @@ const parseCellValues = async (
   
   for (const colInfo of validColumns) {
     if (!colInfo.config) continue;
+
+    // Export-only columns (e.g. Collection abbr) — not in batch grid; FK set on save via pre_save signal
+    if (colInfo.config.skipImport) continue;
     
     const rawValue = rawRow[colInfo.original];
     const fieldName = colInfo.config.batchEditorField;

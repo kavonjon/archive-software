@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-05-25 (Item import draft-row validation)
+**Last Updated**: 2026-05-25 (Item import: skip Collection column; FK on save only)
 
 ## Current Priority
 
@@ -50,6 +50,24 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Item Batch Editor — Collection FK Not Imported (2026-05-25)
+
+**Symptom:** Save blocked with validation dialog: `Incorrect type. Expected pk value, received str.` on rows such as `FFE-00017`, while catalog # cells looked correct (red/yellow). Not a catalog-number bug.
+
+**Root cause:** Export includes a **Collection** column (`collection_abbr`, e.g. `FFE`) for reporting. Import mapped it as a writable field, parsed abbr as text, and ran `validate-field` on `Item.collection` FK — DRF expects a numeric PK. Batch grid intentionally has **no** Collection column; invalid state lived in hidden `cells.collection`.
+
+**Design (aligned):**
+- `Item.collection` FK is **optional** (`null=True`, `blank=True`).
+- Staff catalog convention `ABC-###` → association in Django **`pre_save`** (`update_item_date_ranges` in `signals.py`): 3-letter prefix → `Collection.objects.get(collection_abbr=…)` or `None` if no match; non-matching pattern leaves FK unchanged.
+- Batch editor does **not** expose collection for edit. Payload should omit `collection` when unchanged; **save-batch** only sends `ITEM_COLUMNS` fields.
+
+**Fix:**
+- `ImportColumnConfig.skipImport` — export/reporting columns recognized in import UI but not parsed or validated.
+- `collection` uses `skipImport: true` in `itemImportColumnMapper.ts`; `parseCellValues` skips in `itemImportTransformer.ts`.
+- `docs/system-behavior/batch-editor/validation.md` — export-only row in comparison table + import note.
+
+**Verify:** Hard refresh after deploy; re-import export with Collection column; save should succeed; FK set on save from catalog prefix when collection exists.
 
 ### Item Import Draft-Row Validation (2026-05-25)
 
@@ -291,6 +309,7 @@ Expected: Simpler than Item (likely fewer complex fields)
 - **Tiered batch validation (intentional):** client-heavy live edit, backend `validate-field` on import, `save-batch` serializer on save — Item/Collaborator differ from Languoid live debounce by design (scale + composite fields); see `docs/system-behavior/batch-editor/validation.md`
 - **Import draft vs blank live draft:** Same `draft-{uuid}` id, different semantics — import drafts have spreadsheet data and get field validation; Add-row blanks use `hasChanges: false` to defer errors until edit. Do not conflate.
 - **Import catalog match:** Existing catalog # in DB loads/updates that item (transformer CASE 2), not a duplicate error. Red catalog # = uniqueness conflict (e.g. changing to another item's number), not “item exists.”
+- **Item.collection is not a batch field:** Export may include Collection abbr; import must `skipImport` — FK from `catalog_number` on `pre_save` only, not `validate-field` or spreadsheet cells.
 - UUID + timestamp hybrid works best for export IDs
 
 ### Performance Baselines
@@ -450,7 +469,25 @@ Import draft rows (`draft-{uuid}`) validate **field values** via parsers + backe
 
 **Trade-off accepted:** Item import policy documented first; Languoid/Collaborator unchanged until ported. Column parser quality remains the main import UX lever for composite fields.
 
+### Item Collection FK — Backend Only, Not Batch Import (2026-05-25)
+
+`Item.collection` is derived from `catalog_number` prefix (`ABC-###`) in `pre_save`, not edited or validated in the batch grid. Export includes Collection abbr for reporting; import uses `skipImport` so abbr is not sent to `validate-field` as a FK.
+
+**Why?** Avoid circular validation (spreadsheet abbr vs PK vs signal); one automation path on save; graceful `None` when abbr has no Collection row (~65% of items may lack FK until prefix matches — data-quality signal).
+
+**Alternatives considered:**
+- Collection column in batch editor: Rejected — user protocol is catalog naming; FK is derived
+- Import abbr and resolve to PK in frontend: Rejected — duplicates signal logic; caused PK type errors
+- `validate-field` on collection during import: Rejected — conflicts with export-only column
+
+**Trade-off accepted:** Re-importing export files ignores Collection column values for writes; displayed abbr may differ until next save recalculates FK from catalog #.
+
 ## Files Recently Modified
+
+**Item collection import skip (2026-05-25):**
+- `frontend/src/services/itemImportColumnMapper.ts` - `skipImport` on `ImportColumnConfig`; `collection` export-only
+- `frontend/src/services/itemImportTransformer.ts` - `parseCellValues` skips `skipImport` columns
+- `docs/system-behavior/batch-editor/validation.md` - Collection export-only import note
 
 **Item import validation (2026-05-25):**
 - `frontend/src/hooks/useImportItemSpreadsheet.ts` - Unified import validation loop; removed dead `new-` skip branch; `original_value` on import

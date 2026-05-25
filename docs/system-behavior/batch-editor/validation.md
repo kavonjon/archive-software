@@ -1,6 +1,6 @@
 # Batch Editor Validation
 
-**Last verified:** 2026-05-25 (Item import draft-row validation aligned with field-value rules)
+**Last verified:** 2026-05-25 (Item import: skip `collection` column; FK from catalog on save only)
 
 **Audience:** Developers maintaining or extending batch editors
 
@@ -67,6 +67,7 @@ flowchart LR
 | Live client rules | Yes (`handleCellChange`) | Yes | Yes (extensive: titles, collaborators, M2M, etc.) |
 | Import backend `validate-field` | Yes (all changed cells) | Yes (except skipped fields) | Yes (all changed cells except skip list; draft and existing rows) |
 | Import skip backend | None | `native_languages`, `other_languages` | `primary_title`, `secondary_title`, `collaborators`, `language` |
+| Import skip entirely (export column) | — | — | `collection` (abbr in export files; FK from `catalog_number` on save via `pre_save` signal, not batch grid) |
 | New draft rows on import | Backend validation runs | Backend validation runs | Backend validation runs (same skip list; `row_id` is `draft-{uuid}`) |
 | Save gate (`hasErrors`) | Yes | Yes | Yes |
 | Final authority | `save-batch` + `Internal*Serializer` | Same | Same |
@@ -203,6 +204,8 @@ flowchart TD
 
 **Item import draft rows:** Rows not yet in the DB use `id: draft-{uuid}`. Import validates **field values** via parsers + `validate-field` (same skip list as existing rows). Catalog uniqueness checks the DB without excluding a row id. This is separate from **live edit** blank drafts (`hasChanges: false`), where required-field errors are deferred until the user edits.
 
+**Item `collection` (export column only):** The batch grid has no Collection column. Export includes Collection abbr for reporting; import maps that header so it is not "unrecognized" but **`skipImport`** omits it from `parsedCells`, `validationNeeded`, and `validate-field`. `Item.collection` FK is set in Django `pre_save` from the `catalog_number` prefix (`ABC-###` → `collection_abbr`), with graceful `None` if no match.
+
 **Backend `validate_field` (all models):**
 
 - Endpoint: `POST /internal/v1/{items|collaborators|languoids}/validate-field/`
@@ -293,6 +296,7 @@ When changing validation behavior, update in the same PR:
 |-------------|-------------------|
 | `ItemBatchEditor` `handleCellChange` / `validateField` | [Item live edit](#item-live-edit) |
 | `useImportItemSpreadsheet` skip list | [Editor comparison](#editor-comparison), [Import](#import) |
+| `itemImportColumnMapper` `skipImport` (e.g. `collection`) | [Import](#import), [Editor comparison](#editor-comparison) |
 | `InternalItemViewSet.validate_field` | [Backend API reference](#backend-api-reference) |
 | New cell type in `CellEditor` | [Shared model](#shared-model) + model section if special rules |
 | `save_batch` conflict logic | [Save](#save) |

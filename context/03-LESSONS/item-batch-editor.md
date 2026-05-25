@@ -116,6 +116,14 @@ const skipValidationFields = [
 
 **Anti-pattern:** Conflating blank Add-row UX with import validation. **Anti-pattern:** Treating re-import of existing catalog # as duplicate — transformer matches by catalog # first.
 
+### 5c. Collection — Export Column Only, FK on Save (2026-05-25)
+
+**No batch column** for `collection`. Export adds Collection abbr for human reporting; import must use `skipImport: true` in `itemImportColumnMapper.ts` (recognized header, not parsed/validated).
+
+**Authority:** `metadata/signals.py` `update_item_date_ranges` `pre_save` — `^([A-Za-z]{3})-` on `catalog_number` → `Collection` by `collection_abbr`, else `None` / leave unchanged.
+
+**Anti-pattern:** Importing export Collection abbr into `validate-field` as FK (string → “Expected pk value, received str.”). **Anti-pattern:** Frontend PK resolution duplicating the signal.
+
 ### 6. New Rows Must Update sessionStorage Config
 
 **What Happened**: New rows disappeared on browser refresh (F5)

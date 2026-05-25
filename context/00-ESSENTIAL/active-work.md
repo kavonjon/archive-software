@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-05-25 (Item import: duplicate catalog # handling)
+**Last Updated**: 2026-05-25 (Item batch: list handoff row order)
 
 ## Current Priority
 
@@ -50,6 +50,23 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Item Batch Editor — List Handoff Row Order (2026-05-25)
+
+**Problem:** Returning from the item list via Batch Edit Selected/Filtered showed rows in checkbox Set insertion order (persisted in `item-list-state`), which could match a previous batch session and feel like stale grid order — not catalog # order from the list.
+
+**Design — two order rules (intentional):**
+- **In-session (batch editor):** Preserve grid order — import appends at bottom, manual refresh walks `rowsRef`, save appends new IDs to `config.ids` for F5. No resort during editing.
+- **List → batch handoff:** Any batch-edit button press is a new session boundary. `config.ids` sorted by case-insensitive `catalog_number` before navigate. Matches item list API (`Lower('catalog_number')`) and full cache order.
+
+**Implementation:**
+- `frontend/src/utils/itemBatchOrder.ts` — `sortItemIdsByCatalogNumber`
+- `ItemsList.tsx` — sort on selected mode, filtered dialog continue, and auto-proceed paths before writing `item-batch-config`
+- `ItemBatchEditor.loadItems` already iterates `config.ids` in order — no editor change
+
+**Scope:** Item only. Collaborator/Languoid lists still use Set/cache order at handoff.
+
+**Verify:** Batch edit with overlapping selections checked in non-catalog order → grid follows catalog #; import still adds rows at bottom within same session.
 
 ### Item Batch Editor — Duplicate Catalog Number Handling (2026-05-25)
 
@@ -517,7 +534,28 @@ Duplicate catalog numbers are handled differently by **source**, not one univers
 
 **Trade-off accepted:** Import last-wins vs grid first-wins is intentional; shared helpers in `catalogUniqueness.ts`, not identical rules.
 
+### Item Batch Row Order — List Handoff vs In-Session (2026-05-25)
+
+Row order follows **context**, not one global rule.
+
+**List handoff (Batch Edit Selected/Filtered/Empty with IDs):** Sort IDs by case-insensitive catalog # when writing `item-batch-config`. Aligns batch grid with item list and cache (both `Lower('catalog_number')` on internal API).
+
+**In-session:** Order-preserving refresh, import-at-bottom, and post-save `config.ids` append — unchanged. F5 within same session keeps that shape.
+
+**Why?** Leaving for the list and pressing batch edit is a deliberate new working set; checkbox check order is not list order. Staying in the editor, users expect stable row positions.
+
+**Alternatives considered:**
+- Sort in `ItemBatchEditor` on every load: Rejected — would resort after import/F5 within same session
+- Use `config.timestamp` in editor to gate resort: Rejected — list-side sort is simpler; Item editor already honors `config.ids` sequence
+- Fix all three batch editors now: Deferred — Item only; Collaborator/Languoid still filter by ID set in cache order
+
+**Trade-off accepted:** Item handoff uses catalog sort; Collaborator/Languoid unchanged until ported.
+
 ## Files Recently Modified
+
+**Item batch list handoff row order (2026-05-25):**
+- `frontend/src/utils/itemBatchOrder.ts` - Sort item IDs by catalog # for batch config
+- `frontend/src/components/items/ItemsList.tsx` - Sort IDs on all batch-edit handoff paths
 
 **Item catalog duplicate handling (2026-05-25):**
 - `frontend/src/services/catalogUniqueness.ts` - Shared catalog normalize, grid duplicate scan, client validation

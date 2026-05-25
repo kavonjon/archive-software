@@ -54,6 +54,7 @@ import ItemBatchLoadingDialog, { LoadingDialogState } from './ItemBatchLoadingDi
 import ColumnVisibilityMenu from '../list/ColumnVisibilityMenu';
 import { ITEM_LIST_COLUMNS, ITEM_LIST_COLUMN_GROUPS, ITEM_LIST_DETAIL_FIELD_ORDER, ItemListColumnId } from './itemListColumns';
 import { usePersistedColumnVisibility } from '../../hooks/usePersistedColumnVisibility';
+import { sortItemIdsByCatalogNumber } from '../../utils/itemBatchOrder';
 
 interface ItemsListProps {
   showActions?: boolean;
@@ -664,6 +665,10 @@ const ItemsList: React.FC<ItemsListProps> = ({
     
     if (mode === 'selected') {
       ids = Array.from(selectedIds);
+      if (ids.length > 0) {
+        const allItems = await getItems();
+        ids = sortItemIdsByCatalogNumber(ids, allItems);
+      }
     } else {
       // For 'filtered' mode, we need IDs from cache
       if (!cacheReady) {
@@ -731,16 +736,16 @@ const ItemsList: React.FC<ItemsListProps> = ({
   // Handle dialog continue
   const handleDialogContinue = useCallback(async (suppressFuture: boolean) => {
     if (!pendingBatchIds) return;
-    
-    if (loadingDialogState && loadingDialogState.cacheLoading) {
-      await getItems();
-    }
-    
+
+    const mode = loadingDialogState?.mode || 'filtered';
     setLoadingDialogState(null);
-    
+
+    const allItems = await getItems();
+    const orderedIds = sortItemIdsByCatalogNumber(pendingBatchIds, allItems);
+
     const batchConfig = {
-      mode: loadingDialogState?.mode || 'filtered',
-      ids: pendingBatchIds,
+      mode,
+      ids: orderedIds,
       timestamp: Date.now(),
     };
     sessionStorage.setItem('item-batch-config', JSON.stringify(batchConfig));
@@ -803,7 +808,10 @@ const ItemsList: React.FC<ItemsListProps> = ({
           const filteredItems = hasActiveFilters
             ? applyFiltersToCache(allItems)
             : allItems;
-          const ids = filteredItems.map(item => item.id);
+          const ids = sortItemIdsByCatalogNumber(
+            filteredItems.map((item) => item.id),
+            allItems
+          );
           
           const largeDataset = !hasActiveFilters;
           
@@ -825,7 +833,7 @@ const ItemsList: React.FC<ItemsListProps> = ({
             setLoadingDialogState(null);
             const batchConfig = {
               mode: loadingDialogState.mode,
-              ids: ids,
+              ids,
               timestamp: Date.now(),
             };
             sessionStorage.setItem('item-batch-config', JSON.stringify(batchConfig));

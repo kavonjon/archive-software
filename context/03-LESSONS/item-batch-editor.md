@@ -137,6 +137,21 @@ const skipValidationFields = [
 
 **Anti-pattern:** Creating a second grid row when the same catalog appears twice in one import file. **Anti-pattern:** Multi-cell paste without post-pass grid catalog scan (batch path bypasses single-cell `handleCellChange` checks).
 
+### 5e. Row Order — List Handoff vs In-Session (2026-05-25)
+
+**Two rules (intentional):**
+
+| Context | Order rule |
+|---------|------------|
+| In-session (import, Refresh, F5 same session) | Preserve grid order; import appends at bottom |
+| List → batch (Batch Edit Selected/Filtered) | Sort `config.ids` by catalog # before navigate |
+
+**Authority:** `itemBatchOrder.ts` at list handoff; `ItemBatchEditor.loadItems` iterates `config.ids`; order-preserving refresh uses `rowsRef` (Pattern 2 in `batch-editors.md`).
+
+**Root cause fixed:** `Array.from(selectedIds)` used Set check order, not list catalog order. Item list and cache both use backend `Lower('catalog_number')`.
+
+**Anti-pattern:** Resorting in `ItemBatchEditor` on every `loadItems` — breaks import-at-bottom and F5 session shape. **Anti-pattern:** Assuming checkbox persistence order equals list table order.
+
 ### 6. New Rows Must Update sessionStorage Config
 
 **What Happened**: New rows disappeared on browser refresh (F5)

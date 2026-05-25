@@ -51,9 +51,11 @@ const sessionRows = allRows.filter(r => sessionIds.current.has(r.id));
 
 ### 2. Order-Preserving Refresh
 
-**What**: Maintain row order across refreshes (don't resort)
+**What**: Maintain row order across in-session refreshes (don't resort while editing)
 
-**Why**: Users expect rows to stay where they put them
+**Why**: Users expect rows to stay where they put them after import (new rows at bottom), paste, or manual Refresh from DB
+
+**In-session only** — does **not** apply when the user leaves for the list and presses a batch-edit button. That is a **list handoff** (see below).
 
 **Implementation**:
 ```typescript
@@ -71,6 +73,8 @@ for (const currentRow of rowsRef.current) {
   }
 }
 ```
+
+**Item list handoff row order (2026-05-25):** When `ItemsList` writes `item-batch-config`, sort `ids` by case-insensitive `catalog_number` via `sortItemIdsByCatalogNumber` (`itemBatchOrder.ts`) — matches internal API list/cache order (`Lower('catalog_number')`). **Not** checkbox Set insertion order from `usePersistedListState`. Item batch editor loads rows by iterating `config.ids`; no resort in editor on handoff. Collaborator/Languoid: not ported yet (still cache/Set order at handoff).
 
 ### 3. Three Batch Edit Modes
 

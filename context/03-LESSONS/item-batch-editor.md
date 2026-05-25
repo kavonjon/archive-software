@@ -124,6 +124,19 @@ const skipValidationFields = [
 
 **Anti-pattern:** Importing export Collection abbr into `validate-field` as FK (string → “Expected pk value, received str.”). **Anti-pattern:** Frontend PK resolution duplicating the signal.
 
+### 5d. Catalog Number — Import File vs Grid Uniqueness (2026-05-25)
+
+**Two rules (intentional):**
+
+| Source | Rule | UX |
+|--------|------|-----|
+| Import file (same catalog on multiple rows) | Last file row wins | One grid row; dialog lists superseded file row numbers |
+| Grid (type, paste) | First grid row wins | Later rows: invalid catalog cell; save blocked |
+
+**Authority:** `catalogUniqueness.ts`; import merge in `itemImportTransformer.ts` (lookup `currentRows` → `newRows` → DB).
+
+**Anti-pattern:** Creating a second grid row when the same catalog appears twice in one import file. **Anti-pattern:** Multi-cell paste without post-pass grid catalog scan (batch path bypasses single-cell `handleCellChange` checks).
+
 ### 6. New Rows Must Update sessionStorage Config
 
 **What Happened**: New rows disappeared on browser refresh (F5)

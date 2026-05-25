@@ -20,6 +20,8 @@ Tiered validation is **by design**, not tech debt: fast client feedback on live 
 
 **Draft row ID convention:** Always `draft-{uuid}` (see `spreadsheet.ts`, `save-batch`). Never `new-` — Item `validate_field` catalog check aligned 2026-05-25.
 
+**Item catalog # uniqueness (`catalogUniqueness.ts`):** Import file duplicate rows → last file row wins, one grid row, dialog lists superseded file rows (`fileCatalogDuplicates` on `ImportResult`). Grid (live edit, paste) → first grid row wins; later rows invalid. Live single-cell paste uses `handleCellChange`; multi-cell paste uses post-pass in `handleBatchCellChange`. Import `validate-field` for catalog still DB-only on drafts; grid dupes prevented client-side before save.
+
 **Optional UX improvements** (not correctness blockers): client lat/lng range checks, map `save-batch` errors to cells, batch validate API — see `validation.md` § Optional enhancements.
 
 **Diagram maintenance:** Keep graphs under ~12 nodes; use `flowchart TD` and `%%{init: {'flowchart': {'curve': 'linear'}}}%%` — see authoring rules in `validation.md`.

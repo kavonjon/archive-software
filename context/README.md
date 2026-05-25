@@ -1,6 +1,6 @@
 # Project Context System
 
-**Version 3.8** | Last Updated: 2026-05-25
+**Version 3.9** | Last Updated: 2026-05-25
 
 The **Project Context System** comprises all files in the `context/` folder. When this documentation refers to the Project Context System, it means this file-based persistent knowledge—not the conversation transcript or current chat.
 
@@ -241,6 +241,7 @@ Each of those three files starts with a short **cross-link block** to the other 
 5. Wait for user approval before executing the split
 
 ### Version History
+- **2026-05-25 (Item catalog duplicate handling):** Import file duplicate catalog # → last row wins + dialog; grid/paste first-wins via `catalogUniqueness.ts`; transformer lookup includes `newRows`; `active-work.md`, `batch-editors.md`, `item-batch-editor.md` §5d, `validation.md`
 - **2026-05-25 (Item collection import skip):** `skipImport` for export-only Collection column; FK from catalog prefix on `pre_save` only; fix save blocker “Expected pk, received str.”; `active-work.md`, `batch-editors.md`, `item-batch-editor.md` §5c, `validation.md`
 - **2026-05-25 (Item import draft validation):** Fixed unified import validation for `draft-{uuid}` rows; removed dead `new-` skip branch; Item `validate_field` catalog check uses `draft-`; decision + key learnings in `active-work.md`; pattern in `batch-editors.md`, lesson §5b in `item-batch-editor.md`
 - **2026-05-25 (validation design reframe):** Tiered batch validation documented as intentional design, not tech debt; removed from `active-work.md` Tech Debt; decision + `validation.md` § Intentional design / Optional enhancements

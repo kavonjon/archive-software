@@ -54,6 +54,15 @@ import {
 import { itemsAPI, Item, Languoid, languoidsAPI, RESOURCE_TYPE_CHOICES, ACCESSION_CHOICES, AVAILABILITY_CHOICES, CONDITION_CHOICES, FORMAT_CHOICES, GENRE_CHOICES, LANGUAGE_DESCRIPTION_TYPE_CHOICES, ROLE_CHOICES } from '../../services/api';
 import { useItemCache } from '../../contexts/ItemCacheContext';
 import { useImportItemSpreadsheet } from '../../hooks/useImportItemSpreadsheet';
+import { FileCatalogDuplicate, ImportResult } from '../../services/itemImportTransformer';
+import {
+  applyChangesToRowsSnapshot,
+  CATALOG_DUPLICATE_IN_DB_ERROR,
+  getGridCatalogDuplicateInvalidations,
+  isDuplicateCatalogInBackend,
+  validateCatalogNumberClientSide,
+  CATALOG_DUPLICATE_IN_GRID_ERROR,
+} from '../../services/catalogUniqueness';
 import { v4 as uuidv4 } from 'uuid';
 
 // Collaborator role-related types
@@ -736,6 +745,7 @@ export const ItemBatchEditor: React.FC = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info'>('info');
+  const [importDuplicateWarning, setImportDuplicateWarning] = useState<FileCatalogDuplicate[] | null>(null);
   
   // Track if initial load is done
   const initialLoadDone = useRef(false);
@@ -982,81 +992,39 @@ export const ItemBatchEditor: React.FC = () => {
       
       // Special validation for catalog_number (unique field)
       if (fieldName === 'catalog_number') {
-        const valueStr = String(newValue || '').trim();
-        
-        if (valueStr === '') {
-          dispatch(updateCell({
-            rowId,
-            fieldName,
-            cell: {
-              validationState: 'invalid',
-              validationError: 'Catalog Number is required',
-            },
-          }));
-          return;
-        }
-        
-        // Check uniqueness across:
-        // 1. Current spreadsheet rows (including unsaved drafts)
-        // 2. Backend database (cached items)
-        
-        // First check: Is this the row's original value?
         const currentRow = rowsRef.current.find(r => r.id === rowId);
-        const originalCatalogNumber = currentRow?.cells['catalog_number']?.originalValue;
-        const isOriginalValue = valueStr === originalCatalogNumber;
-        
-        if (isOriginalValue) {
-          // Reverting to original value is always valid
-          dispatch(updateCell({
-            rowId,
-            fieldName,
-            cell: {
-              validationState: 'valid',
-              validationError: undefined,
-            },
-          }));
-          return;
-        }
-        
-        // Second check: Does any OTHER row in the spreadsheet have this value?
-        const duplicateInSpreadsheet = rowsRef.current.some(row => {
-          if (row.id === rowId) return false; // Skip current row
-          const cellValue = row.cells['catalog_number']?.value;
-          return String(cellValue || '').trim() === valueStr;
+        const clientResult = validateCatalogNumberClientSide({
+          value: newValue,
+          rowId,
+          rows: rowsRef.current,
+          originalCatalogFromCell: currentRow?.cells['catalog_number']?.originalValue,
         });
-        
-        if (duplicateInSpreadsheet) {
+
+        if (!clientResult.valid) {
           dispatch(updateCell({
             rowId,
             fieldName,
             cell: {
               validationState: 'invalid',
-              validationError: 'This catalog number is already used in another row',
+              validationError: clientResult.error,
             },
           }));
           return;
         }
-        
-        // Third check: Does this exist in the backend cache (excluding current item)?
+
         const cachedItems = await getItems();
-        const duplicateInBackend = cachedItems.some((item: Item) => {
-          if (item.id === rowId) return false; // Skip current item
-          return item.catalog_number === valueStr;
-        });
-        
-        if (duplicateInBackend) {
+        if (isDuplicateCatalogInBackend(cachedItems, String(newValue), rowId)) {
           dispatch(updateCell({
             rowId,
             fieldName,
             cell: {
               validationState: 'invalid',
-              validationError: 'This catalog number already exists in the database',
+              validationError: CATALOG_DUPLICATE_IN_DB_ERROR,
             },
           }));
           return;
         }
-        
-        // All checks passed - value is unique
+
         dispatch(updateCell({
           rowId,
           fieldName,
@@ -1819,13 +1787,46 @@ export const ItemBatchEditor: React.FC = () => {
     
     // Dispatch batch update
     dispatch(batchUpdateCells({ changes: reduxChanges, description }));
+
+    const hasCatalogChange = changes.some((change) => change.fieldName === 'catalog_number');
+    const invalidCatalogRowIds = new Set<string | number>();
+
+    if (hasCatalogChange) {
+      const mergedRows = applyChangesToRowsSnapshot(rows, changes);
+      const duplicateInvalidations = getGridCatalogDuplicateInvalidations(mergedRows);
+
+      if (duplicateInvalidations.length > 0) {
+        duplicateInvalidations.forEach(({ rowId }) => invalidCatalogRowIds.add(rowId));
+
+        dispatch(batchUpdateCells({
+          changes: duplicateInvalidations.map(({ rowId, fieldName }) => ({
+            rowId,
+            fieldName,
+            cell: {
+              validationState: 'invalid' as const,
+              validationError: CATALOG_DUPLICATE_IN_GRID_ERROR,
+            },
+          })),
+          description: 'Resolve duplicate catalog numbers',
+        }));
+      }
+    }
     
-    // Trigger backend validation for all changed cells (unless already invalid from client-side validation)
     changes.forEach(({ rowId, fieldName, newValue }) => {
+      if (fieldName === 'catalog_number') {
+        if (invalidCatalogRowIds.has(rowId)) {
+          return;
+        }
+
+        const row = rows.find(r => r.id === rowId);
+        const originalValue = row?.cells[fieldName]?.originalValue;
+        validateField(rowId, fieldName, newValue, originalValue);
+        return;
+      }
+
       const row = rows.find(r => r.id === rowId);
       const originalValue = row?.cells[fieldName]?.originalValue;
       
-      // Only validate if the cell isn't already marked as invalid by client-side validation
       const reduxChange = reduxChanges.find(rc => rc.rowId === rowId && rc.fieldName === fieldName);
       if (reduxChange?.cell.validationState !== 'invalid') {
         validateField(rowId, fieldName, newValue, originalValue);
@@ -2286,6 +2287,13 @@ export const ItemBatchEditor: React.FC = () => {
   const handleSnackbarClose = useCallback(() => {
     setSnackbarOpen(false);
   }, []);
+
+  const handleImportComplete = useCallback((result: unknown) => {
+    const importResult = result as ImportResult;
+    if (importResult.fileCatalogDuplicates?.length) {
+      setImportDuplicateWarning(importResult.fileCatalogDuplicates);
+    }
+  }, []);
   
   /**
    * Row selection handlers
@@ -2343,6 +2351,7 @@ export const ItemBatchEditor: React.FC = () => {
           canUndo={canUndo}
           canRedo={canRedo}
           importHook={itemImportHook}
+          onImportComplete={handleImportComplete}
           scrollToRowId={scrollToRowId}
         />
       )}
@@ -2364,6 +2373,36 @@ export const ItemBatchEditor: React.FC = () => {
           <Button onClick={() => setShowRefreshConfirm(false)}>Cancel</Button>
           <Button onClick={handleRefreshConfirm} color="error" autoFocus>
             Discard & Refresh
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={importDuplicateWarning !== null}
+        onClose={() => setImportDuplicateWarning(null)}
+        aria-labelledby="import-duplicate-dialog-title"
+      >
+        <DialogTitle id="import-duplicate-dialog-title">
+          Duplicate catalog numbers in import file
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            This file listed the same catalog number on multiple rows. The last row in the file was used for each duplicate.
+          </DialogContentText>
+          <List dense>
+            {importDuplicateWarning?.map((entry) => (
+              <ListItem key={`${entry.catalog_number}-${entry.keptFileRowNumber}`} disablePadding>
+                <ListItemText
+                  primary={entry.catalog_number}
+                  secondary={`File rows ${entry.supersededFileRowNumbers.join(', ')} superseded by row ${entry.keptFileRowNumber}`}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setImportDuplicateWarning(null)} autoFocus>
+            OK
           </Button>
         </DialogActions>
       </Dialog>

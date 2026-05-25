@@ -70,6 +70,9 @@ interface TanStackSpreadsheetWrapperProps {
   
   /** Optional: Row ID to scroll to (when changed, scrolls to that row) */
   scrollToRowId?: string | number | null;
+
+  /** Optional: Called after a successful import */
+  onImportComplete?: (result: unknown) => void;
 }
 
 export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProps> = ({
@@ -92,6 +95,7 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
   modelName,
   importHook,  // Optional custom import hook
   scrollToRowId,  // Optional row ID to scroll to
+  onImportComplete,
 }) => {
   // Import functionality - use custom hook if provided, otherwise default to Languoid import
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -129,6 +133,7 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
         const totalAffected = result.newRows.length + result.modifiedRows.length + result.unchangedRows.length;
         setImportSuccessMessage(`Imported ${totalAffected} row${totalAffected !== 1 ? 's' : ''}`);
         setShowImportSuccess(true);
+        onImportComplete?.(result);
         
         // Phase 9: Auto-scroll to first affected row
         // Priority: modifiedRows > newRows > unchangedRows (most important changes first)
@@ -157,6 +162,7 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
       const totalAffected = result.newRows.length + result.modifiedRows.length + result.unchangedRows.length;
       setImportSuccessMessage(`Imported ${totalAffected} row${totalAffected !== 1 ? 's' : ''}`);
       setShowImportSuccess(true);
+      onImportComplete?.(result);
       
       // Phase 9: Auto-scroll to first affected row
       // Priority: modifiedRows > newRows > unchangedRows (most important changes first)

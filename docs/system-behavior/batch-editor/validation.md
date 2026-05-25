@@ -1,6 +1,6 @@
 # Batch Editor Validation
 
-**Last verified:** 2026-05-25 (Item import: skip `collection` column; FK from catalog on save only)
+**Last verified:** 2026-05-25 (Item import: duplicate catalog in file; grid catalog uniqueness on paste)
 
 **Audience:** Developers maintaining or extending batch editors
 
@@ -203,6 +203,10 @@ flowchart TD
 **Invalid data preservation (Item):** Parsers return `id: null` for unknown collaborators/languoids; cells stay red until user fixes in custom editor. See `parseCollaboratorsWithRoles`, `parseCommaSeparatedLanguoids` in `itemImportValueParsers.ts`.
 
 **Item import draft rows:** Rows not yet in the DB use `id: draft-{uuid}`. Import validates **field values** via parsers + `validate-field` (same skip list as existing rows). Catalog uniqueness checks the DB without excluding a row id. This is separate from **live edit** blank drafts (`hasChanges: false`), where required-field errors are deferred until the user edits.
+
+**Item import — duplicate catalog in file:** If the same catalog number appears on multiple file rows, `itemImportTransformer` resolves to **one grid row** (last file row wins). A dialog lists superseded file row numbers. This is not a save blocker.
+
+**Item grid catalog uniqueness:** Live edit and single-cell paste use client checks in `ItemBatchEditor` (`catalogUniqueness.ts`). Multi-cell paste runs a post-pass: first row in grid order keeps the catalog; later rows are marked invalid with the same error as live edit. Backend cache is still checked for survivors.
 
 **Item `collection` (export column only):** The batch grid has no Collection column. Export includes Collection abbr for reporting; import maps that header so it is not "unrecognized" but **`skipImport`** omits it from `parsedCells`, `validationNeeded`, and `validate-field`. `Item.collection` FK is set in Django `pre_save` from the `catalog_number` prefix (`ABC-###` → `collection_abbr`), with graceful `None` if no match.
 

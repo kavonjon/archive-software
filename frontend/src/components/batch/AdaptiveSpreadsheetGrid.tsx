@@ -67,6 +67,9 @@ interface AdaptiveSpreadsheetGridProps {
   
   /** Optional: Row ID to scroll to (when changed, scrolls to that row) */
   scrollToRowId?: string | number | null;
+
+  /** Optional: Called after a successful import */
+  onImportComplete?: (result: unknown) => void;
 }
 
 /**

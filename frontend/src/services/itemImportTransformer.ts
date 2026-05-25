@@ -30,6 +30,14 @@ import {
   parseTitleWithLanguage,
 } from './itemImportValueParsers';
 import { v4 as uuidv4 } from 'uuid';
+import { normalizeCatalogNumber } from './catalogUniqueness';
+
+export interface FileCatalogDuplicate {
+  catalog_number: string;
+  supersededFileRowNumbers: number[];
+  keptFileRowNumber: number;
+  gridRowId: string | number;
+}
 
 export interface ImportResult {
   /** New draft rows to append */
@@ -66,6 +74,9 @@ export interface ImportResult {
     valid: ColumnMappingInfo[];
     ignored: ColumnMappingInfo[];
   };
+
+  /** Duplicate catalog numbers within the import file (last file row wins) */
+  fileCatalogDuplicates: FileCatalogDuplicate[];
 }
 
 /**
@@ -80,12 +91,16 @@ export const transformItemImportData = async (
   const modifiedRows: Array<{ rowId: string | number; changes: Record<string, { value: any; text: string }> }> = [];
   const unchangedRows: Array<{ rowId: string | number }> = [];
   const validationNeeded: Array<{ rowId: string | number; fieldName: string; value: any; error?: string }> = [];
+  const catalogFileRows = new Map<string, { fileRows: number[]; gridRowId: string | number }>();
   
   // Analyze columns
   const columnInfo = analyzeItemColumns(parsedData.headers);
   
   // Process each row
-  for (const rawRow of parsedData.rows) {
+  for (let fileRowIndex = 0; fileRowIndex < parsedData.rows.length; fileRowIndex++) {
+    const rawRow = parsedData.rows[fileRowIndex];
+    const fileRowNumber = fileRowIndex + 2;
+
     // Step 1: Parse all cell values
     const parsedCells = await parseCellValues(rawRow, columnInfo.valid, itemCache, validationNeeded);
     
@@ -97,100 +112,125 @@ export const transformItemImportData = async (
       console.warn('[ItemImport] Skipping row without catalog_number');
       continue;
     }
+
+    const catalogKey = normalizeCatalogNumber(catalog_number);
     
-    let existingRow: SpreadsheetRow | null = null;
-    
-    // Step 3: Check if catalog_number exists in current spreadsheet (exact match)
-    existingRow = currentRows.find(row => 
-      String(row.cells.catalog_number?.value) === String(catalog_number)
-    ) || null;
-    
-    // Step 4: Check if catalog_number exists in DB
+    let existingRow: SpreadsheetRow | null = findRowByCatalog(catalogKey, currentRows, newRows);
     let dbItem: Item | null = null;
+
     if (!existingRow) {
-      dbItem = await itemCache.getByCatalogNumber(String(catalog_number));
+      dbItem = await itemCache.getByCatalogNumber(catalogKey);
+      if (dbItem) {
+        existingRow = newRows.find((row) => row.id === dbItem!.id) ?? null;
+      }
     }
-    
-    if (existingRow) {
-      // CASE 1: Row already in spreadsheet → Modify if values differ
-      const changes = getChangedCells(existingRow, parsedCells);
-      
-      if (Object.keys(changes).length > 0) {
-        modifiedRows.push({
-          rowId: existingRow.id,
-          changes,
-        });
-        
-        // Mark cells for validation
-        Object.keys(changes).forEach(fieldName => {
-          validationNeeded.push({
-            rowId: existingRow!.id,
-            fieldName,
-            value: changes[fieldName].value,
-          });
-        });
-      } else {
-        // No changes, but row was in import → track it for auto-checking
-        unchangedRows.push({
-          rowId: existingRow.id,
-        });
-      }
-      
-    } else if (dbItem) {
-      // CASE 2: Exists in DB but not in spreadsheet → Load from DB, apply changes
-      const rowFromDb = itemToSpreadsheetRow(dbItem);
-      const changes = getChangedCells(rowFromDb, parsedCells);
-      
-      if (Object.keys(changes).length > 0) {
-        // Apply changes to DB row
-        const updatedRow = applyChangesToRow(rowFromDb, changes);
-        updatedRow.isSelected = true; // Auto-check
-        newRows.push(updatedRow);
-        
-        // Mark cells for validation
-        Object.keys(changes).forEach(fieldName => {
-          validationNeeded.push({
-            rowId: updatedRow.id,
-            fieldName,
-            value: changes[fieldName].value,
-          });
-        });
-      } else {
-        // No changes needed, but still add row and check it
-        rowFromDb.isSelected = true;
-        newRows.push(rowFromDb);
-      }
-      
-    } else {
-      // CASE 3: New item (doesn't exist anywhere) → Create draft row
-      const draftRow = await createDraftRowFromParsedCells(parsedCells);
-      draftRow.isSelected = true; // Auto-check
-      newRows.push(draftRow);
-      
-      // Update rowId for any pending validation errors (from parsers)
-      validationNeeded.forEach(v => {
-        if (v.rowId === 'pending') {
-          v.rowId = draftRow.id;
+
+    const noteCatalogRow = (gridRowId: string | number) => {
+      noteCatalogFileRow(catalogFileRows, catalogKey, fileRowNumber, gridRowId);
+    };
+
+    const assignPendingValidation = (targetRowId: string | number) => {
+      validationNeeded.forEach((entry) => {
+        if (entry.rowId === 'pending') {
+          entry.rowId = targetRowId;
         }
       });
-      
-      // Mark all cells for validation (skip cells that already have parser errors)
-      Object.keys(parsedCells).forEach(fieldName => {
-        // Check if this field already has a parser error
-        const hasParserError = validationNeeded.some(v => 
-          v.rowId === draftRow.id && v.fieldName === fieldName && v.error
+    };
+
+    const queueValidationForChanges = (
+      rowId: string | number,
+      changes: Record<string, { value: any; text: string }>
+    ) => {
+      Object.keys(changes).forEach((fieldName) => {
+        validationNeeded.push({
+          rowId,
+          fieldName,
+          value: changes[fieldName].value,
+        });
+      });
+    };
+
+    const queueFullValidation = (rowId: string | number) => {
+      Object.keys(parsedCells).forEach((fieldName) => {
+        const hasParserError = validationNeeded.some(
+          (entry) => entry.rowId === rowId && entry.fieldName === fieldName && entry.error
         );
-        
+
         if (!hasParserError) {
           validationNeeded.push({
-            rowId: draftRow.id,
+            rowId,
             fieldName,
             value: parsedCells[fieldName].value,
           });
         }
       });
+    };
+
+    const mergeIntoExistingRow = (targetRow: SpreadsheetRow, inCurrentGrid: boolean) => {
+      const changes = getChangedCells(targetRow, parsedCells);
+
+      if (Object.keys(changes).length > 0) {
+        if (inCurrentGrid) {
+          modifiedRows.push({
+            rowId: targetRow.id,
+            changes,
+          });
+        } else {
+          const rowIndex = newRows.findIndex((row) => row.id === targetRow.id);
+          if (rowIndex === -1) {
+            console.warn('[ItemImport] Expected import row missing during merge:', targetRow.id);
+            return;
+          }
+
+          const updatedRow = applyChangesToRow(newRows[rowIndex], changes);
+          updatedRow.isSelected = true;
+          newRows[rowIndex] = updatedRow;
+        }
+
+        assignPendingValidation(targetRow.id);
+        queueValidationForChanges(targetRow.id, changes);
+      } else {
+        unchangedRows.push({ rowId: targetRow.id });
+      }
+
+      noteCatalogRow(targetRow.id);
+    };
+
+    if (existingRow) {
+      const inCurrentGrid = currentRows.some((row) => row.id === existingRow!.id);
+      mergeIntoExistingRow(existingRow, inCurrentGrid);
+      continue;
     }
+
+    if (dbItem) {
+      const rowFromDb = itemToSpreadsheetRow(dbItem);
+      const changes = getChangedCells(rowFromDb, parsedCells);
+
+      if (Object.keys(changes).length > 0) {
+        const updatedRow = applyChangesToRow(rowFromDb, changes);
+        updatedRow.isSelected = true;
+        newRows.push(updatedRow);
+        assignPendingValidation(updatedRow.id);
+        queueValidationForChanges(updatedRow.id, changes);
+        noteCatalogRow(updatedRow.id);
+      } else {
+        rowFromDb.isSelected = true;
+        newRows.push(rowFromDb);
+        noteCatalogRow(rowFromDb.id);
+      }
+
+      continue;
+    }
+
+    const draftRow = await createDraftRowFromParsedCells(parsedCells);
+    draftRow.isSelected = true;
+    newRows.push(draftRow);
+    assignPendingValidation(draftRow.id);
+    queueFullValidation(draftRow.id);
+    noteCatalogRow(draftRow.id);
   }
+
+  const fileCatalogDuplicates = buildFileCatalogDuplicateReport(catalogFileRows);
   
   return {
     newRows,
@@ -199,6 +239,7 @@ export const transformItemImportData = async (
     nameConflicts: [],  // Not used for Items
     validationNeeded,
     columnInfo,
+    fileCatalogDuplicates,
   };
 };
 
@@ -311,6 +352,65 @@ const parseCellValues = async (
   }
   
   return parsedCells;
+};
+
+/**
+ * Get cells that have changed between existing row and parsed cells
+ */
+const findRowByCatalog = (
+  catalogKey: string,
+  currentRows: SpreadsheetRow[],
+  newRows: SpreadsheetRow[]
+): SpreadsheetRow | null => {
+  return (
+    currentRows.find((row) =>
+      normalizeCatalogNumber(row.cells.catalog_number?.value) === catalogKey
+    ) ??
+    newRows.find((row) =>
+      normalizeCatalogNumber(row.cells.catalog_number?.value) === catalogKey
+    ) ??
+    null
+  );
+};
+
+const noteCatalogFileRow = (
+  catalogFileRows: Map<string, { fileRows: number[]; gridRowId: string | number }>,
+  catalogKey: string,
+  fileRowNumber: number,
+  gridRowId: string | number
+) => {
+  const existing = catalogFileRows.get(catalogKey);
+  if (existing) {
+    existing.fileRows.push(fileRowNumber);
+    existing.gridRowId = gridRowId;
+    return;
+  }
+
+  catalogFileRows.set(catalogKey, {
+    fileRows: [fileRowNumber],
+    gridRowId,
+  });
+};
+
+const buildFileCatalogDuplicateReport = (
+  catalogFileRows: Map<string, { fileRows: number[]; gridRowId: string | number }>
+): FileCatalogDuplicate[] => {
+  const duplicates: FileCatalogDuplicate[] = [];
+
+  catalogFileRows.forEach(({ fileRows, gridRowId }, catalog_number) => {
+    if (fileRows.length <= 1) {
+      return;
+    }
+
+    duplicates.push({
+      catalog_number,
+      supersededFileRowNumbers: fileRows.slice(0, -1),
+      keptFileRowNumber: fileRows[fileRows.length - 1],
+      gridRowId,
+    });
+  });
+
+  return duplicates;
 };
 
 /**

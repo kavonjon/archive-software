@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-05-25 (Item import: skip Collection column; FK on save only)
+**Last Updated**: 2026-05-25 (Item import: duplicate catalog # handling)
 
 ## Current Priority
 
@@ -50,6 +50,23 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Item Batch Editor — Duplicate Catalog Number Handling (2026-05-25)
+
+**Problem:** Same catalog # twice in one import file created multiple grid rows (transformer only matched `currentRows`, not rows already produced in that import). Multi-cell paste could assign the same catalog to several rows with no grid-uniqueness check.
+
+**Design:**
+- **Import file duplicates:** User's file problem — not a save blocker. **Last file row wins**; one grid row per catalog; post-import **dialog** lists superseded file row numbers.
+- **Grid duplicates (live edit, single-cell paste, multi-cell paste):** **First row in grid order wins**; later rows get invalid catalog cell (same error as live typing). Backend cache check still runs for survivors.
+- **Do not merge silently without telling the user** on import; do not allow two grid rows with the same catalog # at save time.
+
+**Implementation:**
+- `frontend/src/services/catalogUniqueness.ts` — shared normalize, grid duplicate scan, client validation helpers
+- `itemImportTransformer.ts` — lookup `currentRows` → `newRows` → DB; in-file merge; `fileCatalogDuplicates` on `ImportResult`
+- `ItemBatchEditor.tsx` — `validateField` uses helper; `handleBatchCellChange` post-pass after catalog paste
+- `TanStackSpreadsheetWrapper.tsx` — optional `onImportComplete`; Item shows duplicate dialog
+
+**Verify:** Import file with same catalog on rows 5 and 20 → one row, dialog; range-paste catalog to 3 rows → first valid, others red; type duplicate on second draft → second red (unchanged).
 
 ### Item Batch Editor — Collection FK Not Imported (2026-05-25)
 
@@ -309,6 +326,8 @@ Expected: Simpler than Item (likely fewer complex fields)
 - **Tiered batch validation (intentional):** client-heavy live edit, backend `validate-field` on import, `save-batch` serializer on save — Item/Collaborator differ from Languoid live debounce by design (scale + composite fields); see `docs/system-behavior/batch-editor/validation.md`
 - **Import draft vs blank live draft:** Same `draft-{uuid}` id, different semantics — import drafts have spreadsheet data and get field validation; Add-row blanks use `hasChanges: false` to defer errors until edit. Do not conflate.
 - **Import catalog match:** Existing catalog # in DB loads/updates that item (transformer CASE 2), not a duplicate error. Red catalog # = uniqueness conflict (e.g. changing to another item's number), not “item exists.”
+- **Import file duplicate catalog #:** Last file row wins → one grid row; dialog warns with superseded file row numbers — not an error, not two rows.
+- **Grid catalog uniqueness:** First grid row with a catalog # wins; shared logic in `catalogUniqueness.ts` (live edit, paste post-pass).
 - **Item.collection is not a batch field:** Export may include Collection abbr; import must `skipImport` — FK from `catalog_number` on `pre_save` only, not `validate-field` or spreadsheet cells.
 - UUID + timestamp hybrid works best for export IDs
 
@@ -321,7 +340,6 @@ Expected: Simpler than Item (likely fewer complex fields)
 ## Tech Debt (Not Blocking)
 
 **Item batch editor import (known gaps, user feedback in progress):**
-- Same import file can create duplicate draft rows for repeated catalog # (transformer only matches `currentRows` at start, not rows added earlier in same file)
 - Parser edge cases: ambiguous collaborator names dropped (not `id: null` preserved); languoid name lookup case-sensitive / no uniqueness check; `parseSelectChoice` silent pass-through on unknown labels; title parentheses parsing; collaborator comma splitting
 - Live edit: lat/lng range not checked client-side (import/save backend does); see `validation.md` § Optional enhancements
 
@@ -482,7 +500,31 @@ Import draft rows (`draft-{uuid}`) validate **field values** via parsers + backe
 
 **Trade-off accepted:** Re-importing export files ignores Collection column values for writes; displayed abbr may differ until next save recalculates FK from catalog #.
 
+### Item Catalog Duplicate Policy — Import vs Grid (2026-05-25)
+
+Duplicate catalog numbers are handled differently by **source**, not one universal merge rule.
+
+**Import file (same catalog on multiple rows):** Last file row wins; one grid row; informational dialog (superseded file row numbers). Not a save blocker — bad spreadsheet data, user informed.
+
+**Grid (typing, single-cell paste, multi-cell paste):** First row in grid order keeps valid catalog; later rows invalid with “already used in another row.” Save blocked via `hasErrors`. Backend cache uniqueness still checked for survivors.
+
+**Why?** Import row-matching (`CASE 1`) already updates existing rows; within-file repeats must not spawn second rows. Grid integrity requires no two editable rows sharing a catalog # before save.
+
+**Alternatives considered:**
+- Silent merge on import with no dialog: Rejected — user must know file had duplicates
+- Block import on file duplicates: Rejected — user may fix source file later; last row is sufficient default
+- Same “first wins” on import file order: Rejected — last row matches spreadsheet “final truth” when users repeat rows
+
+**Trade-off accepted:** Import last-wins vs grid first-wins is intentional; shared helpers in `catalogUniqueness.ts`, not identical rules.
+
 ## Files Recently Modified
+
+**Item catalog duplicate handling (2026-05-25):**
+- `frontend/src/services/catalogUniqueness.ts` - Shared catalog normalize, grid duplicate scan, client validation
+- `frontend/src/services/itemImportTransformer.ts` - Lookup includes `newRows`; in-file merge; `fileCatalogDuplicates` report
+- `frontend/src/components/items/ItemBatchEditor.tsx` - Helper in `validateField`; paste post-pass; import duplicate dialog
+- `frontend/src/components/batch/TanStackSpreadsheetWrapper.tsx`, `AdaptiveSpreadsheetGrid.tsx` - Optional `onImportComplete`
+- `docs/system-behavior/batch-editor/validation.md` - Import duplicate + grid uniqueness notes
 
 **Item collection import skip (2026-05-25):**
 - `frontend/src/services/itemImportColumnMapper.ts` - `skipImport` on `ImportColumnConfig`; `collection` export-only

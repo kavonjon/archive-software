@@ -1,7 +1,20 @@
 # Batch Editor Patterns
 
-**Reference Implementation**: Item batch editor (61 fields, 4,400 rows)  
-**Comprehensive Docs**: `../03-LESSONS/item-batch-editor.md`
+**Reference Implementation**: Item batch editor (60 fields, 4,400 rows)  
+**Comprehensive Docs**: `../03-LESSONS/item-batch-editor.md`  
+**Validation flows (canonical, Mermaid):** `docs/system-behavior/batch-editor/validation.md` — live edit / import / save; Languoid vs Collaborator vs Item differences. Update that file when changing validation behavior (not duplicated here).
+
+## Validation (three layers, all editors)
+
+| Layer | When | Authority |
+|-------|------|-----------|
+| Live edit | `handleCellChange` then `validateField` | Client rules; Languoid also debounces `POST …/validate-field/`; Item/Collaborator mostly client-only on live edit |
+| Import | Parsers then `useImport*Spreadsheet` | Parser errors + backend `validate-field` (per-model skip lists for virtual/M2M display fields) |
+| Save | `hasErrors` gate then `save-batch` | Full `Internal*Serializer.is_valid` + conflict detection |
+
+**Item import skip backend:** `primary_title`, `secondary_title`, `collaborators`, `language`. **Collaborator import skip:** `native_languages`, `other_languages`.
+
+**Diagram maintenance:** Keep graphs under ~12 nodes; use `flowchart TD` and `%%{init: {'flowchart': {'curve': 'linear'}}}%%` — see authoring rules in `validation.md`.
 
 ## 6 Universal Patterns (Mandatory for All Batch Editors)
 
@@ -755,6 +768,7 @@ N+1 query problem, slow exports
 ---
 
 **See also**:
+- `docs/system-behavior/batch-editor/validation.md` - Validation flow diagrams (canonical)
 - `../03-LESSONS/item-batch-editor.md` - Comprehensive patterns & checklist
 - `../01-ARCHITECTURE/system-overview.md` - Cache & Celery architecture
 - `frontend.md` - React patterns

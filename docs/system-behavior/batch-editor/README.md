@@ -1,6 +1,6 @@
 # Batch Editor System
 
-**Last Updated:** November 2, 2025  
+**Last Updated:** May 24, 2026  
 **Purpose:** Overview of the batch editor subsystem for bulk data editing  
 **Audience:** Developers maintaining or extending the batch editor
 
@@ -10,7 +10,7 @@
 
 The batch editor is a spreadsheet-like interface for bulk editing of database records. It supports complex data types, validation, undo/redo, and handles datasets of 10,000+ rows with smooth performance.
 
-**Primary Use Case:** Languoid batch editing (languages and dialects)
+**Production editors:** Languoid, Collaborator, and Item batch editors (Item is the most complex reference implementation).
 
 ---
 
@@ -29,8 +29,9 @@ See **[architecture.md](architecture.md)** for detailed component hierarchy and 
 ### Core Technical Documentation
 
 - **[Architecture](architecture.md)** - Component hierarchy, state management, why TanStack
+- **[Validation](validation.md)** - Live edit, import, and save validation flows (Mermaid diagrams; canonical)
 - **[Cell Types](cell-types.md)** - All supported cell types and their editors
-- **[Editing Features](editing-features.md)** - Undo/redo, selection, copy/paste, validation
+- **[Editing Features](editing-features.md)** - Undo/redo, selection, copy/paste
 - **[Performance](performance.md)** - Virtualization, memoization, benchmarks, limitations
 
 ---

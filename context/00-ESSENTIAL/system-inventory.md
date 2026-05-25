@@ -59,6 +59,7 @@ These are **forward** checks only—this tree is the project context, not a diff
 | In-place edit or picker dropdown? | `04-REFERENCE/frontend/form-patterns.md` |
 | Implement a new batch editor? | `03-LESSONS/item-batch-editor.md`, `batch-editors.md`, `data-models.md` |
 | Debug cache / Celery / filters in batch? | `item-batch-editor.md`, `batch-editors.md`, `system-overview.md`, `backend.md` |
+| Batch validation (live / import / save)? | `docs/system-behavior/batch-editor/validation.md`, `batch-editors.md`, `item-batch-editor.md` |
 | Security model (groups, DRF, React)? | `security.md` |
 | Stage roadmap (Stage 2+)? | `04-REFERENCE/stage-plans/stages-overview.md` |
 

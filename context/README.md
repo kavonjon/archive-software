@@ -241,6 +241,7 @@ Each of those three files starts with a short **cross-link block** to the other 
 5. Wait for user approval before executing the split
 
 ### Version History
+- **2026-05-24 (batch validation docs):** Added `docs/system-behavior/batch-editor/validation.md` (Mermaid flows, per-editor table); cross-links in `batch-editors.md`, `item-batch-editor.md`, `docs-directory.md`, `context-map.md`, `active-work.md`
 - **2026-05-24 (postgres pin):** Pinned `postgres:17` in all compose files after production outage from unpinned `latest` pulling PG 18; documented in `infrastructure.md`, `active-work.md`, `database-operations.md`
 - **2026-05-22 (access level chips):** Item access level chip colors centralized in `getAccessLevelChipProps`; documented in `list-page-patterns.md` and `active-work.md`
 - **2026-05-24 (field removal):** Removed `Item.permission_to_publish_online` from model, API, and UI; migration 0105; documented in `deprecated.md` and `active-work.md`

@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-05-24
+**Last Updated**: 2026-05-24 (validation docs)
 
 ## Current Priority
 
@@ -50,6 +50,21 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Batch Editor Validation Documentation (2026-05-24)
+
+**Canonical developer doc:** `docs/system-behavior/batch-editor/validation.md` — live edit, import, and save validation for Languoid, Collaborator, and Item batch editors.
+
+**Contents:**
+- Mermaid flow diagrams (small graphs, `curve: linear`, diagram authoring rules for LLM/human updates)
+- Editor comparison table (live vs import vs save; per-model `validate-field` usage)
+- Maintenance checklist mapping code changes to doc sections
+
+**Repo docs updated:** `docs/system-behavior/batch-editor/README.md`, `editing-features.md` (validation section deferred to canonical doc), `docs/README.md` index. Fixes broken link from `delete-key-implementation.md`.
+
+**Context cross-links:** `02-PATTERNS/batch-editors.md`, `03-LESSONS/item-batch-editor.md`, `04-REFERENCE/docs-directory.md`, `context-map.md`.
+
+**Still accurate:** Item live edit uses client-heavy validation; import uses backend `validate-field` for most real fields; Languoid debounces backend on live edit. Tech debt: unify Item live edit with import/backend parity (see Tech Debt).
 
 ### Pin PostgreSQL Docker Image to 17 (2026-05-24)
 
@@ -267,7 +282,7 @@ Expected: Simpler than Item (likely fewer complex fields)
 
 ## Tech Debt (Not Blocking)
 
-- Item batch editor: Two validation paths (import uses backend, live-edit uses local)
+- Item batch editor: Two validation paths (import uses backend `validate-field`; live-edit is client-heavy except `catalog_number`) — see `docs/system-behavior/batch-editor/validation.md`
 - Celery: Hard restarts sometimes needed on macOS (pkill -9)
 - Some legacy Django template code still references old models (stub classes prevent crashes)
 - Duplicate languoid endpoints: Both internal API and public API expose languoid data — paths may overlap causing confusion
@@ -387,6 +402,10 @@ All compose files use `image: postgres:17` — never unpinned `postgres` or `pos
 **Trade-off accepted:** Must explicitly bump major version and run `pg_upgrade` when upgrading Postgres; no automatic `latest` tracking.
 
 ## Files Recently Modified
+
+**Documentation (2026-05-24):**
+- `docs/system-behavior/batch-editor/validation.md` - New canonical validation flows (Mermaid)
+- `docs/system-behavior/batch-editor/README.md`, `editing-features.md`, `docs/README.md` - Index and deferral to validation.md
 
 **Infrastructure (2026-05-24):**
 - `docker-compose.private.yml`, `docker-compose.public.yml`, `docker-compose.yml` - Pin `postgres:17`

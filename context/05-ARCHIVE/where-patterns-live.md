@@ -15,6 +15,7 @@
 | Auth flow, footer, favicon, in-app user guide | `04-REFERENCE/frontend/app-shell-patterns.md` |
 | Django, DRF, Celery, signals, validation, map FilterBackends | `02-PATTERNS/backend.md` |
 | Batch editors, import/export, Redis, grid cells | `02-PATTERNS/batch-editors.md` |
+| Batch editor validation flows (diagrams) | `docs/system-behavior/batch-editor/validation.md` |
 | GeoJSON, public map API, map filters, clustering notes | `01-ARCHITECTURE/system-overview.md`, `02-PATTERNS/backend.md`, `05-ARCHIVE/architectural-decisions-snapshot.md` |
 | Collaborator model (names, M2M languages, harmonization narrative, dialect removal) | `01-ARCHITECTURE/data-models.md`, `05-ARCHIVE/collaborator-harmonization-snapshot.md`, `05-ARCHIVE/deprecated.md` |
 | Languoid list (client load-all, tree pagination—**languoid-only**) | `04-REFERENCE/frontend/languoid-list-implementation.md`, `04-REFERENCE/frontend/list-page-patterns.md` (exception warning) |

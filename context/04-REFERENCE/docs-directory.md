@@ -21,6 +21,7 @@ Organize by **audience**: operators, developers, end users; co-locate READMEs wi
 
 ## Notable files (curated list)
 
+- `docs/system-behavior/batch-editor/validation.md` — Batch editor validation (live edit, import, save); Mermaid diagrams; Languoid/Collaborator/Item comparison (canonical for maintainers)
 - `docs/deployment/database-operations.md` — DB backup/restore on TrueNAS Scale
 - `docs/deployment/url-routing.md` — Django + React SPA routing
 - `docs/api/map-endpoint-guide.md` — Public map API for integrators (Leaflet/MapBox examples)

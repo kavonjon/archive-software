@@ -6,6 +6,8 @@
 
 **Purpose**: Comprehensive guide for Document batch editor implementation. All patterns, anti-patterns, and lessons learned captured here.
 
+**Validation flows:** Canonical diagrams and per-editor comparison — `docs/system-behavior/batch-editor/validation.md` (not duplicated in this file). Read before changing Item `handleCellChange`, `validateField`, or import skip lists.
+
 ---
 
 ## Executive Summary
@@ -627,6 +629,7 @@ validate_method(validated_value)  # Deserialized Decimal - works!
 
 ### Pre-Implementation
 - [ ] Read this file completely
+- [ ] Read `docs/system-behavior/batch-editor/validation.md` (live/import/save flows)
 - [ ] Read `../02-PATTERNS/batch-editors.md` (6 universal patterns)
 - [ ] Review `ItemBatchEditor.tsx` (reference code)
 - [ ] Review custom editors (CollaboratorRoles, TitleWithLanguage)

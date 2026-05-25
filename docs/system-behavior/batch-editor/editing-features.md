@@ -288,66 +288,9 @@ background-color: #bbdefb;  /* Darker blue */
 
 ## Validation System
 
-### Validation Levels
+**Canonical documentation:** [validation.md](validation.md) — live edit, import, and save flows with per-model differences (Languoid vs Collaborator vs Item), Mermaid diagrams, and maintenance checklist.
 
-#### 1. **Client-Side Validation** (Immediate)
-
-**When:** Immediately after cell edit or paste
-**Purpose:** Fast feedback, prevent obvious errors
-**Checks:**
-- **Type checking:** Is value correct type? (number for decimal, etc.)
-- **Format checking:** Is value in correct format? (array, boolean, etc.)
-- **Required fields:** Is required field empty?
-- **Choice matching:** For select types, is value in choices?
-
-**Visual Feedback:**
-- ❌ **Red cell:** Invalid (fails client-side validation)
-- ✏️ **Yellow cell:** Edited (passes client-side validation)
-
-#### 2. **Backend Validation** (Async, after client-side passes)
-
-**When:** After client-side validation passes (200-300ms debounce)
-**Purpose:** Deep validation (uniqueness, foreign keys, business rules)
-**Checks:**
-- **Uniqueness:** Is glottocode unique?
-- **Foreign key validity:** Does parent_languoid ID exist?
-- **Business rules:** Can this languoid have this parent?
-- **Conflict detection:** Was field edited by another user concurrently?
-
-**Visual Feedback:**
-- ✅ **No highlight:** Valid (passes all validation)
-- ❌ **Red cell:** Invalid (backend rejected)
-- 🟧 **Orange cell:** Conflict (another user edited same field)
-
-### Validation States
-
-```typescript
-type ValidationState = 'none' | 'valid' | 'invalid';
-```
-
-**none:** Not yet validated (initial state)
-**valid:** Passed validation (client-side and/or backend)
-**invalid:** Failed validation
-
-### Visual Indicators
-
-**Cell Background Colors:**
-```css
-/* Invalid (red) */
-background-color: #ffebee;
-border: 2px solid #f44336;
-
-/* Edited/Valid (yellow) */
-background-color: #fff9c4;
-
-/* Conflict (orange) */
-background-color: #ffe0b2;
-border: 2px solid #ff9800;
-```
-
-**Error Messages:**
-- Hover over red cell to see `validationError` tooltip
-- Example: "This glottocode already exists"
+**Summary:** Cells use `validationState` (`valid` | `invalid` | `validating`). Red = invalid; yellow = edited; orange = concurrent edit conflict (separate from validation). Languoid debounces `validate-field` on live edit; Item and Collaborator rely primarily on client rules during live edit, with stronger backend checks on import and on `save-batch`.
 
 ### Conflict Detection (Optimistic Locking)
 

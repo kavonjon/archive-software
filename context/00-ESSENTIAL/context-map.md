@@ -20,6 +20,7 @@ Quick index of all **Project Context System** files in `context/`.
 | PM requirements summary | `01-ARCHITECTURE/product-requirements.md` |
 | User workflows | `01-ARCHITECTURE/user-workflows.md` |
 | Batch editors | `02-PATTERNS/batch-editors.md` |
+| Batch editor validation flows | `docs/system-behavior/batch-editor/validation.md` |
 | React / TS | `02-PATTERNS/frontend.md` |
 | Django / DRF / Celery | `02-PATTERNS/backend.md` |
 | Accessibility | `02-PATTERNS/accessibility.md` |

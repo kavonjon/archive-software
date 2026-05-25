@@ -1055,7 +1055,7 @@ class InternalItemViewSet(viewsets.ModelViewSet):
         Body: {
             "field_name": "catalog_number",
             "value": "ITEM-001",
-            "row_id": "new-123" or 42 (item id),
+            "row_id": "draft-{uuid}" or 42 (item id),
             "original_value": "ITEM-001" (optional - value when loaded from DB)
         }
         
@@ -1115,17 +1115,13 @@ class InternalItemViewSet(viewsets.ModelViewSet):
                 # Check for uniqueness (exclude current row if editing)
                 existing = Item.objects.filter(catalog_number=value)
                 
-                # Exclude the current row being edited
-                if str(row_id).startswith('new-'):
-                    # Draft row - don't exclude anything (it's a new row)
-                    pass
-                else:
-                    # Existing row - exclude it from uniqueness check
+                # Exclude the current row being edited (numeric id only — draft rows are not in DB)
+                is_draft_row = isinstance(row_id, str) and str(row_id).startswith('draft-')
+                if not is_draft_row:
                     try:
                         row_id_int = int(row_id) if isinstance(row_id, str) else row_id
                         existing = existing.exclude(id=row_id_int)
                     except (ValueError, TypeError):
-                        # If we can't convert to int, skip exclusion
                         pass
                 
                 if existing.exists():

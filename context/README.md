@@ -241,6 +241,7 @@ Each of those three files starts with a short **cross-link block** to the other 
 5. Wait for user approval before executing the split
 
 ### Version History
+- **2026-05-25 (Item import draft validation):** Fixed unified import validation for `draft-{uuid}` rows; removed dead `new-` skip branch; Item `validate_field` catalog check uses `draft-`; decision + key learnings in `active-work.md`; pattern in `batch-editors.md`, lesson §5b in `item-batch-editor.md`
 - **2026-05-25 (validation design reframe):** Tiered batch validation documented as intentional design, not tech debt; removed from `active-work.md` Tech Debt; decision + `validation.md` § Intentional design / Optional enhancements
 - **2026-05-24 (batch validation docs):** Added `docs/system-behavior/batch-editor/validation.md` (Mermaid flows, per-editor table); cross-links in `batch-editors.md`, `item-batch-editor.md`, `docs-directory.md`, `context-map.md`, `active-work.md`
 - **2026-05-24 (postgres pin):** Pinned `postgres:17` in all compose files after production outage from unpinned `latest` pulling PG 18; documented in `infrastructure.md`, `active-work.md`, `database-operations.md`

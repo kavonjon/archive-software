@@ -29,6 +29,34 @@ import { transformItemImportData, ImportResult } from '../services/itemImportTra
 import { hasValidItemColumns } from '../services/itemImportColumnMapper';
 import { SpreadsheetRow, SpreadsheetCell } from '../types/spreadsheet';
 
+/** Virtual/composite fields — validated by import parsers, not validate-field */
+const ITEM_IMPORT_SKIP_BACKEND_FIELDS = [
+  'primary_title',
+  'secondary_title',
+  'collaborators',
+  'language',
+] as const;
+
+function getImportOriginalValue(
+  rowId: string | number,
+  fieldName: string,
+  preImportRows: SpreadsheetRow[],
+  importedNewRows: SpreadsheetRow[]
+): any {
+  const idStr = String(rowId);
+  const preImportRow = preImportRows.find(r => String(r.id) === idStr);
+  if (preImportRow?.cells[fieldName]) {
+    const cell = preImportRow.cells[fieldName];
+    return cell.originalValue ?? cell.value;
+  }
+  const importedRow = importedNewRows.find(r => String(r.id) === idStr);
+  if (importedRow?.cells[fieldName]) {
+    const cell = importedRow.cells[fieldName];
+    return cell.originalValue ?? cell.value;
+  }
+  return undefined;
+}
+
 export interface ImportProgress {
   stage: 'validating' | 'parsing' | 'processing' | 'updating' | 'validating_cells' | 'complete';
   message: string;
@@ -210,7 +238,9 @@ export const useImportItemSpreadsheet = (): UseImportItemSpreadsheetReturn => {
       document.body.style.cursor = 'wait';
       
       try {
-        // Validate all cells (no debounce, immediate)
+        // Validate all cells (no debounce, immediate).
+        // Draft import rows (draft-*) and existing rows use the same rules: parsers first,
+        // then backend validate-field for direct model fields. Skip list = composite/virtual only.
         for (let i = 0; i < result.validationNeeded.length; i++) {
           const { rowId, fieldName, value, error } = result.validationNeeded[i];
           
@@ -223,10 +253,6 @@ export const useImportItemSpreadsheet = (): UseImportItemSpreadsheetReturn => {
             });
           }
           
-          // Check if this is a new/draft row (ID starts with 'new-')
-          const isNewRow = String(rowId).startsWith('new-');
-          
-          // If parser returned an error, mark cell as invalid immediately
           if (error) {
             dispatch(updateCell({
               rowId,
@@ -236,36 +262,27 @@ export const useImportItemSpreadsheet = (): UseImportItemSpreadsheetReturn => {
                 validationError: error,
               },
             }));
-          } else if (isNewRow) {
-            // Skip backend validation for new rows (they don't exist in DB yet)
-            // Just mark them as valid (client-side validation already happened during parsing)
+          } else if (
+            ITEM_IMPORT_SKIP_BACKEND_FIELDS.includes(
+              fieldName as (typeof ITEM_IMPORT_SKIP_BACKEND_FIELDS)[number]
+            )
+          ) {
             dispatch(updateCell({
               rowId,
               fieldName,
               cell: {
                 validationState: 'valid',
+                validationError: undefined,
               },
             }));
           } else {
-            // Existing row - validate with backend
-            // Skip backend validation for virtual/composite fields that don't exist in the model
-            // or fields that use SerializerMethodField (read-only in the serializer)
-            const skipValidationFields = ['primary_title', 'secondary_title', 'collaborators', 'language'];
-            
-            if (!skipValidationFields.includes(fieldName)) {
-              // Validate field with backend
-              await validateField(rowId, fieldName, value);
-            }
-            // If field is in skip list and no parser error, mark as valid
-            else {
-              dispatch(updateCell({
-                rowId,
-                fieldName,
-                cell: {
-                  validationState: 'valid',
-                },
-              }));
-            }
+            const originalValue = getImportOriginalValue(
+              rowId,
+              fieldName,
+              rows,
+              result.newRows
+            );
+            await validateField(rowId, fieldName, value, originalValue);
           }
         }
       } finally {

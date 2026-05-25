@@ -94,13 +94,27 @@ def generate_item_export_task(self, export_id, ids, user_id):
 
 **Correct Pattern**:
 ```typescript
-// In useImportItemSpreadsheet.ts
+// ITEM_IMPORT_SKIP_BACKEND_FIELDS in useImportItemSpreadsheet.ts
 const skipValidationFields = [
   'primary_title',    // SerializerMethodField
   'secondary_title',  // SerializerMethodField
   'collaborators',    // Through-model with attributes
+  'language',         // M2M — parser + invalid id:null preservation
 ];
 ```
+
+### 5b. Import Draft Rows vs Blank Live Drafts (2026-05-25)
+
+**Two different “draft” cases — same `draft-{uuid}` id prefix:**
+
+| Case | Trigger | Data | Validation |
+|------|---------|------|------------|
+| **Import draft** | Import file, catalog # not in sheet/DB | Spreadsheet values in cells | Parsers + backend `validate-field` (skip list only); catalog in DB elsewhere → load row (CASE 2), not duplicate red |
+| **Blank live draft** | Add row button | Empty cells | `hasChanges: false` — defer required errors until user edits (`handleCellChange`) |
+
+**Shipped bug (fixed 2026-05-25):** Import hook used `rowId.startsWith('new-')` to skip all backend — never matched `draft-`; dead code. Removed skip-all; unified loop. Backend catalog uniqueness now uses `draft-` like Collaborator/Languoid.
+
+**Anti-pattern:** Conflating blank Add-row UX with import validation. **Anti-pattern:** Treating re-import of existing catalog # as duplicate — transformer matches by catalog # first.
 
 ### 6. New Rows Must Update sessionStorage Config
 

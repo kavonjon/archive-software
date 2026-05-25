@@ -86,8 +86,9 @@ export const validateCollaboratorField = (
 export const validateItemField = (
   fieldName: string,
   value: any,
-  rowId: string | number
+  rowId: string | number,
+  originalValue?: any
 ): Promise<ValidationResponse> => {
-  return validateField('/items', fieldName, value, rowId);
+  return validateField('/items', fieldName, value, rowId, originalValue);
 };
 

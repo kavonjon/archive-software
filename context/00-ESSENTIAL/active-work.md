@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-05-25
+**Last Updated**: 2026-05-25 (Item import draft-row validation)
 
 ## Current Priority
 
@@ -50,6 +50,22 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Item Import Draft-Row Validation (2026-05-25)
+
+**Problem:** Item import hook shipped with a dead `isNewRow` branch (`rowId.startsWith('new-')`) while all draft rows use `draft-{uuid}`. Docs said new import rows skipped backend validation; code actually ran backend for draft rows anyway — inconsistent and misleading.
+
+**Design aligned (session):**
+- **Import draft row** (`draft-{uuid}`, data from spreadsheet): validate **field values**, not “the row object in DB.” Parsers for composite columns; backend `validate-field` for direct model fields (same skip list as existing rows). Catalog # in DB → **match and load row** (CASE 2 in transformer), not red as duplicate.
+- **Live edit blank draft** (`hasChanges: false`, Add row button): defer required-field errors until user edits — **separate path**, unchanged.
+
+**Implementation:**
+- `useImportItemSpreadsheet.ts` — removed broken skip-all branch; unified import loop (parser error → invalid; skip list → valid; else backend); `getImportOriginalValue()` passes `original_value` on re-import
+- `validationAPI.ts` — `validateItemField` accepts optional `originalValue`
+- `InternalItemViewSet.validate_field` — catalog uniqueness uses `draft-` prefix (aligned with Collaborator/Languoid and `save-batch`), not stale `new-`
+- `docs/system-behavior/batch-editor/validation.md` — editor comparison table, import diagram, draft-row notes updated
+
+**Next on Item batch editor:** Column-specific import parser fixes per user feedback (collaborators, languages, titles, choices, etc.) — see Tech Debt / open gaps below.
 
 ### Batch Editor Validation Documentation (2026-05-24)
 
@@ -273,6 +289,8 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Invalid data should be preserved and visualized, not dropped
 - Virtual fields need parser validation, skip backend validation on import
 - **Tiered batch validation (intentional):** client-heavy live edit, backend `validate-field` on import, `save-batch` serializer on save — Item/Collaborator differ from Languoid live debounce by design (scale + composite fields); see `docs/system-behavior/batch-editor/validation.md`
+- **Import draft vs blank live draft:** Same `draft-{uuid}` id, different semantics — import drafts have spreadsheet data and get field validation; Add-row blanks use `hasChanges: false` to defer errors until edit. Do not conflate.
+- **Import catalog match:** Existing catalog # in DB loads/updates that item (transformer CASE 2), not a duplicate error. Red catalog # = uniqueness conflict (e.g. changing to another item's number), not “item exists.”
 - UUID + timestamp hybrid works best for export IDs
 
 ### Performance Baselines
@@ -282,6 +300,11 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Async export: ~18 seconds for 4,400 rows
 
 ## Tech Debt (Not Blocking)
+
+**Item batch editor import (known gaps, user feedback in progress):**
+- Same import file can create duplicate draft rows for repeated catalog # (transformer only matches `currentRows` at start, not rows added earlier in same file)
+- Parser edge cases: ambiguous collaborator names dropped (not `id: null` preserved); languoid name lookup case-sensitive / no uniqueness check; `parseSelectChoice` silent pass-through on unknown labels; title parentheses parsing; collaborator comma splitting
+- Live edit: lat/lng range not checked client-side (import/save backend does); see `validation.md` § Optional enhancements
 
 - Celery: Hard restarts sometimes needed on macOS (pkill -9)
 - Some legacy Django template code still references old models (stub classes prevent crashes)
@@ -415,10 +438,28 @@ Live edit (client-heavy on Item/Collaborator), import (backend `validate-field`)
 
 **Docs:** Removed “two validation paths” from Tech Debt in `active-work.md`; reframed in `docs/system-behavior/batch-editor/validation.md`.
 
+### Item Import Draft-Row Validation Policy (2026-05-25)
+
+Import draft rows (`draft-{uuid}`) validate **field values** via parsers + backend `validate-field` (same composite skip list as existing rows). Do not skip all backend for new import rows. Do not treat “row exists in DB” as an import error — match by catalog # and merge.
+
+**Why?** New row = no DB object yet, but imported cells still need vocabulary/format/uniqueness checks. Blank Add-row UX (`hasChanges: false`) is live-edit only.
+
+**Alternatives considered:**
+- Skip all backend for import drafts (broken `new-` branch / original Nov 2025 intent): Rejected — too loose; conflated with blank-row UX
+- Always identical to Languoid with no Item-specific import design: Rejected — composite columns require parser-first skip list; Item leads other editors here
+
+**Trade-off accepted:** Item import policy documented first; Languoid/Collaborator unchanged until ported. Column parser quality remains the main import UX lever for composite fields.
+
 ## Files Recently Modified
 
+**Item import validation (2026-05-25):**
+- `frontend/src/hooks/useImportItemSpreadsheet.ts` - Unified import validation loop; removed dead `new-` skip branch; `original_value` on import
+- `frontend/src/services/validationAPI.ts` - `validateItemField` optional `originalValue`
+- `app/internal_api/views.py` - Item `validate_field` catalog uniqueness uses `draft-` prefix
+- `docs/system-behavior/batch-editor/validation.md` - Import draft-row behavior and comparison table
+
 **Documentation (2026-05-24–25):**
-- `docs/system-behavior/batch-editor/validation.md` - Canonical validation flows (Mermaid); reframed tiered validation as intentional design (2026-05-25)
+- `docs/system-behavior/batch-editor/validation.md` - Canonical validation flows (Mermaid); tiered design + import draft rows (2026-05-25)
 - `docs/system-behavior/batch-editor/README.md`, `editing-features.md`, `docs/README.md` - Index and deferral to validation.md
 - `context/00-ESSENTIAL/active-work.md`, `02-PATTERNS/batch-editors.md` - Removed validation from Tech Debt; added decision + key learning
 

@@ -16,6 +16,10 @@ Tiered validation is **by design**, not tech debt: fast client feedback on live 
 
 **Item import skip backend:** `primary_title`, `secondary_title`, `collaborators`, `language`. **Collaborator import skip:** `native_languages`, `other_languages`.
 
+**Item import draft rows (`draft-{uuid}`):** Same validation loop as existing rows — parser errors → invalid; skip list → valid if parser OK; else `POST …/items/validate-field/` with `original_value` when re-importing. Catalog # already in DB → transformer loads item (CASE 2), not duplicate error. **Not** the same as live-edit blank Add row (`hasChanges: false`, defer required errors). Item leads this pattern; other editors unchanged until ported.
+
+**Draft row ID convention:** Always `draft-{uuid}` (see `spreadsheet.ts`, `save-batch`). Never `new-` — Item `validate_field` catalog check aligned 2026-05-25.
+
 **Optional UX improvements** (not correctness blockers): client lat/lng range checks, map `save-batch` errors to cells, batch validate API — see `validation.md` § Optional enhancements.
 
 **Diagram maintenance:** Keep graphs under ~12 nodes; use `flowchart TD` and `%%{init: {'flowchart': {'curve': 'linear'}}}%%` — see authoring rules in `validation.md`.

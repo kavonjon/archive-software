@@ -1,6 +1,6 @@
 # Batch Editor Validation
 
-**Last verified:** 2026-05-25 (intentional-design reframe; code unchanged since 2026-05-24)
+**Last verified:** 2026-05-25 (Item import draft-row validation aligned with field-value rules)
 
 **Audience:** Developers maintaining or extending batch editors
 
@@ -65,9 +65,9 @@ flowchart LR
 |--------|----------|--------------|------|
 | Live backend `validate-field` | Yes (debounced 500ms via `useFieldValidation`) | No — only `collaborator_id` checked via list API | No — only `catalog_number` (client + cache) |
 | Live client rules | Yes (`handleCellChange`) | Yes | Yes (extensive: titles, collaborators, M2M, etc.) |
-| Import backend `validate-field` | Yes (all changed cells) | Yes (except skipped fields) | Yes (existing rows; skips virtual fields) |
+| Import backend `validate-field` | Yes (all changed cells) | Yes (except skipped fields) | Yes (all changed cells except skip list; draft and existing rows) |
 | Import skip backend | None | `native_languages`, `other_languages` | `primary_title`, `secondary_title`, `collaborators`, `language` |
-| New draft rows on import | Backend validation runs | Backend validation runs | Backend skipped (marked valid) |
+| New draft rows on import | Backend validation runs | Backend validation runs | Backend validation runs (same skip list; `row_id` is `draft-{uuid}`) |
 | Save gate (`hasErrors`) | Yes | Yes | Yes |
 | Final authority | `save-batch` + `Internal*Serializer` | Same | Same |
 | Custom cell editors | Standard `CellEditor` | Standard | `CollaboratorRolesCellEditor`, `TitleWithLanguageCellEditor` |
@@ -182,11 +182,15 @@ flowchart TD
   C --> D[Parser errors]
   D --> E[validationNeeded with error]
   C --> F[Merge into grid]
-  F --> G{Existing DB row?}
-  G -->|no draft| H[Skip backend mark valid]
-  G -->|yes| I[POST validate-field per cell]
-  I --> J[Update cell state]
-  E --> J
+  F --> G{Parser error?}
+  G -->|yes| H[Mark cell invalid]
+  G -->|no| I{Skip-list field?}
+  I -->|yes| J[Mark valid parser ok]
+  I -->|no| K[POST validate-field]
+  K --> L[Update cell state]
+  H --> L
+  J --> L
+  E --> L
 ```
 
 | Model | Hook | Transformer / mapper |
@@ -196,6 +200,8 @@ flowchart TD
 | Item | `useImportItemSpreadsheet.ts` | `itemImportTransformer.ts`, `itemImportValueParsers.ts` |
 
 **Invalid data preservation (Item):** Parsers return `id: null` for unknown collaborators/languoids; cells stay red until user fixes in custom editor. See `parseCollaboratorsWithRoles`, `parseCommaSeparatedLanguoids` in `itemImportValueParsers.ts`.
+
+**Item import draft rows:** Rows not yet in the DB use `id: draft-{uuid}`. Import validates **field values** via parsers + `validate-field` (same skip list as existing rows). Catalog uniqueness checks the DB without excluding a row id. This is separate from **live edit** blank drafts (`hasChanges: false`), where required-field errors are deferred until the user edits.
 
 **Backend `validate_field` (all models):**
 
@@ -245,7 +251,7 @@ Content-Type: application/json
 
 Response: `{ "valid": true }` or `{ "valid": false, "error": "..." }`
 
-Item-specific: `catalog_number` also checks DB uniqueness (excluding current `row_id`).
+Item-specific: `catalog_number` also checks DB uniqueness. Draft import rows use `row_id: draft-{uuid}` (no self to exclude); existing rows pass numeric `row_id` to exclude self.
 
 ### `save-batch`
 

@@ -117,8 +117,9 @@ export const parseCommaSeparatedValues = (
 export const parseSelectChoice = (
   rawValue: string,
   choices: Array<{ value: string | boolean | null; label: string }>
-): { value: any; text: string } => {
-  const normalized = rawValue.trim().toLowerCase();
+): { value: any; text: string; errors?: string[] } => {
+  const trimmed = rawValue.trim();
+  const normalized = trimmed.toLowerCase();
   
   // Try exact value match first
   const exactMatch = choices.find(c => 
@@ -145,8 +146,12 @@ export const parseSelectChoice = (
     return { value: fuzzyMatch.value, text: fuzzyMatch.label };
   }
   
-  // No match - return original value
-  return { value: rawValue, text: rawValue };
+  // Preserve raw value so user can see and fix it in the grid
+  return {
+    value: trimmed,
+    text: trimmed,
+    errors: [`"${trimmed}" is not a valid choice`],
+  };
 };
 
 /**

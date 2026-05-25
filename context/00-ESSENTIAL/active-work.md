@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-05-25 (Item batch: list handoff row order)
+**Last Updated**: 2026-05-25 (Item import: choice field validation)
 
 ## Current Priority
 
@@ -50,6 +50,20 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Item Batch Editor — Import Choice Field Validation (2026-05-25)
+
+**Problem:** `fuzzy_match_choice` import (access level, resource type, condition, etc.) used `parseSelectChoice` silent pass-through on unknown labels. Import then called `validate-field`, which accepts any string on `item_access_level` (`CharField`, no choice enforcement) — invalid values showed **valid** until user edited the cell.
+
+**Design:** Parser is authority for choice columns on import (same tier as live edit client rules). Unrecognized non-empty values → parser error, red cell, raw text preserved for correction. Backend `validate-field` must not run after parser error (including merge/update rows).
+
+**Implementation:**
+- `itemImportValueParsers.ts` — `parseSelectChoice` returns `errors: ["…" is not a valid choice]` when fuzzy/exact/label match all fail
+- `itemImportTransformer.ts` — wire `choiceResult.errors` into `validationNeeded`; `queueValidationForChanges` skips fields with parser errors (aligned with existing `queueFullValidation`)
+
+**Scope:** All Item import columns using `parser: 'fuzzy_match_choice'` (access level, resource type, type of accession, availability, condition, original format medium).
+
+**Verify:** Import row with access level `"5"` or typo → red cell, save blocked; valid label or `"1"` still imports.
 
 ### Item Batch Editor — List Handoff Row Order (2026-05-25)
 
@@ -117,7 +131,7 @@ Expected: Simpler than Item (likely fewer complex fields)
 - `InternalItemViewSet.validate_field` — catalog uniqueness uses `draft-` prefix (aligned with Collaborator/Languoid and `save-batch`), not stale `new-`
 - `docs/system-behavior/batch-editor/validation.md` — editor comparison table, import diagram, draft-row notes updated
 
-**Next on Item batch editor:** Column-specific import parser fixes per user feedback (collaborators, languages, titles, choices, etc.) — see Tech Debt / open gaps below.
+**Next on Item batch editor:** Column-specific import parser fixes per user feedback (collaborators, languages, titles, etc.) — see Tech Debt / open gaps below. Choice/select import (`fuzzy_match_choice`) fixed 2026-05-25.
 
 ### Batch Editor Validation Documentation (2026-05-24)
 
@@ -346,6 +360,7 @@ Expected: Simpler than Item (likely fewer complex fields)
 - **Import file duplicate catalog #:** Last file row wins → one grid row; dialog warns with superseded file row numbers — not an error, not two rows.
 - **Grid catalog uniqueness:** First grid row with a catalog # wins; shared logic in `catalogUniqueness.ts` (live edit, paste post-pass).
 - **Item.collection is not a batch field:** Export may include Collection abbr; import must `skipImport` — FK from `catalog_number` on `pre_save` only, not `validate-field` or spreadsheet cells.
+- **Import choice fields (`fuzzy_match_choice`):** `parseSelectChoice` must error on unknown labels — do not rely on `validate-field` for choice enforcement (serializer uses plain `CharField`). `queueValidationForChanges` must skip backend when parser already failed.
 - UUID + timestamp hybrid works best for export IDs
 
 ### Performance Baselines
@@ -357,7 +372,7 @@ Expected: Simpler than Item (likely fewer complex fields)
 ## Tech Debt (Not Blocking)
 
 **Item batch editor import (known gaps, user feedback in progress):**
-- Parser edge cases: ambiguous collaborator names dropped (not `id: null` preserved); languoid name lookup case-sensitive / no uniqueness check; `parseSelectChoice` silent pass-through on unknown labels; title parentheses parsing; collaborator comma splitting
+- Parser edge cases: ambiguous collaborator names dropped (not `id: null` preserved); languoid name lookup case-sensitive / no uniqueness check; title parentheses parsing; collaborator comma splitting
 - Live edit: lat/lng range not checked client-side (import/save backend does); see `validation.md` § Optional enhancements
 
 - Celery: Hard restarts sometimes needed on macOS (pkill -9)
@@ -552,6 +567,11 @@ Row order follows **context**, not one global rule.
 **Trade-off accepted:** Item handoff uses catalog sort; Collaborator/Languoid unchanged until ported.
 
 ## Files Recently Modified
+
+**Item import choice validation (2026-05-25):**
+- `frontend/src/services/itemImportValueParsers.ts` - `parseSelectChoice` errors on unrecognized values
+- `frontend/src/services/itemImportTransformer.ts` - Wire choice parser errors; `queueValidationForChanges` skips parser-failed fields
+- `docs/system-behavior/batch-editor/validation.md` - Import choice validation note
 
 **Item batch list handoff row order (2026-05-25):**
 - `frontend/src/utils/itemBatchOrder.ts` - Sort item IDs by catalog # for batch config

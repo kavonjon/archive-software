@@ -202,6 +202,8 @@ flowchart TD
 
 **Invalid data preservation (Item):** Parsers return `id: null` for unknown collaborators/languoids; cells stay red until user fixes in custom editor. See `parseCollaboratorsWithRoles`, `parseCommaSeparatedLanguoids` in `itemImportValueParsers.ts`.
 
+**Item import choice fields (`fuzzy_match_choice`, 2026-05-25):** `parseSelectChoice` errors when value/label/fuzzy match all fail — raw text preserved, cell invalid, save blocked. Covers access level and other select columns in `itemImportColumnMapper.ts`. Backend `validate-field` does **not** enforce Django choices on `item_access_level` (plain `CharField` in serializer) — parser is the import authority. `queueValidationForChanges` must skip `validate-field` when a parser error already exists (same as `queueFullValidation` for new draft rows) so merge/update imports cannot overwrite invalid with valid.
+
 **Item import draft rows:** Rows not yet in the DB use `id: draft-{uuid}`. Import validates **field values** via parsers + `validate-field` (same skip list as existing rows). Catalog uniqueness checks the DB without excluding a row id. This is separate from **live edit** blank drafts (`hasChanges: false`), where required-field errors are deferred until the user edits.
 
 **Item import — duplicate catalog in file:** If the same catalog number appears on multiple file rows, `itemImportTransformer` resolves to **one grid row** (last file row wins). A dialog lists superseded file row numbers. This is not a save blocker.

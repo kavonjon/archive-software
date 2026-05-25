@@ -142,11 +142,17 @@ export const transformItemImportData = async (
       changes: Record<string, { value: any; text: string }>
     ) => {
       Object.keys(changes).forEach((fieldName) => {
-        validationNeeded.push({
-          rowId,
-          fieldName,
-          value: changes[fieldName].value,
-        });
+        const hasParserError = validationNeeded.some(
+          (entry) => entry.rowId === rowId && entry.fieldName === fieldName && entry.error
+        );
+
+        if (!hasParserError) {
+          validationNeeded.push({
+            rowId,
+            fieldName,
+            value: changes[fieldName].value,
+          });
+        }
       });
     };
 
@@ -286,6 +292,7 @@ const parseCellValues = async (
         const choiceResult = parseSelectChoice(rawValue, colInfo.config.choices || []);
         value = choiceResult.value;
         text = choiceResult.text;
+        errors = choiceResult.errors;
         break;
         
       case 'comma_separated_languoids':

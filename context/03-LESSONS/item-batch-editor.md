@@ -152,6 +152,18 @@ const skipValidationFields = [
 
 **Anti-pattern:** Resorting in `ItemBatchEditor` on every `loadItems` — breaks import-at-bottom and F5 session shape. **Anti-pattern:** Assuming checkbox persistence order equals list table order.
 
+### 5f. Import Choice Fields — Parser Authority (2026-05-25)
+
+**Problem:** `parseSelectChoice` returned unrecognized import text unchanged. Import then ran `validate-field`, which accepts any string on choice model fields serialized as plain `CharField` — cell showed valid until user edited.
+
+**Rule:** For `parser: 'fuzzy_match_choice'` columns, parser match failure → `validationNeeded` error (`"…" is not a valid choice`), raw value kept in cell. Backend `validate-field` skipped when parser error exists — for **both** new draft rows (`queueFullValidation`) and merge/update rows (`queueValidationForChanges`).
+
+**Columns affected:** `item_access_level`, `resource_type`, `type_of_accession`, `availability_status`, `condition`, `original_format_medium` (all in `itemImportColumnMapper.ts`).
+
+**Live edit unchanged:** Dropdown + paste still use `handleCellChange` choice list check; no `validate-field` on live edit for these fields.
+
+**Anti-pattern:** Silent pass-through in `parseSelectChoice` on unknown labels. **Anti-pattern:** Assuming `validate-field` enforces `ACCESS_CHOICES` on import.
+
 ### 6. New Rows Must Update sessionStorage Config
 
 **What Happened**: New rows disappeared on browser refresh (F5)

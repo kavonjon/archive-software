@@ -18,6 +18,8 @@ Tiered validation is **by design**, not tech debt: fast client feedback on live 
 
 **Item import draft rows (`draft-{uuid}`):** Same validation loop as existing rows — parser errors → invalid; skip list → valid if parser OK; else `POST …/items/validate-field/` with `original_value` when re-importing. Catalog # already in DB → transformer loads item (CASE 2), not duplicate error. **Not** the same as live-edit blank Add row (`hasChanges: false`, defer required errors). Item leads this pattern; other editors unchanged until ported.
 
+**Item import choice fields (`fuzzy_match_choice`, 2026-05-25):** `parseSelectChoice` in `itemImportValueParsers.ts` errors on unrecognized labels (raw value preserved). Applies to access level, resource type, and other select columns in `itemImportColumnMapper.ts`. Do not rely on `validate-field` for choice enforcement — Item serializer uses plain `CharField` for `item_access_level`. Both `queueFullValidation` and `queueValidationForChanges` must skip backend when parser error exists for that field.
+
 **Draft row ID convention:** Always `draft-{uuid}` (see `spreadsheet.ts`, `save-batch`). Never `new-` — Item `validate_field` catalog check aligned 2026-05-25.
 
 **Item catalog # uniqueness (`catalogUniqueness.ts`):** Import file duplicate rows → last file row wins, one grid row, dialog lists superseded file rows (`fileCatalogDuplicates` on `ImportResult`). Grid (live edit, paste) → first grid row wins; later rows invalid. Live single-cell paste uses `handleCellChange`; multi-cell paste uses post-pass in `handleBatchCellChange`. Import `validate-field` for catalog still DB-only on drafts; grid dupes prevented client-side before save.

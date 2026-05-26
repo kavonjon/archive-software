@@ -28,6 +28,8 @@ import {
   areCellValuesEqual,
   parseCollaboratorsWithRoles,
   parseTitleWithLanguage,
+  formatTitleWithLanguageDisplay,
+  normalizeTitleWithLanguageValue,
 } from './itemImportValueParsers';
 import { v4 as uuidv4 } from 'uuid';
 import { normalizeCatalogNumber } from './catalogUniqueness';
@@ -656,11 +658,14 @@ const itemToSpreadsheetRow = (item: Item): SpreadsheetRow => {
   };
   
   Object.keys(fieldTypeMap).forEach(fieldName => {
-    const value = (item as any)[fieldName];
+    let value = (item as any)[fieldName];
     let displayValue = value?.toString() || '';
     
-    // Handle boolean fields
-    if (fieldTypeMap[fieldName] === 'boolean') {
+    // Handle title fields — must match ItemBatchEditor.itemToRow (not value.toString())
+    if (fieldName === 'primary_title' || fieldName === 'secondary_title') {
+      value = normalizeTitleWithLanguageValue(value);
+      displayValue = formatTitleWithLanguageDisplay(value);
+    } else if (fieldTypeMap[fieldName] === 'boolean') {
       if (value === null || value === undefined) {
         displayValue = 'Not specified';
       } else {
@@ -682,13 +687,20 @@ const itemToSpreadsheetRow = (item: Item): SpreadsheetRow => {
     if (fieldName === 'collaborators' && Array.isArray(value)) {
       displayValue = value.map((collab: any) => collab.name).join(', ');
     }
+
+    const emptyArrayDefault =
+      fieldTypeMap[fieldName] === 'multiselect' || fieldTypeMap[fieldName] === 'collaborator_roles';
+    const cellValue =
+      fieldName === 'primary_title' || fieldName === 'secondary_title'
+        ? value
+        : value ?? (emptyArrayDefault ? [] : '');
     
     cells[fieldName] = {
       text: displayValue,
-      value: value ?? (Array.isArray(value) ? [] : ''),
+      value: cellValue,
       type: fieldTypeMap[fieldName],
       isEdited: false,
-      originalValue: value ?? (Array.isArray(value) ? [] : ''),
+      originalValue: cellValue,
       validationState: 'valid',
       hasConflict: false,
       fieldName: fieldName,

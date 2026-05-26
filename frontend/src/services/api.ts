@@ -32,8 +32,9 @@ export interface Item {
   accession_date_max: string | null;
   additional_digital_file_location: string;
   
-  // Titles
-  primary_title: string;
+  // Titles (batch API: TitleWithLanguage object; detail list may use plain string)
+  primary_title: TitleWithLanguage | string | null;
+  secondary_title?: TitleWithLanguage | null;
   titles: ItemTitle[];
   indigenous_title: string;
   english_title: string;
@@ -161,6 +162,16 @@ export interface ItemTitle {
   language_name: string;  // Language name for display
   language_iso: string;   // Language ISO code for display
   default: boolean;
+}
+
+/** Batch editor / batch API shape for primary_title and secondary_title */
+export interface TitleWithLanguage {
+  title: string;
+  language: {
+    id: number;
+    name: string;
+    glottocode: string;
+  } | null;
 }
 
 export interface CollaboratorRole {

@@ -1,6 +1,6 @@
 # Batch Editor Validation
 
-**Last verified:** 2026-05-25 (Item import: duplicate catalog in file; grid catalog uniqueness on paste)
+**Last verified:** 2026-05-25 (Item import: title column reconciliation; duplicate catalog in file; grid catalog uniqueness on paste)
 
 **Audience:** Developers maintaining or extending batch editors
 
@@ -212,6 +212,8 @@ flowchart TD
 
 **Item `collection` (export column only):** The batch grid has no Collection column. Export includes Collection abbr for reporting; import maps that header so it is not "unrecognized" but **`skipImport`** omits it from `parsedCells`, `validationNeeded`, and `validate-field`. `Item.collection` FK is set in Django `pre_save` from the `catalog_number` prefix (`ABC-###` → `collection_abbr`), with graceful `None` if no match.
 
+**Item import title columns (2026-05-25):** Default Title and First Additional Title use `title_with_language` cell type. Parser: `parseTitleWithLanguage` on non-empty cells; empty → `null`. Backend skipped on import. **Reconciliation bug fixed:** `itemToSpreadsheetRow` must match `ItemBatchEditor.itemToRow` — never `.toString()` on title objects (caused `[object Object]` display); empty additional title must be `null` not `''` (caused false modified on blank file cells). Helpers: `normalizeTitleWithLanguageValue`, `formatTitleWithLanguageDisplay`, `isEmptyTitleWithLanguageValue` in `itemImportValueParsers.ts`. Batch grid edits two title slots only; export may include more additional-title columns (intentional compromise).
+
 **Backend `validate_field` (all models):**
 
 - Endpoint: `POST /internal/v1/{items|collaborators|languoids}/validate-field/`
@@ -303,6 +305,7 @@ When changing validation behavior, update in the same PR:
 | `ItemBatchEditor` `handleCellChange` / `validateField` | [Item live edit](#item-live-edit) |
 | `useImportItemSpreadsheet` skip list | [Editor comparison](#editor-comparison), [Import](#import) |
 | `itemImportColumnMapper` `skipImport` (e.g. `collection`) | [Import](#import), [Editor comparison](#editor-comparison) |
+| `itemToSpreadsheetRow` / title helpers in `itemImportValueParsers.ts` | [Import](#import) (title columns note) |
 | `InternalItemViewSet.validate_field` | [Backend API reference](#backend-api-reference) |
 | New cell type in `CellEditor` | [Shared model](#shared-model) + model section if special rules |
 | `save_batch` conflict logic | [Save](#save) |

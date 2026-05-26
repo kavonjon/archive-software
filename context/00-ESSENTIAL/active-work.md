@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-05-25 (Item import: choice field validation)
+**Last Updated**: 2026-05-25 (Item import: title column reconciliation)
 
 ## Current Priority
 
@@ -50,6 +50,24 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Item Batch Editor — Import Title Column Reconciliation (2026-05-25)
+
+**Problem (user-reported, reproduced):** Re-importing export files showed Default Title as `[object Object]` and marked empty First Additional Title as modified when DB had only a primary title.
+
+**Root cause (not `parseTitleWithLanguage`):** `itemToSpreadsheetRow` in `itemImportTransformer.ts` diverged from `ItemBatchEditor.itemToRow` — used `value.toString()` on batch API `TitleWithLanguage` objects for display, and stored empty additional titles as `''` instead of `null`. Import comparison then saw `''` vs parsed empty `null` as a change.
+
+**Design (unchanged):** Batch grid exposes **two** title slots only (`primary_title` = default ItemTitle, `secondary_title` = first non-default). Export may emit up to 10 additional title columns; only First Additional maps to batch import. More than two titles in DB is rare; detail page (`EditableTitlesList`) remains full CRUD.
+
+**Fix:**
+- `itemImportValueParsers.ts` — shared `normalizeTitleWithLanguageValue`, `formatTitleWithLanguageDisplay`, `isEmptyTitleWithLanguageValue`, `formatPrimaryTitleDisplay`; `areCellValuesEqual` treats empty title sentinels (`null`, `undefined`, `''`) as equivalent
+- `itemImportTransformer.ts` — `itemToSpreadsheetRow` uses same title formatting/normalization as batch editor
+- `api.ts` — `TitleWithLanguage` type; `Item.primary_title` / `secondary_title` typed for batch API shape
+- `ItemDetail.tsx` — `formatPrimaryTitleDisplay` for header/delete dialog
+
+**Verify:** Re-import export with Default Title populated and First Additional Title blank → readable title text, additional title not yellow/modified.
+
+**Still open (parser, not reconciliation):** `parseTitleWithLanguage` edge cases — parentheses in title text, case-sensitive language name lookup, ambiguous language names (see Tech Debt).
 
 ### Item Batch Editor — Import Choice Field Validation (2026-05-25)
 
@@ -131,7 +149,7 @@ Expected: Simpler than Item (likely fewer complex fields)
 - `InternalItemViewSet.validate_field` — catalog uniqueness uses `draft-` prefix (aligned with Collaborator/Languoid and `save-batch`), not stale `new-`
 - `docs/system-behavior/batch-editor/validation.md` — editor comparison table, import diagram, draft-row notes updated
 
-**Next on Item batch editor:** Column-specific import parser fixes per user feedback (collaborators, languages, titles, etc.) — see Tech Debt / open gaps below. Choice/select import (`fuzzy_match_choice`) fixed 2026-05-25.
+**Next on Item batch editor:** Column-specific import parser fixes per user feedback (collaborators, languages, title parentheses/language lookup, etc.) — see Tech Debt / open gaps below. Choice/select import (`fuzzy_match_choice`) and title import reconciliation fixed 2026-05-25.
 
 ### Batch Editor Validation Documentation (2026-05-24)
 
@@ -361,6 +379,8 @@ Expected: Simpler than Item (likely fewer complex fields)
 - **Grid catalog uniqueness:** First grid row with a catalog # wins; shared logic in `catalogUniqueness.ts` (live edit, paste post-pass).
 - **Item.collection is not a batch field:** Export may include Collection abbr; import must `skipImport` — FK from `catalog_number` on `pre_save` only, not `validate-field` or spreadsheet cells.
 - **Import choice fields (`fuzzy_match_choice`):** `parseSelectChoice` must error on unknown labels — do not rely on `validate-field` for choice enforcement (serializer uses plain `CharField`). `queueValidationForChanges` must skip backend when parser already failed.
+- **Import title reconciliation:** `itemToSpreadsheetRow` must match `ItemBatchEditor.itemToRow` for `primary_title` / `secondary_title` — never `value.toString()` on title objects; empty titles are `null` not `''`. Shared helpers in `itemImportValueParsers.ts`. Grid shows `cell.text`, not raw object.
+- **Batch title columns (intentional):** Two editable slots only; export may have more additional-title columns; detail page manages all ItemTitle rows.
 - UUID + timestamp hybrid works best for export IDs
 
 ### Performance Baselines
@@ -372,7 +392,7 @@ Expected: Simpler than Item (likely fewer complex fields)
 ## Tech Debt (Not Blocking)
 
 **Item batch editor import (known gaps, user feedback in progress):**
-- Parser edge cases: ambiguous collaborator names dropped (not `id: null` preserved); languoid name lookup case-sensitive / no uniqueness check; title parentheses parsing; collaborator comma splitting
+- Parser edge cases: ambiguous collaborator names dropped (not `id: null` preserved); languoid name lookup case-sensitive / no uniqueness check; **title import parser** — parentheses in title text, case-sensitive language name lookup, ambiguous language names (`parseTitleWithLanguage`; reconciliation/display fixed 2026-05-25); collaborator comma splitting
 - Live edit: lat/lng range not checked client-side (import/save backend does); see `validation.md` § Optional enhancements
 
 - Celery: Hard restarts sometimes needed on macOS (pkill -9)
@@ -566,7 +586,28 @@ Row order follows **context**, not one global rule.
 
 **Trade-off accepted:** Item handoff uses catalog sort; Collaborator/Languoid unchanged until ported.
 
+### Item Import Title Reconciliation (2026-05-25)
+
+`itemToSpreadsheetRow` (DB cache match on import) must produce the same cell `text`/`value`/`originalValue` as `ItemBatchEditor.itemToRow` for `title_with_language` columns.
+
+**Why?** Batch API returns `primary_title` / `secondary_title` as `{ title, language }` objects. Grid displays `cell.text`. Generic `.toString()` yields `[object Object]`. Empty additional title must be `null` so import empty cells (`null`) do not false-positive as changes against legacy `''`.
+
+**Alternatives considered:**
+- Fix display only in grid renderer: Rejected — import comparison and `originalValue` still wrong
+- Map export's 2nd–10th additional title columns into batch grid: Rejected — deliberate two-column compromise; rare data
+
+**Trade-off accepted:** Re-import ignores export columns beyond First Additional Title; detail page for full title CRUD.
+
 ## Files Recently Modified
+
+**Item import title reconciliation (2026-05-25):**
+- `frontend/src/services/itemImportValueParsers.ts` - Title normalize/format helpers; empty-title equivalence in `areCellValuesEqual`
+- `frontend/src/services/itemImportTransformer.ts` - `itemToSpreadsheetRow` title handling aligned with batch editor
+- `frontend/src/services/api.ts` - `TitleWithLanguage` type; Item title field types
+- `frontend/src/components/items/ItemDetail.tsx` - `formatPrimaryTitleDisplay`
+- `docs/system-behavior/batch-editor/validation.md` - Import title reconciliation note
+- `context/` - active-work, batch-editors, item-batch-editor §5g, README version history
+
 
 **Item import choice validation (2026-05-25):**
 - `frontend/src/services/itemImportValueParsers.ts` - `parseSelectChoice` errors on unrecognized values

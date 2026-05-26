@@ -164,6 +164,31 @@ const skipValidationFields = [
 
 **Anti-pattern:** Silent pass-through in `parseSelectChoice` on unknown labels. **Anti-pattern:** Assuming `validate-field` enforces `ACCESS_CHOICES` on import.
 
+### 5g. Import Title Column Reconciliation (2026-05-25)
+
+**User-reported bug:** Re-import showed Default Title as `[object Object]`; empty First Additional Title marked modified when DB had only primary title.
+
+**Two-column batch design (intentional, unchanged):** Grid edits `primary_title` (default ItemTitle) and `secondary_title` (first non-default by PK). Export may include up to 10 additional title columns; import maps only **First Additional Title** → `secondary_title`. Full title CRUD on item detail page.
+
+**Root cause:** `itemToSpreadsheetRow` in `itemImportTransformer.ts` did not match `ItemBatchEditor.itemToRow`:
+- Used `value.toString()` on `{ title, language }` objects → `[object Object]` in `cell.text`
+- Empty `secondary_title` stored as `''`; import empty cell parsed as `null` → false change in `getChangedCells`
+
+**Fix — shared helpers in `itemImportValueParsers.ts`:**
+- `normalizeTitleWithLanguageValue`, `formatTitleWithLanguageDisplay`, `isEmptyTitleWithLanguageValue`
+- `areCellValuesEqual` — empty title sentinels equivalent
+- `formatPrimaryTitleDisplay` — detail API string vs batch object
+
+**Import pipeline for titles (for debugging):**
+1. Column mapper: `default title` / `title` → `primary_title`; `first additional title` → `secondary_title`
+2. Empty file cell → `{ value: null, text: '' }`
+3. Non-empty → `parseTitleWithLanguage` (regex + language name cache lookup); backend `validate-field` **skipped**
+4. DB match (CASE 2) → `itemToSpreadsheetRow` → `getChangedCells` vs parsed cells
+
+**Anti-pattern:** Duplicating row-building logic in import transformer without matching batch editor title branches. **Anti-pattern:** Using `''` for empty title cells when batch editor uses `null`.
+
+**Still open:** `parseTitleWithLanguage` — parentheses in title text, case-sensitive language lookup, ambiguous names (see Tech Debt in `active-work.md`).
+
 ### 6. New Rows Must Update sessionStorage Config
 
 **What Happened**: New rows disappeared on browser refresh (F5)

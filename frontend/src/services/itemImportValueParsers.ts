@@ -4,7 +4,7 @@
  * Utilities for parsing and transforming raw spreadsheet values into batch editor values.
  */
 
-import { Languoid } from './api';
+import { Languoid, TitleWithLanguage } from './api';
 
 /**
  * Item cache lookup interface
@@ -464,11 +464,73 @@ export const parseTitleWithLanguage = async (
 };
 
 /**
+ * True when a title_with_language cell value is empty (null, undefined, '', or no title text).
+ */
+export const isEmptyTitleWithLanguageValue = (value: unknown): boolean => {
+  if (value == null || value === '') return true;
+  if (typeof value === 'object' && value !== null && 'title' in value) {
+    const titleText = (value as TitleWithLanguage).title;
+    return titleText == null || String(titleText).trim() === '';
+  }
+  return false;
+};
+
+/**
+ * Normalize batch title values for grid cells and import comparison.
+ */
+export const normalizeTitleWithLanguageValue = (
+  value: unknown
+): TitleWithLanguage | null => {
+  if (isEmptyTitleWithLanguageValue(value)) return null;
+  if (typeof value === 'object' && value !== null && 'title' in value) {
+    const v = value as TitleWithLanguage;
+    return {
+      title: v.title,
+      language: v.language ?? null,
+    };
+  }
+  return null;
+};
+
+/**
+ * Display text for title_with_language cells — matches ItemBatchEditor.itemToRow.
+ */
+export const formatTitleWithLanguageDisplay = (value: unknown): string => {
+  const normalized = normalizeTitleWithLanguageValue(value);
+  if (!normalized) return '';
+  const langName = normalized.language?.name || '';
+  return langName ? `${normalized.title} (${langName})` : normalized.title;
+};
+
+/** Detail API may return plain string; batch API returns TitleWithLanguage object */
+export const formatPrimaryTitleDisplay = (
+  value: TitleWithLanguage | string | null | undefined
+): string => {
+  if (value == null || value === '') return '';
+  if (typeof value === 'string') return value;
+  return formatTitleWithLanguageDisplay(value);
+};
+
+/**
  * Compare two cell values for equality
  * Handles arrays (order-insensitive), objects, and primitives
  */
 export const areCellValuesEqual = (a: any, b: any): boolean => {
-  // Both null/undefined
+  // Empty title_with_language: null, undefined, '', and legacy '' from import row builder
+  if (isEmptyTitleWithLanguageValue(a) || isEmptyTitleWithLanguageValue(b)) {
+    return isEmptyTitleWithLanguageValue(a) && isEmptyTitleWithLanguageValue(b);
+  }
+
+  const titleA = normalizeTitleWithLanguageValue(a);
+  const titleB = normalizeTitleWithLanguageValue(b);
+  if (titleA && titleB) {
+    if (titleA.title !== titleB.title) return false;
+    if (titleA.language == null && titleB.language == null) return true;
+    if (titleA.language == null || titleB.language == null) return false;
+    return titleA.language.id === titleB.language.id;
+  }
+
+  // Both null/undefined (non-title fields)
   if (a == null && b == null) return true;
   
   // One is null, other is not
@@ -489,20 +551,6 @@ export const areCellValuesEqual = (a: any, b: any): boolean => {
     const aSorted = [...a].sort();
     const bSorted = [...b].sort();
     return JSON.stringify(aSorted) === JSON.stringify(bSorted);
-  }
-  
-  // Title object comparison (special case for ItemTitle fields)
-  // Format: { title: string, language: { id, name, glottocode } | null }
-  if (typeof a === 'object' && typeof b === 'object' && 'title' in a && 'title' in b) {
-    // Compare title text
-    if (a.title !== b.title) return false;
-    
-    // Compare language
-    if (a.language == null && b.language == null) return true;
-    if (a.language == null || b.language == null) return false;
-    
-    // Both have language - compare by ID
-    return a.language.id === b.language.id;
   }
   
   // Object comparison (by id if available)

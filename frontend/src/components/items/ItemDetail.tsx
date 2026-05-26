@@ -33,6 +33,7 @@ import {
   Cancel as CancelIcon,
 } from '@mui/icons-material';
 import { itemsAPI, itemCollaboratorRolesAPI, type Item, type CollaboratorRole, type CollaboratorRoleMutationData } from '../../services/api';
+import { formatPrimaryTitleDisplay } from '../../services/itemImportValueParsers';
 import { 
   DateInterpretationFeedback,
   EditableTextField,
@@ -594,7 +595,7 @@ const ItemDetail: React.FC<ItemDetailProps> = ({
                   fontSize: { xs: '1.5rem', md: '2.125rem' }
                 }}
               >
-                {item.primary_title || item.catalog_number}
+                {formatPrimaryTitleDisplay(item.primary_title) || item.catalog_number}
               </Typography>
               <Box sx={{ mt: 1 }}>
                 <Box>
@@ -1646,7 +1647,7 @@ const ItemDetail: React.FC<ItemDetailProps> = ({
               Catalog Number: {item?.catalog_number}
             </Typography>
             <Typography variant="body2">
-              Title: {item?.primary_title || 'No title'}
+              Title: {formatPrimaryTitleDisplay(item?.primary_title) || 'No title'}
             </Typography>
           </Box>
           <Typography variant="body1" sx={{ mb: 2, color: 'error.main', fontWeight: 'medium' }}>

@@ -343,6 +343,13 @@ def can_resolve_hostname(hostname):
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 
+COLLECTION_AGGREGATE_TASK_ROUTES = {
+    'metadata.tasks.update_collection_aggregates': {'queue': 'maintenance'},
+    'metadata.tasks.flush_collection_aggregate_updates': {'queue': 'maintenance'},
+    'metadata.tasks.update_collection_item_counts': {'queue': 'maintenance'},
+    'metadata.tasks.update_collection_date_ranges': {'queue': 'maintenance'},
+}
+
 # For private server, also keep track of public Redis for communication
 if SERVER_ROLE == 'private':
     PUBLIC_REDIS_URL = os.environ.get('PUBLIC_REDIS_URL', '')
@@ -353,6 +360,7 @@ HOST_STORAGE_BASE = os.environ.get('HOST_STORAGE_PATH', BASE_DIR)
 # File storage paths based on server role
 if SERVER_ROLE == 'public':
     CELERY_TASK_ROUTES = {
+        **COLLECTION_AGGREGATE_TASK_ROUTES,
         'metadata.tasks.*': {'queue': 'public'},
         'common.tasks.*': {'queue': 'common'},
     }
@@ -367,6 +375,7 @@ if SERVER_ROLE == 'public':
     SEQUESTERED_OUTGOING_PATH = os.path.join(PUBLIC_STORAGE_PATH, '..', 'sequestered_outgoing')
 else:  # private server
     CELERY_TASK_ROUTES = {
+        **COLLECTION_AGGREGATE_TASK_ROUTES,
         'metadata.tasks.*': {'queue': 'private'},
         'common.tasks.*': {'queue': 'common'},
     }
@@ -381,34 +390,62 @@ else:  # private server
     SEQUESTERED_OUTGOING_PATH = os.path.join(MAIN_STORAGE_PATH, '..', 'sequestered_outgoing')
 
 CELERY_BEAT_SCHEDULE = {
-    'update-collection-item-counts': {
-        'task': 'metadata.tasks.update_collection_item_counts',
-        'schedule': crontab(hour=2, minute=0),  # Run at 2 AM every day
+    'update-collection-aggregates': {
+        'task': 'metadata.tasks.update_collection_aggregates',
+        'schedule': crontab(hour=2, minute=30),
+        'options': {
+            'priority': 1,
+            'queue': 'maintenance',
+        },
+    },
+    'update-item-date-ranges': {
+        'task': 'metadata.tasks.update_item_date_ranges',
+        'schedule': crontab(hour=2, minute=15),
+    },
+    'check-pending-transcriptions': {
+        'task': 'transcription.tasks.check_pending_transcriptions',
+        'schedule': crontab(minute='*/15'),
+    },
+    'sync-remote-files': {
+        'task': 'metadata.tasks.sync_remote_files',
+        'schedule': crontab(hour=3, minute=0),
+    },
+    'update-search-index': {
+        'task': 'search.tasks.update_search_index',
+        'schedule': crontab(hour=4, minute=0),
+    },
+    'cleanup-expired-sessions': {
+        'task': 'accounts.tasks.cleanup_expired_sessions',
+        'schedule': crontab(hour=1, minute=0, day_of_week=1),
+    },
+    'backup-database': {
+        'task': 'archive.tasks.backup_database',
+        'schedule': crontab(hour=3, minute=0),
     },
     'cleanup-temp-files': {
         'task': 'metadata.tasks.cleanup_temp_files',
-        'schedule': crontab(hour='*/6', minute=0),  # Run every 6 hours
+        'schedule': crontab(hour='*/6', minute=0),
     },
     'warm-languoid-list-cache': {
         'task': 'metadata.tasks.warm_languoid_list_cache',
-        'schedule': crontab(minute='*/9'),  # Run every 9 minutes
+        'schedule': crontab(minute='*/9'),
         'options': {
-            'priority': 5,  # Medium priority - background maintenance
-        }
+            'priority': 5,
+        },
     },
     'warm-collaborator-list-cache': {
         'task': 'metadata.tasks.warm_collaborator_list_cache',
-        'schedule': crontab(minute='*/9'),  # Run every 9 minutes
+        'schedule': crontab(minute='*/9'),
         'options': {
-            'priority': 5,  # Medium priority - background maintenance
-        }
+            'priority': 5,
+        },
     },
     'warm-item-list-cache': {
         'task': 'metadata.tasks.warm_item_list_cache',
-        'schedule': crontab(minute='*/9'),  # Run every 9 minutes
+        'schedule': crontab(minute='*/9'),
         'options': {
-            'priority': 5,  # Medium priority - background maintenance
-        }
+            'priority': 5,
+        },
     },
 }
 

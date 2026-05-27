@@ -1,7 +1,6 @@
 from django.db.models.signals import post_save, post_delete, pre_save, m2m_changed
 from django.dispatch import receiver
 from .models import Languoid, Item, Collaborator, CollaboratorRole, LANGUAGE_DESCRIPTION_CHOICES
-from .tasks import update_collection_date_ranges
 from .utils import parse_standardized_date
 import logging
 import base58
@@ -96,8 +95,10 @@ def update_item_date_ranges(sender, instance, **kwargs):
     # Get the existing instance from the database if it exists
     try:
         old_instance = Item.objects.get(pk=instance.pk)
+        instance._previous_collection_id = old_instance.collection_id
     except Item.DoesNotExist:
         old_instance = None
+        instance._previous_collection_id = None
 
     # Process each date field
     for text_field, (min_field, max_field) in date_field_pairs.items():
@@ -282,42 +283,25 @@ def update_item_date_ranges(sender, instance, **kwargs):
     # If pattern doesn't match, leave collection unchanged (don't modify it)
 
 @receiver([post_save, post_delete], sender=Item)
-def update_collection_dates_on_item_change(sender, instance, **kwargs):
-    """
-    When an item is saved or deleted, update the date ranges for its collection
-    """
-    import logging
-    import time
-    from django.core.cache import cache
-    
-    logger = logging.getLogger(__name__)
-    
-    # Get the collection from the instance if it exists
-    collection = getattr(instance, 'collection', None)
-    
-    if collection:
-        # Use cache to prevent multiple simultaneous updates
-        cache_key = f"updating_collection_{collection.pk}"
-        
-        # If a task was already scheduled in the last 5 seconds, skip
-        if cache.get(cache_key):
-            logger.info(f"Skipping redundant collection date update for {collection.pk} (already in progress)")
-            return
-            
-        # Set the cache to prevent duplicate tasks
-        cache.set(cache_key, True, timeout=5)
-        
-        # Schedule the task to run asynchronously with retry handling
-        try:
-            from django.conf import settings
-            from .tasks import update_collection_date_ranges
-            
-            update_collection_date_ranges.delay()
-            logger.info(f"Scheduled update for collection {collection.pk}")
-        except Exception as e:
-            logger.error(f"Failed to queue task update_collection_date_ranges: {e}")
-            # We can proceed without the Celery task, but log the error
-            cache.delete(cache_key)  # Clear the cache so future attempts can happen
+def schedule_collection_aggregates_on_item_change(sender, instance, **kwargs):
+    """Queue coalesced collection aggregate updates when items change."""
+    if getattr(instance, '_skip_async_tasks', False):
+        return
+
+    from metadata.services.collection_aggregate_scheduling import (
+        schedule_collection_aggregate_updates,
+    )
+
+    collection_ids = set()
+    if instance.collection_id:
+        collection_ids.add(instance.collection_id)
+
+    previous_collection_id = getattr(instance, '_previous_collection_id', None)
+    if previous_collection_id:
+        collection_ids.add(previous_collection_id)
+
+    if collection_ids:
+        schedule_collection_aggregate_updates(collection_ids)
 
 @receiver(post_save, sender=CollaboratorRole)
 def set_citation_author_for_roles(sender, instance, created, **kwargs):
@@ -696,6 +680,22 @@ def auto_add_parent_language_for_item_dialects(sender, instance, action, pk_set,
             f"Item {instance.catalog_number} "
             f"field 'language': {list(missing_parent_ids)}"
         )
+
+
+@receiver(m2m_changed, sender=Item.language.through)
+def schedule_collection_aggregates_on_item_language_change(sender, instance, action, **kwargs):
+    if action not in ('post_add', 'post_remove', 'post_clear'):
+        return
+    if getattr(instance, '_skip_async_tasks', False):
+        return
+    if not instance.collection_id:
+        return
+
+    from metadata.services.collection_aggregate_scheduling import (
+        schedule_collection_aggregate_updates,
+    )
+
+    schedule_collection_aggregate_updates([instance.collection_id])
 
 
 # ============================================================================

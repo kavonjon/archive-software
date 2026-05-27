@@ -73,98 +73,76 @@ def sync_public_files():
     # Example: Use rsync, sftp, or a custom API call to transfer files 
 
 @shared_task
-def update_collection_item_counts():
+def update_collection_aggregates(collection_ids=None):
     """
-    Update the item count for all collections
+    Recompute derived collection fields (counts, dates, access levels, genres, languages).
+
+    collection_ids: optional list of Collection PKs; when omitted, refreshes all collections.
     """
-    logger.info("Starting collection item count update")
-    collections = Collection.objects.all()
-    update_count = 0
-    
-    for collection in collections:
-        # Count items related to this collection
-        count = Item.objects.filter(collection=collection).count()
-        
-        # Only update if the count has changed
-        if collection.item_count != count:
-            collection.item_count = count
-            collection.save(update_fields=['item_count'])
-            update_count += 1
-    
-    logger.info(f"Updated item counts for {update_count} collections")
+    from metadata.services.collection_aggregates import refresh_collections
+
+    logger.info(
+        "Starting collection aggregate update%s",
+        f" for {len(collection_ids)} collections" if collection_ids else " for all collections",
+    )
+    update_count = refresh_collections(collection_ids)
+    logger.info("Updated aggregates for %s collections", update_count)
     return update_count
+
+
+@shared_task
+def flush_collection_aggregate_updates():
+    """
+    Flush coalesced pending collection aggregate updates after a quiet period.
+    Reschedules itself if new item edits extended the quiet window.
+    """
+    import time
+
+    from django.core.cache import cache
+
+    from metadata.services.collection_aggregate_scheduling import (
+        AGGREGATE_TASK_PRIORITY,
+        FLUSH_LOCK_KEY,
+        MAINTENANCE_QUEUE,
+        PENDING_KEY,
+        QUIET_UNTIL_KEY,
+    )
+
+    quiet_until = cache.get(QUIET_UNTIL_KEY)
+    if quiet_until and time.time() < quiet_until:
+        delay = max(1, quiet_until - time.time())
+        flush_collection_aggregate_updates.apply_async(
+            countdown=delay,
+            priority=AGGREGATE_TASK_PRIORITY,
+            queue=MAINTENANCE_QUEUE,
+        )
+        logger.info("Collection aggregate flush deferred for %.1fs (quiet window)", delay)
+        return 0
+
+    pending = cache.get(PENDING_KEY) or []
+    cache.delete(PENDING_KEY)
+    cache.delete(QUIET_UNTIL_KEY)
+    cache.delete(FLUSH_LOCK_KEY)
+
+    unique_ids = sorted({int(collection_id) for collection_id in pending if collection_id})
+    if not unique_ids:
+        return 0
+
+    from metadata.services.collection_aggregates import refresh_collections
+
+    return refresh_collections(unique_ids)
+
+
+@shared_task
+def update_collection_item_counts():
+    """Deprecated wrapper — use update_collection_aggregates."""
+    return update_collection_aggregates()
+
 
 @shared_task
 def update_collection_date_ranges():
-    """
-    Update the date range fields for all collections based on their items
-    """
-    logger.info("==== Collection Date Range Update Started ====")
-    collections = Collection.objects.all()
-    total_collections = collections.count()
-    update_count = 0
-    
-    for i, collection in enumerate(collections, 1):
-        # Get items for this collection
-        items = Item.objects.filter(collection=collection)
-        item_count = items.count()
-        
-        if item_count == 0:
-            logger.info(f"Collection {collection.collection_abbr} has no associated items")
-            continue
-            
-        logger.info(f"Processing collection: {collection.collection_abbr} with {item_count} items")
-        
-        # Find the earliest date (minimum of all item min dates)
-        collection_min_date = items.exclude(collection_date_min=None).aggregate(Min('collection_date_min'))['collection_date_min__min']
-        accession_min_date = items.exclude(accession_date_min=None).aggregate(Min('accession_date_min'))['accession_date_min__min']
-        
-        # Find the latest date (maximum of all item max dates)
-        collection_max_date = items.exclude(collection_date_max=None).aggregate(Max('collection_date_max'))['collection_date_max__max']
-        accession_max_date = items.exclude(accession_date_max=None).aggregate(Max('accession_date_max'))['accession_date_max__max']
-        
-        # Determine the overall min and max dates
-        min_date = collection_min_date if collection_min_date else accession_min_date
-        max_date = collection_max_date if collection_max_date else accession_max_date
-        
-        logger.info(f"Collection date values found:")
-        logger.info(f"  - Collection date min: {collection_min_date}")
-        logger.info(f"  - Collection date max: {collection_max_date}")
-        logger.info(f"  - Accession date min: {accession_min_date}")
-        logger.info(f"  - Accession date max: {accession_max_date}")
-        logger.info(f"  - Overall min date: {min_date}")
-        logger.info(f"  - Overall max date: {max_date}")
-        
-        # Format the date range text
-        date_range = format_date_range(min_date, max_date)
-        logger.info(f"  - Formatted date range: '{date_range}'")
-        
-        # Compare with existing values
-        if (collection.date_range_min != min_date or 
-            collection.date_range_max != max_date or 
-            collection.date_range != date_range):
-            
-            logger.info(f"Updating collection: {collection.collection_abbr} - {collection.name}")
-            if collection.date_range != date_range:
-                logger.info(f"  Date range changing from '{collection.date_range}' to '{date_range}'")
-            
-            # Only update if we actually have dates
-            if min_date is not None or max_date is not None:
-                collection.date_range_min = min_date
-                collection.date_range_max = max_date
-                collection.date_range = date_range
-                collection.save(update_fields=['date_range_min', 'date_range_max', 'date_range'])
-                update_count += 1
-            else:
-                logger.info(f"  Skipping update - no valid dates found")
-        
-        # Progress indicator
-        if i % 10 == 0:
-            logger.info(f"Progress: {i}/{total_collections} collections processed")
-    
-    logger.info(f"==== Collection Date Range Update Completed ====")
-    logger.info(f"Updated {update_count} of {total_collections} collections")
-    return update_count
+    """Deprecated wrapper — use update_collection_aggregates."""
+    return update_collection_aggregates()
 
 @shared_task
 def update_item_date_ranges():
@@ -239,53 +217,10 @@ def update_item_date_ranges():
     return update_count
 
 def format_date_range(min_date, max_date):
-    """
-    Format date range as YYYY/MM/DD-YYYY/MM/DD with appropriate simplifications
-    """
-    if min_date is None and max_date is None:
-        logger.info("  Cannot format date range - both min_date and max_date are None")
-        return ""
-    
-    # If only one date is available, use it for both min and max
-    if min_date is None and max_date is not None:
-        logger.info("  Only max_date is available, using it for both min and max")
-        min_date = max_date
-    elif max_date is None and min_date is not None:
-        logger.info("  Only min_date is available, using it for both min and max")
-        max_date = min_date
-    
-    try:
-        # Format full dates
-        min_str = min_date.strftime("%Y/%m/%d")
-        max_str = max_date.strftime("%Y/%m/%d")
-        
-        # Same year
-        if min_date.year == max_date.year:
-            # Same year, same month
-            if min_date.month == max_date.month:
-                # Same day (exact date)
-                if min_date.day == max_date.day:
-                    return f"{min_date.year}/{min_date.month:02d}/{min_date.day:02d}"
-                # Same year, same month, different days
-                else:
-                    return f"{min_date.year}/{min_date.month:02d}/{min_date.day:02d}-{max_date.day:02d}"
-            # Same year, different months
-            else:
-                # Check if it spans the entire year
-                if min_date.month == 1 and min_date.day == 1 and max_date.month == 12 and max_date.day == 31:
-                    return f"{min_date.year}"
-                else:
-                    return f"{min_date.year}/{min_date.month:02d}-{max_date.month:02d}"
-        # Different years
-        else:
-            # Check if it spans entire years (Jan 1 to Dec 31)
-            if min_date.month == 1 and min_date.day == 1 and max_date.month == 12 and max_date.day == 31:
-                return f"{min_date.year}-{max_date.year}"
-            else:
-                return f"{min_str}-{max_str}"
-    except Exception as e:
-        logger.error(f"Error formatting date range: {str(e)}")
-        return ""
+    """Backward-compatible re-export for collection date formatting."""
+    from metadata.services.collection_aggregates import format_date_range as _format_date_range
+
+    return _format_date_range(min_date, max_date)
 
 @shared_task(bind=True, max_retries=3)
 def export_item_metadata(self, item_id):

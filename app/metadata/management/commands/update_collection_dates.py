@@ -1,17 +1,16 @@
-from django.core.management.base import BaseCommand
-from metadata.tasks import update_collection_date_ranges
 import time
 
+from django.core.management.base import BaseCommand
+
+from metadata.tasks import update_collection_aggregates
+
+
 class Command(BaseCommand):
-    help = 'Updates date range fields for all collections'
+    help = 'Updates derived collection aggregates (deprecated wrapper; use update_collection_aggregates)'
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.SUCCESS("==== Collection Date Range Update ===="))
-        self.stdout.write("Calculating date ranges based on items in each collection...")
-        
+        self.stdout.write(self.style.SUCCESS('==== Collection Aggregate Update ===='))
         start_time = time.time()
-        updated = update_collection_date_ranges()
+        updated = update_collection_aggregates()
         duration = time.time() - start_time
-        
-        self.stdout.write(self.style.SUCCESS(f"✓ Success! Updated {updated} collections"))
-        self.stdout.write(f"Operation completed in {duration:.2f} seconds") 
+        self.stdout.write(self.style.SUCCESS(f'Updated {updated} collections in {duration:.2f} seconds'))

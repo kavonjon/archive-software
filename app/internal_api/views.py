@@ -1381,6 +1381,24 @@ class InternalItemViewSet(viewsets.ModelViewSet):
                 # Trigger background cache rebuild
                 from metadata.tasks import invalidate_and_warm_item_cache
                 invalidate_and_warm_item_cache.apply_async(priority=5)
+
+            affected_collection_ids = set()
+            for obj in saved_objects:
+                if obj.collection_id:
+                    affected_collection_ids.add(obj.collection_id)
+                previous_collection_id = getattr(obj, '_previous_collection_id', None)
+                if previous_collection_id:
+                    affected_collection_ids.add(previous_collection_id)
+
+            if affected_collection_ids:
+                from metadata.services.collection_aggregate_scheduling import (
+                    schedule_collection_aggregate_updates,
+                )
+                schedule_collection_aggregate_updates(affected_collection_ids)
+                logger.info(
+                    "[BATCH SAVE] Scheduled collection aggregate update for collections: %s",
+                    sorted(affected_collection_ids),
+                )
             
             # Serialize saved objects for response using batch serializer
             from .serializers import InternalItemBatchSerializer

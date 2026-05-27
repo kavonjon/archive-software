@@ -57,7 +57,7 @@ services:
     build: .
     container_name: celery_worker_private
     restart: unless-stopped
-    command: celery -A archive worker -Q private,common
+    command: celery -A archive worker -Q private,common,maintenance
     volumes:
       - media_volume:/app/media
       - ${HOST_STORAGE_PATH}/main_storage:/app/main_storage

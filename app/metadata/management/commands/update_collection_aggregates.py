@@ -4,9 +4,9 @@ from metadata.tasks import update_collection_aggregates
 
 
 class Command(BaseCommand):
-    help = 'Updates derived collection aggregates (deprecated wrapper; use update_collection_aggregates)'
+    help = 'Recompute all derived collection aggregate fields'
 
     def handle(self, *args, **options):
-        self.stdout.write('Starting collection item count update...')
+        self.stdout.write('Starting collection aggregate update...')
         updated = update_collection_aggregates()
         self.stdout.write(self.style.SUCCESS(f'Successfully updated {updated} collections'))

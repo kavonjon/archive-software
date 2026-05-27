@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-05-26 (Items user guide parity)
+**Last Updated**: 2026-05-27 (Collection aggregate automation)
 
 ## Current Priority
 
@@ -50,6 +50,31 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Collection Aggregate Automation (2026-05-27)
+
+**Scope:** Unified Celery automation for all Collection fields derived from FK-linked items: `item_count`, `date_range_min/max` + display `date_range`, `access_levels`, `genres`, `languages` M2M.
+
+**Design:**
+- **Source of truth:** Items with `Item.collection` FK set (catalog-prefix `pre_save` assignment unchanged; ~35% of items may still lack FK — aggregates undercount until FK exists).
+- **Policy:** Always recompute from current items; **clear all derived fields** when collection has zero FK-linked items (fixes stale date ranges on empty collections).
+- **Dates:** `collection_date_*` and `accession_date_*` on items + existing `format_date_range()` — not `creation_date_*` (legacy `generatecollectionaggregatevalues` year-string logic retired).
+
+**Implementation:**
+- `metadata/services/collection_aggregates.py` — `update_collection_aggregates_for()`, `refresh_collections()`
+- `metadata/services/collection_aggregate_scheduling.py` — Redis pending-ID set + quiet window (5s) + single flush task
+- `metadata/tasks.py` — `update_collection_aggregates(collection_ids=None)`, `flush_collection_aggregate_updates()`; `update_collection_item_counts` / `update_collection_date_ranges` are thin wrappers
+- **Triggers:** Item `post_save`/`post_delete`, Item.language `m2m_changed`, coalesced schedule; Item batch save skips per-row via `_skip_async_tasks` + one post-commit schedule with deduped collection IDs; `_previous_collection_id` on Item `pre_save` for FK moves
+- **Queue:** `maintenance` Celery queue, priority **1** (does not compete with exports/cache warms on `private`/`public`)
+- **Beat:** Single nightly `update-collection-aggregates` at 2:30 AM in `settings.py` `CELERY_BEAT_SCHEDULE` (replaces separate count + date jobs); removed duplicate beat block from `archive/celery.py`
+- **Workers:** `dev.sh`, `docker-compose.private.yml`, `docker-compose.public.yml` — listen on `maintenance` queue
+- **Commands:** `update_collection_aggregates` (new); `update_collection_counts`, `update_collection_dates`, `generatecollectionaggregatevalues` delegate to unified task (removed blocking `input()` from last)
+
+**Tests:** `metadata/tests/test_collection_aggregates.py` (4 tests)
+
+**Post-deploy:** Restart Celery workers to pick up `maintenance` queue; run `python manage.py update_collection_aggregates` once to backfill genres/access/languages on existing collections.
+
+**Collections React CRUD gaps (identified same session, not fixed):** Detail uses missing `update_field` endpoint; ViewSet lacks `perform_create`/`perform_update` for `modified_by`; create form `languages` dropped by read-only serializer; detail shows raw access level codes — see Tech Debt.
 
 ### Items User Guide — End-User Documentation Parity (2026-05-26)
 
@@ -382,6 +407,11 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Collaborator batch/cache filtering: empty-field (`*_isnull`) toggles not fully mirrored in `collaboratorMatchesActiveFilters` helper
 - Collections list: no batch edit button (no Collection batch editor or backend batch API yet); export is client-side CSV only
 
+**Collections (2026-05-27 audit — CRUD wiring, not aggregates):**
+- `CollectionDetail` calls `POST …/collections/{id}/update_field/` but `InternalCollectionViewSet` has no such action (Item/Collaborator/Languoid use `PATCH`)
+- `InternalCollectionViewSet` missing `perform_create`/`perform_update` for `modified_by`
+- List export CSV omits genres/access levels/languages; list row checkboxes disabled (`selectable={false}`) so Export Selected has no UI
+
 ## Important Context
 
 ### Batch Editor Pattern Evolution
@@ -413,6 +443,12 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Async export: ~18 seconds for 4,400 rows
 
 ## Tech Debt (Not Blocking)
+
+**Collections React CRUD parity (next recommended Collections work):**
+- Switch `CollectionDetail` to `collectionsAPI.patch` (match Item/Collaborator/Languoid); add `perform_create`/`perform_update` on `InternalCollectionViewSet`
+- Detail overview: use `access_levels_display` not raw codes; remove dead `saveField` branches for read-only aggregates (`languages`, `genres`, `access_levels`)
+- Optional: `Item.collection` FK backfill job (catalog prefix → FK) — improves aggregate accuracy without new Collection fields
+- Optional: align `Collection.export_metadata()` JSON with full serializer fields; list CSV export columns
 
 **Item batch editor import (known gaps, user feedback in progress):**
 - Parser edge cases: ambiguous collaborator names dropped (not `id: null` preserved); languoid name lookup case-sensitive / no uniqueness check; **title import parser** — parentheses in title text, case-sensitive language name lookup, ambiguous language names (`parseTitleWithLanguage`; reconciliation/display fixed 2026-05-25); collaborator comma splitting
@@ -633,7 +669,32 @@ End-user documentation for Items matches Languoid/Collaborator coverage: single-
 
 **Trade-off accepted:** Three new markdown files (~large editing-items.md); `importing-data.md` remains languoid-centric body with explicit per-model index at top.
 
+### Collection Aggregate Automation (2026-05-27)
+
+Unified derived-field recompute from FK-linked items; coalesced event-driven updates; `maintenance` queue at low priority.
+
+**Why?** Genres, access levels, and languages were manual/`generatecollectionaggregatevalues` only; date/count jobs scanned all collections on every item change and left stale data on empty collections.
+
+**Alternatives considered:**
+- Separate nightly tasks per field: Rejected — duplicate loops, same item queryset
+- Keep languages staff-curated on create form: Rejected — inconsistent with access_levels/genres rollup semantics; aggregates overwrite on first item link
+- Per-collection debounce only (no Redis ID set): Rejected — batch edits across collections still spawned multiple full scans before batch-end hook
+
+**Trade-off accepted:** Aggregates ignore items without Collection FK; staff-edited collection `languages` on create are overwritten once items exist; aggregate saves trigger private-server JSON export (existing `Collection.save()` behavior).
+
 ## Files Recently Modified
+
+**Collection aggregate automation (2026-05-27):**
+- `app/metadata/services/collection_aggregates.py`, `collection_aggregate_scheduling.py` - New
+- `app/metadata/tasks.py` - `update_collection_aggregates`, `flush_collection_aggregate_updates`; wrappers for legacy task names
+- `app/metadata/signals.py` - Item aggregate scheduling; `_previous_collection_id`; `_skip_async_tasks`; language M2M hook
+- `app/internal_api/views.py` - Item batch save post-commit aggregate schedule
+- `app/metadata/management/commands/update_collection_aggregates.py` - New; counts/dates/generatecollectionaggregatevalues delegate
+- `app/metadata/tests/test_collection_aggregates.py` - New
+- `app/archive/settings.py` - Unified beat schedule; `COLLECTION_AGGREGATE_TASK_ROUTES`; `maintenance` queue
+- `app/archive/celery.py` - Removed duplicate `beat_schedule` block
+- `dev.sh`, `docker-compose.private.yml`, `docker-compose.public.yml` - `maintenance` queue on workers
+- `context/` - active-work, backend.md, README version history
 
 **Items user guide (2026-05-26):**
 - `docs/user-guide/editing-items.md`, `batch-editor/item-batch.md`, `batch-editor/importing-data-items.md` - New

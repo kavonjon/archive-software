@@ -431,6 +431,39 @@ Both use `keyword_contains` CharFilter with custom `filter_keyword` methods — 
 
 M2M joins require `.distinct()` on queryset when `languages_contains` or `keyword_contains` is used.
 
+#### Collection aggregate automation (2026-05-27)
+
+**Derived fields** (recomputed from `Item.objects.filter(collection=collection)` — FK-linked items only):
+
+| Field | Source on Item |
+|---|---|
+| `item_count` | Count |
+| `date_range_min/max`, `date_range` | `collection_date_*`, `accession_date_*` + `format_date_range()` |
+| `access_levels` | Distinct `item_access_level` |
+| `genres` | Union of `genre` MultiSelect tokens |
+| `languages` | Union of `language` M2M |
+
+**Policy:** Always overwrite from items; clear all derived fields when count is 0. Staff-curated collection text fields (`extent`, `abstract`, etc.) are unchanged.
+
+**Service layer:** `metadata/services/collection_aggregates.py` (`refresh_collections`, `update_collection_aggregates_for`).
+
+**Event-driven scheduling:** `metadata/services/collection_aggregate_scheduling.py`
+- Pending collection PKs in Redis cache (`collection_aggregate:pending_ids`)
+- Quiet window 5s (`collection_aggregate:quiet_until`); `flush_collection_aggregate_updates` reschedules until quiet, then calls `refresh_collections(ids)`
+- Item signals respect `_skip_async_tasks` (batch save sets flag; post-commit schedules deduped IDs once)
+- Item `pre_save` sets `_previous_collection_id` so FK moves update both collections
+
+**Celery:**
+- Task: `metadata.tasks.update_collection_aggregates(collection_ids=None)` — `None` = all collections (nightly beat)
+- Queue: **`maintenance`**, priority **1** — route via `COLLECTION_AGGREGATE_TASK_ROUTES` in `settings.py`
+- Workers must listen on `maintenance` (`dev.sh`, docker-compose)
+- Legacy task names `update_collection_item_counts` / `update_collection_date_ranges` delegate to unified task
+- Nightly beat: `update-collection-aggregates` at 2:30 AM (`CELERY_BEAT_SCHEDULE` in settings only — not `celery.py`)
+
+**Manual backfill:** `python manage.py update_collection_aggregates`
+
+**Do not** reintroduce full-collection scans on every item save; do not use `creation_date_*` for collection date range (use collection/accession dates).
+
 #### Empty-field filters
 
 Boolean `*_isnull` params find NULL or empty string (CharField) or empty M2M (Collaborator). Item list trimmed empty toggles to those with meaningful data gaps (9 remain as of 2026-05).

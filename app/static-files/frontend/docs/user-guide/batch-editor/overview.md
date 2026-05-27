@@ -33,6 +33,16 @@ From any list view (Languoids, Items, Collaborators):
 
 You can also open an empty batch editor and import data from a spreadsheet.
 
+### Model-Specific Guides
+
+Each model has its own batch editor behavior, import columns, and validation rules:
+
+- **Items** — [Batch Editing Items](#item-batch) · [Importing Item Spreadsheets](#importing-data-items)
+- **Languoids** — [Batch Editing Languoids](#languoid-batch) · [Importing Data (Languoid)](#importing-data)
+- **Collaborators** — [Batch Editing Collaborators](#collaborator-batch)
+
+**Items note:** Rows open in catalog number order from the list (not checkbox order). Collection is derived from catalog number on save — not editable in the batch grid. Exports may include a Collection column that import ignores.
+
 ## Basic Editing
 
 ### Edit a Single Cell

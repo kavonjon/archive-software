@@ -13,6 +13,13 @@ import { SpreadsheetRow, ColumnConfig } from '../../types/spreadsheet';
 import { useImportSpreadsheet, UseImportSpreadsheetReturn } from '../../hooks/useImportSpreadsheet';
 import { InfoIconLink } from '../common/InfoIconLink';
 
+const BATCH_EDITOR_GUIDE_ANCHORS: Record<string, string> = {
+  Collaborators: 'collaborator-batch',
+  Items: 'item-batch',
+  Languoids: 'languoid-batch',
+  Languages: 'languoid-batch',
+};
+
 interface TanStackSpreadsheetWrapperProps {
   /** Rows of data */
   rows: SpreadsheetRow[];
@@ -366,8 +373,8 @@ export const TanStackSpreadsheetWrapper: React.FC<TanStackSpreadsheetWrapperProp
               {saving ? 'Saving...' : 'Save Changes'}
             </Button>
             <InfoIconLink 
-              anchor={modelName === 'Collaborators' ? 'collaborator-batch' : 'languoid-batch'} 
-              tooltip={`Learn about batch editing ${modelName === 'Collaborators' ? 'collaborators' : 'languoids'}`} 
+              anchor={BATCH_EDITOR_GUIDE_ANCHORS[modelName] ?? 'batch-editor'} 
+              tooltip={`Learn about batch editing ${modelName.toLowerCase()}`} 
             />
           </>
         )}

@@ -34,6 +34,7 @@ Quick index of all **Project Context System** files in `context/`.
 | Form and picker patterns | `04-REFERENCE/frontend/form-patterns.md` |
 | React conventions (hooks, errors, testing) | `04-REFERENCE/frontend/react-conventions.md` |
 | App shell (auth, footer, user guide) | `04-REFERENCE/frontend/app-shell-patterns.md` |
+| User guide file inventory + build/copy | `04-REFERENCE/docs-directory.md` (User guide inventory) |
 | Geographic UI | `04-REFERENCE/frontend/geographic-features.md` |
 | Dependencies policy | `04-REFERENCE/dependencies.md` |
 | `docs/` repo layout | `04-REFERENCE/docs-directory.md` |

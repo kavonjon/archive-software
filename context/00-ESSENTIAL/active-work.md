@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-05-25 (Item import: title column reconciliation)
+**Last Updated**: 2026-05-26 (Items user guide parity)
 
 ## Current Priority
 
@@ -50,6 +50,29 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Items User Guide — End-User Documentation Parity (2026-05-26)
+
+**Scope:** User-facing in-app help for Items brought to parity with Languoids and Collaborators (list, detail, CRUD, batch editor, import).
+
+**New docs (`docs/user-guide/`):**
+- `editing-items.md` — list UX (filters, columns, export, batch entry), detail field reference by card, create/delete, access level chips
+- `batch-editor/item-batch.md` — ~60 batch columns, titles (two-slot limit), collaborators, catalog duplicates, collection behavior
+- `batch-editor/importing-data-items.md` — catalog # reconciliation, export-only Collection, choice/title import rules
+
+**Updated docs:**
+- `getting-started.md` — top nav, Items overview
+- `batch-editor/overview.md` — per-model guide links
+- `batch-editor/importing-data.md` — model-specific table; languoid sections labeled
+- Cross-links in languoid/collaborator single-edit and batch guides
+
+**Frontend wiring:**
+- `UserGuidePage.tsx` — registers Editing Items, Batch Editing Items, Importing Item Spreadsheets (10 sections total)
+- `TanStackSpreadsheetWrapper.tsx` — `BATCH_EDITOR_GUIDE_ANCHORS` maps Items → `item-batch`, Collaborators → `collaborator-batch`, Languages → `languoid-batch` (fixes Items incorrectly linking to languoid batch doc; Languoid editor passes `modelName="Languages"`)
+
+**Build/copy:** Markdown copied to `frontend/public/docs/` via `prestart`/`prebuild`; production via `npm run build:django` → `app/static-files/frontend/docs/`. Documented in `04-REFERENCE/frontend/app-shell-patterns.md`.
+
+**Not in scope:** Collections user guide; InfoIconLink on list/detail pages (batch toolbar only, same as other models).
 
 ### Item Batch Editor — Import Title Column Reconciliation (2026-05-25)
 
@@ -598,7 +621,28 @@ Row order follows **context**, not one global rule.
 
 **Trade-off accepted:** Re-import ignores export columns beyond First Additional Title; detail page for full title CRUD.
 
+### Items User Guide Parity (2026-05-26)
+
+End-user documentation for Items matches Languoid/Collaborator coverage: single-edit guide, batch guide, import guide, in-app registration, batch editor info-icon links.
+
+**Why?** Item batch editor shipped without staff-facing docs; batch toolbar linked Items to languoid batch help.
+
+**Alternatives considered:**
+- Single generic batch import doc for all models: Rejected — Item match key (catalog #), Collection skipImport, and title rules differ too much
+- InfoIconLink on every list/detail page now: Deferred — other models only use batch toolbar link
+
+**Trade-off accepted:** Three new markdown files (~large editing-items.md); `importing-data.md` remains languoid-centric body with explicit per-model index at top.
+
 ## Files Recently Modified
+
+**Items user guide (2026-05-26):**
+- `docs/user-guide/editing-items.md`, `batch-editor/item-batch.md`, `batch-editor/importing-data-items.md` - New
+- `docs/user-guide/getting-started.md`, `batch-editor/overview.md`, `batch-editor/importing-data.md` - Updated
+- `docs/user-guide/editing-languoids.md`, `editing-collaborators.md`, `batch-editor/languoid-batch.md`, `collaborator-batch.md` - Cross-links
+- `frontend/src/pages/UserGuidePage.tsx` - New sections
+- `frontend/src/components/batch/TanStackSpreadsheetWrapper.tsx` - Guide anchor map
+- `frontend/src/components/common/InfoIconLink.tsx` - JSDoc examples
+- `context/` - active-work, app-shell-patterns, docs-directory, README version history
 
 **Item import title reconciliation (2026-05-25):**
 - `frontend/src/services/itemImportValueParsers.ts` - Title normalize/format helpers; empty-title equivalence in `areCellValuesEqual`

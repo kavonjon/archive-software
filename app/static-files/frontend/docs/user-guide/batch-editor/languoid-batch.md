@@ -311,3 +311,5 @@ If you find yourself making the same change to many languoids:
 - Save all at once
 
 This saves significant time and reduces errors.
+
+**See also:** [Batch Editing Items](#item-batch) · [Batch Editing Collaborators](#collaborator-batch)

@@ -386,3 +386,5 @@ If you find yourself making the same change to many collaborators:
 
 This saves significant time and reduces errors.
 
+**See also:** [Batch Editing Items](#item-batch) · [Batch Editing Languoids](#languoid-batch)
+

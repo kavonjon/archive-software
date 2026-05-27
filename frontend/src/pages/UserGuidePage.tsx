@@ -65,6 +65,11 @@ export const UserGuidePage = () => {
             content: await fetch(`${basePath}/editing-collaborators.md`).then(r => r.text())
           },
           {
+            id: 'editing-items',
+            title: 'Editing Items',
+            content: await fetch(`${basePath}/editing-items.md`).then(r => r.text())
+          },
+          {
             id: 'batch-editor',
             title: 'Batch Editor Overview',
             content: await fetch(`${basePath}/batch-editor/overview.md`).then(r => r.text())
@@ -80,9 +85,19 @@ export const UserGuidePage = () => {
             content: await fetch(`${basePath}/batch-editor/collaborator-batch.md`).then(r => r.text())
           },
           {
+            id: 'item-batch',
+            title: 'Batch Editing Items',
+            content: await fetch(`${basePath}/batch-editor/item-batch.md`).then(r => r.text())
+          },
+          {
             id: 'importing-data',
-            title: 'Importing Data',
+            title: 'Importing Data (Languoids)',
             content: await fetch(`${basePath}/batch-editor/importing-data.md`).then(r => r.text())
+          },
+          {
+            id: 'importing-data-items',
+            title: 'Importing Item Spreadsheets',
+            content: await fetch(`${basePath}/batch-editor/importing-data-items.md`).then(r => r.text())
           },
           {
             id: 'keyboard-shortcuts',

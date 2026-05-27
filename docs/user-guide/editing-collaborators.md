@@ -293,3 +293,5 @@ Consider using the **Batch Editor** when you need to:
 
 See the **Batch Editing Collaborators** section for details on bulk editing workflows.
 
+**See also:** [Editing Items](#editing-items) · [Editing Languoids](#editing-languoids)
+

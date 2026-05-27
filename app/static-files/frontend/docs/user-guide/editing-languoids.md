@@ -268,3 +268,5 @@ Consider using the **Batch Editor** when you need to:
 
 See the **Batch Editor** section for details on bulk editing workflows.
 
+**See also:** [Editing Items](#editing-items) · [Editing Collaborators](#editing-collaborators)
+

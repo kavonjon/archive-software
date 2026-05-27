@@ -2,6 +2,18 @@
 
 The Batch Editor supports importing Excel and CSV files, making it easy to perform bulk data ingests with full validation.
 
+## Model-Specific Import Guides
+
+Import columns and reconciliation rules differ by model:
+
+| Model | Match key | Detailed guide |
+|-------|-----------|----------------|
+| **Items** | Catalog Number | [Importing Item Spreadsheets](#importing-data-items) |
+| **Languoids** | Glottocode | This page (sections below) |
+| **Collaborators** | Collaborator ID | [Batch Editing Collaborators](#collaborator-batch) (Import section) |
+
+The sections below focus on **languoid** import behavior. Item and collaborator imports use different match keys, column names, and special rules (for example item Collection is export-only on import).
+
 ## Supported Formats
 
 - **Excel** - `.xlsx` (Excel 2007+) and `.xls` (Excel 97-2003)
@@ -41,9 +53,9 @@ Columns that don't match batch editor fields are ignored. This allows you to inc
 ### Required Columns
 At least one recognized column must be present. If no columns match, you'll see an error message.
 
-## Smart Row Reconciliation
+## Smart Row Reconciliation (Languoids)
 
-The importer intelligently handles existing vs. new records:
+The languoid importer handles existing vs. new records by **glottocode**:
 
 ### If Glottocode Matches Database
 - Loads the existing record from the database

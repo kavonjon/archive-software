@@ -1,6 +1,6 @@
 # Project Context System: inventory and coverage
 
-**Last updated:** 2026-05-24
+**Last updated:** 2026-05-26
 
 **Index triad (keep in sync):** When you change notable files in this tree, update **`context-map.md`** (topic → path) and **`05-ARCHIVE/where-patterns-live.md`** (pattern routing) in the same pass. See **README.md → Maintenance → Index triad**.
 
@@ -43,7 +43,8 @@ A single Markdown project context: **constraints**, **patterns**, **lessons lear
 - **List page UX (filters, columns):** `04-REFERENCE/frontend/list-page-patterns.md`
 - **Detail forms / pickers:** `04-REFERENCE/frontend/form-patterns.md`
 - **React conventions:** `04-REFERENCE/frontend/react-conventions.md`
-- **App shell (auth, footer):** `04-REFERENCE/frontend/app-shell-patterns.md`
+- **App shell (auth, footer, in-app user guide):** `04-REFERENCE/frontend/app-shell-patterns.md`
+- **User guide markdown inventory:** `04-REFERENCE/docs-directory.md` (User guide inventory)
 - **Topic → file index:** `context-map.md`
 - **Pattern topic routing (where to add new notes):** `05-ARCHIVE/where-patterns-live.md`
 
@@ -60,6 +61,7 @@ These are **forward** checks only—this tree is the project context, not a diff
 | Implement a new batch editor? | `03-LESSONS/item-batch-editor.md`, `batch-editors.md`, `data-models.md` |
 | Debug cache / Celery / filters in batch? | `item-batch-editor.md`, `batch-editors.md`, `system-overview.md`, `backend.md` |
 | Batch validation (live / import / save)? | `docs/system-behavior/batch-editor/validation.md`, `batch-editors.md`, `item-batch-editor.md` |
+| In-app user guide (content, build, InfoIconLink)? | `04-REFERENCE/frontend/app-shell-patterns.md`, `04-REFERENCE/docs-directory.md` |
 | Security model (groups, DRF, React)? | `security.md` |
 | Stage roadmap (Stage 2+)? | `04-REFERENCE/stage-plans/stages-overview.md` |
 

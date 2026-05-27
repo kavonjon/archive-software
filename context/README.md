@@ -1,6 +1,6 @@
 # Project Context System
 
-**Version 3.12** | Last Updated: 2026-05-25
+**Version 3.13** | Last Updated: 2026-05-26
 
 The **Project Context System** comprises all files in the `context/` folder. When this documentation refers to the Project Context System, it means this file-based persistent knowledge—not the conversation transcript or current chat.
 
@@ -241,6 +241,7 @@ Each of those three files starts with a short **cross-link block** to the other 
 5. Wait for user approval before executing the split
 
 ### Version History
+- **2026-05-26 (Items user guide parity):** New `editing-items.md`, `batch-editor/item-batch.md`, `importing-data-items.md`; updated getting-started, batch overview, importing-data index; `UserGuidePage.tsx` + `TanStackSpreadsheetWrapper` guide anchors (Items/Languages/Collaborators); build/copy documented in `app-shell-patterns.md`; inventory in `docs-directory.md`; decision in `active-work.md`
 - **2026-05-25 (Item import title reconciliation):** Fixed `[object Object]` Default Title and false-modified empty First Additional Title on re-import; `itemToSpreadsheetRow` aligned with `ItemBatchEditor.itemToRow`; shared title helpers in `itemImportValueParsers.ts`; `TitleWithLanguage` type in `api.ts`; `active-work.md`, `batch-editors.md`, `item-batch-editor.md` §5g, `validation.md`
 - **2026-05-25 (Item import choice validation):** `parseSelectChoice` returns parser error on unrecognized labels (preserves raw value); `fuzzy_match_choice` import fields (access level, resource type, etc.) no longer pass `validate-field` when parser failed; `queueValidationForChanges` skips backend when parser error exists; `active-work.md`, `batch-editors.md`, `item-batch-editor.md` §5f, `validation.md`
 - **2026-05-25 (Item batch list handoff row order):** List batch-edit buttons sort `config.ids` by case-insensitive catalog # (matches list/cache API order); in-session grid order unchanged (import at bottom, order-preserving refresh); `itemBatchOrder.ts`, `ItemsList.tsx`; Item-only; `active-work.md`, `batch-editors.md`, `item-batch-editor.md` §5e

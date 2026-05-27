@@ -3,7 +3,7 @@ import InfoIcon from '@mui/icons-material/Info';
 
 export interface InfoIconLinkProps {
   /**
-   * The section anchor in the user guide (e.g., 'batch-editor', 'importing-data')
+   * The section anchor in the user guide (e.g., 'batch-editor', 'item-batch', 'editing-items')
    */
   anchor: string;
   /**
@@ -23,7 +23,8 @@ export interface InfoIconLinkProps {
  * Usage:
  * ```tsx
  * <InfoIconLink anchor="batch-editor" tooltip="Learn about batch editing" />
- * <InfoIconLink anchor="importing-data" />
+ * <InfoIconLink anchor="item-batch" tooltip="Learn about batch editing items" />
+ * <InfoIconLink anchor="importing-data-items" />
  * ```
  */
 export const InfoIconLink = ({ anchor, tooltip = 'Learn more', size = 'small' }: InfoIconLinkProps) => {

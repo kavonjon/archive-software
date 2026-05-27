@@ -12,11 +12,23 @@ The NAL system provides tools for:
 
 ## Navigation
 
-Use the navigation bar on the left side of the page to access different sections:
-- **Languoids** - Browse and edit language data
-- **Items** - Manage language materials cultural artifacts grouped by catalog number
-- **Collections** - Organize items into collections
-- **Collaborators** - Track associated people
+Use the navigation bar at the top of the page to access different sections:
+- **Collections** — Browse collection records
+- **Items** — Catalog language materials and cultural artifacts by catalog number
+- **Collaborators** — People linked to items and documents
+- **Languages** — Languoids (languages, dialects, families)
+- **User Guide** — This documentation
+
+## Items at a Glance
+
+Items are the core catalog records (~4,400 in the system). Key concepts:
+
+- **Catalog number** — primary identifier (for example `NAL-0042`); must be unique
+- **Collection** — often auto-assigned from the catalog prefix (`NAL-0042` → NAL collection)
+- **Access level** — four levels (1 Open Access through 4 Depositor-controlled), shown as color-coded chips
+- **Batch edit & export** — filter or select items, then export to Excel or open the batch editor
+
+See **Editing Items** for list filters, configurable columns, detail-page fields, and create/delete workflows.
 
 ## Basic Workflow
 

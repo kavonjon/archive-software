@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-05-27 (Collection aggregate automation)
+**Last Updated**: 2026-06-13 (Collections list table and filter simplification)
 
 ## Current Priority
 
@@ -50,6 +50,22 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Collections List — Table and Filter Simplification (2026-06-13)
+
+**Scope:** React collections list page (`CollectionsList.tsx`) — narrower desktop table and advanced filter panel.
+
+**Desktop table columns (fixed):** Abbreviation, Name, Date Range, Items. Removed Extent and Abstract columns (2026-06-13).
+
+**Advanced filters (6 + keyword):** Collection Abbreviation, Collection Name, Access Level (multi-select), Language, Collaborator, Genre (multi-select). Keyword search unchanged (always visible).
+
+**Removed from filter panel:** Extent, Abstract, Description, Date Range From/To, Citation Authors. Keyword `filter_keyword` still searches those text fields server-side.
+
+**Backend:** New `collaborator_contains` on `CollectionFilter` — collections with FK-linked items whose collaborators match first/last/full name (`collection_items__collaborator__*`, `.distinct()`). Same name-matching pattern as Item `collaborator_contains`.
+
+**Frontend:** Persisted state key bumped to `collection-list-state-v5` (from v4).
+
+**Unchanged:** Mobile card view still shows extent/abstract chips and truncated abstract; no batch edit; client-side CSV export only.
 
 ### Collection Aggregate Automation (2026-05-27)
 
@@ -682,7 +698,24 @@ Unified derived-field recompute from FK-linked items; coalesced event-driven upd
 
 **Trade-off accepted:** Aggregates ignore items without Collection FK; staff-edited collection `languages` on create are overwritten once items exist; aggregate saves trigger private-server JSON export (existing `Collection.save()` behavior).
 
+### Collection List Filter Set (2026-06-13)
+
+Staff-facing advanced filters limited to abbreviation, name, access level, language, collaborator, and genre.
+
+**Why?** Reduce filter-panel clutter; align with how staff actually narrow collections. Extent/abstract/description/dates/citation authors remain reachable via keyword search.
+
+**Alternatives considered:**
+- Keep all 2026-05-23 filters in panel: Rejected — too many fields for typical list workflows
+- Remove keyword cross-field search: Rejected — still needed for free-text discovery
+
+**Trade-off accepted:** No dedicated date-range or citation-author filters in panel; `collaborator_contains` matches via item FK only (~35% of items may lack Collection FK — same aggregate undercount signal).
+
 ## Files Recently Modified
+
+**Collections list table and filters (2026-06-13):**
+- `frontend/src/components/collections/CollectionsList.tsx` - Removed extent/abstract table columns; filter panel narrowed to 6 advanced filters; `collection-list-state-v5`
+- `app/internal_api/views.py` - `CollectionFilter.collaborator_contains` + `filter_collaborator`
+- `context/` - active-work, backend.md, list-page-patterns.md, README version history
 
 **Collection aggregate automation (2026-05-27):**
 - `app/metadata/services/collection_aggregates.py`, `collection_aggregate_scheduling.py` - New

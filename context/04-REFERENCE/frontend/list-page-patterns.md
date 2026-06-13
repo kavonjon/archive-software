@@ -36,7 +36,7 @@ const {
 - Standardized API across list pages
 - Automatic cleanup on clear
 
-**Storage key examples:** `item-list-state`, `collaborator-list-state`, `collection-list-state-v4`
+**Storage key examples:** `item-list-state`, `collaborator-list-state`, `collection-list-state-v5`
 
 ---
 
@@ -225,7 +225,7 @@ const ItemsList = () => {
 [ Export | Batch Edit ]  (Collections: Export only — no batch editor yet)
 ```
 
-**CollectionsList (2026-05-23):** Uses `usePersistedListState` (`collection-list-state-v4`), debounced `activeFilters`, results count, and `initialLoadComplete`. Multi-select filters (`genres`, `access_levels`) use `string[]` state; date range uses From/To `type="date"` fields matching Items. `CollectionExportButton` provides client-side CSV export (filtered or selected); no batch edit until Collection batch editor exists.
+**CollectionsList (2026-06-13):** Uses `usePersistedListState` (`collection-list-state-v5`), debounced `activeFilters`, results count, and `initialLoadComplete`. Advanced filters: Collection Abbreviation, Collection Name, Access Level, Language, Collaborator, Genre (multi-select `access_levels` / `genres` use `string[]`). Desktop table columns: Abbreviation, Name, Date Range, Items (extent/abstract removed from table 2026-06-13). `CollectionExportButton` provides client-side CSV export (filtered or selected); no batch edit until Collection batch editor exists.
 
 ---
 

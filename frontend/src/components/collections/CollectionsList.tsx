@@ -56,30 +56,20 @@ interface CollectionsListProps {
 interface FilterState {
   collection_abbr_contains: string;
   name_contains: string;
-  extent_contains: string;
-  abstract_contains: string;
-  description_contains: string;
-  date_range_min: string;
-  date_range_max: string;
   access_levels: string[];
   genres: string[];
   languages_contains: string;
-  citation_authors_contains: string;
+  collaborator_contains: string;
   keyword_contains: string;
 }
 
 const DEFAULT_FILTERS: FilterState = {
   collection_abbr_contains: '',
   name_contains: '',
-  extent_contains: '',
-  abstract_contains: '',
-  description_contains: '',
-  date_range_min: '',
-  date_range_max: '',
   access_levels: [],
   genres: [],
   languages_contains: '',
-  citation_authors_contains: '',
+  collaborator_contains: '',
   keyword_contains: '',
 };
 
@@ -141,7 +131,7 @@ const CollectionsList: React.FC<CollectionsListProps> = ({
     setAllSelections,
     clearFilters: clearPersistedFilters,
   } = usePersistedListState<FilterState, Collection>({
-    storageKey: 'collection-list-state-v4',
+    storageKey: 'collection-list-state-v5',
     defaultFilters: DEFAULT_FILTERS,
     defaultPagination: { page: 0, rowsPerPage: 25 },
   });
@@ -558,62 +548,21 @@ const CollectionsList: React.FC<CollectionsListProps> = ({
               fullWidth
             />
             <TextField
-              {...formUtils.generateFieldProps('name_contains', 'Name')}
-              label="Name"
+              {...formUtils.generateFieldProps('name_contains', 'Collection Name')}
+              label="Collection Name"
               value={filters.name_contains}
               onChange={(e) => handleFilterChange('name_contains', e.target.value)}
               size="small"
               fullWidth
             />
-            <TextField
-              {...formUtils.generateFieldProps('extent_contains', 'Extent')}
-              label="Extent"
-              value={filters.extent_contains}
-              onChange={(e) => handleFilterChange('extent_contains', e.target.value)}
-              size="small"
-              fullWidth
-            />
-            <TextField
-              {...formUtils.generateFieldProps('abstract_contains', 'Abstract')}
-              label="Abstract"
-              value={filters.abstract_contains}
-              onChange={(e) => handleFilterChange('abstract_contains', e.target.value)}
-              size="small"
-              fullWidth
-            />
-            <TextField
-              {...formUtils.generateFieldProps('description_contains', 'Description')}
-              label="Description"
-              value={filters.description_contains}
-              onChange={(e) => handleFilterChange('description_contains', e.target.value)}
-              size="small"
-              fullWidth
-            />
-            {/* Date filters */}
-            {Object.entries({
-              date_range_min: 'Date Range (From)',
-              date_range_max: 'Date Range (To)',
-            }).map(([field, label]) => (
-              <TextField
-                key={field}
-                {...formUtils.generateFieldProps(field, label)}
-                label={label}
-                type="date"
-                value={filters[field as keyof FilterState] as string}
-                onChange={(e) => handleFilterChange(field as keyof FilterState, e.target.value)}
-                InputLabelProps={{ shrink: true }}
-                size="small"
-                fullWidth
-              />
-            ))}
             <FormControl size="small" fullWidth>
-              <InputLabel id="access-levels-label">Access Levels</InputLabel>
+              <InputLabel id="access-levels-label">Access Level</InputLabel>
               <Select
                 labelId="access-levels-label"
                 multiple
                 value={filters.access_levels ?? []}
                 onChange={(e) => handleFilterChange('access_levels', e.target.value as string[])}
-                input={<OutlinedInput label="Access Levels" />}
+                input={<OutlinedInput label="Access Level" />}
                 renderValue={(selected) => (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {(selected as string[]).map((value) => {
@@ -637,14 +586,30 @@ const CollectionsList: React.FC<CollectionsListProps> = ({
                 ))}
               </Select>
             </FormControl>
+            <TextField
+              {...formUtils.generateFieldProps('languages_contains', 'Language')}
+              label="Language"
+              value={filters.languages_contains}
+              onChange={(e) => handleFilterChange('languages_contains', e.target.value)}
+              size="small"
+              fullWidth
+            />
+            <TextField
+              {...formUtils.generateFieldProps('collaborator_contains', 'Collaborator')}
+              label="Collaborator"
+              value={filters.collaborator_contains}
+              onChange={(e) => handleFilterChange('collaborator_contains', e.target.value)}
+              size="small"
+              fullWidth
+            />
             <FormControl size="small" fullWidth>
-              <InputLabel id="genres-label">Genres</InputLabel>
+              <InputLabel id="genres-label">Genre</InputLabel>
               <Select
                 labelId="genres-label"
                 multiple
                 value={filters.genres ?? []}
                 onChange={(e) => handleFilterChange('genres', e.target.value as string[])}
-                input={<OutlinedInput label="Genres" />}
+                input={<OutlinedInput label="Genre" />}
                 renderValue={(selected) => (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                     {(selected as string[]).map((value) => {
@@ -667,22 +632,6 @@ const CollectionsList: React.FC<CollectionsListProps> = ({
                 ))}
               </Select>
             </FormControl>
-            <TextField
-              {...formUtils.generateFieldProps('languages_contains', 'Languages')}
-              label="Languages"
-              value={filters.languages_contains}
-              onChange={(e) => handleFilterChange('languages_contains', e.target.value)}
-              size="small"
-              fullWidth
-            />
-            <TextField
-              {...formUtils.generateFieldProps('citation_authors_contains', 'Citation Authors')}
-              label="Citation Authors"
-              value={filters.citation_authors_contains}
-              onChange={(e) => handleFilterChange('citation_authors_contains', e.target.value)}
-              size="small"
-              fullWidth
-            />
           </Box>
         </Collapse>
       </Paper>
@@ -731,17 +680,15 @@ const CollectionsList: React.FC<CollectionsListProps> = ({
                 )}
                 <TableCell {...tableUtils.generateHeaderProps('abbreviation')}>Abbreviation</TableCell>
                 <TableCell {...tableUtils.generateHeaderProps('name')}>Name</TableCell>
-                <TableCell {...tableUtils.generateHeaderProps('extent')}>Extent</TableCell>
                 <TableCell {...tableUtils.generateHeaderProps('date-range')}>Date Range</TableCell>
                 <TableCell {...tableUtils.generateHeaderProps('items')}>Items</TableCell>
-                <TableCell {...tableUtils.generateHeaderProps('abstract')}>Abstract</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {collections.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={selectable ? 7 : 6}
+                    colSpan={selectable ? 5 : 4}
                     align="center"
                     sx={{ py: 4, color: 'text.secondary' }}
                   >
@@ -787,11 +734,6 @@ const CollectionsList: React.FC<CollectionsListProps> = ({
                   <TableCell {...tableUtils.generateCellProps('name', rowIndex)}>
                     <Typography variant="body2">{collection.name}</Typography>
                   </TableCell>
-                  <TableCell {...tableUtils.generateCellProps('extent', rowIndex)}>
-                    <Typography variant="body2" color="text.secondary">
-                      {collection.extent || '—'}
-                    </Typography>
-                  </TableCell>
                   <TableCell {...tableUtils.generateCellProps('date-range', rowIndex)}>
                     <Typography variant="body2" color="text.secondary">
                       {collection.date_range || '—'}
@@ -804,20 +746,6 @@ const CollectionsList: React.FC<CollectionsListProps> = ({
                       color="primary"
                       variant="outlined"
                     />
-                  </TableCell>
-                  <TableCell {...tableUtils.generateCellProps('abstract', rowIndex)}>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{
-                        maxWidth: 200,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {collection.abstract || '—'}
-                    </Typography>
                   </TableCell>
                 </TableRow>
               ))}

@@ -417,19 +417,19 @@ Both use `keyword_contains` CharFilter with custom `filter_keyword` methods — 
 
 **Scope:** `CollectionFilter` in `app/internal_api/views.py` is wired only to `InternalCollectionViewSet` (React list + `collection_abbr` exact for detail uniqueness check). Not the public API `CollectionFilter` in `app/api/v1/views/collections.py` or map `CollectionFilterBackend`.
 
-**Field-type model (2026-05-23):**
+**React list panel filters (2026-06-13):** Collection Abbreviation, Collection Name, Access Level, Language, Collaborator, Genre (+ always-visible keyword). Persisted state: `collection-list-state-v5`.
 
-| Type | Collection fields | Filter pattern |
+| Type | Panel param | Filter pattern |
 |---|---|---|
-| Text | abbr, name, extent, abstract, description, citation_authors | `{field}_contains` + icontains |
-| MultiSelect | `genres`, `access_levels` | `{field}` param + token-OR regex (Genre pattern); plural names reflect item aggregation |
-| Computed dates | `date_range_min`, `date_range_max` | DateFilter gte/lte (Item creation-date pattern) |
-| M2M | languages | `languages_contains` + `.distinct()` |
-| Cross-field | — | `keyword_contains` |
+| Text | `collection_abbr_contains`, `name_contains`, `languages_contains`, `collaborator_contains` | icontains; collaborator via `collection_items__collaborator__*` (first/last/full name) |
+| MultiSelect | `access_levels`, `genres` | Token-OR regex (Genre pattern); `access_levels=,` for "Not specified" |
+| Cross-field | `keyword_contains` | OR across collection text fields + related language names |
+
+**Backend-only params (not in React panel, still on FilterSet):** `extent_contains`, `abstract_contains`, `description_contains`, `date_range_min`, `date_range_max`, `citation_authors_contains` — reachable via API/keyword search.
 
 **Do not** use `icontains` on MultiSelectField params for structured filters — breaks multi-select OR semantics.
 
-M2M joins require `.distinct()` on queryset when `languages_contains` or `keyword_contains` is used.
+M2M / item joins require `.distinct()` when `languages_contains`, `collaborator_contains`, or `keyword_contains` is used.
 
 #### Collection aggregate automation (2026-05-27)
 

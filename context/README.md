@@ -1,6 +1,6 @@
 # Project Context System
 
-**Version 3.14** | Last Updated: 2026-05-27
+**Version 3.15** | Last Updated: 2026-06-13
 
 The **Project Context System** comprises all files in the `context/` folder. When this documentation refers to the Project Context System, it means this file-based persistent knowledge—not the conversation transcript or current chat.
 
@@ -241,6 +241,7 @@ Each of those three files starts with a short **cross-link block** to the other 
 5. Wait for user approval before executing the split
 
 ### Version History
+- **2026-06-13 (Collections list UX):** Removed extent/abstract table columns; advanced filter panel narrowed to abbreviation, name, access level, language, collaborator, genre; `CollectionFilter.collaborator_contains`; `collection-list-state-v5`; documented in `active-work.md`, `backend.md`, `list-page-patterns.md`
 - **2026-05-27 (Collection aggregate automation):** Unified Celery recompute for `item_count`, dates, `access_levels`, `genres`, `languages`; Redis coalesced scheduling; `maintenance` queue; batch-save hook; beat consolidated in `settings.py`; decision + backend pattern in `active-work.md`, `backend.md`; Collection CRUD gaps documented as tech debt
 - **2026-05-26 (Items user guide parity):** New `editing-items.md`, `batch-editor/item-batch.md`, `importing-data-items.md`; updated getting-started, batch overview, importing-data index; `UserGuidePage.tsx` + `TanStackSpreadsheetWrapper` guide anchors (Items/Languages/Collaborators); build/copy documented in `app-shell-patterns.md`; inventory in `docs-directory.md`; decision in `active-work.md`
 - **2026-05-25 (Item import title reconciliation):** Fixed `[object Object]` Default Title and false-modified empty First Additional Title on re-import; `itemToSpreadsheetRow` aligned with `ItemBatchEditor.itemToRow`; shared title helpers in `itemImportValueParsers.ts`; `TitleWithLanguage` type in `api.ts`; `active-work.md`, `batch-editors.md`, `item-batch-editor.md` §5g, `validation.md`

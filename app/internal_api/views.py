@@ -341,6 +341,7 @@ class CollectionFilter(FilterSet):
     access_levels = CharFilter(method='filter_access_levels')
     genres = CharFilter(method='filter_genres')
     languages_contains = CharFilter(method='filter_languages')
+    collaborator_contains = CharFilter(method='filter_collaborator')
     citation_authors_contains = CharFilter(field_name='citation_authors', lookup_expr='icontains')
     keyword_contains = CharFilter(method='filter_keyword')
 
@@ -358,6 +359,7 @@ class CollectionFilter(FilterSet):
             'access_levels',
             'genres',
             'languages_contains',
+            'collaborator_contains',
             'citation_authors_contains',
             'keyword_contains',
         ]
@@ -366,6 +368,17 @@ class CollectionFilter(FilterSet):
         if not value or not value.strip():
             return queryset
         return queryset.filter(languages__name__icontains=value.strip()).distinct()
+
+    def filter_collaborator(self, queryset, name, value):
+        """Filter collections with items linked to a matching collaborator name."""
+        if not value or not value.strip():
+            return queryset
+        search_value = value.strip()
+        return queryset.filter(
+            Q(collection_items__collaborator__first_names__icontains=search_value) |
+            Q(collection_items__collaborator__last_names__icontains=search_value) |
+            Q(collection_items__collaborator__full_name__icontains=search_value)
+        ).distinct()
 
     def filter_genres(self, queryset, name, value):
         """Filter collections that include any of the selected genre values (exact token match)."""

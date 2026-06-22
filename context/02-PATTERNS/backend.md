@@ -171,6 +171,33 @@ def list(self, request):
 - Testable in isolation
 - Thin views (orchestration only)
 
+#### Management commands are leaf nodes
+
+Nothing else should import from a management command module. If logic is needed by both a command and a view/serializer/task, it belongs in `services/` first.
+
+```python
+# WRONG — views importing from a command
+from metadata.management.commands.populate_x import some_fn
+
+# RIGHT — both command and view import from service
+from metadata.services.collection_citation_authors import compute_citation_authors_for_collection
+```
+
+#### `compute_` / `apply_` naming convention
+
+Split service functions into read and write halves:
+
+| Prefix | Side effects | Safe to call from |
+|---|---|---|
+| `compute_` | None — pure query | API views, serializers, tests |
+| `apply_` | Writes to DB (e.g. `.set()`) | Management commands, admin scripts |
+
+**Example** (`metadata/services/collection_citation_authors.py`):
+- `compute_citation_authors_for_collection(collection)` — returns queryset; used by `suggested-citation-authors` API action and serializers
+- `apply_citation_authors_to_collection(collection)` — calls compute + `.set()`; used only by `populate_collection_citation_authors` management command
+
+A service module is **justified** when it has multiple real consumers. If compute/apply are only ever used by one management command, the logic belongs inline in that command.
+
 ---
 
 ## Signals
@@ -427,9 +454,11 @@ Both use `keyword_contains` CharFilter with custom `filter_keyword` methods — 
 
 **Backend-only params (not in React panel, still on FilterSet):** `extent_contains`, `abstract_contains`, `description_contains`, `date_range_min`, `date_range_max`, `citation_authors_contains` — reachable via API/keyword search.
 
+`citation_authors_contains` searches M2M collaborator names (first/last/full name + `.distinct()`). Keyword search also joins M2M names. Both changed from text `icontains` when `citation_authors` was converted to M2M (2026-06-21).
+
 **Do not** use `icontains` on MultiSelectField params for structured filters — breaks multi-select OR semantics.
 
-M2M / item joins require `.distinct()` when `languages_contains`, `collaborator_contains`, or `keyword_contains` is used.
+M2M / item joins require `.distinct()` when `languages_contains`, `collaborator_contains`, `citation_authors_contains`, or `keyword_contains` is used.
 
 #### Collection aggregate automation (2026-05-27)
 
@@ -961,7 +990,8 @@ def save_with_relationships(item_data, collaborator_data):
 **Case-sensitive sorting** (use Lower())  
 **Field validators for transformations** (use signals)  
 **Forgetting .distinct() after filter JOIN** (duplicate rows)  
-**Using get_object_or_404 in tasks** (returns HTTP response, not for tasks)
+**Using get_object_or_404 in tasks** (returns HTTP response, not for tasks)  
+**Importing from management commands** — commands are leaf nodes; extract shared logic to `services/` first
 
 ---
 

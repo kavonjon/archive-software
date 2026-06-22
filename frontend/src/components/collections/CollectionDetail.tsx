@@ -25,8 +25,9 @@ import {
 import {
   EditableTextField,
   EditableBooleanField,
+  EditableMultiRelationshipField,
 } from '../common';
-import { collectionsAPI, languoidsAPI, Collection, Languoid } from '../../services/api';
+import { collectionsAPI, languoidsAPI, Collection, Languoid, CitationAuthorEntry } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { hasDeleteAccess } from '../../utils/permissions';
 
@@ -47,6 +48,9 @@ const CollectionDetail: React.FC = () => {
   const [editingFields, setEditingFields] = useState<Set<string>>(new Set());
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [savingFields, setSavingFields] = useState<Set<string>>(new Set());
+  const [citationAuthorsEditKey, setCitationAuthorsEditKey] = useState(0);
+  const [populatingCitationAuthors, setPopulatingCitationAuthors] = useState(false);
+  const [citationAuthorsDraft, setCitationAuthorsDraft] = useState<CitationAuthorEntry[] | null>(null);
 
   // Collection abbreviation validation state
   const [collectionAbbrValidation, setCollectionAbbrValidation] = useState<{
@@ -176,6 +180,10 @@ const CollectionDetail: React.FC = () => {
         isValid: true
       });
     }
+
+    if (fieldName === 'citation_authors') {
+      setCitationAuthorsDraft(null);
+    }
   };
 
   const updateEditValue = (fieldName: string, value: string) => {
@@ -223,7 +231,17 @@ const CollectionDetail: React.FC = () => {
         }
       }
 
-      const updatedCollection = await collectionsAPI.updateField(collection.id, fieldName as keyof Collection, finalValue);
+      let updatedCollection: Collection;
+      if (fieldName === 'citation_authors') {
+        const ids = Array.isArray(finalValue)
+          ? finalValue
+          : JSON.parse(editValues[fieldName] || '[]');
+        updatedCollection = await collectionsAPI.patch(collection.id, {
+          citation_authors: ids,
+        });
+      } else {
+        updatedCollection = await collectionsAPI.updateField(collection.id, fieldName as keyof Collection, finalValue);
+      }
       setCollection(updatedCollection);
 
       // Clear editing state
@@ -237,6 +255,10 @@ const CollectionDetail: React.FC = () => {
         delete newValues[fieldName];
         return newValues;
       });
+
+      if (fieldName === 'citation_authors') {
+        setCitationAuthorsDraft(null);
+      }
     } catch (err) {
       console.error(`Error updating ${fieldName}:`, err);
       setError(`Failed to update ${fieldName}`);
@@ -246,6 +268,30 @@ const CollectionDetail: React.FC = () => {
         newSet.delete(fieldName);
         return newSet;
       });
+    }
+  };
+
+  const handlePopulateCitationAuthors = async () => {
+    if (!collection) return;
+
+    try {
+      setPopulatingCitationAuthors(true);
+      const suggested = await collectionsAPI.getSuggestedCitationAuthors(collection.id);
+      const idsJson = JSON.stringify(suggested.map((author) => author.id));
+
+      setCitationAuthorsDraft(suggested);
+
+      if (!editingFields.has('citation_authors')) {
+        startEditing('citation_authors', idsJson);
+      } else {
+        updateEditValue('citation_authors', idsJson);
+      }
+      setCitationAuthorsEditKey((key) => key + 1);
+    } catch (err) {
+      console.error('Error loading suggested citation authors:', err);
+      setError('Failed to load suggested citation authors from items');
+    } finally {
+      setPopulatingCitationAuthors(false);
     }
   };
 
@@ -505,27 +551,57 @@ const CollectionDetail: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Creators Card */}
+          {/* Citation Authors Card */}
           <Card sx={{ mb: 2 }} elevation={1}>
             <CardContent>
               <Typography variant="h6" gutterBottom sx={{ fontWeight: 'medium', color: 'primary.main' }}>
-                Creators
+                Citation Authors
               </Typography>
               <Divider sx={{ mb: 2 }} />
 
-              <EditableTextField
+              {editingFields.has('citation_authors') && (
+                <Box sx={{ mb: 2 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={handlePopulateCitationAuthors}
+                    disabled={populatingCitationAuthors || savingFields.has('citation_authors')}
+                    aria-describedby="populate-citation-authors-help"
+                    aria-label="Populate citation authors from items in this collection"
+                  >
+                    {populatingCitationAuthors ? 'Loading…' : 'Populate from items'}
+                  </Button>
+                  <Typography
+                    id="populate-citation-authors-help"
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', mt: 0.5 }}
+                  >
+                    Replaces the current list with citation authors from this collection's
+                    items. Press Cancel to discard and revert to the saved list.
+                  </Typography>
+                </Box>
+              )}
+
+              <EditableMultiRelationshipField
+                key={citationAuthorsEditKey}
                 fieldName="citation_authors"
-                label="Creators"
-                value={collection.citation_authors}
+                label="Citation Authors"
+                value={
+                  editingFields.has('citation_authors') && citationAuthorsDraft
+                    ? citationAuthorsDraft
+                    : collection.citation_authors || []
+                }
                 isEditing={editingFields.has('citation_authors')}
                 isSaving={savingFields.has('citation_authors')}
-                editValue={editValues.citation_authors || ''}
+                editValue={editValues.citation_authors}
                 startEditing={startEditing}
                 saveField={saveField}
                 cancelEditing={cancelEditing}
                 updateEditValue={updateEditValue}
-                multiline
-                rows={2}
+                relationshipEndpoint="/internal/v1/collaborators/"
+                filterParams={{ picker: 'true' }}
+                getOptionLabel={(option) => option.display_name || option.full_name || `Collaborator ${option.id}`}
               />
             </CardContent>
           </Card>

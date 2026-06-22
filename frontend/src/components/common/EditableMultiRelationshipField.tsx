@@ -134,16 +134,21 @@ export const EditableMultiRelationshipField: React.FC<EditableMultiRelationshipF
     try {
       const baseUrl = process.env.NODE_ENV === 'development' ? 'http://localhost:8000' : '';
       const url = new URL(relationshipEndpoint, baseUrl || window.location.origin);
-      
-      // Fetch with ID filter - note: this assumes the API supports id__in filtering
-      // If not, we could fetch by page_size and filter client-side
-      url.searchParams.append('page_size', '100'); // Enough to cover selected items
-      
+
+      url.searchParams.append('id__in', ids.join(','));
+      url.searchParams.append('page_size', String(Math.max(ids.length, 50)));
+
+      if (filterParams) {
+        Object.entries(filterParams).forEach(([key, value]) => {
+          url.searchParams.append(key, value);
+        });
+      }
+
       const response = await fetch(url.toString(), {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch selected options: ${response.status}`);
       }
@@ -154,61 +159,65 @@ export const EditableMultiRelationshipField: React.FC<EditableMultiRelationshipF
         display_name: getOptionLabel(item),
         ...item,
       }));
-      
-      // Filter to only the IDs we want
-      const selectedOpts = allOptions.filter(opt => ids.includes(opt.id));
+
+      const idOrder = new Map(ids.map((id, index) => [id, index]));
+      const selectedOpts = allOptions
+        .filter((opt) => idOrder.has(opt.id))
+        .sort((a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0));
+
       setSelectedOptions(selectedOpts);
     } catch (error) {
       console.error('Error loading selected options:', error);
     }
-  }, [relationshipEndpoint, getOptionLabel]);
+  }, [relationshipEndpoint, getOptionLabel, filterParams]);
 
   // EFFECT 1: Initialize selected options when entering edit mode (ONE TIME ONLY)
   useEffect(() => {
     if (isEditing && !initializedRef.current) {
       initializedRef.current = true;
-      
-      // Check if we can use the value directly (already has full objects)
-      if (value.length > 0) {
-        const firstItem = value[0];
-        if (typeof firstItem === 'object' && 'id' in firstItem) {
-          // Already full objects - use them directly (no need to fetch)
-          const mappedOptions: MultiRelationshipOption[] = value.map((item: any) => ({
-            id: item.id,
-            display_name: getOptionLabel(item),
-            ...item,
-          }));
-          setSelectedOptions(mappedOptions);
-          
-          // Also load search options (empty query = show all)
-          loadOptions('');
-          return;
-        }
-      }
-      
-      // Otherwise parse IDs from editValue and fetch
-      let ids: number[] = [];
+
+      let editIds: number[] = [];
       if (editValue) {
         try {
           const parsed = JSON.parse(editValue);
-          ids = Array.isArray(parsed) ? parsed : [];
+          editIds = Array.isArray(parsed) ? parsed.map((id) => Number(id)) : [];
         } catch {
-          ids = [];
+          editIds = [];
         }
       }
-      
-      if (ids.length > 0) {
-        // Load the full option objects for these IDs
-        loadSelectedOptions(ids);
+
+      const valueObjects =
+        value.length > 0 && typeof value[0] === 'object' && 'id' in value[0]
+          ? (value as Array<{ id: number; [key: string]: any }>)
+          : [];
+
+      const valueIds = valueObjects.map((item) => item.id);
+      const editValueMatchesValue =
+        editIds.length > 0 &&
+        editIds.length === valueIds.length &&
+        editIds.every((id) => valueIds.includes(id));
+
+      // Prefer full objects when they match editValue (e.g. populate draft)
+      if (valueObjects.length > 0 && (editIds.length === 0 || editValueMatchesValue)) {
+        const mappedOptions: MultiRelationshipOption[] = valueObjects.map((item: any) => ({
+          id: item.id,
+          display_name: getOptionLabel(item),
+          ...item,
+        }));
+        setSelectedOptions(mappedOptions);
+        loadOptions('');
+        return;
+      }
+
+      if (editIds.length > 0) {
+        loadSelectedOptions(editIds);
       } else {
         setSelectedOptions([]);
       }
-      
-      // Also load search options (empty query = show all)
+
       loadOptions('');
     }
-    
-    // Reset initialization flag when exiting edit mode
+
     if (!isEditing) {
       initializedRef.current = false;
     }
@@ -351,56 +360,42 @@ export const EditableMultiRelationshipField: React.FC<EditableMultiRelationshipF
     return organized;
   };
 
-  // Display value as chips organized by language/dialect hierarchy
+  // Display value as chips. Simple (non-languoid) options flow inline and wrap.
+  // Languoid options keep their language/dialect hierarchy grouping.
+  const organizedChips = organizeLanguoidChips(selectedOptions);
+  const isSimple = organizedChips.length > 0 && organizedChips[0].type === 'simple';
+
   const displayValue = selectedOptions.length > 0 ? (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      {organizeLanguoidChips(selectedOptions).map((item, index) => {
-        if (item.type === 'simple') {
-          // Simple chip (non-languoid fields)
+    isSimple ? (
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+        {organizedChips.map((item) => (
+          <Chip
+            key={item.option.id}
+            label={item.option.display_name}
+            size="small"
+            variant="outlined"
+          />
+        ))}
+      </Box>
+    ) : (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+        {organizedChips.map((item) => {
+          if (item.type === 'language') {
+            return (
+              <Box key={item.option.id} sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+                <Chip label={item.option.display_name} size="small" variant="outlined" color="primary" />
+                {item.dialects?.map((dialect) => (
+                  <Chip key={dialect.id} label={dialect.display_name} size="small" variant="outlined" sx={{ ml: 1 }} />
+                ))}
+              </Box>
+            );
+          }
           return (
-        <Chip
-              key={item.option.id}
-              label={item.option.display_name}
-          size="small"
-          variant="outlined"
-        />
+            <Chip key={item.option.id} label={item.option.display_name} size="small" variant="outlined" />
           );
-        } else if (item.type === 'language') {
-          return (
-            <Box key={item.option.id} sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
-              {/* Language chip */}
-        <Chip
-                label={item.option.display_name}
-          size="small"
-          variant="outlined"
-          color="primary"
-        />
-              {/* Dialect chips on same line */}
-              {item.dialects?.map(dialect => (
-                <Chip
-                  key={dialect.id}
-                  label={dialect.display_name}
-                  size="small"
-                  variant="outlined"
-                  sx={{ ml: 1 }}
-                />
-              ))}
-            </Box>
-          );
-        } else {
-          // Orphan dialect on its own line
-          return (
-            <Box key={item.option.id} sx={{ display: 'flex', gap: 0.5 }}>
-              <Chip
-                label={item.option.display_name}
-                size="small"
-                variant="outlined"
-              />
-            </Box>
-          );
-        }
-      })}
-    </Box>
+        })}
+      </Box>
+    )
   ) : '(none selected)';
 
   return (

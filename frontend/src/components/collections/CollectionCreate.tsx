@@ -25,7 +25,7 @@ import {
   Save as SaveIcon,
   Cancel as CancelIcon,
 } from '@mui/icons-material';
-import { collectionsAPI, languoidsAPI, type Collection, type Languoid } from '../../services/api';
+import { collectionsAPI, collaboratorsAPI, languoidsAPI, type Collection, type Languoid, type Collaborator } from '../../services/api';
 
 interface CollectionFormData {
   // Required fields
@@ -41,7 +41,7 @@ interface CollectionFormData {
   acquisition: string;
   access_statement: string;
   related_publications_collections: string;
-  citation_authors: string;
+  citation_authors: number[];
   expecting_additions: boolean | null;
   
   // Relationships
@@ -74,7 +74,7 @@ const CollectionCreate: React.FC<CollectionCreateProps> = ({
     acquisition: '',
     access_statement: '',
     related_publications_collections: '',
-    citation_authors: '',
+    citation_authors: [],
     expecting_additions: null,
     
     // Relationships
@@ -89,6 +89,7 @@ const CollectionCreate: React.FC<CollectionCreateProps> = ({
 
   // Options for dropdowns
   const [languageOptions, setLanguageOptions] = useState<Languoid[]>([]);
+  const [collaboratorOptions, setCollaboratorOptions] = useState<Collaborator[]>([]);
 
   // Load dropdown options
   useEffect(() => {
@@ -99,6 +100,12 @@ const CollectionCreate: React.FC<CollectionCreateProps> = ({
         // Load languages
         const languagesResponse = await languoidsAPI.list();
         setLanguageOptions(languagesResponse.results);
+
+        const collaboratorsResponse = await collaboratorsAPI.list({
+          picker: true,
+          page_size: 10000,
+        });
+        setCollaboratorOptions(collaboratorsResponse.results);
         
       } catch (err: any) {
         console.error('Failed to load options:', err);
@@ -173,7 +180,7 @@ const CollectionCreate: React.FC<CollectionCreateProps> = ({
         acquisition: formData.acquisition.trim() || undefined,
         access_statement: formData.access_statement.trim() || undefined,
         related_publications_collections: formData.related_publications_collections.trim() || undefined,
-        citation_authors: formData.citation_authors.trim() || undefined,
+        citation_authors: formData.citation_authors,
         expecting_additions: formData.expecting_additions,
         languages: formData.languages,
       };
@@ -432,22 +439,40 @@ const CollectionCreate: React.FC<CollectionCreateProps> = ({
             </CardContent>
           </Card>
 
-          {/* Creators */}
+          {/* Citation Authors */}
           <Card sx={{ mb: 2 }} elevation={1}>
             <CardContent>
               <Typography variant="h6" gutterBottom sx={{ fontWeight: 'medium', color: 'primary.main' }}>
-                Creators
+                Citation Authors
               </Typography>
               <Divider sx={{ mb: 2 }} />
               
-              <TextField
-                label="Citation Authors"
-                value={formData.citation_authors}
-                onChange={(e) => handleChange('citation_authors', e.target.value)}
-                multiline
-                rows={2}
-                fullWidth
+              <Autocomplete
+                multiple
+                options={collaboratorOptions}
+                value={collaboratorOptions.filter((collab) => formData.citation_authors.includes(collab.id))}
+                onChange={(_event, newValue) => {
+                  handleChange('citation_authors', newValue.map((collab) => collab.id));
+                }}
+                getOptionLabel={(option) => option.display_name || option.full_name || `Collaborator ${option.id}`}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
                 disabled={loading}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Citation Authors"
+                    placeholder="Search collaborators..."
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      label={option.display_name || option.full_name}
+                      {...getTagProps({ index })}
+                      key={option.id}
+                    />
+                  ))
+                }
               />
             </CardContent>
           </Card>

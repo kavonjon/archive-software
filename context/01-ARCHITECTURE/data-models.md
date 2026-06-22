@@ -172,14 +172,23 @@ Family (e.g., Iroquoian)
 
 **Scale**: ~10 collections
 
-**Key Fields**:
-- **Identity**: collection_abbr (e.g., "ACH", "NAL", "CAR"), collection_name
-- **Description**: description, curator, contact info
+**Key Fields** (staff-curated text):
+- **Identity**: `collection_abbr` (e.g., "ACH"), `name`
+- **Description**: `abstract`, `description`, `background`, `conventions`, `acquisition`, `access_statement`, `related_publications_collections`, `extent`
+- **Status**: `expecting_additions` (boolean)
+
+**Relationships (M2M)**:
+- `languages` → Languoid — aggregate from FK-linked items (Celery)
+- `citation_authors` → Collaborator — staff-curated; one-time populate from items via command; maintained via detail page M2M editor
+
+**Aggregate fields** (auto-recomputed from FK-linked items by Celery):
+- `item_count`, `date_range_min/max`, `date_range`, `access_levels`, `genres`
 
 **Auto-Assignment**:
-- Items with catalog_number matching `^([A-Za-z]{3})-` pattern auto-assigned
-- Example: "ACH-00123" - ACH collection
-- Signal: `update_item_date_ranges` (pre_save on Item)
+- Items with catalog_number matching `^([A-Za-z]{3})-` pattern auto-assigned to matching Collection
+- Example: "ACH-00123" → ACH collection (pre_save signal on Item)
+
+**Citation Authors populate:** `python manage.py populate_collection_citation_authors [--abbrev ACH]`
 
 **Batch Editor**: Not planned (too few rows, simple structure)
 

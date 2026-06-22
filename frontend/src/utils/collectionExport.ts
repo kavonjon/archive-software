@@ -26,7 +26,9 @@ export function collectionsToCsv(collections: Collection[]): string {
       collection.extent,
       collection.date_range,
       collection.item_count ?? 0,
-      collection.citation_authors,
+      collection.citation_author_names?.join('; ')
+        ?? collection.citation_authors?.map((author) => author.display_name || author.full_name).join('; ')
+        ?? '',
       collection.abstract,
     ]
       .map(escapeCsvField)

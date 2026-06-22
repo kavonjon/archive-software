@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-06-13 (Collections list table and filter simplification)
+**Last Updated**: 2026-06-21 (Collection citation_authors M2M)
 
 ## Current Priority
 
@@ -50,6 +50,40 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Collection `citation_authors` — M2M Field (2026-06-21)
+
+**Scope:** `Collection.citation_authors` converted from free-text `TextField` to M2M → `Collaborator`. Old text data dropped (migration 0107).
+
+**Model:** `ManyToManyField(Collaborator, related_name='collection_citation_authors', verbose_name='Citation Authors')`.
+
+**Service:** `metadata/services/collection_citation_authors.py`:
+- `compute_citation_authors_for_collection(collection)` — distinct collaborators with `citation_author=True` on FK-linked items, sorted by last name (anonymous last)
+- `apply_citation_authors_to_collection(collection)` — replaces M2M; used by command only
+
+**One-time command:** `python manage.py populate_collection_citation_authors [--abbrev ACH]`. Run once per environment post-deploy; staff maintain via UI afterward.
+
+**API changes:**
+- `InternalCollectionSerializer` — read: array of `{ id, display_name, full_name, slug }` + `citation_author_names`; write: `citation_authors: [id, ...]` (via `create`/`update` override same pattern as Collaborator languages)
+- `InternalCollectionViewSet` — new `GET .../suggested-citation-authors/` action (computes from items, no persist); `perform_create`/`perform_update` now set `modified_by` (resolves tech-debt gap)
+- `CollectionFilter.citation_authors_contains` — changed from text `icontains` to M2M name lookup (first/last/full name + `.distinct()`); keyword search updated to same
+- Public API `CollectionDetailMetadataSerializer.citation_authors` — returns sorted name list from M2M
+
+**Frontend:**
+- `CollectionDetail` — "Citation Authors" card (was "Creators"); `EditableMultiRelationshipField` for manual add/remove via PATCH; "Populate from items" button (visible while editing) fetches `suggested-citation-authors` into edit draft; cancel discards; save persists. Help text explains replacement semantics.
+- `CollectionCreate` — multi-select Autocomplete instead of free-text field
+- `collectionExport.ts` — CSV "Citation Authors" column uses joined collaborator names from M2M
+- `api.ts` — `CitationAuthorEntry` interface; `CollectionMutationData` type (`citation_authors?: number[]`); `getSuggestedCitationAuthors`
+
+**Bug fixes in same session:**
+- `EditableMultiRelationshipField.loadSelectedOptions` — now uses `id__in` query param (previously fetched page 1 of 100 unfiltered; populated chips vanished after mount)
+- `EditableMultiRelationshipField` display mode — non-languoid chips now use inline `flexWrap: wrap` row (was `flexDirection: column`), matching `EditableMultiSelectField` and rest of UI
+
+**Tests:** `metadata/tests/test_collection_citation_authors.py` (4 tests: filter, dedup, replace, sort).
+
+**Rollout:** `python manage.py populate_collection_citation_authors` once per environment.
+
+---
 
 ### Collections List — Table and Filter Simplification (2026-06-13)
 
@@ -424,8 +458,7 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Collections list: no batch edit button (no Collection batch editor or backend batch API yet); export is client-side CSV only
 
 **Collections (2026-05-27 audit — CRUD wiring, not aggregates):**
-- `CollectionDetail` calls `POST …/collections/{id}/update_field/` but `InternalCollectionViewSet` has no such action (Item/Collaborator/Languoid use `PATCH`)
-- `InternalCollectionViewSet` missing `perform_create`/`perform_update` for `modified_by`
+- `CollectionDetail` calls `POST …/collections/{id}/update_field/` but `InternalCollectionViewSet` has no such action (Item/Collaborator/Languoid use `PATCH`) — citation_authors now uses `collectionsAPI.patch`; other scalar fields still on `update_field`
 - List export CSV omits genres/access levels/languages; list row checkboxes disabled (`selectable={false}`) so Export Selected has no UI
 
 ## Important Context
@@ -460,9 +493,10 @@ Expected: Simpler than Item (likely fewer complex fields)
 
 ## Tech Debt (Not Blocking)
 
-**Collections React CRUD parity (next recommended Collections work):**
-- Switch `CollectionDetail` to `collectionsAPI.patch` (match Item/Collaborator/Languoid); add `perform_create`/`perform_update` on `InternalCollectionViewSet`
-- Detail overview: use `access_levels_display` not raw codes; remove dead `saveField` branches for read-only aggregates (`languages`, `genres`, `access_levels`)
+**Collections React CRUD parity (partially resolved 2026-06-21):**
+- `perform_create`/`perform_update` added to `InternalCollectionViewSet` — resolved
+- `citation_authors` now uses `collectionsAPI.patch` — resolved
+- Remaining: switch all scalar field edits from `update_field` to `PATCH`; use `access_levels_display` not raw codes; remove dead `saveField` branches for read-only aggregates (`languages`, `genres`, `access_levels`)
 - Optional: `Item.collection` FK backfill job (catalog prefix → FK) — improves aggregate accuracy without new Collection fields
 - Optional: align `Collection.export_metadata()` JSON with full serializer fields; list CSV export columns
 
@@ -698,6 +732,20 @@ Unified derived-field recompute from FK-linked items; coalesced event-driven upd
 
 **Trade-off accepted:** Aggregates ignore items without Collection FK; staff-edited collection `languages` on create are overwritten once items exist; aggregate saves trigger private-server JSON export (existing `Collection.save()` behavior).
 
+### Collection `citation_authors` M2M Conversion (2026-06-21)
+
+Converted `Collection.citation_authors` from `TextField` to `ManyToManyField(Collaborator)`.
+
+**Why?** Free text was unstructured and unlinked to actual Collaborator records. M2M enables the populate-from-items workflow and consistent name display.
+
+**Alternatives considered:**
+- Populate via Celery aggregate (nightly + item save hook): Rejected — citation authors are staff-curated with optional one-time backfill; auto-overwrite on item change would erase manual edits
+- Union populate (merge with existing): Rejected — replace matches command behavior and is simpler
+
+**Trade-off accepted:** Old free-text values dropped on migration (no backfill attempt); populate only reaches items with `Item.collection` FK set (~65% today, same caveat as other aggregates).
+
+**Service module justified by multiple consumers:** `order_collaborators_by_last_name` is used by `InternalCollectionSerializer` and `CollectionDetailMetadataSerializer`; `compute_citation_authors_for_collection` is used by the `suggested-citation-authors` API action; `apply_citation_authors_to_collection` is used by the management command. A service with multiple real consumers is not over-abstraction. If compute/apply were only used by the command, the logic would live inline in the command (management commands are leaf nodes — nothing imports from them).
+
 ### Collection List Filter Set (2026-06-13)
 
 Staff-facing advanced filters limited to abbreviation, name, access level, language, collaborator, and genre.
@@ -711,6 +759,22 @@ Staff-facing advanced filters limited to abbreviation, name, access level, langu
 **Trade-off accepted:** No dedicated date-range or citation-author filters in panel; `collaborator_contains` matches via item FK only (~35% of items may lack Collection FK — same aggregate undercount signal).
 
 ## Files Recently Modified
+
+**Collection citation_authors M2M (2026-06-21):**
+- `app/metadata/models.py` — `citation_authors`: TextField → M2M to Collaborator
+- `app/metadata/migrations/0107_collection_citation_authors_m2m.py` — New
+- `app/metadata/services/collection_citation_authors.py` — New
+- `app/metadata/management/commands/populate_collection_citation_authors.py` — New
+- `app/metadata/tests/test_collection_citation_authors.py` — New
+- `app/internal_api/serializers.py` — `InternalCollectionSerializer` M2M read/write + `create`/`update` override
+- `app/internal_api/views.py` — `suggested-citation-authors` action; `perform_create`/`perform_update`; M2M citation_authors and keyword filters
+- `app/api/v1/serializers/collections.py` — `citation_authors` as sorted name list from M2M
+- `frontend/src/services/api.ts` — `CitationAuthorEntry`; `CollectionMutationData`; `getSuggestedCitationAuthors`
+- `frontend/src/components/collections/CollectionDetail.tsx` — Citation Authors card; populate button + help text; draft state; `citationAuthorsDraft`
+- `frontend/src/components/collections/CollectionCreate.tsx` — Collaborator multi-select instead of text field
+- `frontend/src/utils/collectionExport.ts` — Export names from M2M
+- `frontend/src/components/common/EditableMultiRelationshipField.tsx` — `id__in` fetch in `loadSelectedOptions`; inline chip display for non-languoid fields
+- `context/` — active-work, backend.md, data-models.md, README version history
 
 **Collections list table and filters (2026-06-13):**
 - `frontend/src/components/collections/CollectionsList.tsx` - Removed extent/abstract table columns; filter panel narrowed to 6 advanced filters; `collection-list-state-v5`

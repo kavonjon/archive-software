@@ -198,6 +198,13 @@ export type CollaboratorRoleMutationData = {
   citation_author?: boolean;
 };
 
+export interface CitationAuthorEntry {
+  id: number;
+  full_name: string;
+  display_name: string;
+  slug: string;
+}
+
 export interface Collection {
   // Basic identifiers
   id: number;
@@ -226,7 +233,8 @@ export interface Collection {
   // Status and metadata
   expecting_additions?: boolean | null;  // Optional since API may not always return it
   expecting_additions_display?: string;
-  citation_authors: string;
+  citation_authors: CitationAuthorEntry[];
+  citation_author_names?: string[];
   
   // Multi-select fields (stored as arrays) - optional since API may not always return them
   access_levels?: string[];
@@ -246,6 +254,10 @@ export interface Collection {
   updated: string;
   modified_by: string;
 }
+
+export type CollectionMutationData = Omit<Partial<Collection>, 'citation_authors'> & {
+  citation_authors?: number[];
+};
 
 export interface AssociatedItem {
   id: number;
@@ -814,7 +826,7 @@ export const collectionsAPI = {
   },
 
   // Create new collection
-  create: (data: Partial<Collection>): Promise<Collection> => {
+  create: (data: CollectionMutationData): Promise<Collection> => {
     return apiRequest<Collection>('/collections/', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -822,7 +834,7 @@ export const collectionsAPI = {
   },
 
   // Update existing collection
-  update: (id: number, data: Partial<Collection>): Promise<Collection> => {
+  update: (id: number, data: CollectionMutationData): Promise<Collection> => {
     return apiRequest<Collection>(`/collections/${id}/`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -830,7 +842,7 @@ export const collectionsAPI = {
   },
 
   // Partial update (patch) existing collection
-  patch: (id: number, data: Partial<Collection>): Promise<Collection> => {
+  patch: (id: number, data: CollectionMutationData): Promise<Collection> => {
     return apiRequest<Collection>(`/collections/${id}/`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -850,6 +862,10 @@ export const collectionsAPI = {
       method: 'POST',
       body: JSON.stringify({ field, value }),
     });
+  },
+
+  getSuggestedCitationAuthors: (id: number): Promise<CitationAuthorEntry[]> => {
+    return apiRequest<CitationAuthorEntry[]>(`/collections/${id}/suggested-citation-authors/`);
   },
 };
 

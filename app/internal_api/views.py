@@ -342,7 +342,7 @@ class CollectionFilter(FilterSet):
     genres = CharFilter(method='filter_genres')
     languages_contains = CharFilter(method='filter_languages')
     collaborator_contains = CharFilter(method='filter_collaborator')
-    citation_authors_contains = CharFilter(field_name='citation_authors', lookup_expr='icontains')
+    citation_authors_contains = CharFilter(method='filter_citation_authors')
     keyword_contains = CharFilter(method='filter_keyword')
 
     class Meta:
@@ -378,6 +378,17 @@ class CollectionFilter(FilterSet):
             Q(collection_items__collaborator__first_names__icontains=search_value) |
             Q(collection_items__collaborator__last_names__icontains=search_value) |
             Q(collection_items__collaborator__full_name__icontains=search_value)
+        ).distinct()
+
+    def filter_citation_authors(self, queryset, name, value):
+        """Filter collections by citation author collaborator name."""
+        if not value or not value.strip():
+            return queryset
+        search_value = value.strip()
+        return queryset.filter(
+            Q(citation_authors__first_names__icontains=search_value) |
+            Q(citation_authors__last_names__icontains=search_value) |
+            Q(citation_authors__full_name__icontains=search_value)
         ).distinct()
 
     def filter_genres(self, queryset, name, value):
@@ -439,7 +450,9 @@ class CollectionFilter(FilterSet):
             Q(abstract__icontains=search_value) |
             Q(description__icontains=search_value) |
             Q(date_range__icontains=search_value) |
-            Q(citation_authors__icontains=search_value) |
+            Q(citation_authors__last_names__icontains=search_value) |
+            Q(citation_authors__first_names__icontains=search_value) |
+            Q(citation_authors__full_name__icontains=search_value) |
             Q(background__icontains=search_value) |
             Q(conventions__icontains=search_value) |
             Q(acquisition__icontains=search_value) |
@@ -1434,7 +1447,7 @@ class InternalItemViewSet(viewsets.ModelViewSet):
 
 class InternalCollectionViewSet(viewsets.ModelViewSet):
     """Internal API for Collections - used by React frontend"""
-    queryset = Collection.objects.all().prefetch_related('languages')
+    queryset = Collection.objects.all().prefetch_related('languages', 'citation_authors')
     serializer_class = InternalCollectionSerializer
     permission_classes = [IsAuthenticatedWithEditAccess]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
@@ -1443,6 +1456,25 @@ class InternalCollectionViewSet(viewsets.ModelViewSet):
     ordering_fields = ['name', 'created']
     ordering = ['name']
 
+    def perform_create(self, serializer):
+        serializer.save(modified_by=self.request.user.get_username())
+
+    def perform_update(self, serializer):
+        serializer.save(modified_by=self.request.user.get_username())
+
+    @action(detail=True, methods=['get'], url_path='suggested-citation-authors')
+    def suggested_citation_authors(self, request, pk=None):
+        """Return citation authors computed from items; does not persist."""
+        from metadata.services.collection_citation_authors import compute_citation_authors_for_collection
+        from .serializers import CollaboratorPickerSerializer
+
+        collection = self.get_object()
+        collaborators = compute_citation_authors_for_collection(collection)
+        serializer = CollaboratorPickerSerializer(
+            collaborators, many=True, context={'request': request}
+        )
+        return Response(serializer.data)
+
     def get_queryset(self):
         """All authenticated users can see all collections, permissions handled by permission_classes"""
         if not self.request.user.is_authenticated:
@@ -1450,7 +1482,7 @@ class InternalCollectionViewSet(viewsets.ModelViewSet):
 
         queryset = super().get_queryset()
 
-        m2m_filters = ['languages_contains', 'keyword_contains']
+        m2m_filters = ['languages_contains', 'citation_authors_contains', 'keyword_contains']
         if any(param in self.request.GET for param in m2m_filters):
             queryset = queryset.distinct()
 

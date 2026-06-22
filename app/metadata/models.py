@@ -527,7 +527,12 @@ class Collection(models.Model):
     access_statement = models.TextField(blank=True, verbose_name="access/use statement")
     related_publications_collections = models.TextField(blank=True, verbose_name="related publications/collections")
     expecting_additions = models.BooleanField(null=True, blank=True)
-    citation_authors = models.TextField(blank=True, verbose_name="citation authors")
+    citation_authors = models.ManyToManyField(
+        Collaborator,
+        related_name='collection_citation_authors',
+        blank=True,
+        verbose_name='Citation Authors',
+    )
     access_levels = MultiSelectField(choices=ACCESS_CHOICES, blank=True)
     genres = MultiSelectField(choices=GENRE_CHOICES, blank=True)
     item_count = models.IntegerField(default=0, help_text="Number of items in this collection")

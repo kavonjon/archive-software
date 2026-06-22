@@ -700,6 +700,10 @@ class InternalCollectionSerializer(serializers.ModelSerializer):
     # Language names for display
     language_names = serializers.SerializerMethodField()
     
+    # Citation authors (M2M to Collaborator) — read as picker objects, write as ID list
+    citation_authors = serializers.SerializerMethodField()
+    citation_author_names = serializers.SerializerMethodField()
+    
     # Boolean field display
     expecting_additions_display = serializers.SerializerMethodField()
     
@@ -712,7 +716,7 @@ class InternalCollectionSerializer(serializers.ModelSerializer):
             # Content fields
             'extent', 'abstract', 'description', 'background', 'conventions',
             'acquisition', 'access_statement', 'related_publications_collections',
-            'citation_authors', 'expecting_additions', 'expecting_additions_display',
+            'citation_authors', 'citation_author_names', 'expecting_additions', 'expecting_additions_display',
             
             # Calculated/aggregate fields
             'item_count', 'access_levels', 'access_levels_display',
@@ -725,7 +729,22 @@ class InternalCollectionSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'uuid', 'slug', 'item_count', 'access_levels', 'genres', 
             'languages', 'date_range', 'date_range_min', 'date_range_max',
+            'citation_authors', 'citation_author_names',
             'added', 'updated'
+        ]
+    
+    def get_citation_authors(self, obj):
+        from metadata.services.collection_citation_authors import order_collaborators_by_last_name
+
+        collaborators = order_collaborators_by_last_name(obj.citation_authors.all())
+        return CollaboratorPickerSerializer(
+            collaborators, many=True, context=self.context
+        ).data
+
+    def get_citation_author_names(self, obj):
+        return [
+            entry.get('display_name') or entry.get('full_name', '')
+            for entry in self.get_citation_authors(obj)
         ]
     
     def get_access_levels_display(self, obj):
@@ -753,6 +772,48 @@ class InternalCollectionSerializer(serializers.ModelSerializer):
         if obj.expecting_additions is None:
             return 'Not specified'
         return 'Yes' if obj.expecting_additions else 'No'
+
+    def _normalize_citation_author_ids(self, raw_value):
+        if raw_value is None:
+            return None
+        if not isinstance(raw_value, list):
+            raise serializers.ValidationError({'citation_authors': 'Expected a list of collaborator IDs.'})
+        ids = []
+        for entry in raw_value:
+            if isinstance(entry, dict):
+                entry_id = entry.get('id')
+            else:
+                entry_id = entry
+            if entry_id is None:
+                continue
+            ids.append(int(entry_id))
+        return ids
+
+    def create(self, validated_data):
+        initial_data = self.initial_data
+        citation_author_ids = self._normalize_citation_author_ids(
+            initial_data.get('citation_authors', None)
+        )
+
+        instance = super().create(validated_data)
+
+        if citation_author_ids is not None:
+            instance.citation_authors.set(citation_author_ids)
+
+        return instance
+
+    def update(self, instance, validated_data):
+        initial_data = self.initial_data
+        citation_author_ids = self._normalize_citation_author_ids(
+            initial_data.get('citation_authors', None)
+        )
+
+        instance = super().update(instance, validated_data)
+
+        if citation_author_ids is not None:
+            instance.citation_authors.set(citation_author_ids)
+
+        return instance
 
 
 class CollaboratorPickerSerializer(serializers.ModelSerializer):

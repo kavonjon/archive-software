@@ -19,13 +19,29 @@ class CollectionDetailMetadataSerializer(serializers.Serializer):
     access_statement = serializers.CharField(allow_blank=True)
     acquisition = serializers.CharField(allow_blank=True)
     background = serializers.CharField(allow_blank=True)
-    citation_authors = serializers.CharField(allow_blank=True)
+    citation_authors = serializers.SerializerMethodField()
     conventions = serializers.CharField(allow_blank=True)
     date_range = serializers.CharField(allow_blank=True)
     description = serializers.CharField(allow_blank=True)
     extent = serializers.CharField(allow_blank=True)
     genres = serializers.SerializerMethodField()
     item_count = serializers.IntegerField(read_only=True)
+
+    def get_citation_authors(self, obj):
+        from metadata.services.collection_citation_authors import order_collaborators_by_last_name
+
+        collaborators = order_collaborators_by_last_name(obj.citation_authors.all())
+        names = []
+        for collaborator in collaborators:
+            if collaborator.anonymous:
+                names.append(f'Anonymous {collaborator.slug or collaborator.collaborator_id}')
+            elif collaborator.full_name:
+                names.append(collaborator.full_name)
+            elif collaborator.first_names or collaborator.last_names:
+                names.append(f'{collaborator.first_names} {collaborator.last_names}'.strip())
+            else:
+                names.append(f'Collaborator {collaborator.collaborator_id}')
+        return names
     
     def get_access_levels(self, obj):
         if not obj.access_levels:

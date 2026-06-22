@@ -17,6 +17,10 @@ import { Check as CheckIcon } from '@mui/icons-material';
 import { debounce } from 'lodash';
 import { EditableField, EditableFieldProps } from './EditableField';
 import { CollaboratorRole, CollaboratorRoleMutationData, Collaborator } from '../../services/api';
+import {
+  formatCollaboratorRolesChipLabel,
+  collaboratorRoleChipSx,
+} from '../../utils/collaboratorRoleChip';
 import { EditableMultiSelectField } from './EditableMultiSelectField';
 
 export interface EditableCollaboratorRolesFieldProps extends Omit<EditableFieldProps, 'children' | 'value'> {
@@ -282,10 +286,10 @@ export const EditableCollaboratorRolesField: React.FC<EditableCollaboratorRolesF
   const displayValue = value.length > 0 ? (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, alignItems: 'flex-start', maxWidth: '100%' }}>
       {value.map((collabRole) => {
-        const roleLabels = collabRole.role_display.join(', ');
-        const chipLabel = roleLabels
-          ? `${collabRole.collaborator_data.display_name} (${roleLabels})`
-          : collabRole.collaborator_data.display_name;
+        const chipLabel = formatCollaboratorRolesChipLabel(
+          collabRole.collaborator_data.display_name,
+          collabRole.role_display,
+        );
 
         return (
           <Chip
@@ -294,17 +298,7 @@ export const EditableCollaboratorRolesField: React.FC<EditableCollaboratorRolesF
             size="small"
             variant="outlined"
             color={collabRole.citation_author ? 'primary' : 'default'}
-            sx={{
-              maxWidth: '100%',
-              height: 'auto',
-              '& .MuiChip-label': {
-                whiteSpace: 'normal',
-                wordBreak: 'break-word',
-                lineHeight: 1.4,
-                padding: '4px 8px',
-                maxWidth: '100%',
-              },
-            }}
+            sx={collaboratorRoleChipSx}
           />
         );
       })}

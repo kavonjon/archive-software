@@ -48,6 +48,19 @@ cd frontend && npm start
 # - Django Admin: http://localhost:8000/admin/
 ```
 
+### Running tests
+
+Use `app/scripts/test.sh` — never bare `manage.py test` in agent/automation sessions (Django prompts interactively if `test_*` DB already exists).
+
+```bash
+# Default: reuse test DB, no prompts
+./app/scripts/test.sh
+./app/scripts/test.sh metadata.tests.test_collection_item_collaborators -v 2
+
+# Full recreate (non-interactive destroy + rebuild)
+TEST_FRESH=1 ./app/scripts/test.sh metadata.tests.test_collection_item_collaborators
+```
+
 **If Celery not reloading code:**
 ```bash
 pkill -9 -f 'celery -A archive'
@@ -149,6 +162,8 @@ No group = 403 Forbidden (must be explicitly assigned)
 **Stack compliance**: Work with MUI/React/Django conventions, not against them. If you think you need to fight a framework pattern, discuss with the team first. Bypassing framework conventions creates subtle bugs and maintenance burden.
 
 **Commit discipline**: Changes must be tested in the browser and ADA-verified before committing. User should approve significant changes before they are committed.
+
+**Django tests**: Use `./app/scripts/test.sh` (defaults to `--keepdb`). Never run bare `manage.py test` in agent sessions without `--keepdb` or `TEST_FRESH=1` — interactive destroy prompts stall automation and leave orphan `test_*` databases.
 
 ---
 

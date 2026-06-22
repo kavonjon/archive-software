@@ -1,6 +1,6 @@
 # Active Work
 
-**Last Updated**: 2026-06-21 (Collection citation_authors M2M)
+**Last Updated**: 2026-06-22 (Collection item collaborators rollup)
 
 ## Current Priority
 
@@ -50,6 +50,31 @@ Expected: Simpler than Item (likely fewer complex fields)
 - Note: temp_storage volume and automated cleanup infrastructure MUST exist in MVP even though push mechanism is beyond MVP
 
 ## Recent Achievements (Last 30 Days)
+
+### Collection Detail — Item Collaborators Rollup (2026-06-22)
+
+**Scope:** Read-only collaborator chips on collection detail overview card (above Languages / Genres). Staff request: list collaborators with roles at top of each collection.
+
+**Not the same as Citation Authors:** Separate from staff-curated `citation_authors` M2M card. Rollup unions all `CollaboratorRole` rows on FK-linked items; shows name + roles only (no citation-author flag or styling).
+
+**Backend:**
+- `metadata/services/collection_item_collaborators.py` — `compute_item_collaborators_for_collection(collection)`:
+  - Query `CollaboratorRole` where `item__collection=collection`
+  - One entry per collaborator; union roles across items
+  - Sort collaborators by last name (`order_collaborators_by_last_name` from citation_authors service)
+  - **Collection-only** role label mapping: strip tokens, case-insensitive `ROLE_CHOICES` lookup, fallback to raw stored value for legacy data
+- `InternalCollectionSerializer.item_collaborators` — read-only `SerializerMethodField`; `{ id, display_name, slug, roles, role_display }`
+- **Not** stored on `Collection`, **not** in Celery aggregates, **not** on public API
+
+**Frontend:**
+- `CollectionDetail` overview card — "Collaborators" section; horizontal wrapping chips; label `Name (Role1, Role2)` via `formatCollaboratorRolesChipLabel`
+- `frontend/src/utils/collaboratorRoleChip.ts` — shared chip label helper + multiline chip `sx` (also used by `EditableCollaboratorRolesField` on item detail for label formatting only)
+
+**Tests:** `metadata/tests/test_collection_item_collaborators.py` (7 tests: FK scope, union, sort, non-citation inclusion, whitespace label mapping).
+
+**Known limitation:** Legacy `CollaboratorRole.role` values not in `ROLE_CHOICES` (e.g. `authoreditor`, compound strings) still display as stored. Fixing that globally would touch exports, item detail API, batch editor — deferred.
+
+---
 
 ### Collection `citation_authors` — M2M Field (2026-06-21)
 
@@ -758,7 +783,30 @@ Staff-facing advanced filters limited to abbreviation, name, access level, langu
 
 **Trade-off accepted:** No dedicated date-range or citation-author filters in panel; `collaborator_contains` matches via item FK only (~35% of items may lack Collection FK — same aggregate undercount signal).
 
+### Collection Item Collaborators Rollup (2026-06-22)
+
+Read-only overview chips aggregating `CollaboratorRole` across FK-linked items; computed at API read time via `collection_item_collaborators.py`.
+
+**Why?** Staff need a collection-level view of who worked on items and in what roles, distinct from citation-author curation.
+
+**Alternatives considered:**
+- Celery aggregate field on `Collection`: Rejected — display-only, not used for filtering/export; would blur semantics with `citation_authors` and stored aggregates
+- Reuse `citation_authors` M2M or populate button: Rejected — different meaning (all roles vs citation subset; curated vs derived)
+- Shared role-display helper across all six existing read paths (item detail serializer, exports, batch, list): Rejected for now — blast radius too large; paths have subtle differences
+
+**Trade-off accepted:** Role label mapping is **collection-chip-specific** (strip + case-insensitive lookup); item detail, exports, and batch paths unchanged. Legacy malformed role strings may still show raw on collection chips.
+
 ## Files Recently Modified
+
+**Collection item collaborators rollup (2026-06-22, since commit `da90823`):**
+- `app/metadata/services/collection_item_collaborators.py` — New
+- `app/metadata/tests/test_collection_item_collaborators.py` — New
+- `app/internal_api/serializers.py` — `InternalCollectionSerializer.item_collaborators`
+- `frontend/src/services/api.ts` — `CollectionItemCollaborator` type; `item_collaborators` on `Collection`
+- `frontend/src/components/collections/CollectionDetail.tsx` — Collaborators overview section
+- `frontend/src/utils/collaboratorRoleChip.ts` — New; chip label + `sx`
+- `frontend/src/components/common/EditableCollaboratorRolesField.tsx` — uses shared chip label/`sx` (display only; no role-mapping change)
+- `context/` — active-work, backend.md, data-models.md, README version history
 
 **Collection citation_authors M2M (2026-06-21):**
 - `app/metadata/models.py` — `citation_authors`: TextField → M2M to Collaborator

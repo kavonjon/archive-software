@@ -30,6 +30,10 @@ import {
 import { collectionsAPI, languoidsAPI, Collection, Languoid, CitationAuthorEntry } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { hasDeleteAccess } from '../../utils/permissions';
+import {
+  formatCollaboratorRolesChipLabel,
+  collaboratorRoleChipSx,
+} from '../../utils/collaboratorRoleChip';
 
 const CollectionDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -397,6 +401,31 @@ const CollectionDetail: React.FC = () => {
           </Box>
 
           <Divider sx={{ my: 3 }} />
+
+          {/* Collaborators */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Collaborators
+            </Typography>
+            {(collection.item_collaborators || []).length > 0 ? (
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                {(collection.item_collaborators || []).map((collaborator) => (
+                  <Chip
+                    key={collaborator.id}
+                    label={formatCollaboratorRolesChipLabel(
+                      collaborator.display_name,
+                      collaborator.role_display,
+                    )}
+                    size="small"
+                    variant="outlined"
+                    sx={collaboratorRoleChipSx}
+                  />
+                ))}
+              </Stack>
+            ) : (
+              <Typography variant="body2" color="text.secondary">None specified</Typography>
+            )}
+          </Box>
 
           {/* Languages */}
           <Box sx={{ mb: 3 }}>

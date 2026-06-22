@@ -181,6 +181,9 @@ Family (e.g., Iroquoian)
 - `languages` → Languoid — aggregate from FK-linked items (Celery)
 - `citation_authors` → Collaborator — staff-curated; one-time populate from items via command; maintained via detail page M2M editor
 
+**Computed at read time (not stored on model)**:
+- `item_collaborators` — internal API only; distinct collaborators on FK-linked items with roles unioned across `CollaboratorRole` rows; collection detail overview chips; separate from `citation_authors`
+
 **Aggregate fields** (auto-recomputed from FK-linked items by Celery):
 - `item_count`, `date_range_min/max`, `date_range`, `access_levels`, `genres`
 

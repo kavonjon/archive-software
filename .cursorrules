@@ -224,6 +224,11 @@ cd /Users/kavon/.cursor/terminals && head -n 10 *.txt
 cd app && pipenv run python manage.py makemigrations
 cd app && pipenv run python manage.py migrate
 
+# Tests (always use script — bare manage.py test can hang on interactive DB prompt)
+./app/scripts/test.sh                                    # all tests, --keepdb
+./app/scripts/test.sh metadata.tests.foo -v 2            # one module
+TEST_FRESH=1 ./app/scripts/test.sh metadata.tests.foo    # recreate test DB
+
 # Clear Redis cache
 redis-cli -p 6387 FLUSHALL
 ```

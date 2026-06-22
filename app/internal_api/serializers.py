@@ -703,6 +703,9 @@ class InternalCollectionSerializer(serializers.ModelSerializer):
     # Citation authors (M2M to Collaborator) — read as picker objects, write as ID list
     citation_authors = serializers.SerializerMethodField()
     citation_author_names = serializers.SerializerMethodField()
+
+    # Collaborators derived from item CollaboratorRole rows (read-only rollup)
+    item_collaborators = serializers.SerializerMethodField()
     
     # Boolean field display
     expecting_additions_display = serializers.SerializerMethodField()
@@ -716,7 +719,8 @@ class InternalCollectionSerializer(serializers.ModelSerializer):
             # Content fields
             'extent', 'abstract', 'description', 'background', 'conventions',
             'acquisition', 'access_statement', 'related_publications_collections',
-            'citation_authors', 'citation_author_names', 'expecting_additions', 'expecting_additions_display',
+            'citation_authors', 'citation_author_names', 'item_collaborators',
+            'expecting_additions', 'expecting_additions_display',
             
             # Calculated/aggregate fields
             'item_count', 'access_levels', 'access_levels_display',
@@ -729,10 +733,31 @@ class InternalCollectionSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'uuid', 'slug', 'item_count', 'access_levels', 'genres', 
             'languages', 'date_range', 'date_range_min', 'date_range_max',
-            'citation_authors', 'citation_author_names',
+            'citation_authors', 'citation_author_names', 'item_collaborators',
             'added', 'updated'
         ]
     
+    def get_item_collaborators(self, obj):
+        from metadata.services.collection_item_collaborators import (
+            compute_item_collaborators_for_collection,
+        )
+
+        entries = compute_item_collaborators_for_collection(obj)
+        result = []
+        for entry in entries:
+            collaborator = entry['collaborator']
+            picker_data = CollaboratorPickerSerializer(
+                collaborator, context=self.context
+            ).data
+            result.append({
+                'id': collaborator.pk,
+                'display_name': picker_data['display_name'],
+                'slug': collaborator.slug,
+                'roles': entry['roles'],
+                'role_display': entry['role_display'],
+            })
+        return result
+
     def get_citation_authors(self, obj):
         from metadata.services.collection_citation_authors import order_collaborators_by_last_name
 

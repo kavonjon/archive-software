@@ -205,6 +205,14 @@ export interface CitationAuthorEntry {
   slug: string;
 }
 
+export interface CollectionItemCollaborator {
+  id: number;
+  display_name: string;
+  slug: string;
+  roles: string[];
+  role_display: string[];
+}
+
 export interface Collection {
   // Basic identifiers
   id: number;
@@ -235,6 +243,7 @@ export interface Collection {
   expecting_additions_display?: string;
   citation_authors: CitationAuthorEntry[];
   citation_author_names?: string[];
+  item_collaborators?: CollectionItemCollaborator[];
   
   // Multi-select fields (stored as arrays) - optional since API may not always return them
   access_levels?: string[];

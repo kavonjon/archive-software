@@ -198,6 +198,11 @@ Split service functions into read and write halves:
 
 A service module is **justified** when it has multiple real consumers. If compute/apply are only ever used by one management command, the logic belongs inline in that command.
 
+**Example** (`metadata/services/collection_item_collaborators.py`):
+- `compute_item_collaborators_for_collection(collection)` — read-only rollup for collection detail; unions `CollaboratorRole` on FK-linked items; collection-scoped role label mapping (strip + case-insensitive `ROLE_CHOICES` lookup)
+- Single consumer today (`InternalCollectionSerializer.item_collaborators`); kept as service for testability and to mirror `collection_citation_authors` structure
+- **Do not** conflate with `citation_authors` M2M or Celery `collection_aggregates` — third category: derived display, not stored
+
 ---
 
 ## Signals
